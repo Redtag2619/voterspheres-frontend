@@ -1,11 +1,96 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>VoterSpheres</title>
-  </head>
-  <body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VoterSpheres | U.S. Election Information</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-color: #f9f9f9;
+      color: #222;
+    }
+    header {
+      background-color: #1a365d;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    main {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+    }
+    .search-box {
+      margin-top: 30px;
+      display: flex;
+      gap: 10px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: #1a365d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #163055;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
     <h1>VoterSpheres</h1>
-    <p>Your trusted source for U.S. election information.</p>
-    <p>Site is live and deploying.</p>
-  </body>
+    <p>Explore U.S. elections at the national, state, and local level</p>
+  </header>
+
+  <main>
+    <h2>Find Election Information</h2>
+    <p>
+      Search for upcoming elections, candidates, ballot measures,
+      and official election resources by state, county, or office.
+    </p>
+
+    <div class="search-box">
+      <input
+        type="text"
+        placeholder="Search by state, county, candidate, or election..."
+      />
+      <button>Search</button>
+    </div>
+
+    <p style="margin-top: 20px; color: #555;">
+      Example searches: <em>Texas Governor</em>, <em>Los Angeles County</em>,
+      <em>2026 Senate</em>
+    </p>
+  </main>
+
+  <footer>
+    © 2026 VoterSpheres · Nonpartisan election information
+  </footer>
+
+</body>
 </html>
