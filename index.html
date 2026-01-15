@@ -99,8 +99,9 @@
     const query = input.value;
     if (!query) return;
 
-    const response = await fetch(
-      `${import.meta?.env?.VITE_API_URL || "https://voterspherebackend.onrender.com/search?q=${encodeURIComponent(query)}`
+   const response = await fetch(
+      "https://voterspherebackend.onrender.com/search?q=" +
+      encodeURIComponent(query)
     );
 
     const data = await response.json();
