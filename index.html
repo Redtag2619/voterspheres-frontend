@@ -91,6 +91,42 @@
   <footer>
     © 2026 VoterSpheres · Nonpartisan election information
   </footer>
+<script>
+  const button = document.querySelector("button");
+  const input = document.querySelector("input");
+
+  button.addEventListener("click", async () => {
+    const query = input.value;
+    if (!query) return;
+
+    const response = await fetch(
+      `${import.meta?.env?.VITE_API_URL || "https://voterspherebackend.onrender.com
+"}/search?q=${encodeURIComponent(query)}`
+    );
+
+    const data = await response.json();
+
+    let resultsDiv = document.getElementById("results");
+    if (!resultsDiv) {
+      resultsDiv = document.createElement("div");
+      resultsDiv.id = "results";
+      resultsDiv.style.marginTop = "20px";
+      document.querySelector("main").appendChild(resultsDiv);
+    }
+
+    resultsDiv.innerHTML = "<h3>Search Results</h3>";
+
+    if (data.results.length === 0) {
+      resultsDiv.innerHTML += "<p>No results found.</p>";
+    } else {
+      data.results.forEach(item => {
+        const p = document.createElement("p");
+        p.textContent = `${item.type}: ${item.title}`;
+        resultsDiv.appendChild(p);
+      });
+    }
+  });
+</script>
 
 </body>
 </html>
