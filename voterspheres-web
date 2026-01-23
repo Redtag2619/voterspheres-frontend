@@ -1,0 +1,7 @@
+git tag v1.0.0-prod
+git push --tags
+BEGIN;
+
+\i voterspheres_production_control_plane.sql
+
+COMMIT;
