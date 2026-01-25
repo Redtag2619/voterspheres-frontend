@@ -1,0 +1,5 @@
+voterspheres-frontend
+ ├─ app/ (or pages/)
+ ├─ package.json
+ ├─ node_modules/
+ ├─ next.config.js
