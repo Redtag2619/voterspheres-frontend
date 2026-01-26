@@ -1,18 +1,14 @@
-export default function Home() {
-  async function checkHealth() {
-    const res = await fetch(
-      "https://voterspheres-backend.onrender.com/health"
-    );
-    const data = await res.json();
-    alert(JSON.stringify(data));
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VoterSpheres</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
+  <h1>VoterSpheres Frontend</h1>
+  <p id="status">Checking backend...</p>
 
-  return (
-    <main style={{ padding: 40 }}>
-      <h1>VoterSpheres</h1>
-      <button onClick={checkHealth}>
-        Check Backend Health
-      </button>
-    </main>
-  );
-}
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
