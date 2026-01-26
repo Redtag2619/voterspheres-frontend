@@ -1,14 +1,17 @@
-const status = document.getElementById("status");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VoterSpheres</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
 
-async function checkBackend() {
-  try {
-    const res = await fetch("https://voterspheres-backend.onrender.com/health");
-    const data = await res.json();
+  <h1>VoterSpheres Frontend</h1>
+  <p id="status">Checking backend...</p>
 
-    status.textContent = "Backend status: " + data.status;
-  } catch (err) {
-    status.textContent = "Backend unreachable";
-  }
-}
+  <!-- Load frontend JS -->
+  <script src="index.js"></script>
 
-checkBackend();
+</body>
+</html>
