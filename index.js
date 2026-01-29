@@ -30,3 +30,16 @@ async function loadVoters() {
 
 checkBackend();
 loadVoters();
+async function login() {
+  const res = await fetch("https://voterspheres-backend.onrender.com/auth/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value
+    })
+  });
+
+  const data = await res.json();
+  localStorage.setItem("token", data.token);
+}
