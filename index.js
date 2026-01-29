@@ -1,21 +1,32 @@
-const statusEl = document.getElementById("status");
+const backendURL = "https://voterspheres-backend.onrender.com";
 
 async function checkBackend() {
   try {
-    const res = await fetch("https://voterspheres-backend.onrender.com/health");
+    const res = await fetch(`${backendURL}/health`);
     const data = await res.json();
 
-    if (data.status === "ok") {
-      statusEl.textContent = "Backend connected ✅";
-      statusEl.style.color = "green";
-    } else {
-      statusEl.textContent = "Backend error ⚠️";
-      statusEl.style.color = "orange";
-    }
+    document.getElementById("status").innerText =
+      `Backend Status: ${data.status} | DB: ${data.database}`;
   } catch (err) {
-    statusEl.textContent = "Backend unreachable ❌";
-    statusEl.style.color = "red";
+    document.getElementById("status").innerText =
+      "❌ Backend unreachable";
   }
 }
 
+async function loadVoters() {
+  const res = await fetch(`${backendURL}/api/voters`);
+  const voters = await res.json();
+
+  const list = document.createElement("ul");
+
+  voters.forEach(v => {
+    const li = document.createElement("li");
+    li.innerText = v.name || JSON.stringify(v);
+    list.appendChild(li);
+  });
+
+  document.body.appendChild(list);
+}
+
 checkBackend();
+loadVoters();
