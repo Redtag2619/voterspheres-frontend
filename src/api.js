@@ -1,8 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = "https://voterspheres-backend.onrender.com";
 
-// Health check
-export async function checkHealth() {
-  const res = await fetch(`${API_URL}/health`);
+export async function apiGet(path: string) {
+  const res = await fetch(BASE_URL + path);
+  if (!res.ok) throw new Error("Request failed");
   return res.json();
 }
 
