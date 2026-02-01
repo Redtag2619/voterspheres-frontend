@@ -1,19 +1,24 @@
-import { checkHealth } from "./api";
+import "./style.css";
+import { apiGet } from "./api";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
-async function run() {
+app.innerHTML = `
+  <h1>VoterSpheres</h1>
+  <button id="loadBtn">Load Voters</button>
+  <pre id="output"></pre>
+`;
+
+const btn = document.getElementById("loadBtn")!;
+const output = document.getElementById("output")!;
+
+btn.addEventListener("click", async () => {
+  output.textContent = "Loading...";
+
   try {
-    const health = await checkHealth();
-
-    app.innerHTML = `
-      <h1>Frontend Connected 🚀</h1>
-      <pre>${JSON.stringify(health, null, 2)}</pre>
-    `;
+    const data = await apiGet("/api/voters");
+    output.textContent = JSON.stringify(data, null, 2);
   } catch (err) {
-    app.innerHTML = `<h2>Error connecting to backend</h2>`;
-    console.error(err);
+    output.textContent = "Error loading voters";
   }
-}
-
-run();
+});
