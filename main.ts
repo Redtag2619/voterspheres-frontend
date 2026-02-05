@@ -1,142 +1,123 @@
-const API_BASE = "http://localhost:10000";
+const API = "http://localhost:10000/api";
 
-// ----------------------
-// Elements
-// ----------------------
-
-const candidateSelect = document.getElementById("candidateSelect") as HTMLSelectElement;
 const searchInput = document.getElementById("searchInput") as HTMLInputElement;
-const resultsDiv = document.getElementById("results") as HTMLDivElement;
-const paginationDiv = document.getElementById("pagination") as HTMLDivElement;
-
-// ----------------------
-// State
-// ----------------------
+const stateSelect = document.getElementById("stateSelect") as HTMLSelectElement;
+const partySelect = document.getElementById("partySelect") as HTMLSelectElement;
+const resultsDiv = document.getElementById("results")!;
+const paginationDiv = document.getElementById("pagination")!;
 
 let currentPage = 1;
-const limit = 10;
+const limit = 12;
 
-// ----------------------
-// Load Dropdown
-// ----------------------
+/* ========================
+   LOAD DROPDOWNS
+======================== */
 
-async function loadCandidateDropdown() {
-  try {
-    const res = await fetch(`${API_BASE}/api/dropdowns/candidates`);
-    const data = await res.json();
+async function loadStates() {
+  const res = await fetch(`${API}/dropdowns/states`);
+  const states = await res.json();
 
-    candidateSelect.innerHTML = `<option value="">All Candidates</option>`;
-
-    data.forEach((item: any) => {
-      const opt = document.createElement("option");
-      opt.value = item.full_name || item.name;
-      opt.textContent = item.full_name || item.name;
-      candidateSelect.appendChild(opt);
-    });
-
-  } catch (err) {
-    console.error("Dropdown load failed", err);
-  }
+  states.forEach((s:any) => {
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = s.name;
+    stateSelect.appendChild(opt);
+  });
 }
 
-// ----------------------
-// Load Candidates
-// ----------------------
+async function loadParties() {
+  const res = await fetch(`${API}/dropdowns/parties`);
+  const parties = await res.json();
+
+  parties.forEach((p:any) => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    partySelect.appendChild(opt);
+  });
+}
+
+/* ========================
+   LOAD CANDIDATES
+======================== */
 
 async function loadCandidates(page = 1) {
-  try {
-    const q = searchInput.value;
-    const candidate = candidateSelect.value;
+  currentPage = page;
 
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
+  const q = searchInput.value;
+  const state = stateSelect.value;
+  const party = partySelect.value;
 
-    if (q) params.append("q", q);
-    if (candidate) params.append("name", candidate);
+  const params = new URLSearchParams({
+    q,
+    state,
+    party,
+    page: String(page),
+    limit: String(limit)
+  });
 
-    const res = await fetch(`${API_BASE}/api/candidates?${params}`);
-    const data = await res.json();
+  const res = await fetch(`${API}/candidates?${params}`);
+  const data = await res.json();
 
-    renderResults(data.results);
-    renderPagination(data.total, page);
-
-  } catch (err) {
-    console.error("Load failed", err);
-  }
+  renderResults(data.results);
+  renderPagination(data.total, page);
 }
 
-// ----------------------
-// Render Results
-// ----------------------
+/* ========================
+   RENDER RESULTS
+======================== */
 
-function renderResults(rows: any[]) {
+function renderResults(rows:any[]) {
   resultsDiv.innerHTML = "";
 
-  if (!rows.length) {
-    resultsDiv.innerHTML = "<p>No results found</p>";
-    return;
-  }
-
-  rows.forEach(row => {
+  rows.forEach(c => {
     const div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
-      <strong>${row.full_name}</strong><br/>
-      Party: ${row.party || ""}<br/>
-      Email: ${row.email || ""}<br/>
-      Phone: ${row.phone || ""}<br/>
-      Website: ${row.website || ""}
+      <div class="name">${c.full_name}</div>
+      <div class="row">Party: ${c.party_name || ""}</div>
+      <div class="row">State: ${c.state_name || ""}</div>
+      <div class="row">Email: ${c.email || ""}</div>
+      <div class="row">Phone: ${c.phone || ""}</div>
     `;
 
     resultsDiv.appendChild(div);
   });
 }
 
-// ----------------------
-// Render Pagination
-// ----------------------
+/* ========================
+   PAGINATION
+======================== */
 
-function renderPagination(total: number, page: number) {
+function renderPagination(total:number, page:number) {
   paginationDiv.innerHTML = "";
 
-  const totalPages = Math.ceil(total / limit);
+  const pages = Math.ceil(total / limit);
 
-  if (totalPages <= 1) return;
-
-  for (let i = 1; i <= totalPages; i++) {
+  for (let i = 1; i <= pages; i++) {
     const btn = document.createElement("button");
-    btn.textContent = i.toString();
+    btn.textContent = String(i);
     btn.disabled = i === page;
 
-    btn.onclick = () => {
-      currentPage = i;
-      loadCandidates(i);
-    };
+    btn.onclick = () => loadCandidates(i);
 
     paginationDiv.appendChild(btn);
   }
 }
 
-// ----------------------
-// Event Listeners
-// ----------------------
+/* ========================
+   EVENTS
+======================== */
 
-searchInput.addEventListener("input", () => {
-  currentPage = 1;
-  loadCandidates();
-});
+searchInput.addEventListener("input", () => loadCandidates(1));
+stateSelect.addEventListener("change", () => loadCandidates(1));
+partySelect.addEventListener("change", () => loadCandidates(1));
 
-candidateSelect.addEventListener("change", () => {
-  currentPage = 1;
-  loadCandidates();
-});
+/* ========================
+   INIT
+======================== */
 
-// ----------------------
-// Init
-// ----------------------
-
-loadCandidateDropdown();
+loadStates();
+loadParties();
 loadCandidates();
