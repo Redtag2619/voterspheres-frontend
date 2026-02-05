@@ -2,134 +2,166 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VoterSpheres</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<title>VoterSpheres Login</title>
 <style>
-body{
-  font-family:Arial, sans-serif;
-  background:#f4f6fb;
-  margin:0;
-}
-
-header{
-  background:#1e3a8a;
-  color:white;
-  padding:16px;
-  text-align:center;
-  font-size:22px;
+body {
+  font-family: Arial, sans-serif;
+  background:#f3f6fb;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
 }
 
 .container{
-  max-width:1200px;
-  margin:30px auto;
-  padding:20px;
-}
-
-.filters{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-bottom:20px;
-}
-
-input,select{
-  padding:10px;
-  border-radius:6px;
-  border:1px solid #ccc;
-  min-width:170px;
-  font-size:14px;
-}
-
-#results{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-  gap:15px;
-}
-
-.card{
   background:white;
-  padding:14px;
+  padding:30px;
+  width:350px;
   border-radius:10px;
-  box-shadow:0 2px 6px rgba(0,0,0,.08);
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
 }
 
-.name{
-  font-weight:bold;
-  color:#1e3a8a;
-  font-size:16px;
-}
-
-.row{
-  font-size:14px;
-  margin-top:4px;
-}
-
-#pagination{
+h2{
   text-align:center;
-  margin-top:25px;
+  margin-bottom:15px;
 }
 
-#pagination button{
-  padding:8px 12px;
-  margin:4px;
+input{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
+  border:1px solid #ccc;
+  border-radius:6px;
+}
+
+button{
+  width:100%;
+  padding:10px;
+  background:#2563eb;
+  color:white;
   border:none;
   border-radius:6px;
-  background:#1e3a8a;
-  color:white;
+  cursor:pointer;
+  margin-top:8px;
+}
+
+button:hover{
+  background:#1e4ed8;
+}
+
+.switch{
+  text-align:center;
+  margin-top:12px;
+  color:#2563eb;
   cursor:pointer;
 }
 
-#pagination button:disabled{
-  background:#9ca3af;
+.message{
+  text-align:center;
+  margin-top:10px;
 }
 
-footer{
-  margin-top:40px;
-  text-align:center;
-  font-size:13px;
-  color:#555;
-}
+.success{ color:green; }
+.error{ color:red; }
 </style>
 </head>
 
 <body>
 
-<header>VoterSpheres Political Directory</header>
-
 <div class="container">
 
-<div class="filters">
+<h2 id="title">Login</h2>
 
-<input id="searchInput" placeholder="Search name..." />
+<input id="email" placeholder="Email" type="email">
+<input id="password" placeholder="Password" type="password">
 
-<select id="stateSelect">
-  <option value="">All States</option>
-</select>
+<button onclick="submitForm()">Login</button>
 
-<select id="countySelect" disabled>
-  <option value="">Select State First</option>
-</select>
+<div class="switch" onclick="toggleMode()">
+Create account instead
+</div>
 
-<select id="officeSelect">
-  <option value="">All Offices</option>
-</select>
-
-<select id="partySelect">
-  <option value="">All Parties</option>
-</select>
+<div class="message" id="message"></div>
 
 </div>
 
-<div id="results"></div>
+<script>
 
-<div id="pagination"></div>
+const API = "http://localhost:10000/api/auth";
 
-</div>
+let isLogin = true;
 
-<footer>© 2026 VoterSpheres</footer>
+function toggleMode(){
+  isLogin = !isLogin;
 
-<script type="module" src="/src/main.ts"></script>
+  document.getElementById("title").innerText = isLogin ? "Login" : "Register";
+  document.querySelector("button").innerText = isLogin ? "Login" : "Register";
+  document.querySelector(".switch").innerText = 
+    isLogin ? "Create account instead" : "Already have an account?";
+  
+  document.getElementById("message").innerText = "";
+}
+
+async function submitForm(){
+
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const message = document.getElementById("message");
+
+  message.innerText = "";
+  message.className = "message";
+
+  if(!email || !password){
+    showError("Fill all fields");
+    return;
+  }
+
+  const url = isLogin ? "/login" : "/register";
+
+  try{
+    const res = await fetch(API + url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      showError(data.error || "Error");
+      return;
+    }
+
+    if(isLogin){
+      localStorage.setItem("token", data.token);
+      showSuccess("Logged in successfully!");
+      
+      setTimeout(()=>{
+        window.location.href = "dashboard.html"; // optional
+      },1000);
+    } else {
+      showSuccess("Account created! Now login.");
+      toggleMode();
+    }
+
+  }catch(err){
+    showError("Server not responding");
+  }
+}
+
+function showError(text){
+  const m = document.getElementById("message");
+  m.innerText = text;
+  m.className = "message error";
+}
+
+function showSuccess(text){
+  const m = document.getElementById("message");
+  m.innerText = text;
+  m.className = "message success";
+}
+
+</script>
 
 </body>
 </html>
