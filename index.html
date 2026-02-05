@@ -14,7 +14,7 @@ body{
 
 header{
   background:#1e3a8a;
-  color:#fff;
+  color:white;
   padding:16px;
   text-align:center;
   font-size:22px;
@@ -95,30 +95,30 @@ footer{
 
 <body>
 
-<header>
-VoterSpheres Political Directory
-</header>
+<header>VoterSpheres Political Directory</header>
 
 <div class="container">
 
 <div class="filters">
-  <input id="searchInput" placeholder="Search name..." />
 
-  <select id="stateSelect">
-    <option value="">All States</option>
-  </select>
+<input id="searchInput" placeholder="Search name..." />
 
-  <select id="countySelect">
-    <option value="">All Counties</option>
-  </select>
+<select id="stateSelect">
+  <option value="">All States</option>
+</select>
 
-  <select id="officeSelect">
-    <option value="">All Offices</option>
-  </select>
+<select id="countySelect" disabled>
+  <option value="">Select State First</option>
+</select>
 
-  <select id="partySelect">
-    <option value="">All Parties</option>
-  </select>
+<select id="officeSelect">
+  <option value="">All Offices</option>
+</select>
+
+<select id="partySelect">
+  <option value="">All Parties</option>
+</select>
+
 </div>
 
 <div id="results"></div>
@@ -127,9 +127,7 @@ VoterSpheres Political Directory
 
 </div>
 
-<footer>
-© 2026 VoterSpheres
-</footer>
+<footer>© 2026 VoterSpheres</footer>
 
 <script type="module" src="/src/main.ts"></script>
 
