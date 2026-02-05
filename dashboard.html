@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Dashboard (Protected)</h2>
+<pre id="output"></pre>
+<button onclick="logout()">Logout</button>
+
+<script>
+
+const token = localStorage.getItem("token");
+
+if(!token){
+  window.location.href="index.html";
+}
+
+fetch("http://localhost:10000/api/profile",{
+  headers:{
+    Authorization:"Bearer "+token
+  }
+})
+.then(r=>r.json())
+.then(data=>{
+  document.getElementById("output").innerText =
+    JSON.stringify(data,null,2);
+})
+.catch(()=>{
+  document.body.innerHTML="Not authorized";
+})
+
+function logout(){
+  localStorage.removeItem("token");
+  window.location.href="index.html";
+}
+
+</script>
+
+</body>
+</html>
