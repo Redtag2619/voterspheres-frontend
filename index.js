@@ -1,106 +1,50 @@
-const API="http://localhost:10000";
+const API = "http://localhost:10000";
 
-const token=localStorage.getItem("token");
+let currentPage = 1;
 
-const state=document.getElementById("state");
-const county=document.getElementById("county");
-const party=document.getElementById("party");
-const office=document.getElementById("office");
-const searchBox=document.getElementById("search");
-const results=document.getElementById("results");
+async function loadCandidates(page = 1) {
+  currentPage = page;
 
-let page=1;
+  const q = document.getElementById("search").value;
 
-/* ============================
-   LOAD DROPDOWNS
-============================ */
+  const res = await fetch(
+    `${API}/api/candidates?q=${q}&page=${page}&limit=10`
+  );
 
-fetch(API+"/api/dropdowns/states")
-.then(r=>r.json())
-.then(d=>{
- state.innerHTML='<option value="">State</option>';
- d.forEach(x=>state.innerHTML+=`<option value="${x.id}">${x.name}</option>`);
-});
+  const data = await res.json();
 
-fetch(API+"/api/dropdowns/parties")
-.then(r=>r.json())
-.then(d=>{
- party.innerHTML='<option value="">Party</option>';
- d.forEach(x=>party.innerHTML+=`<option value="${x.id}">${x.name}</option>`);
-});
+  const container = document.getElementById("results");
+  container.innerHTML = "";
 
-fetch(API+"/api/dropdowns/offices")
-.then(r=>r.json())
-.then(d=>{
- office.innerHTML='<option value="">Office</option>';
- d.forEach(x=>office.innerHTML+=`<option value="${x.id}">${x.name}</option>`);
-});
+  data.results.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <strong>${c.full_name}</strong><br>
+      ${c.email || ""}<br>
+      ${c.phone || ""}
+    `;
 
-state.onchange=()=>{
- fetch(API+"/api/dropdowns/counties?state="+state.value)
- .then(r=>r.json())
- .then(d=>{
-  county.innerHTML='<option value="">County</option>';
-  d.forEach(x=>county.innerHTML+=`<option value="${x.id}">${x.name}</option>`);
- });
-};
+    div.onclick = () => {
+      window.location.href = `profile.html?id=${c.id}`;
+    };
 
-/* ============================
-   SEARCH
-============================ */
-
-function load(){
-
- const params=new URLSearchParams({
-  q:searchBox.value,
-  state:state.value,
-  county:county.value,
-  party:party.value,
-  office:office.value,
-  page
- });
-
- fetch(API+"/api/candidates?"+params)
- .then(r=>r.json())
- .then(d=>{
-  results.innerHTML="";
-  d.results.forEach(c=>{
-    results.innerHTML+=`
-     <div>
-       <b>${c.full_name}</b><br>
-       ${c.email||""}
-     </div><hr>`;
+    container.appendChild(div);
   });
 
-  document.getElementById("pages").innerText=
-   `Page ${d.page} of ${Math.ceil(d.total/20)}`;
- });
+  renderPagination(data.totalPages);
 }
 
-function nextPage(){page++;load();}
-function prevPage(){if(page>1){page--;load();}}
+function renderPagination(total) {
+  const p = document.getElementById("pagination");
+  p.innerHTML = "";
 
-/* ============================
-   EXPORT
-============================ */
-
-function exportCSV(){
-
- const q=new URLSearchParams({
-   state:state.value,
-   county:county.value,
-   party:party.value,
-   office:office.value
- });
-
- fetch(API+"/api/export?"+q,{
-  headers:{Authorization:"Bearer "+token}
- })
- .then(r=>r.blob())
- .then(b=>{
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(b);
-  a.download="candidates.csv";
-  a.click();
- });
+  for (let i = 1; i <= total; i++) {
+    const btn = document.createElement("button");
+    btn.innerText = i;
+    btn.onclick = () => loadCandidates(i);
+    p.appendChild(btn);
+  }
 }
+
+loadCandidates();
