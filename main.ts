@@ -13,7 +13,7 @@ let currentPage = 1;
 const limit = 12;
 
 /* ==========================
-   DROPDOWNS
+   LOAD DROPDOWNS
 ========================== */
 
 async function loadStates(){
@@ -28,11 +28,21 @@ async function loadStates(){
   });
 }
 
-async function loadCounties(){
-  const res = await fetch(`${API}/dropdowns/counties`);
+async function loadCountiesByState(stateId:string){
+
+  if(!stateId){
+    countySelect.innerHTML=`<option value="">Select State First</option>`;
+    countySelect.disabled=true;
+    return;
+  }
+
+  countySelect.disabled=true;
+  countySelect.innerHTML=`<option>Loading...</option>`;
+
+  const res = await fetch(`${API}/dropdowns/counties?state=${stateId}`);
   const data = await res.json();
 
-  countySelect.innerHTML = `<option value="">All Counties</option>`;
+  countySelect.innerHTML=`<option value="">All Counties</option>`;
 
   data.forEach((c:any)=>{
     const opt=document.createElement("option");
@@ -40,6 +50,8 @@ async function loadCounties(){
     opt.textContent=c.name;
     countySelect.appendChild(opt);
   });
+
+  countySelect.disabled=false;
 }
 
 async function loadOffices(){
@@ -83,8 +95,8 @@ async function loadCandidates(page=1){
     limit: String(limit)
   });
 
-  const res=await fetch(`${API}/candidates?${params}`);
-  const data=await res.json();
+  const res = await fetch(`${API}/candidates?${params}`);
+  const data = await res.json();
 
   renderResults(data.results);
   renderPagination(data.total,page);
@@ -138,7 +150,12 @@ function renderPagination(total:number,page:number){
 ========================== */
 
 searchInput.addEventListener("input",()=>loadCandidates(1));
-stateSelect.addEventListener("change",()=>loadCandidates(1));
+
+stateSelect.addEventListener("change",()=>{
+  loadCountiesByState(stateSelect.value);
+  loadCandidates(1);
+});
+
 countySelect.addEventListener("change",()=>loadCandidates(1));
 officeSelect.addEventListener("change",()=>loadCandidates(1));
 partySelect.addEventListener("change",()=>loadCandidates(1));
@@ -148,7 +165,6 @@ partySelect.addEventListener("change",()=>loadCandidates(1));
 ========================== */
 
 loadStates();
-loadCounties();
 loadOffices();
 loadParties();
 loadCandidates();
