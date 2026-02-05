@@ -1,32 +1,189 @@
 <!DOCTYPE html>
 <html>
+<head>
+<meta charset="UTF-8">
+<title>VoterSpheres Dashboard</title>
+<style>
+body{
+  font-family:Arial;
+  padding:20px;
+  background:#f4f6fb;
+}
+
+.filters{
+  display:flex;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+select,button{
+  padding:8px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+}
+
+th,td{
+  padding:8px;
+  border:1px solid #ddd;
+}
+
+.pagination{
+  margin-top:15px;
+}
+
+</style>
+</head>
+
 <body>
 
-<h2>Dashboard (Protected)</h2>
-<pre id="output"></pre>
+<h2>Candidate Search</h2>
+
+<div class="filters">
+
+<select id="state" onchange="loadCounties()">
+<option value="">State</option>
+</select>
+
+<select id="county">
+<option value="">County</option>
+</select>
+
+<select id="party">
+<option value="">Party</option>
+<option>Democrat</option>
+<option>Republican</option>
+<option>Independent</option>
+</select>
+
+<select id="office">
+<option value="">Office</option>
+<option>Mayor</option>
+<option>Governor</option>
+<option>Senator</option>
+<option>Representative</option>
+</select>
+
+<button onclick="search()">Search</button>
+
 <button onclick="logout()">Logout</button>
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>State</th>
+<th>County</th>
+<th>Party</th>
+<th>Office</th>
+</tr>
+</thead>
+<tbody id="results"></tbody>
+</table>
+
+<div class="pagination" id="pages"></div>
 
 <script>
 
+const API = "http://localhost:10000";
 const token = localStorage.getItem("token");
 
 if(!token){
   window.location.href="index.html";
 }
 
-fetch("http://localhost:10000/api/profile",{
-  headers:{
-    Authorization:"Bearer "+token
-  }
-})
+/* ===========================
+   LOAD STATES
+=========================== */
+
+fetch(API+"/api/dropdowns/states")
 .then(r=>r.json())
 .then(data=>{
-  document.getElementById("output").innerText =
-    JSON.stringify(data,null,2);
-})
-.catch(()=>{
-  document.body.innerHTML="Not authorized";
-})
+  const s = document.getElementById("state");
+  data.forEach(x=>{
+    s.innerHTML += `<option>${x.state}</option>`;
+  });
+});
+
+/* ===========================
+   LOAD COUNTIES (DYNAMIC)
+=========================== */
+
+function loadCounties(){
+  const state = document.getElementById("state").value;
+  const c = document.getElementById("county");
+  c.innerHTML="<option value=''>County</option>";
+
+  if(!state) return;
+
+  fetch(API+"/api/dropdowns/counties?state="+state)
+  .then(r=>r.json())
+  .then(data=>{
+    data.forEach(x=>{
+      c.innerHTML += `<option>${x.county}</option>`;
+    });
+  });
+}
+
+/* ===========================
+   SEARCH
+=========================== */
+
+let currentPage=1;
+
+function search(page=1){
+  currentPage=page;
+
+  const params = new URLSearchParams({
+    state:state.value,
+    county:county.value,
+    party:party.value,
+    office:office.value,
+    page
+  });
+
+  fetch(API+"/api/search?"+params,{
+    headers:{ Authorization:"Bearer "+token }
+  })
+  .then(r=>r.json())
+  .then(showResults);
+}
+
+function showResults(data){
+
+  const body = document.getElementById("results");
+  body.innerHTML="";
+
+  data.rows.forEach(r=>{
+    body.innerHTML += `
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.state}</td>
+        <td>${r.county}</td>
+        <td>${r.party}</td>
+        <td>${r.office}</td>
+      </tr>
+    `;
+  });
+
+  const p = document.getElementById("pages");
+  p.innerHTML="";
+
+  for(let i=1;i<=data.pages;i++){
+    p.innerHTML += `
+      <button onclick="search(${i})">${i}</button>
+    `;
+  }
+}
+
+/* ===========================
+   LOGOUT
+=========================== */
 
 function logout(){
   localStorage.removeItem("token");
