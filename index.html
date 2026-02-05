@@ -1,127 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>VoterSpheres</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<title>VoterSpheres</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background:#f4f6fb;
-      margin:0;
-    }
+<style>
+body{
+  font-family:Arial, sans-serif;
+  background:#f4f6fb;
+  margin:0;
+}
 
-    header {
-      background:#1e3a8a;
-      color:white;
-      padding:16px;
-      text-align:center;
-      font-size:22px;
-    }
+header{
+  background:#1e3a8a;
+  color:#fff;
+  padding:16px;
+  text-align:center;
+  font-size:22px;
+}
 
-    .container {
-      max-width:1100px;
-      margin:30px auto;
-      padding:20px;
-    }
+.container{
+  max-width:1200px;
+  margin:30px auto;
+  padding:20px;
+}
 
-    .filters {
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-bottom:20px;
-    }
+.filters{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:20px;
+}
 
-    input, select {
-      padding:10px;
-      border-radius:6px;
-      border:1px solid #ccc;
-      font-size:14px;
-      min-width:180px;
-    }
+input,select{
+  padding:10px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  min-width:170px;
+  font-size:14px;
+}
 
-    #results {
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-      gap:15px;
-    }
+#results{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:15px;
+}
 
-    .card {
-      background:white;
-      padding:14px;
-      border-radius:10px;
-      box-shadow:0 2px 6px rgba(0,0,0,.08);
-    }
+.card{
+  background:white;
+  padding:14px;
+  border-radius:10px;
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+}
 
-    .name {
-      font-weight:bold;
-      font-size:16px;
-      color:#1e3a8a;
-    }
+.name{
+  font-weight:bold;
+  color:#1e3a8a;
+  font-size:16px;
+}
 
-    .row {
-      font-size:14px;
-      margin-top:4px;
-    }
+.row{
+  font-size:14px;
+  margin-top:4px;
+}
 
-    #pagination {
-      margin-top:25px;
-      text-align:center;
-    }
+#pagination{
+  text-align:center;
+  margin-top:25px;
+}
 
-    #pagination button {
-      padding:8px 12px;
-      margin:3px;
-      border:none;
-      border-radius:6px;
-      background:#1e3a8a;
-      color:white;
-      cursor:pointer;
-    }
+#pagination button{
+  padding:8px 12px;
+  margin:4px;
+  border:none;
+  border-radius:6px;
+  background:#1e3a8a;
+  color:white;
+  cursor:pointer;
+}
 
-    #pagination button:disabled {
-      background:#9ca3af;
-      cursor:default;
-    }
+#pagination button:disabled{
+  background:#9ca3af;
+}
 
-    footer {
-      margin-top:40px;
-      text-align:center;
-      color:#555;
-      font-size:13px;
-    }
-  </style>
+footer{
+  margin-top:40px;
+  text-align:center;
+  font-size:13px;
+  color:#555;
+}
+</style>
 </head>
 
 <body>
 
 <header>
-  VoterSpheres Political Directory
+VoterSpheres Political Directory
 </header>
 
 <div class="container">
 
-  <div class="filters">
-    <input id="searchInput" placeholder="Search by name..." />
+<div class="filters">
+  <input id="searchInput" placeholder="Search name..." />
 
-    <select id="stateSelect">
-      <option value="">All States</option>
-    </select>
+  <select id="stateSelect">
+    <option value="">All States</option>
+  </select>
 
-    <select id="partySelect">
-      <option value="">All Parties</option>
-    </select>
-  </div>
+  <select id="countySelect">
+    <option value="">All Counties</option>
+  </select>
 
-  <div id="results"></div>
+  <select id="officeSelect">
+    <option value="">All Offices</option>
+  </select>
 
-  <div id="pagination"></div>
+  <select id="partySelect">
+    <option value="">All Parties</option>
+  </select>
+</div>
+
+<div id="results"></div>
+
+<div id="pagination"></div>
 
 </div>
 
 <footer>
-  © 2026 VoterSpheres
+© 2026 VoterSpheres
 </footer>
 
 <script type="module" src="/src/main.ts"></script>
