@@ -57,6 +57,13 @@ td,th{border:1px solid #ddd;padding:6px}
 <ul id="saved"></ul>
 </div>
 <h3>Upload Candidate Photo (Admin Only)</h3>
+<h3>Upload Candidate Photo</h3>
+
+<input type="number" id="candidateId" placeholder="Candidate ID" />
+<input type="file" id="photo" accept="image/*"/>
+<button onclick="uploadPhoto()">Upload</button>
+
+<p id="uploadStatus"></p>
 
 <input type="file" id="photoFile" />
 <button onclick="uploadPhoto()">Upload</button>
