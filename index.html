@@ -112,7 +112,11 @@ function renderResults(list){
   list.forEach(c=>{
     tbody.innerHTML+=`
       <tr>
-        <td>${c.full_name}</td>
+        <td>
+          <a href="profile.html?id=${c.id}">
+            ${c.full_name}
+          </a>
+        </td>
         <td>${c.state||""}</td>
         <td>${c.party||""}</td>
         <td>${c.county||""}</td>
@@ -121,6 +125,7 @@ function renderResults(list){
     `;
   });
 }
+
 
 function renderPagination(page,pages){
   const div=document.getElementById("pagination");
