@@ -1,218 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Dashboard</title>
-<style>
-body{font-family:Arial;background:#f4f6fb;padding:20px}
-select,button{padding:6px}
-table{width:100%;background:white;border-collapse:collapse;margin-top:10px}
-td,th{border:1px solid #ddd;padding:6px}
-.panel{background:white;padding:10px;margin-top:15px}
-</style>
+  <title>Admin Dashboard</title>
 </head>
 <body>
 
-<h2>Search</h2>
+<h2>Admin Dashboard</h2>
 
-<select id="state" onchange="loadCounties()"></select>
-<select id="county"></select>
-<select id="party">
-<option value="">Party</option>
-<option>Democrat</option>
-<option>Republican</option>
-<option>Independent</option>
-</select>
-<select id="office">
-<option value="">Office</option>
-<option>Mayor</option>
-<option>Governor</option>
-<option>Senator</option>
-</select>
-
-<button onclick="search()">Search</button>
-<button onclick="saveSearch()">Save Search</button>
-<button onclick="logout()">Logout</button>
-<button onclick="exportCSV()">Export CSV</button>
-<a href="admin.html" target="_blank">Admin Panel</a>
-
-<table>
-<thead>
-<tr>
-<th>Name</th><th>State</th><th>County</th><th>Party</th><th>Office</th><th>⭐</th>
-</tr>
-</thead>
-<tbody id="results"></tbody>
-</table>
-
-<div id="pages"></div>
-
-<div class="panel">
-<h3>⭐ Favorites</h3>
-<ul id="favorites"></ul>
-</div>
-
-<div class="panel">
-<h3>📌 Saved Searches</h3>
-<ul id="saved"></ul>
-</div>
-<h3>Upload Candidate Photo (Admin Only)</h3>
 <h3>Upload Candidate Photo</h3>
 
 <input type="number" id="candidateId" placeholder="Candidate ID" />
-<input type="file" id="photo" accept="image/*"/>
-<button onclick="uploadPhoto()">Upload</button>
+<br><br>
+<input type="file" id="photo" accept="image/*" />
+<br><br>
+<button onclick="uploadPhoto()">Upload Photo</button>
 
-<p id="uploadStatus"></p>
+<p id="status"></p>
 
-<input type="file" id="photoFile" />
-<button onclick="uploadPhoto()">Upload</button>
-
-<script>
-
-const API="http://localhost:10000";
-const token=localStorage.getItem("token");
-if(!token) location="index.html";
-
-const headers={Authorization:"Bearer "+token};
-
-/* STATES */
-
-fetch(API+"/api/dropdowns/states")
-.then(r=>r.json())
-.then(d=>{
- state.innerHTML="<option value=''>State</option>";
- d.forEach(x=>state.innerHTML+=`<option>${x.state}</option>`);
-});
-
-/* COUNTIES */
-
-function loadCounties(){
- county.innerHTML="<option value=''>County</option>";
- if(!state.value) return;
-
- fetch(API+"/api/dropdowns/counties?state="+state.value)
- .then(r=>r.json())
- .then(d=>{
-   d.forEach(x=>county.innerHTML+=`<option>${x.county}</option>`);
- });
-}
-
-/* SEARCH */
-
-function search(p=1){
-
- const q=new URLSearchParams({
-   state:state.value,
-   county:county.value,
-   party:party.value,
-   office:office.value,
-   page:p
- });
-
- fetch(API+"/api/search?"+q,{headers})
- .then(r=>r.json())
- .then(show);
-}
-
-function show(d){
- results.innerHTML="";
- d.rows.forEach(r=>{
-   results.innerHTML+=`
-    <tr>
-     <td>${r.name}</td>
-     <td>${r.state}</td>
-     <td>${r.county}</td>
-     <td>${r.party}</td>
-     <td>${r.office}</td>
-     <td><button onclick="fav(${r.id})">⭐</button></td>
-    </tr>`;
- });
-
- pages.innerHTML="";
- for(let i=1;i<=d.pages;i++)
-   pages.innerHTML+=`<button onclick="search(${i})">${i}</button>`;
-}
-
-/* FAVORITES */
-
-function fav(id){
- fetch(API+"/api/favorites/"+id,{
-   method:"POST",headers
- }).then(loadFavorites);
-}
-
-function loadFavorites(){
- fetch(API+"/api/favorites",{headers})
- .then(r=>r.json())
- .then(d=>{
-   favorites.innerHTML="";
-   d.forEach(x=>{
-     favorites.innerHTML+=`
-       <li>${x.name}
-         <button onclick="removeFav(${x.id})">x</button>
-       </li>`;
-   });
- });
-}
-
-function removeFav(id){
- fetch(API+"/api/favorites/"+id,{
-   method:"DELETE",headers
- }).then(loadFavorites);
-}
-
-/* SAVED SEARCHES */
-
-function saveSearch(){
- fetch(API+"/api/saved-searches",{
-  method:"POST",
-  headers:{...headers,"Content-Type":"application/json"},
-  body:JSON.stringify({
-    state:state.value,
-    county:county.value,
-    party:party.value,
-    office:office.value
-  })
- }).then(loadSaved);
-}
-
-function loadSaved(){
- fetch(API+"/api/saved-searches",{headers})
- .then(r=>r.json())
- .then(d=>{
-   saved.innerHTML="";
-   d.forEach(s=>{
-     saved.innerHTML+=`
-       <li>
-        ${s.state||"*"} | ${s.county||"*"} | ${s.party||"*"} | ${s.office||"*"}
-        <button onclick="apply(${JSON.stringify(s)})">Load</button>
-       </li>`;
-   });
- });
-}
-
-function apply(s){
- state.value=s.state||"";
- loadCounties();
- setTimeout(()=>{
-   county.value=s.county||"";
- },300);
- party.value=s.party||"";
- office.value=s.office||"";
- search();
-}
-
-/* LOGOUT */
-
-function logout(){
- localStorage.clear();
- location="index.html";
-}
-
-loadFavorites();
-loadSaved();
-
-</script>
+<script src="index.js"></script>
 </body>
 </html>
