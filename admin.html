@@ -60,6 +60,28 @@ function del(id){
    headers:{Authorization:"Bearer "+token}
  }).then(()=>location.reload());
 }
+<h3>Upload Candidate Photo</h3>
+
+<input type="file" id="photoFile">
+<button onclick="uploadPhoto()">Upload</button>
+
+<script>
+async function uploadPhoto() {
+  const file = document.getElementById("photoFile").files[0];
+
+  const form = new FormData();
+  form.append("photo", file);
+
+  const id = prompt("Candidate ID:");
+
+  await fetch(`http://localhost:10000/api/candidates/${id}/photo`, {
+    method: "POST",
+    body: form
+  });
+
+  alert("Uploaded!");
+}
+</script>
 
 </script>
 </body>
