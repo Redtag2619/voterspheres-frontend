@@ -4,9 +4,11 @@
 <title>Candidate Search</title>
 <style>
 body{font-family:Arial;padding:20px}
-select,input{padding:6px;margin:5px}
-table{border-collapse:collapse;width:100%;margin-top:20px}
+select,input,button{padding:6px;margin:5px}
+table{border-collapse:collapse;width:100%;margin-top:15px}
 td,th{border:1px solid #ccc;padding:8px}
+#pagination button{margin:3px;padding:6px 10px}
+#total{margin-top:10px;font-weight:bold}
 </style>
 </head>
 <body>
@@ -20,7 +22,9 @@ td,th{border:1px solid #ccc;padding:8px}
 <select id="county"></select>
 <select id="office"></select>
 
-<button onclick="search()">Search</button>
+<button onclick="search(1)">Search</button>
+
+<div id="total"></div>
 
 <table>
 <thead>
@@ -35,8 +39,11 @@ td,th{border:1px solid #ccc;padding:8px}
 <tbody id="results"></tbody>
 </table>
 
+<div id="pagination"></div>
+
 <script>
 const API="http://localhost:10000";
+let currentPage=1;
 
 async function loadDropdowns(){
   fill("state","/api/states");
@@ -70,22 +77,39 @@ async function loadCounties(){
   });
 }
 
-async function search(){
+async function search(page){
+  currentPage=page;
+
   const q=document.getElementById("q").value;
   const state=document.getElementById("state").value;
   const party=document.getElementById("party").value;
   const county=document.getElementById("county").value;
   const office=document.getElementById("office").value;
 
-  const params=new URLSearchParams({q,state_id:state,party_id:party,county_id:county,office_id:office});
+  const params=new URLSearchParams({
+    q,
+    state_id:state,
+    party_id:party,
+    county_id:county,
+    office_id:office,
+    page,
+    limit:20
+  });
 
   const res=await fetch(`${API}/api/search?${params}`);
   const data=await res.json();
 
+  renderResults(data.results);
+  renderPagination(data.page,data.pages);
+  document.getElementById("total").innerText=
+    `Total Results: ${data.total}`;
+}
+
+function renderResults(list){
   const tbody=document.getElementById("results");
   tbody.innerHTML="";
 
-  data.forEach(c=>{
+  list.forEach(c=>{
     tbody.innerHTML+=`
       <tr>
         <td>${c.full_name}</td>
@@ -98,8 +122,29 @@ async function search(){
   });
 }
 
+function renderPagination(page,pages){
+  const div=document.getElementById("pagination");
+  div.innerHTML="";
+
+  if(page>1){
+    div.innerHTML+=`<button onclick="search(${page-1})">Prev</button>`;
+  }
+
+  for(let i=1;i<=pages;i++){
+    div.innerHTML+=`
+      <button 
+        style="${i===page?'font-weight:bold':''}"
+        onclick="search(${i})">${i}</button>
+    `;
+  }
+
+  if(page<pages){
+    div.innerHTML+=`<button onclick="search(${page+1})">Next</button>`;
+  }
+}
+
 loadDropdowns();
-search();
+search(1);
 </script>
 
 </body>
