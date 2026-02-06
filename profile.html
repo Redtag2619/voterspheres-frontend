@@ -4,6 +4,12 @@
   <title>Candidate Profile</title>
   <style>
     body { font-family: Arial; padding:20px }
+    img {
+      width:200px;
+      height:auto;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
   </style>
 </head>
 <body>
@@ -12,10 +18,7 @@
 
 <h1 id="name"></h1>
 
-<p><strong>Office:</strong> <span id="office"></span></p>
-<p><strong>State:</strong> <span id="state"></span></p>
-<p><strong>County:</strong> <span id="county"></span></p>
-<p><strong>Party:</strong> <span id="party"></span></p>
+<img id="photo" style="display:none"/>
 
 <p><strong>Email:</strong> <span id="email"></span></p>
 <p><strong>Phone:</strong> <span id="phone"></span></p>
@@ -24,25 +27,25 @@
 <script>
 const API = "http://localhost:10000";
 
-const params = new URLSearchParams(window.location.search);
-const id = params.get("id");
+const id = new URLSearchParams(window.location.search).get("id");
 
 async function loadProfile() {
   const res = await fetch(`${API}/api/candidates/${id}`);
   const c = await res.json();
 
   document.getElementById("name").innerText = c.full_name;
-  document.getElementById("office").innerText = c.office_name || "";
-  document.getElementById("state").innerText = c.state_name || "";
-  document.getElementById("county").innerText = c.county_name || "";
-  document.getElementById("party").innerText = c.party_name || "";
-
   document.getElementById("email").innerText = c.email || "";
   document.getElementById("phone").innerText = c.phone || "";
 
   if (c.website) {
     document.getElementById("website").innerText = c.website;
     document.getElementById("website").href = c.website;
+  }
+
+  if (c.photo) {
+    const img = document.getElementById("photo");
+    img.src = `${API}/uploads/${c.photo}`;
+    img.style.display = "block";
   }
 }
 
