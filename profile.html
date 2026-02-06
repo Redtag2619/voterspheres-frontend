@@ -1,51 +1,61 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Candidate Profile</title>
-  <style>
-    body { font-family: Arial; padding:20px }
-    img {
-      width:200px;
-      height:auto;
-      border-radius:8px;
-      margin-bottom:15px;
-    }
-  </style>
+<title>Candidate Profile</title>
+<style>
+body{font-family:Arial;padding:20px}
+.card{border:1px solid #ccc;padding:20px;border-radius:8px;max-width:600px}
+h2{margin-top:0}
+.label{font-weight:bold}
+.row{margin:6px 0}
+img{max-width:150px;border-radius:6px;margin-bottom:10px}
+a{display:inline-block;margin-top:15px}
+</style>
 </head>
 <body>
 
-<a href="index.html">← Back</a>
+<a href="index.html">⬅ Back to Search</a>
 
-<h1 id="name"></h1>
+<div class="card">
+  <img id="photo" style="display:none"/>
+  <h2 id="name"></h2>
 
-<img id="photo" style="display:none"/>
+  <div class="row"><span class="label">State:</span> <span id="state"></span></div>
+  <div class="row"><span class="label">Party:</span> <span id="party"></span></div>
+  <div class="row"><span class="label">County:</span> <span id="county"></span></div>
+  <div class="row"><span class="label">Office:</span> <span id="office"></span></div>
 
-<p><strong>Email:</strong> <span id="email"></span></p>
-<p><strong>Phone:</strong> <span id="phone"></span></p>
-<p><strong>Website:</strong> <a id="website" target="_blank"></a></p>
+  <div class="row"><span class="label">Email:</span> <span id="email"></span></div>
+  <div class="row"><span class="label">Phone:</span> <span id="phone"></span></div>
+  <div class="row"><span class="label">Website:</span> <span id="website"></span></div>
+  <div class="row"><span class="label">Address:</span> <span id="address"></span></div>
+</div>
 
 <script>
-const API = "http://localhost:10000";
+const API="http://localhost:10000";
 
-const id = new URLSearchParams(window.location.search).get("id");
+const params=new URLSearchParams(window.location.search);
+const id=params.get("id");
 
-async function loadProfile() {
-  const res = await fetch(`${API}/api/candidates/${id}`);
-  const c = await res.json();
+async function loadProfile(){
+  const res=await fetch(`${API}/api/candidate/${id}`);
+  const c=await res.json();
 
-  document.getElementById("name").innerText = c.full_name;
-  document.getElementById("email").innerText = c.email || "";
-  document.getElementById("phone").innerText = c.phone || "";
+  document.getElementById("name").innerText=c.full_name;
+  document.getElementById("state").innerText=c.state||"";
+  document.getElementById("party").innerText=c.party||"";
+  document.getElementById("county").innerText=c.county||"";
+  document.getElementById("office").innerText=c.office||"";
 
-  if (c.website) {
-    document.getElementById("website").innerText = c.website;
-    document.getElementById("website").href = c.website;
-  }
+  document.getElementById("email").innerText=c.email||"";
+  document.getElementById("phone").innerText=c.phone||"";
+  document.getElementById("website").innerText=c.website||"";
+  document.getElementById("address").innerText=c.address||"";
 
-  if (c.photo) {
-    const img = document.getElementById("photo");
-    img.src = `${API}/uploads/${c.photo}`;
-    img.style.display = "block";
+  if(c.photo){
+    const img=document.getElementById("photo");
+    img.src=c.photo;
+    img.style.display="block";
   }
 }
 
