@@ -1,6 +1,55 @@
 const API = "http://localhost:10000";
 
 let currentPage = 1;
+async function uploadPhoto() {
+
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    alert("Please login first");
+    return;
+  }
+
+  const file = document.getElementById("photoFile").files[0];
+
+  if (!file) {
+    alert("Select an image");
+    return;
+  }
+
+  const candidateId = prompt("Enter Candidate ID:");
+
+  if (!candidateId) return;
+
+  const form = new FormData();
+  form.append("photo", file);
+
+  try {
+
+    const res = await fetch(
+      `http://localhost:10000/api/candidates/${candidateId}/photo`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token
+        },
+        body: form
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Upload failed");
+      return;
+    }
+
+    alert("Photo uploaded successfully!");
+
+  } catch (err) {
+    alert("Upload error");
+  }
+}
 
 async function loadCandidates(page = 1) {
   currentPage = page;
