@@ -1,28 +1,45 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>VoterSpheres</title>
-  <style>
-    body { font-family: Arial; padding:20px }
-    .card {
-      border:1px solid #ddd;
-      padding:10px;
-      margin:10px 0;
-      cursor:pointer;
-    }
-    .card:hover { background:#f5f5f5 }
-  </style>
-</head>
-<body>
+const API_BASE = "http://localhost:10000";
 
-<h1>Candidate Search</h1>
+async function loadCandidates() {
+  try {
+    const res = await fetch(`${API_BASE}/api/candidates`);
+    const data = await res.json();
 
-<input id="search" placeholder="Search by name">
-<button onclick="loadCandidates()">Search</button>
+    const list = document.getElementById("results");
+    list.innerHTML = "";
 
-<div id="results"></div>
-<div id="pagination"></div>
+    data.forEach(c => {
+      const li = document.createElement("li");
+      li.textContent = c.name;
+      list.appendChild(li);
+    });
 
-<script src="index.js"></script>
-</body>
-</html>
+  } catch (err) {
+    console.error("Frontend error:", err);
+  }
+}
+
+async function loadStates() {
+  try {
+    const res = await fetch(`${API_BASE}/api/dropdowns/states`);
+    const data = await res.json();
+
+    const select = document.getElementById("stateSelect");
+    select.innerHTML = `<option value="">All States</option>`;
+
+    data.forEach(row => {
+      const opt = document.createElement("option");
+      opt.value = row.state;
+      opt.textContent = row.state;
+      select.appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadCandidates();
+  loadStates();
+});
