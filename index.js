@@ -18,6 +18,33 @@ async function loadCandidates() {
     console.error("Frontend error:", err);
   }
 }
+async function uploadPhoto(){
+  const id=document.getElementById("candidateId").value;
+  const file=document.getElementById("photo").files[0];
+  const status=document.getElementById("uploadStatus");
+
+  if(!id || !file){
+    status.innerText="Missing candidate ID or file";
+    return;
+  }
+
+  const form=new FormData();
+  form.append("photo",file);
+
+  const res=await fetch(
+    `http://localhost:10000/api/admin/candidate/${id}/photo`,
+    {
+      method:"POST",
+      headers:{
+        Authorization:`Bearer ${localStorage.getItem("token")}`
+      },
+      body:form
+    }
+  );
+
+  const data=await res.json();
+  status.innerText=data.success ? "Upload successful" : data.error;
+}
 
 async function loadStates() {
   try {
