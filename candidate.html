@@ -1,39 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Candidate Profile</title>
-
-  <!-- SEO -->
-  <meta charset="UTF-8">
-  <meta name="description" id="meta-description">
-  <meta property="og:title" id="og-title">
-  <meta property="og:description" id="og-description">
-  <meta property="og:image" id="og-image">
-  <meta property="og:type" content="profile">
-
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    img { max-width: 200px; margin-bottom: 10px; }
-    .label { font-weight: bold; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" id="metaDesc" content="" />
 </head>
 <body>
 
-<a href="/">← Back</a>
+  <h1 id="name"></h1>
+  <p id="details"></p>
 
-<h1 id="name"></h1>
-<img id="photo" />
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get("slug");
+    const id = slug.split("-").pop();
 
-<p><span class="label">Office:</span> <span id="office"></span></p>
-<p><span class="label">Party:</span> <span id="party"></span></p>
-<p><span class="label">State:</span> <span id="state"></span></p>
-<p><span class="label">County:</span> <span id="county"></span></p>
+    fetch(`http://localhost:10000/api/candidates/${id}`)
+      .then(r => r.json())
+      .then(c => {
+        document.title = `${c.full_name} | Candidate Profile`;
+        document.getElementById("metaDesc").content =
+          `${c.full_name} running for ${c.office}`;
 
-<p><span class="label">Email:</span> <span id="email"></span></p>
-<p><span class="label">Phone:</span> <span id="phone"></span></p>
-<p><span class="label">Website:</span> <a id="website" target="_blank"></a></p>
-<p><span class="label">Address:</span> <span id="address"></span></p>
+        document.getElementById("name").textContent = c.full_name;
+        document.getElementById("details").textContent =
+          `${c.party} – ${c.state}`;
+      });
+  </script>
 
-<script src="/candidate.js"></script>
 </body>
 </html>
