@@ -1,156 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Candidate Search</title>
-<style>
-body{font-family:Arial;padding:20px}
-select,input,button{padding:6px;margin:5px}
-table{border-collapse:collapse;width:100%;margin-top:15px}
-td,th{border:1px solid #ccc;padding:8px}
-#pagination button{margin:3px;padding:6px 10px}
-#total{margin-top:10px;font-weight:bold}
-</style>
+  <meta charset="UTF-8" />
+  <title>VoterSpheres – Candidates</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Search political candidates by state, party, county, and office." />
+  <link rel="canonical" href="http://localhost:10000/" />
+
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .candidate { margin-bottom: 10px; }
+    a { color: #1a73e8; text-decoration: none; }
+  </style>
 </head>
 <body>
 
-<h2>Candidate Search</h2>
+  <h1>Candidates</h1>
 
-<input id="q" placeholder="Search name"/>
+  <div id="results"></div>
 
-<select id="state"></select>
-<select id="party"></select>
-<select id="county"></select>
-<select id="office"></select>
-
-<button onclick="search(1)">Search</button>
-
-<div id="total"></div>
-
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>State</th>
-<th>Party</th>
-<th>County</th>
-<th>Office</th>
-</tr>
-</thead>
-<tbody id="results"></tbody>
-</table>
-
-<div id="pagination"></div>
-
-<script>
-const API="http://localhost:10000";
-let currentPage=1;
-
-async function loadDropdowns(){
-  fill("state","/api/states");
-  fill("party","/api/parties");
-  fill("office","/api/offices");
-
-  document.getElementById("state").onchange=loadCounties;
-}
-
-async function fill(id,url){
-  const res=await fetch(API+url);
-  const data=await res.json();
-  const el=document.getElementById(id);
-  el.innerHTML='<option value="">All</option>';
-  data.forEach(r=>{
-    el.innerHTML+=`<option value="${r.id}">${r.name}</option>`;
-  });
-}
-
-async function loadCounties(){
-  const s=document.getElementById("state").value;
-  if(!s) return;
-
-  const res=await fetch(`${API}/api/counties?state_id=${s}`);
-  const data=await res.json();
-
-  const el=document.getElementById("county");
-  el.innerHTML='<option value="">All</option>';
-  data.forEach(r=>{
-    el.innerHTML+=`<option value="${r.id}">${r.name}</option>`;
-  });
-}
-
-async function search(page){
-  currentPage=page;
-
-  const q=document.getElementById("q").value;
-  const state=document.getElementById("state").value;
-  const party=document.getElementById("party").value;
-  const county=document.getElementById("county").value;
-  const office=document.getElementById("office").value;
-
-  const params=new URLSearchParams({
-    q,
-    state_id:state,
-    party_id:party,
-    county_id:county,
-    office_id:office,
-    page,
-    limit:20
-  });
-
-  const res=await fetch(`${API}/api/search?${params}`);
-  const data=await res.json();
-
-  renderResults(data.results);
-  renderPagination(data.page,data.pages);
-  document.getElementById("total").innerText=
-    `Total Results: ${data.total}`;
-}
-
-function renderResults(list){
-  const tbody=document.getElementById("results");
-  tbody.innerHTML="";
-
-  list.forEach(c=>{
-    tbody.innerHTML+=`
-      <tr>
-        <td>
-          <a href="profile.html?id=${c.id}">
-            ${c.full_name}
-          </a>
-        </td>
-        <td>${c.state||""}</td>
-        <td>${c.party||""}</td>
-        <td>${c.county||""}</td>
-        <td>${c.office||""}</td>
-      </tr>
-    `;
-  });
-}
-
-
-function renderPagination(page,pages){
-  const div=document.getElementById("pagination");
-  div.innerHTML="";
-
-  if(page>1){
-    div.innerHTML+=`<button onclick="search(${page-1})">Prev</button>`;
-  }
-
-  for(let i=1;i<=pages;i++){
-    div.innerHTML+=`
-      <button 
-        style="${i===page?'font-weight:bold':''}"
-        onclick="search(${i})">${i}</button>
-    `;
-  }
-
-  if(page<pages){
-    div.innerHTML+=`<button onclick="search(${page+1})">Next</button>`;
-  }
-}
-
-loadDropdowns();
-search(1);
-</script>
-
+  <script src="index.js"></script>
 </body>
 </html>
