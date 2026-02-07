@@ -1,7 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>Candidate Profile</title>
+
+  <!-- SEO -->
+  <meta charset="UTF-8">
+  <meta name="description" id="meta-description">
+  <meta property="og:title" id="og-title">
+  <meta property="og:description" id="og-description">
+  <meta property="og:image" id="og-image">
+  <meta property="og:type" content="profile">
+
   <style>
     body { font-family: Arial; padding: 20px; }
     img { max-width: 200px; margin-bottom: 10px; }
@@ -13,7 +22,6 @@
 <a href="/">← Back</a>
 
 <h1 id="name"></h1>
-
 <img id="photo" />
 
 <p><span class="label">Office:</span> <span id="office"></span></p>
@@ -26,6 +34,6 @@
 <p><span class="label">Website:</span> <a id="website" target="_blank"></a></p>
 <p><span class="label">Address:</span> <span id="address"></span></p>
 
-<script src="candidate.js"></script>
+<script src="/candidate.js"></script>
 </body>
 </html>
