@@ -1,56 +1,36 @@
-const API = "http://localhost:10000";
-const ADMIN_ID = 1; // replace with logged-in admin ID
+const API = "http://localhost:10000/api";
+
+/* ============================
+   LOAD CANDIDATES
+============================ */
 
 async function loadCandidates() {
-  const res = await fetch(`${API}/api/candidates`);
+  const res = await fetch(`${API}/candidates`);
   const data = await res.json();
 
-  const select = document.getElementById("candidateSelect");
-  const list = document.getElementById("candidateList");
-
-  select.innerHTML = "";
-  list.innerHTML = "";
+  const container = document.getElementById("results");
+  container.innerHTML = "";
 
   data.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = c.full_name;
-    select.appendChild(opt);
+    // 🔑 SEO SLUG (THIS IS STEP 4)
+    const slug =
+      c.full_name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") +
+      "-" + c.id;
 
     const div = document.createElement("div");
+    div.className = "candidate";
+
     div.innerHTML = `
-      <h4>${c.full_name}</h4>
-      ${c.photo ? `<img src="${API}${c.photo}" width="120"/>` : "No photo"}
+      <a href="candidate.html?slug=${slug}">
+        ${c.full_name}
+      </a>
     `;
-    list.appendChild(div);
+
+    container.appendChild(div);
   });
-}
-
-async function uploadPhoto() {
-  const candidateId = document.getElementById("candidateSelect").value;
-  const file = document.getElementById("photoInput").files[0];
-
-  if (!file) return alert("Select a file");
-
-  const form = new FormData();
-  form.append("photo", file);
-
-  const res = await fetch(
-    `${API}/api/admin/candidates/${candidateId}/photo`,
-    {
-      method: "POST",
-      headers: { "x-user-id": ADMIN_ID },
-      body: form
-    }
-  );
-
-  const data = await res.json();
-  if (data.success) {
-    alert("Upload successful");
-    loadCandidates();
-  } else {
-    alert("Upload failed");
-  }
 }
 
 loadCandidates();
