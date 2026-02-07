@@ -5,17 +5,15 @@
 </head>
 <body>
 
-<h2>Admin Dashboard</h2>
+<h2>Upload Candidate Photo</h2>
 
-<h3>Upload Candidate Photo</h3>
+<select id="candidateSelect"></select>
+<input type="file" id="photoInput" />
+<button onclick="uploadPhoto()">Upload</button>
 
-<input type="number" id="candidateId" placeholder="Candidate ID" />
-<br><br>
-<input type="file" id="photo" accept="image/*" />
-<br><br>
-<button onclick="uploadPhoto()">Upload Photo</button>
+<hr />
 
-<p id="status"></p>
+<div id="candidateList"></div>
 
 <script src="index.js"></script>
 </body>
