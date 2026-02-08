@@ -2,32 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Candidate Profile</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title id="title">Candidate</title>
   <meta name="description" id="metaDesc" content="" />
 </head>
 <body>
 
-  <h1 id="name"></h1>
-  <p id="details"></p>
+<h1 id="name"></h1>
+<p id="info"></p>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const slug = params.get("slug");
-    const id = slug.split("-").pop();
+<script>
+  const slug = window.location.pathname.split("/").pop();
+  const id = slug.split("-").pop();
 
-    fetch(`http://localhost:10000/api/candidates/${id}`)
-      .then(r => r.json())
-      .then(c => {
-        document.title = `${c.full_name} | Candidate Profile`;
-        document.getElementById("metaDesc").content =
-          `${c.full_name} running for ${c.office}`;
+  fetch(`/api/candidates/${id}`)
+    .then(r => r.json())
+    .then(c => {
+      document.title = `${c.full_name} | ${c.office}`;
+      document.getElementById("metaDesc").content =
+        `${c.full_name}, ${c.party} candidate for ${c.office} in ${c.state}`;
 
-        document.getElementById("name").textContent = c.full_name;
-        document.getElementById("details").textContent =
-          `${c.party} – ${c.state}`;
-      });
-  </script>
+      document.getElementById("name").textContent = c.full_name;
+      document.getElementById("info").textContent =
+        `${c.party} · ${c.state} · ${c.office}`;
+    });
+</script>
 
 </body>
 </html>
