@@ -1,8 +1,4 @@
-const API = "http://localhost:10000/api";
-
-/* ============================
-   LOAD CANDIDATES
-============================ */
+const API = "/api";
 
 async function loadCandidates() {
   const res = await fetch(`${API}/candidates`);
@@ -12,7 +8,6 @@ async function loadCandidates() {
   container.innerHTML = "";
 
   data.forEach(c => {
-    // 🔑 SEO SLUG (THIS IS STEP 4)
     const slug =
       c.full_name
         .toLowerCase()
@@ -21,11 +16,9 @@ async function loadCandidates() {
       "-" + c.id;
 
     const div = document.createElement("div");
-    div.className = "candidate";
-
     div.innerHTML = `
-      <a href="candidate.html?slug=${slug}">
-        ${c.full_name}
+      <a href="/candidate/${slug}">
+        ${c.full_name} (${c.state})
       </a>
     `;
 
