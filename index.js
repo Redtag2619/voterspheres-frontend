@@ -1,79 +1,118 @@
-const API = "http://localhost:10000";
+/* ================================
+   GLOBAL CONFIG
+================================ */
 
-/* ======================== */
-/* ROUTER */
-/* ======================== */
-function router() {
-  const path = window.location.pathname;
+const API_BASE = "http://localhost:10000";
 
-  if (path.startsWith("/candidate/")) {
-    const slug = path.split("/candidate/")[1];
-    loadProfile(slug);
-  } else {
-    loadList();
+/*
+Expected localStorage keys:
+- authToken   (JWT string)
+- userRole    ("admin" | "user")
+*/
+
+
+/* ================================
+   AUTH HELPERS
+================================ */
+
+function getAuthToken() {
+  return localStorage.getItem("authToken");
+}
+
+function isAdmin() {
+  return localStorage.getItem("userRole") === "admin";
+}
+
+function requireAdmin() {
+  if (!getAuthToken() || !isAdmin()) {
+    alert("Admin access required");
+    window.location.href = "/login.html";
   }
 }
 
-/* ======================== */
-/* LIST */
-/* ======================== */
-async function loadList() {
-  const res = await fetch(`${API}/candidates`);
-  const data = await res.json();
 
-  document.getElementById("app").innerHTML = `
-    <h1>Candidates</h1>
-    ${data.results.map(c => `
-      <div>
-        <a href="/candidate/${c.slug}" data-link>
-          <strong>${c.full_name}</strong>
-        </a>
-        <div>${c.office} – ${c.party}</div>
-      </div>
-    `).join("")}
-  `;
+/* ================================
+   ADMIN PHOTO UPLOAD
+================================ */
 
-  bindLinks();
-}
+async function uploadCandidatePhoto() {
+  requireAdmin();
 
-/* ======================== */
-/* PROFILE */
-/* ======================== */
-async function loadProfile(slug) {
-  const res = await fetch(`${API}/candidate/${slug}`);
-  if (!res.ok) {
-    document.getElementById("app").innerHTML = "Not found";
+  const candidateId = document.getElementById("candidateId").value;
+  const fileInput = document.getElementById("photoFile");
+  const statusEl = document.getElementById("uploadStatus");
+  const previewEl = document.getElementById("previewImage");
+
+  statusEl.textContent = "";
+  previewEl.style.display = "none";
+
+  if (!candidateId) {
+    statusEl.textContent = "❌ Candidate ID required";
     return;
   }
 
-  const c = await res.json();
+  if (!fileInput.files.length) {
+    statusEl.textContent = "❌ Please select a photo";
+    return;
+  }
 
-  document.title = `${c.full_name} for ${c.office}`;
+  const file = fileInput.files[0];
 
-  document.getElementById("app").innerHTML = `
-    <a href="/" data-link>← Back</a>
-    <h1>${c.full_name}</h1>
-    ${c.photo ? `<img src="${API}${c.photo}" width="200" />` : ""}
-    <p><b>Office:</b> ${c.office}</p>
-    <p><b>Party:</b> ${c.party}</p>
-    <p><b>State:</b> ${c.state}</p>
-  `;
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    statusEl.textContent = "❌ Only JPG, PNG, or WEBP allowed";
+    return;
+  }
 
-  bindLinks();
+  if (file.size > 2 * 1024 * 1024) {
+    statusEl.textContent = "❌ Max file size is 2MB";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  try {
+    statusEl.textContent = "Uploading…";
+
+    const res = await fetch(
+      `${API_BASE}/api/admin/candidates/${candidateId}/photo`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`
+        },
+        body: formData
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Upload failed");
+    }
+
+    statusEl.textContent = "✅ Upload successful";
+
+    previewEl.src = `${API_BASE}${data.photo}`;
+    previewEl.style.display = "block";
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "❌ " + err.message;
+  }
 }
 
-/* ======================== */
-/* NAVIGATION */
-/* ======================== */
-function bindLinks() {
-  document.querySelectorAll("[data-link]").forEach(link => {
-    link.onclick = e => {
-      e.preventDefault();
-      history.pushState(null, "", link.href);
-      router();
-    };
-  });
-}
 
-window.onpopstate = router;
-router();
+/* ================================
+   OPTIONAL: AUTO-LOAD CHECK
+================================ */
+
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("Frontend index.js loaded");
+
+  // Auto-protect dashboard
+  if (window.location.pathname.includes("dashboard")) {
+    requireAdmin();
+  }
+});
