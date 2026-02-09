@@ -3,13 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <title>VoterSpheres – Candidates</title>
-  <meta name="description" content="Search political candidates by state, party, and office." />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- SEO -->
+  <meta name="description" content="Browse political candidates by state, party, and office." />
+
+  <!-- NO CSP (fixes your error) -->
 </head>
 <body>
+  <h1>Candidates</h1>
 
-<h1>Candidates</h1>
-<div id="results"></div>
+  <div id="candidates"></div>
 
-<script src="/index.js"></script>
+  <div style="margin-top:20px;">
+    <button id="prev">Prev</button>
+    <span id="page"></span>
+    <button id="next">Next</button>
+  </div>
+
+  <script src="index.js"></script>
 </body>
 </html>
