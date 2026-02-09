@@ -1,66 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Candidate Profile</title>
-<style>
-body{font-family:Arial;padding:20px}
-.card{border:1px solid #ccc;padding:20px;border-radius:8px;max-width:600px}
-h2{margin-top:0}
-.label{font-weight:bold}
-.row{margin:6px 0}
-img{max-width:150px;border-radius:6px;margin-bottom:10px}
-a{display:inline-block;margin-top:15px}
-</style>
+  <meta charset="UTF-8" />
+  <title>Candidate Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
 
-<a href="index.html">⬅ Back to Search</a>
+  <a href="/">← Back to list</a>
 
-<div class="card">
-  <img id="photo" style="display:none"/>
-  <h2 id="name"></h2>
+  <h1 id="name"></h1>
+  <img id="photo" width="200" style="display:none;" />
 
-  <div class="row"><span class="label">State:</span> <span id="state"></span></div>
-  <div class="row"><span class="label">Party:</span> <span id="party"></span></div>
-  <div class="row"><span class="label">County:</span> <span id="county"></span></div>
-  <div class="row"><span class="label">Office:</span> <span id="office"></span></div>
+  <p><strong>Office:</strong> <span id="office"></span></p>
+  <p><strong>State:</strong> <span id="state"></span></p>
+  <p><strong>Party:</strong> <span id="party"></span></p>
+  <p><strong>County:</strong> <span id="county"></span></p>
 
-  <div class="row"><span class="label">Email:</span> <span id="email"></span></div>
-  <div class="row"><span class="label">Phone:</span> <span id="phone"></span></div>
-  <div class="row"><span class="label">Website:</span> <span id="website"></span></div>
-  <div class="row"><span class="label">Address:</span> <span id="address"></span></div>
-</div>
+  <hr />
 
-<script>
-const API="http://localhost:10000";
+  <!-- ADMIN UPLOAD -->
+  <div id="admin">
+    <h3>Admin: Upload Photo</h3>
+    <input type="file" id="photoInput" />
+    <button onclick="uploadPhoto()">Upload</button>
+  </div>
 
-const params=new URLSearchParams(window.location.search);
-const id=params.get("id");
-
-async function loadProfile(){
-  const res=await fetch(`${API}/api/candidate/${id}`);
-  const c=await res.json();
-
-  document.getElementById("name").innerText=c.full_name;
-  document.getElementById("state").innerText=c.state||"";
-  document.getElementById("party").innerText=c.party||"";
-  document.getElementById("county").innerText=c.county||"";
-  document.getElementById("office").innerText=c.office||"";
-
-  document.getElementById("email").innerText=c.email||"";
-  document.getElementById("phone").innerText=c.phone||"";
-  document.getElementById("website").innerText=c.website||"";
-  document.getElementById("address").innerText=c.address||"";
-
-  if(c.photo){
-    const img=document.getElementById("photo");
-    img.src=c.photo;
-    img.style.display="block";
-  }
-}
-
-loadProfile();
-</script>
-
+  <script src="index.js"></script>
 </body>
 </html>
