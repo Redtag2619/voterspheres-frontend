@@ -1,135 +1,79 @@
 const API = "http://localhost:10000";
-let page = 1;
 
-/* ===================== */
-/* LIST PAGE */
-/* ===================== */
-async function loadCandidates() {
-  const res = await fetch(`${API}/candidates?page=${page}`);
+/* ======================== */
+/* ROUTER */
+/* ======================== */
+function router() {
+  const path = window.location.pathname;
+
+  if (path.startsWith("/candidate/")) {
+    const slug = path.split("/candidate/")[1];
+    loadProfile(slug);
+  } else {
+    loadList();
+  }
+}
+
+/* ======================== */
+/* LIST */
+/* ======================== */
+async function loadList() {
+  const res = await fetch(`${API}/candidates`);
   const data = await res.json();
 
-  const container = document.getElementById("candidates");
-  container.innerHTML = "";
-
-  data.results.forEach(c => {
-    const div = document.createElement("div");
-    div.innerHTML = `
-      <h3>
-        <a href="/profile.html?slug=${c.slug}">
-          ${c.full_name}
+  document.getElementById("app").innerHTML = `
+    <h1>Candidates</h1>
+    ${data.results.map(c => `
+      <div>
+        <a href="/candidate/${c.slug}" data-link>
+          <strong>${c.full_name}</strong>
         </a>
-      </h3>
-      <p>${c.office} – ${c.party}</p>
-    `;
-    container.appendChild(div);
-  });
+        <div>${c.office} – ${c.party}</div>
+      </div>
+    `).join("")}
+  `;
 
-  document.getElementById("page").innerText =
-    `Page ${data.page} of ${Math.ceil(data.total / 20)}`;
+  bindLinks();
 }
 
-/* Pagination */
-document.getElementById("prev")?.addEventListener("click", () => {
-  if (page > 1) { page--; loadCandidates(); }
-});
-document.getElementById("next")?.addEventListener("click", () => {
-  page++; loadCandidates();
-});
-
-/* ===================== */
-/* PROFILE PAGE + SEO */
-/* ===================== */
-async function loadProfile() {
-  const slug = new URLSearchParams(window.location.search).get("slug");
-  if (!slug) return;
-
+/* ======================== */
+/* PROFILE */
+/* ======================== */
+async function loadProfile(slug) {
   const res = await fetch(`${API}/candidate/${slug}`);
-  const c = await res.json();
-
-  document.getElementById("name").innerText = c.full_name;
-  document.getElementById("office").innerText = c.office;
-  document.getElementById("state").innerText = c.state;
-  document.getElementById("party").innerText = c.party;
-  document.getElementById("county").innerText = c.county || "";
-
-  /* IMAGE */
-  if (c.photo) {
-    const img = document.getElementById("photo");
-    img.src = `${API}${c.photo}`;
-    img.style.display = "block";
+  if (!res.ok) {
+    document.getElementById("app").innerHTML = "Not found";
+    return;
   }
 
-  /* SEO */
-  document.title = `${c.full_name} for ${c.office} | VoterSpheres`;
+  const c = await res.json();
 
-  const description =
-    `${c.full_name} is a ${c.party} candidate for ${c.office} in ${c.state}.`;
+  document.title = `${c.full_name} for ${c.office}`;
 
-  document
-    .getElementById("seo-description")
-    .setAttribute("content", description);
+  document.getElementById("app").innerHTML = `
+    <a href="/" data-link>← Back</a>
+    <h1>${c.full_name}</h1>
+    ${c.photo ? `<img src="${API}${c.photo}" width="200" />` : ""}
+    <p><b>Office:</b> ${c.office}</p>
+    <p><b>Party:</b> ${c.party}</p>
+    <p><b>State:</b> ${c.state}</p>
+  `;
 
-  document
-    .getElementById("canonical")
-    .setAttribute("href", `https://voterspheres.com/candidate/${c.slug}`);
-
-  document
-    .getElementById("og-title")
-    .setAttribute("content", document.title);
-
-  document
-    .getElementById("og-description")
-    .setAttribute("content", description);
-
-  /* JSON-LD */
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    "name": c.full_name,
-    "jobTitle": c.office,
-    "affiliation": c.party,
-    "address": {
-      "@type": "AdministrativeArea",
-      "name": c.state
-    },
-    "url": `https://voterspheres.com/candidate/${c.slug}`
-  };
-
-  const script = document.createElement("script");
-  script.type = "application/ld+json";
-  script.textContent = JSON.stringify(schema);
-  document.head.appendChild(script);
-
-  window.candidateId = c.id;
+  bindLinks();
 }
 
-/* ===================== */
-/* ADMIN UPLOAD */
-/* ===================== */
-async function uploadPhoto() {
-  const file = document.getElementById("photoInput").files[0];
-  if (!file) return alert("Select a file");
-
-  const token = localStorage.getItem("token");
-  if (!token) return alert("Admin login required");
-
-  const formData = new FormData();
-  formData.append("photo", file);
-
-  const res = await fetch(
-    `${API}/admin/candidate/${window.candidateId}/photo`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData
-    }
-  );
-
-  if (!res.ok) return alert("Upload failed");
-  alert("Photo uploaded");
-  location.reload();
+/* ======================== */
+/* NAVIGATION */
+/* ======================== */
+function bindLinks() {
+  document.querySelectorAll("[data-link]").forEach(link => {
+    link.onclick = e => {
+      e.preventDefault();
+      history.pushState(null, "", link.href);
+      router();
+    };
+  });
 }
 
-/* INIT */
-if (document.getElementById("candidates")) loadCandidates();
-if (window.location.pathname.includes("profile.html")) loadProfile();
+window.onpopstate = router;
+router();
