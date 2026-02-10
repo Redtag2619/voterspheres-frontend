@@ -1,118 +1,55 @@
-/* ================================
-   GLOBAL CONFIG
-================================ */
+/* =========================
+   CONFIG
+========================= */
 
 const API_BASE = "http://localhost:10000";
 
-/*
-Expected localStorage keys:
-- authToken   (JWT string)
-- userRole    ("admin" | "user")
-*/
+/* =========================
+   LOAD CANDIDATE PROFILE
+========================= */
 
+async function loadCandidateProfile() {
+  // URL: /candidate/john-smith
+  const parts = window.location.pathname.split("/");
+  const slug = parts[parts.length - 1];
 
-/* ================================
-   AUTH HELPERS
-================================ */
-
-function getAuthToken() {
-  return localStorage.getItem("authToken");
-}
-
-function isAdmin() {
-  return localStorage.getItem("userRole") === "admin";
-}
-
-function requireAdmin() {
-  if (!getAuthToken() || !isAdmin()) {
-    alert("Admin access required");
-    window.location.href = "/login.html";
-  }
-}
-
-
-/* ================================
-   ADMIN PHOTO UPLOAD
-================================ */
-
-async function uploadCandidatePhoto() {
-  requireAdmin();
-
-  const candidateId = document.getElementById("candidateId").value;
-  const fileInput = document.getElementById("photoFile");
-  const statusEl = document.getElementById("uploadStatus");
-  const previewEl = document.getElementById("previewImage");
-
-  statusEl.textContent = "";
-  previewEl.style.display = "none";
-
-  if (!candidateId) {
-    statusEl.textContent = "❌ Candidate ID required";
-    return;
-  }
-
-  if (!fileInput.files.length) {
-    statusEl.textContent = "❌ Please select a photo";
-    return;
-  }
-
-  const file = fileInput.files[0];
-
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (!allowedTypes.includes(file.type)) {
-    statusEl.textContent = "❌ Only JPG, PNG, or WEBP allowed";
-    return;
-  }
-
-  if (file.size > 2 * 1024 * 1024) {
-    statusEl.textContent = "❌ Max file size is 2MB";
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("photo", file);
+  if (!slug || slug === "candidate") return;
 
   try {
-    statusEl.textContent = "Uploading…";
+    const res = await fetch(`${API_BASE}/api/candidate/${slug}`);
+    if (!res.ok) throw new Error("Not found");
 
-    const res = await fetch(
-      `${API_BASE}/api/admin/candidates/${candidateId}/photo`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`
-        },
-        body: formData
-      }
-    );
+    const c = await res.json();
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || "Upload failed");
+    // SEO
+    document.title = `${c.full_name} | Candidate Profile`;
+    const meta = document.querySelector("meta[name='description']");
+    if (meta) {
+      meta.content = `${c.full_name} running for ${c.office} in ${c.state}`;
     }
 
-    statusEl.textContent = "✅ Upload successful";
+    // Populate page
+    document.getElementById("name").textContent = c.full_name;
+    document.getElementById("office").textContent = c.office;
+    document.getElementById("party").textContent = c.party;
+    document.getElementById("state").textContent = c.state;
+    document.getElementById("county").textContent = c.county || "—";
 
-    previewEl.src = `${API_BASE}${data.photo}`;
-    previewEl.style.display = "block";
-
+    if (c.photo) {
+      const img = document.getElementById("photo");
+      img.src = `${API_BASE}${c.photo}`;
+      img.alt = c.full_name;
+      img.style.display = "block";
+    }
   } catch (err) {
-    console.error(err);
-    statusEl.textContent = "❌ " + err.message;
+    document.body.innerHTML = "<h2>Candidate not found</h2>";
   }
 }
 
-
-/* ================================
-   OPTIONAL: AUTO-LOAD CHECK
-================================ */
+/* =========================
+   INIT
+========================= */
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Frontend index.js loaded");
-
-  // Auto-protect dashboard
-  if (window.location.pathname.includes("dashboard")) {
-    requireAdmin();
-  }
+  loadCandidateProfile();
 });
