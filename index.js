@@ -1,55 +1,34 @@
-/* =========================
-   CONFIG
-========================= */
-
-const API_BASE = "http://localhost:10000";
-
-/* =========================
-   LOAD CANDIDATE PROFILE
-========================= */
+const API_BASE = "";
 
 async function loadCandidateProfile() {
-  // URL: /candidate/john-smith
-  const parts = window.location.pathname.split("/");
-  const slug = parts[parts.length - 1];
+  if (!window.location.pathname.startsWith("/candidate/")) return;
 
-  if (!slug || slug === "candidate") return;
+  const slug = window.location.pathname.split("/").pop();
 
-  try {
-    const res = await fetch(`${API_BASE}/api/candidate/${slug}`);
-    if (!res.ok) throw new Error("Not found");
+  const res = await fetch(`/api/candidate/${slug}`);
 
-    const c = await res.json();
-
-    // SEO
-    document.title = `${c.full_name} | Candidate Profile`;
-    const meta = document.querySelector("meta[name='description']");
-    if (meta) {
-      meta.content = `${c.full_name} running for ${c.office} in ${c.state}`;
-    }
-
-    // Populate page
-    document.getElementById("name").textContent = c.full_name;
-    document.getElementById("office").textContent = c.office;
-    document.getElementById("party").textContent = c.party;
-    document.getElementById("state").textContent = c.state;
-    document.getElementById("county").textContent = c.county || "—";
-
-    if (c.photo) {
-      const img = document.getElementById("photo");
-      img.src = `${API_BASE}${c.photo}`;
-      img.alt = c.full_name;
-      img.style.display = "block";
-    }
-  } catch (err) {
+  if (!res.ok) {
     document.body.innerHTML = "<h2>Candidate not found</h2>";
+    return;
+  }
+
+  const c = await res.json();
+
+  document.title = `${c.full_name} for ${c.office}`;
+  document.getElementById("meta-description").content =
+    `${c.full_name} is running for ${c.office} in ${c.state}.`;
+
+  document.getElementById("name").textContent = c.full_name;
+  document.getElementById("office").textContent = c.office;
+  document.getElementById("party").textContent = c.party;
+  document.getElementById("state").textContent = c.state;
+  document.getElementById("county").textContent = c.county || "—";
+
+  if (c.photo) {
+    const img = document.getElementById("photo");
+    img.src = `/uploads/${c.photo}`;
+    img.style.display = "block";
   }
 }
 
-/* =========================
-   INIT
-========================= */
-
-document.addEventListener("DOMContentLoaded", () => {
-  loadCandidateProfile();
-});
+loadCandidateProfile();
