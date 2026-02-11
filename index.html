@@ -2,12 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>VoterSpheres</title>
-  <meta name="description" content="Political candidate profiles" />
+  <title>VoterSpheres | Political Candidate Profiles</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Explore political candidate profiles across states, counties, and offices. Powered by VoterSpheres." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="VoterSpheres" />
+  <meta property="og:description" content="Political candidate profiles across the United States." />
+  <meta property="og:url" content="https://voterspheres.org/" />
+  <meta property="og:type" content="website" />
+
+  <!-- ORGANIZATION STRUCTURED DATA -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "VoterSpheres",
+    "url": "https://voterspheres.org",
+    "logo": "https://voterspheres.org/logo.png",
+    "sameAs": [
+      "https://twitter.com/",
+      "https://facebook.com/"
+    ]
+  }
+  </script>
+
 </head>
-<body>
-  <div id="app">Loading…</div>
+
+<body style="font-family: Arial; margin: 40px;">
+
+  <h1>VoterSpheres</h1>
+  <p>Political candidate profiles across the United States.</p>
+
+  <div id="app"></div>
+
   <script src="/index.js"></script>
+
 </body>
 </html>
