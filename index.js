@@ -1,34 +1,58 @@
-const API_BASE = "";
+const API_BASE = "https://api.voterspheres.org";
 
-async function loadCandidateProfile() {
-  if (!window.location.pathname.startsWith("/candidate/")) return;
+const app = document.getElementById("app");
+const slug = window.location.pathname.replace("/", "");
 
-  const slug = window.location.pathname.split("/").pop();
+if (!slug) {
+  loadHomepage();
+} else {
+  loadCandidate(slug);
+}
 
-  const res = await fetch(`/api/candidate/${slug}`);
+/* =============================
+   HOMEPAGE
+============================= */
+async function loadHomepage() {
+  const res = await fetch(`${API_BASE}/api/candidates`);
+  const candidates = await res.json();
+
+  app.innerHTML = `
+    <h1>VoterSpheres</h1>
+    <ul>
+      ${candidates
+        .map(
+          c =>
+            `<li>
+              <a href="/${c.slug}">
+                ${c.full_name} — ${c.office} (${c.state})
+              </a>
+            </li>`
+        )
+        .join("")}
+    </ul>
+  `;
+}
+
+/* =============================
+   CANDIDATE PROFILE
+============================= */
+async function loadCandidate(slug) {
+  const res = await fetch(`${API_BASE}/api/candidate/${slug}`);
 
   if (!res.ok) {
-    document.body.innerHTML = "<h2>Candidate not found</h2>";
+    app.innerHTML = "<h2>Candidate not found</h2>";
     return;
   }
 
   const c = await res.json();
 
-  document.title = `${c.full_name} for ${c.office}`;
-  document.getElementById("meta-description").content =
-    `${c.full_name} is running for ${c.office} in ${c.state}.`;
-
-  document.getElementById("name").textContent = c.full_name;
-  document.getElementById("office").textContent = c.office;
-  document.getElementById("party").textContent = c.party;
-  document.getElementById("state").textContent = c.state;
-  document.getElementById("county").textContent = c.county || "—";
-
-  if (c.photo) {
-    const img = document.getElementById("photo");
-    img.src = `/uploads/${c.photo}`;
-    img.style.display = "block";
-  }
+  app.innerHTML = `
+    <h1>${c.full_name}</h1>
+    <p><strong>Office:</strong> ${c.office}</p>
+    <p><strong>State:</strong> ${c.state}</p>
+    <p><strong>Party:</strong> ${c.party}</p>
+    <p><strong>County:</strong> ${c.county || "N/A"}</p>
+    ${c.photo ? `<img src="${c.photo}" width="200" />` : ""}
+    <p><a href="/">← Back</a></p>
+  `;
 }
-
-loadCandidateProfile();
