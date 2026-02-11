@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://voterspheres.org/sitemap.xml
