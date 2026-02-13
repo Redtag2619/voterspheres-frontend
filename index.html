@@ -25,18 +25,32 @@
       "https://facebook.com/"
     ]
   }
-  </script>
-
-</head>
-
-<body style="font-family: Arial; margin: 40px;">
-
-  <h1>VoterSpheres</h1>
-  <p>Political candidate profiles across the United States.</p>
-
-  <div id="app"></div>
-
-  <script src="/index.js"></script>
-
-</body>
-</html>
+ <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ElectionEvent",
+  "@id": "https://voterspheres.org/elections/2026-general-election",
+  "name": "2026 United States General Election",
+  "description": "The 2026 United States General Election including federal, state, and local political races featured on VoterSpheres.",
+  "startDate": "2026-11-03",
+  "eventStatus": "https://schema.org/EventScheduled",
+  "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+  "location": {
+    "@type": "Place",
+    "name": "United States",
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "US"
+    }
+  },
+  "organizer": {
+    "@type": "Organization",
+    "name": "VoterSpheres",
+    "url": "https://voterspheres.org"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "Federal, State, and Local Political Offices"
+  }
+}
+</script>
