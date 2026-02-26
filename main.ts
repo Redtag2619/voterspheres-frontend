@@ -80,8 +80,7 @@ async function loadParties(){
 ========================== */
 
 async function loadCandidates(page=1){
-  currentPage=page;
-
+  
   const params=new URLSearchParams({
     q: searchInput.value,
     state: stateSelect.value,
