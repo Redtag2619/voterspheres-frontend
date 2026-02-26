@@ -80,7 +80,7 @@ async function loadParties() {
    LOAD CANDIDATES
 ========================== */
 
-async function loadCandidates(page: number = 1) {
+async function loadCandidates(page = 1) {
   const params = new URLSearchParams({
     q: searchInput.value,
     state: stateSelect.value,
@@ -88,7 +88,7 @@ async function loadCandidates(page: number = 1) {
     office: officeSelect.value,
     party: partySelect.value,
     page: String(page),
-    limit: String(limit)
+    limit: String(limit),
   });
 
   const res = await fetch(`${API}/candidates?${params}`);
@@ -105,7 +105,7 @@ async function loadCandidates(page: number = 1) {
 function renderResults(rows: any[]) {
   resultsDiv.innerHTML = "";
 
-  rows.forEach(r => {
+  rows.forEach((r) => {
     const div = document.createElement("div");
     div.className = "card";
 
