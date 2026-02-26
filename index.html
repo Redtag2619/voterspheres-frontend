@@ -1,56 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>VoterSpheres | Political Candidate Profiles</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Explore political candidate profiles across states, counties, and offices. Powered by VoterSpheres." />
+  <head>
+    <meta charset="UTF-8" />
+    <title>VoterSphere</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
 
-  <!-- Open Graph -->
-  <meta property="og:title" content="VoterSpheres" />
-  <meta property="og:description" content="Political candidate profiles across the United States." />
-  <meta property="og:url" content="https://voterspheres.org/" />
-  <meta property="og:type" content="website" />
-
-  <!-- ORGANIZATION STRUCTURED DATA -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "VoterSpheres",
-    "url": "https://voterspheres.org",
-    "logo": "https://voterspheres.org/logo.png",
-    "sameAs": [
-      "https://twitter.com/",
-      "https://facebook.com/"
-    ]
-  }
- <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "ElectionEvent",
-  "@id": "https://voterspheres.org/elections/2026-general-election",
-  "name": "2026 United States General Election",
-  "description": "The 2026 United States General Election including federal, state, and local political races featured on VoterSpheres.",
-  "startDate": "2026-11-03",
-  "eventStatus": "https://schema.org/EventScheduled",
-  "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-  "location": {
-    "@type": "Place",
-    "name": "United States",
-    "address": {
-      "@type": "PostalAddress",
-      "addressCountry": "US"
-    }
-  },
-  "organizer": {
-    "@type": "Organization",
-    "name": "VoterSpheres",
-    "url": "https://voterspheres.org"
-  },
-  "about": {
-    "@type": "Thing",
-    "name": "Federal, State, and Local Political Offices"
-  }
-}
-</script>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
