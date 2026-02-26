@@ -1,4 +1,4 @@
-const API = "http://localhost:10000/api";
+const API = import.meta.env.VITE_API_URL;
 
 const searchInput = document.getElementById("searchInput") as HTMLInputElement;
 const stateSelect = document.getElementById("stateSelect") as HTMLSelectElement;
@@ -8,7 +8,6 @@ const partySelect = document.getElementById("partySelect") as HTMLSelectElement;
 
 const resultsDiv = document.getElementById("results")!;
 const paginationDiv = document.getElementById("pagination")!;
-
 const limit = 12;
 
 /* ==========================
