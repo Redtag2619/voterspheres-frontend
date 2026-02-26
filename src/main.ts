@@ -9,8 +9,6 @@ const partySelect = document.getElementById("partySelect") as HTMLSelectElement;
 const resultsDiv = document.getElementById("results")!;
 const paginationDiv = document.getElementById("pagination")!;
 
-const limit = 12;
-
 /* ==========================
    LOAD DROPDOWNS
 ========================== */
