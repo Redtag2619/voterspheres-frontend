@@ -1,77 +1,103 @@
 const API = import.meta.env.VITE_API_URL;
 
-const searchInput = document.getElementById("searchInput") as HTMLInputElement;
-const stateSelect = document.getElementById("stateSelect") as HTMLSelectElement;
-const countySelect = document.getElementById("countySelect") as HTMLSelectElement;
-const officeSelect = document.getElementById("officeSelect") as HTMLSelectElement;
-const partySelect = document.getElementById("partySelect") as HTMLSelectElement;
+const limit = 10;
 
-const resultsDiv = document.getElementById("results")!;
-const paginationDiv = document.getElementById("pagination")!;
+/* ==========================
+   SAFE ELEMENT GETTERS
+========================== */
+
+function getInput(id: string): HTMLInputElement | null {
+  return document.getElementById(id) as HTMLInputElement | null;
+}
+
+function getSelect(id: string): HTMLSelectElement | null {
+  return document.getElementById(id) as HTMLSelectElement | null;
+}
+
+function getDiv(id: string): HTMLElement | null {
+  return document.getElementById(id);
+}
 
 /* ==========================
    LOAD DROPDOWNS
 ========================== */
 
 async function loadStates() {
-  const res = await fetch(`${API}/dropdowns/states`);
-  const data = await res.json();
+  const stateSelect = getSelect("stateSelect");
+  if (!stateSelect) return;
 
-  data.forEach((s: any) => {
-    const opt = document.createElement("option");
-    opt.value = s.id;
-    opt.textContent = s.name;
-    stateSelect.appendChild(opt);
-  });
-}
+  try {
+    const res = await fetch(`${API}/dropdowns/states`);
+    const data = await res.json();
 
-async function loadCountiesByState(stateId: string) {
-  if (!stateId) {
-    countySelect.innerHTML = `<option value="">Select State First</option>`;
-    countySelect.disabled = true;
-    return;
+    stateSelect.innerHTML = `<option value="">All States</option>`;
+
+    (Array.isArray(data) ? data : []).forEach((s: any) => {
+      const value = s.state || s.id || "";
+      const label = s.state || s.name || "";
+
+      if (!value) return;
+
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      stateSelect.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("States load error:", err);
   }
-
-  countySelect.disabled = true;
-  countySelect.innerHTML = `<option>Loading...</option>`;
-
-  const res = await fetch(`${API}/dropdowns/counties?state=${stateId}`);
-  const data = await res.json();
-
-  countySelect.innerHTML = `<option value="">All Counties</option>`;
-
-  data.forEach((c: any) => {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = c.name;
-    countySelect.appendChild(opt);
-  });
-
-  countySelect.disabled = false;
 }
 
 async function loadOffices() {
-  const res = await fetch(`${API}/dropdowns/offices`);
-  const data = await res.json();
+  const officeSelect = getSelect("officeSelect");
+  if (!officeSelect) return;
 
-  data.forEach((o: any) => {
-    const opt = document.createElement("option");
-    opt.value = o.id;
-    opt.textContent = o.name;
-    officeSelect.appendChild(opt);
-  });
+  try {
+    const res = await fetch(`${API}/dropdowns/offices`);
+    const data = await res.json();
+
+    officeSelect.innerHTML = `<option value="">All Offices</option>`;
+
+    (Array.isArray(data) ? data : []).forEach((o: any) => {
+      const value = o.office || o.id || "";
+      const label = o.office || o.name || "";
+
+      if (!value) return;
+
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      officeSelect.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Offices load error:", err);
+  }
 }
 
 async function loadParties() {
-  const res = await fetch(`${API}/dropdowns/parties`);
-  const data = await res.json();
+  const partySelect = getSelect("partySelect");
+  if (!partySelect) return;
 
-  data.forEach((p: any) => {
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.name;
-    partySelect.appendChild(opt);
-  });
+  try {
+    const res = await fetch(`${API}/dropdowns/parties`);
+    const data = await res.json();
+
+    partySelect.innerHTML = `<option value="">All Parties</option>`;
+
+    (Array.isArray(data) ? data : []).forEach((p: any) => {
+      const value = p.party || p.id || "";
+      const label = p.party || p.name || "";
+
+      if (!value) return;
+
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      partySelect.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Parties load error:", err);
+  }
 }
 
 /* ==========================
@@ -79,21 +105,31 @@ async function loadParties() {
 ========================== */
 
 async function loadCandidates(page = 1) {
+  const searchInput = getInput("searchInput");
+  const stateSelect = getSelect("stateSelect");
+  const countySelect = getSelect("countySelect");
+  const officeSelect = getSelect("officeSelect");
+  const partySelect = getSelect("partySelect");
+
   const params = new URLSearchParams({
-    q: searchInput.value,
-    state: stateSelect.value,
-    county: countySelect.value,
-    office: officeSelect.value,
-    party: partySelect.value,
+    q: searchInput?.value || "",
+    state: stateSelect?.value || "",
+    county: countySelect?.value || "",
+    office: officeSelect?.value || "",
+    party: partySelect?.value || "",
     page: String(page),
     limit: String(limit),
   });
 
-  const res = await fetch(`${API}/candidates?${params}`);
-  const data = await res.json();
+  try {
+    const res = await fetch(`${API}/candidates?${params}`);
+    const data = await res.json();
 
-  renderResults(data.results);
-  renderPagination(data.total, page);
+    renderResults(Array.isArray(data.results) ? data.results : []);
+    renderPagination(data.total || 0, page);
+  } catch (err) {
+    console.error("Candidates load error:", err);
+  }
 }
 
 /* ==========================
@@ -101,6 +137,9 @@ async function loadCandidates(page = 1) {
 ========================== */
 
 function renderResults(rows: any[]) {
+  const resultsDiv = getDiv("results");
+  if (!resultsDiv) return;
+
   resultsDiv.innerHTML = "";
 
   rows.forEach((r) => {
@@ -108,7 +147,7 @@ function renderResults(rows: any[]) {
     div.className = "card";
 
     div.innerHTML = `
-      <div class="name">${r.full_name}</div>
+      <div class="name">${r.full_name || ""}</div>
       <div class="row">Office: ${r.office_name || ""}</div>
       <div class="row">County: ${r.county_name || ""}</div>
       <div class="row">State: ${r.state_name || ""}</div>
@@ -126,6 +165,9 @@ function renderResults(rows: any[]) {
 ========================== */
 
 function renderPagination(total: number, page: number) {
+  const paginationDiv = getDiv("pagination");
+  if (!paginationDiv) return;
+
   paginationDiv.innerHTML = "";
 
   const pages = Math.ceil(total / limit);
@@ -140,45 +182,35 @@ function renderPagination(total: number, page: number) {
 }
 
 /* ==========================
-   EVENTS (SAFE VERSION)
+   EVENTS
 ========================== */
 
-document.addEventListener("DOMContentLoaded", () => {
-  const searchInput = document.getElementById("searchInput") as HTMLInputElement | null;
-  const stateSelect = document.getElementById("stateSelect") as HTMLSelectElement | null;
-  const countySelect = document.getElementById("countySelect") as HTMLSelectElement | null;
-  const officeSelect = document.getElementById("officeSelect") as HTMLSelectElement | null;
-  const partySelect = document.getElementById("partySelect") as HTMLSelectElement | null;
+function attachEvents() {
+  const searchInput = getInput("searchInput");
+  const stateSelect = getSelect("stateSelect");
+  const countySelect = getSelect("countySelect");
+  const officeSelect = getSelect("officeSelect");
+  const partySelect = getSelect("partySelect");
 
-  if (searchInput) {
-    searchInput.addEventListener("input", () => loadCandidates(1));
-  }
+  searchInput?.addEventListener("input", () => loadCandidates(1));
 
-  if (stateSelect) {
-    stateSelect.addEventListener("change", () => {
-      loadCountiesByState(stateSelect.value);
-      loadCandidates(1);
-    });
-  }
+  stateSelect?.addEventListener("change", () => {
+    loadCandidates(1);
+  });
 
-  if (countySelect) {
-    countySelect.addEventListener("change", () => loadCandidates(1));
-  }
-
-  if (officeSelect) {
-    officeSelect.addEventListener("change", () => loadCandidates(1));
-  }
-
-  if (partySelect) {
-    partySelect.addEventListener("change", () => loadCandidates(1));
-  }
-});
+  countySelect?.addEventListener("change", () => loadCandidates(1));
+  officeSelect?.addEventListener("change", () => loadCandidates(1));
+  partySelect?.addEventListener("change", () => loadCandidates(1));
+}
 
 /* ==========================
    INIT
 ========================== */
 
-loadStates();
-loadOffices();
-loadParties();
-loadCandidates();
+document.addEventListener("DOMContentLoaded", () => {
+  attachEvents();
+  loadStates();
+  loadOffices();
+  loadParties();
+  loadCandidates();
+});
