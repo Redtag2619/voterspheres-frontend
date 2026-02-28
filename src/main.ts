@@ -140,19 +140,39 @@ function renderPagination(total: number, page: number) {
 }
 
 /* ==========================
-   EVENTS
+   EVENTS (SAFE VERSION)
 ========================== */
 
-searchInput.addEventListener("input", () => loadCandidates(1));
+document.addEventListener("DOMContentLoaded", () => {
+  const searchInput = document.getElementById("searchInput") as HTMLInputElement | null;
+  const stateSelect = document.getElementById("stateSelect") as HTMLSelectElement | null;
+  const countySelect = document.getElementById("countySelect") as HTMLSelectElement | null;
+  const officeSelect = document.getElementById("officeSelect") as HTMLSelectElement | null;
+  const partySelect = document.getElementById("partySelect") as HTMLSelectElement | null;
 
-stateSelect.addEventListener("change", () => {
-  loadCountiesByState(stateSelect.value);
-  loadCandidates(1);
+  if (searchInput) {
+    searchInput.addEventListener("input", () => loadCandidates(1));
+  }
+
+  if (stateSelect) {
+    stateSelect.addEventListener("change", () => {
+      loadCountiesByState(stateSelect.value);
+      loadCandidates(1);
+    });
+  }
+
+  if (countySelect) {
+    countySelect.addEventListener("change", () => loadCandidates(1));
+  }
+
+  if (officeSelect) {
+    officeSelect.addEventListener("change", () => loadCandidates(1));
+  }
+
+  if (partySelect) {
+    partySelect.addEventListener("change", () => loadCandidates(1));
+  }
 });
-
-countySelect.addEventListener("change", () => loadCandidates(1));
-officeSelect.addEventListener("change", () => loadCandidates(1));
-partySelect.addEventListener("change", () => loadCandidates(1));
 
 /* ==========================
    INIT
