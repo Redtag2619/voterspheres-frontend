@@ -1,9 +1,14 @@
-const API = import.meta.env.VITE_API_URL;
+import {
+  fetchStates,
+  fetchOffices,
+  fetchParties,
+  fetchCandidates,
+} from "./api";
 
 const limit = 10;
 
 /* ==========================
-   SAFE ELEMENT GETTERS
+   ELEMENT HELPERS
 ========================== */
 
 function getInput(id: string): HTMLInputElement | null {
@@ -27,24 +32,18 @@ async function loadStates() {
   if (!stateSelect) return;
 
   try {
-    const res = await fetch(`${API}/dropdowns/states`);
-    const data = await res.json();
+    const data = await fetchStates();
 
     stateSelect.innerHTML = `<option value="">All States</option>`;
 
     (Array.isArray(data) ? data : []).forEach((s: any) => {
-      const value = s.state || s.id || "";
-      const label = s.state || s.name || "";
-
-      if (!value) return;
-
       const opt = document.createElement("option");
-      opt.value = value;
-      opt.textContent = label;
+      opt.value = s.state;
+      opt.textContent = s.state;
       stateSelect.appendChild(opt);
     });
   } catch (err) {
-    console.error("States load error:", err);
+    console.error(err);
   }
 }
 
@@ -53,24 +52,18 @@ async function loadOffices() {
   if (!officeSelect) return;
 
   try {
-    const res = await fetch(`${API}/dropdowns/offices`);
-    const data = await res.json();
+    const data = await fetchOffices();
 
     officeSelect.innerHTML = `<option value="">All Offices</option>`;
 
     (Array.isArray(data) ? data : []).forEach((o: any) => {
-      const value = o.office || o.id || "";
-      const label = o.office || o.name || "";
-
-      if (!value) return;
-
       const opt = document.createElement("option");
-      opt.value = value;
-      opt.textContent = label;
+      opt.value = o.office;
+      opt.textContent = o.office;
       officeSelect.appendChild(opt);
     });
   } catch (err) {
-    console.error("Offices load error:", err);
+    console.error(err);
   }
 }
 
@@ -79,56 +72,18 @@ async function loadParties() {
   if (!partySelect) return;
 
   try {
-    const res = await fetch(`${API}/dropdowns/parties`);
-    const data = await res.json();
+    const data = await fetchParties();
 
     partySelect.innerHTML = `<option value="">All Parties</option>`;
 
     (Array.isArray(data) ? data : []).forEach((p: any) => {
-      const value = p.party || p.id || "";
-      const label = p.party || p.name || "";
-
-      if (!value) return;
-
       const opt = document.createElement("option");
-      opt.value = value;
-      opt.textContent = label;
+      opt.value = p.party;
+      opt.textContent = p.party;
       partySelect.appendChild(opt);
     });
   } catch (err) {
-    console.error("Parties load error:", err);
-  }
-}
-
-/* ==========================
-   LOAD CANDIDATES
-========================== */
-
-async function loadCandidates(page = 1) {
-  const searchInput = getInput("searchInput");
-  const stateSelect = getSelect("stateSelect");
-  const countySelect = getSelect("countySelect");
-  const officeSelect = getSelect("officeSelect");
-  const partySelect = getSelect("partySelect");
-
-  const params = new URLSearchParams({
-    q: searchInput?.value || "",
-    state: stateSelect?.value || "",
-    county: countySelect?.value || "",
-    office: officeSelect?.value || "",
-    party: partySelect?.value || "",
-    page: String(page),
-    limit: String(limit),
-  });
-
-  try {
-    const res = await fetch(`${API}/candidates?${params}`);
-    const data = await res.json();
-
-    renderResults(Array.isArray(data.results) ? data.results : []);
-    renderPagination(data.total || 0, page);
-  } catch (err) {
-    console.error("Candidates load error:", err);
+    console.error(err);
   }
 }
 
@@ -141,6 +96,12 @@ function renderResults(rows: any[]) {
   if (!resultsDiv) return;
 
   resultsDiv.innerHTML = "";
+
+  if (!rows.length) {
+    resultsDiv.innerHTML =
+      "<div style='padding:20px;'>No candidates found.</div>";
+    return;
+  }
 
   rows.forEach((r) => {
     const div = document.createElement("div");
@@ -182,25 +143,43 @@ function renderPagination(total: number, page: number) {
 }
 
 /* ==========================
+   LOAD CANDIDATES
+========================== */
+
+async function loadCandidates(page = 1) {
+  try {
+    const data = await fetchCandidates({
+      q: getInput("searchInput")?.value,
+      state: getSelect("stateSelect")?.value,
+      county: getSelect("countySelect")?.value,
+      office: getSelect("officeSelect")?.value,
+      party: getSelect("partySelect")?.value,
+      page,
+    });
+
+    renderResults(Array.isArray(data.results) ? data.results : []);
+    renderPagination(data.total || 0, page);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+/* ==========================
    EVENTS
 ========================== */
 
 function attachEvents() {
-  const searchInput = getInput("searchInput");
-  const stateSelect = getSelect("stateSelect");
-  const countySelect = getSelect("countySelect");
-  const officeSelect = getSelect("officeSelect");
-  const partySelect = getSelect("partySelect");
+  getInput("searchInput")?.addEventListener("input", () =>
+    loadCandidates(1)
+  );
 
-  searchInput?.addEventListener("input", () => loadCandidates(1));
-
-  stateSelect?.addEventListener("change", () => {
-    loadCandidates(1);
-  });
-
-  countySelect?.addEventListener("change", () => loadCandidates(1));
-  officeSelect?.addEventListener("change", () => loadCandidates(1));
-  partySelect?.addEventListener("change", () => loadCandidates(1));
+  ["stateSelect", "countySelect", "officeSelect", "partySelect"].forEach(
+    (id) => {
+      getSelect(id)?.addEventListener("change", () =>
+        loadCandidates(1)
+      );
+    }
+  );
 }
 
 /* ==========================
