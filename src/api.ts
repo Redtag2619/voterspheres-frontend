@@ -1,45 +1,38 @@
-const API_BASE = "https://voterspheres-backend-2pap.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL;
 
-const limit = 10;
+async function handleResponse(res: Response) {
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "API error");
+  }
+  return res.json();
+}
 
 export async function fetchStates() {
-  const res = await fetch(`${API_BASE}/dropdowns/states`);
-  if (!res.ok) throw new Error("Failed to load states");
-  return res.json();
+  const res = await fetch(`${API_BASE}/candidates/states`);
+  return handleResponse(res);
 }
 
 export async function fetchOffices() {
-  const res = await fetch(`${API_BASE}/dropdowns/offices`);
-  if (!res.ok) throw new Error("Failed to load offices");
-  return res.json();
+  const res = await fetch(`${API_BASE}/candidates/offices`);
+  return handleResponse(res);
 }
 
 export async function fetchParties() {
-  const res = await fetch(`${API_BASE}/dropdowns/parties`);
-  if (!res.ok) throw new Error("Failed to load parties");
-  return res.json();
+  const res = await fetch(`${API_BASE}/candidates/parties`);
+  return handleResponse(res);
 }
 
-export async function fetchCandidates(params: {
-  q?: string;
-  state?: string;
-  county?: string;
-  office?: string;
-  party?: string;
-  page?: number;
-}) {
-  const query = new URLSearchParams({
-    q: params.q || "",
-    state: params.state || "",
-    county: params.county || "",
-    office: params.office || "",
-    party: params.party || "",
-    page: String(params.page || 1),
-    limit: String(limit),
+export async function fetchCandidates(params: any) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.append(key, String(value));
   });
 
-  const res = await fetch(`${API_BASE}/candidates?${query}`);
-  if (!res.ok) throw new Error("Failed to load candidates");
+  const res = await fetch(
+    `${API_BASE}/candidates?${query.toString()}`
+  );
 
-  return res.json();
+  return handleResponse(res);
 }
