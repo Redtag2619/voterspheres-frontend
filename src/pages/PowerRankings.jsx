@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import axios from "axios"
+import { motion } from "framer-motion"
 
 export default function PowerRankings(){
 
@@ -9,20 +10,23 @@ useEffect(()=>{
 
 axios.get("https://voterspheres-backend-2pap.onrender.com/consultants/power-rankings")
 .then(res=>{
-setRankings(res.data.rankings)
+setRankings(res.data.rankings || [])
 })
 
 },[])
 
 return(
 
-<div style={{padding:"30px"}}> 
-  
-<div className="glass-panel panel-hover">
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.3}}
+>
 
-<h1>Political Power Rankings</h1>
+<h2>Political Power Rankings</h2>
 
-<table border="1" cellPadding="10">
+<table style={{width:"100%",color:"#e2e8f0"}}>
 
 <thead>
 
@@ -48,7 +52,7 @@ return(
 
 </table>
 
-</div>
+</motion.div>
 
 )
 
