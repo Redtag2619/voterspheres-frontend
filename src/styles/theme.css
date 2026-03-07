@@ -1,0 +1,50 @@
+body{
+background:#020617;
+color:#e2e8f0;
+font-family:Inter, system-ui;
+margin:0;
+}
+
+/* glass panels */
+
+.glass-panel{
+background:rgba(255,255,255,0.04);
+backdrop-filter:blur(14px);
+border:1px solid rgba(255,255,255,0.08);
+border-radius:12px;
+padding:16px;
+box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* dashboard grid */
+
+.command-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+grid-auto-rows:420px;
+gap:16px;
+padding:16px;
+}
+
+/* animated hover */
+
+.panel-hover{
+transition:all .3s ease;
+}
+
+.panel-hover:hover{
+transform:translateY(-3px);
+box-shadow:0 10px 40px rgba(0,0,0,.6);
+}
+
+/* nav links */
+
+.nav-link{
+color:#cbd5f5;
+text-decoration:none;
+font-weight:500;
+}
+
+.nav-link:hover{
+color:white;
+}
