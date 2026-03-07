@@ -45,7 +45,9 @@ fontSize:"14px"
 
 <Link style={{color:"white"}} to="/simulator">Simulator</Link>
 
-<Link style={{color:"white"}} to="/ai">AI Strategy</Link>
+<Link style={{color:"white"}} to="/ai">AI Strategy</Link> 
+  
+<Link style={{color:"white"}} to="/command-center">Command Center</Link>
 
 </div>
 
