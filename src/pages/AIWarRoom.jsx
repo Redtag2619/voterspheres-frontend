@@ -15,7 +15,9 @@ setAlerts(res.data)
 
 return(
 
-<div style={{padding:"30px"}}>
+<div style={{padding:"30px"}}> 
+  
+<div className="glass-panel panel-hover">
 
 <h1>AI Campaign War Room</h1>
 
