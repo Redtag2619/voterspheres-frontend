@@ -40,6 +40,8 @@ return(
 
 <div style={{padding:"30px"}}>
 
+<div className="glass-panel panel-hover">
+
 <h1>Election Probability Forecast</h1>
 
 <Line data={data}/>
