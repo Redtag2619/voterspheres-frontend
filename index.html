@@ -1,93 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VoterSpheres</title>
 
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        background: #f5f6fa;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-      h1 {
-        margin-bottom: 20px;
-      }
+  <title>VoterSpheres</title>
+</head>
 
-      .filters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 20px;
-      }
+<body>
 
-      input,
-      select {
-        padding: 8px;
-        font-size: 14px;
-      }
+  <div id="root"></div>
 
-      .card {
-        background: white;
-        padding: 15px;
-        margin-bottom: 10px;
-        border-radius: 6px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      }
+  <script type="module" src="/src/main.tsx"></script>
 
-      .name {
-        font-weight: bold;
-        font-size: 16px;
-        margin-bottom: 5px;
-      }
+</body>
 
-      .row {
-        font-size: 14px;
-      }
-
-      #pagination button {
-        margin-right: 5px;
-        padding: 5px 10px;
-      }
-    </style>
-  </head>
-
-  <body>
-    <h1>VoterSpheres Candidate Search</h1>
-
-    <div class="filters">
-      <input
-        id="searchInput"
-        name="search"
-        type="text"
-        placeholder="Search candidates..."
-        autocomplete="off"
-      />
-
-      <select id="stateSelect" name="state">
-        <option value="">All States</option>
-      </select>
-
-      <select id="countySelect" name="county">
-        <option value="">All Counties</option>
-      </select>
-
-      <select id="officeSelect" name="office">
-        <option value="">All Offices</option>
-      </select>
-
-      <select id="partySelect" name="party">
-        <option value="">All Parties</option>
-      </select>
-    </div>
-
-    <div id="results"></div>
-    <div id="pagination"></div>
-
-    <!-- THIS LINE IS CRITICAL -->
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
 </html>
