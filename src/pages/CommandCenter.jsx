@@ -1,47 +1,83 @@
+import { motion } from "framer-motion"
+
 import ElectionMap from "./ElectionMap"
 import FundraisingDashboard from "./FundraisingDashboard"
-import PowerRankings from "./PowerRankings"
 import DonorNetwork from "./DonorNetwork"
-import ElectionForecast from "./ElectionForecast"
 import AIWarRoom from "./AIWarRoom"
+import ElectionForecast from "./ElectionForecast"
+import PowerRankings from "./PowerRankings"
 
 export default function CommandCenter(){
 
 return(
 
-<div
-style={{
-display:"grid",
-gridTemplateColumns:"1fr 1fr",
-gridTemplateRows:"400px 400px 400px",
-gap:"10px",
-padding:"10px"
-}}
+<div className="command-grid">
+
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{duration:.5}}
 >
 
-<div style={{border:"1px solid #ddd"}}>
 <ElectionMap/>
-</div>
 
-<div style={{border:"1px solid #ddd"}}>
+</motion.div>
+
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.1}}
+>
+
 <FundraisingDashboard/>
-</div>
 
-<div style={{border:"1px solid #ddd"}}>
+</motion.div>
+
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.2}}
+>
+
 <DonorNetwork/>
-</div>
 
-<div style={{border:"1px solid #ddd"}}>
+</motion.div>
+
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.3}}
+>
+
 <AIWarRoom/>
-</div>
 
-<div style={{border:"1px solid #ddd"}}>
+</motion.div>
+
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.4}}
+>
+
 <ElectionForecast/>
-</div>
 
-<div style={{border:"1px solid #ddd"}}>
+</motion.div>
+
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.5}}
+>
+
 <PowerRankings/>
-</div>
+
+</motion.div>
 
 </div>
 
