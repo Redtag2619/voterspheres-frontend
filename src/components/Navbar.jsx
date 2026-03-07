@@ -12,7 +12,8 @@ export default function Navbar() {
         <Link to="/candidates">Candidates</Link>
         <Link to="/map">Election Map</Link>
         <Link to="/donors">Donor Network</Link>
-        <Link to="/warroom">AI War Room</Link>
+        <Link to="/warroom">AI War Room</Link> 
+        <Link to="/ai">AI Strategy</Link>
 
       </div>
 
