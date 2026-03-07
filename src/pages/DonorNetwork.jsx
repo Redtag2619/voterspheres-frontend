@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import * as d3 from "d3"
 import axios from "axios"
+import { motion } from "framer-motion"
 
 export default function DonorNetwork(){
 
@@ -11,49 +12,46 @@ useEffect(()=>{
 axios.get("https://voterspheres-backend-2pap.onrender.com/influence/donor-network")
 .then(res=>{
 
-const data = res.data.network
+const data = res.data.network || []
 
-const nodes = []
-const links = []
+const nodes=[]
+const links=[]
 
-data.forEach(d => {
+data.forEach(d=>{
 
-nodes.push({id: d.donor, type:"donor"})
-nodes.push({id: d.candidate, type:"candidate"})
+nodes.push({id:d.donor,type:"donor"})
+nodes.push({id:d.candidate,type:"candidate"})
 
 links.push({
 source:d.donor,
-target:d.candidate,
-value:d.amount
+target:d.candidate
 })
 
 })
 
-const svg = d3.select(ref.current)
-.attr("width",900)
-.attr("height",600)
+const svg=d3.select(ref.current)
+.attr("width",800)
+.attr("height",400)
 
-const simulation = d3.forceSimulation(nodes)
-.force("link", d3.forceLink(links).id(d=>d.id).distance(120))
-.force("charge", d3.forceManyBody().strength(-200))
-.force("center", d3.forceCenter(450,300))
+const simulation=d3.forceSimulation(nodes)
+.force("link",d3.forceLink(links).id(d=>d.id).distance(120))
+.force("charge",d3.forceManyBody().strength(-200))
+.force("center",d3.forceCenter(400,200))
 
-const link = svg
-.append("g")
+const link=svg.append("g")
 .selectAll("line")
 .data(links)
 .enter()
 .append("line")
-.style("stroke","#aaa")
+.style("stroke","#999")
 
-const node = svg
-.append("g")
+const node=svg.append("g")
 .selectAll("circle")
 .data(nodes)
 .enter()
 .append("circle")
-.attr("r",8)
-.style("fill", d=> d.type==="donor" ? "green" : "orange")
+.attr("r",7)
+.style("fill",d=>d.type==="donor"?"#22c55e":"#f59e0b")
 
 simulation.on("tick",()=>{
 
@@ -75,15 +73,18 @@ node
 
 return(
 
-<div style={{padding:"30px"}}> 
-  
-<div className="glass-panel panel-hover">
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.2}}
+>
 
-<h1>Donor Influence Network</h1>
+<h2>Donor Influence Network</h2>
 
 <svg ref={ref}></svg>
 
-</div>
+</motion.div>
 
 )
 
