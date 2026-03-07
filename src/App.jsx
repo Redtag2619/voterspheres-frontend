@@ -12,6 +12,7 @@ import PowerRankings from "./pages/PowerRankings"
 import ConsultantMarketplace from "./pages/ConsultantMarketplace"
 import CampaignSimulator from "./pages/CampaignSimulator"
 import Navbar from "./components/Navbar"
+import CommandCenter from "./pages/CommandCenter"
 
 export default function App() {
   return (
@@ -29,7 +30,8 @@ export default function App() {
         <Route path="/fundraising" element={<FundraisingDashboard />} /> 
         <Route path="/rankings" element={<PowerRankings />} /> 
         <Route path="/marketplace" element={<ConsultantMarketplace />} /> 
-        <Route path="/simulator" element={<CampaignSimulator />} />
+        <Route path="/simulator" element={<CampaignSimulator />} /> 
+        <Route path="/command-center" element={<CommandCenter />} />
       </Routes>
     </BrowserRouter>
   )
