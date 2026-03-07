@@ -6,7 +6,11 @@ import ElectionMap from "./pages/ElectionMap"
 import DonorNetwork from "./pages/DonorNetwork"
 import AIWarRoom from "./pages/AIWarRoom"
 import AIChat from "./pages/AIChat"
-
+import ElectionForecast from "./pages/ElectionForecast"
+import FundraisingDashboard from "./pages/FundraisingDashboard"
+import PowerRankings from "./pages/PowerRankings"
+import ConsultantMarketplace from "./pages/ConsultantMarketplace"
+import CampaignSimulator from "./pages/CampaignSimulator"
 import Navbar from "./components/Navbar"
 
 export default function App() {
@@ -20,7 +24,12 @@ export default function App() {
         <Route path="/map" element={<ElectionMap />} />
         <Route path="/donors" element={<DonorNetwork />} />
         <Route path="/warroom" element={<AIWarRoom />} /> 
-        <Route path="/ai" element={<AIChat />} />
+        <Route path="/ai" element={<AIChat />} /> 
+        <Route path="/forecast" element={<ElectionForecast />} /> 
+        <Route path="/fundraising" element={<FundraisingDashboard />} /> 
+        <Route path="/rankings" element={<PowerRankings />} /> 
+        <Route path="/marketplace" element={<ConsultantMarketplace />} /> 
+        <Route path="/simulator" element={<CampaignSimulator />} />
       </Routes>
     </BrowserRouter>
   )
