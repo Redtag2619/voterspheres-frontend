@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { getWarRoomAlerts } from "../services/api"
+import axios from "axios"
+import { motion } from "framer-motion"
 
 export default function AIWarRoom(){
 
@@ -7,31 +8,43 @@ const [alerts,setAlerts] = useState([])
 
 useEffect(()=>{
 
-getWarRoomAlerts().then(res=>{
-setAlerts(res.data)
+axios.get("https://voterspheres-backend-2pap.onrender.com/ai/war-room")
+.then(res=>{
+setAlerts(res.data || [])
 })
 
 },[])
 
 return(
 
-<div style={{padding:"30px"}}> 
-  
-<div className="glass-panel panel-hover">
+<motion.div
+className="glass-panel panel-hover"
+initial={{opacity:0,y:20}}
+animate={{opacity:1,y:0}}
+transition={{delay:.4}}
+>
 
-<h1>AI Campaign War Room</h1>
+<h2>AI War Room</h2>
 
-{alerts.map(a => (
+{alerts.map((a,i)=>(
 
-<div key={a.id} style={{border:"1px solid red", padding:"10px", margin:"10px"}}>
+<div
+key={i}
+style={{
+background:"rgba(255,0,0,.1)",
+padding:"10px",
+marginBottom:"10px",
+borderRadius:"8px"
+}}
+>
 
-<p>{a.message}</p>
+{a.message}
 
 </div>
 
 ))}
 
-</div>
+</motion.div>
 
 )
 
