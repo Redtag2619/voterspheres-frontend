@@ -1,53 +1,52 @@
 import { Link } from "react-router-dom"
 
-export default function Navbar() {
+export default function Navbar(){
 
-return (
+return(
 
 <div
 style={{
-background:"#0f172a",
-color:"white",
-padding:"16px",
 display:"flex",
 justifyContent:"space-between",
-alignItems:"center"
+alignItems:"center",
+padding:"14px 24px",
+background:"rgba(2,6,23,.9)",
+borderBottom:"1px solid rgba(255,255,255,.08)",
+position:"sticky",
+top:0,
+zIndex:999
 }}
 >
 
-<h2 style={{margin:0}}>VoterSpheres</h2>
+<h2 style={{margin:0,color:"#38bdf8"}}>
 
-<div
-style={{
-display:"flex",
-gap:"18px",
-fontSize:"14px"
-}}
->
+VoterSpheres
 
-<Link style={{color:"white"}} to="/">Dashboard</Link>
+</h2>
 
-<Link style={{color:"white"}} to="/candidates">Candidates</Link>
+<div style={{display:"flex",gap:"18px"}}>
 
-<Link style={{color:"white"}} to="/map">Election Map</Link>
+<Link className="nav-link" to="/command-center">Command</Link>
 
-<Link style={{color:"white"}} to="/donors">Donor Network</Link>
+<Link className="nav-link" to="/candidates">Candidates</Link>
 
-<Link style={{color:"white"}} to="/warroom">AI War Room</Link>
+<Link className="nav-link" to="/map">Map</Link>
 
-<Link style={{color:"white"}} to="/forecast">Forecast</Link>
+<Link className="nav-link" to="/donors">Donors</Link>
 
-<Link style={{color:"white"}} to="/fundraising">Fundraising</Link>
+<Link className="nav-link" to="/warroom">War Room</Link>
 
-<Link style={{color:"white"}} to="/rankings">Power Rankings</Link>
+<Link className="nav-link" to="/forecast">Forecast</Link>
 
-<Link style={{color:"white"}} to="/marketplace">Marketplace</Link>
+<Link className="nav-link" to="/fundraising">Fundraising</Link>
 
-<Link style={{color:"white"}} to="/simulator">Simulator</Link>
+<Link className="nav-link" to="/rankings">Rankings</Link>
 
-<Link style={{color:"white"}} to="/ai">AI Strategy</Link> 
-  
-<Link style={{color:"white"}} to="/command-center">Command Center</Link>
+<Link className="nav-link" to="/marketplace">Marketplace</Link>
+
+<Link className="nav-link" to="/simulator">Simulator</Link>
+
+<Link className="nav-link" to="/ai">AI</Link>
 
 </div>
 
