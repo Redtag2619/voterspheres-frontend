@@ -1,9 +1,0 @@
-git tag v1.0.0-prod
-git push --tags
-BEGIN;
-
-\i voterspheres_production_control_plane.sql
-
-COMMIT;
-SELECT approval.validate_request(1, false);
-SELECT rollback.execute_request(1, false, false);
