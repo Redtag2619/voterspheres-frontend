@@ -1255,4 +1255,209 @@ button {
   .vs-ranking-right {
     text-align: left;
   }
+
+  .vs-fundraising-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.vs-fundraising-hero {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(7, 18, 36, 0.96));
+}
+
+.vs-fundraising-title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  max-width: 820px;
+}
+
+.vs-fundraising-copy {
+  margin: 14px 0 0;
+  color: var(--vs-text-soft);
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 760px;
+}
+
+.vs-fundraising-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vs-fundraising-stat-card {
+  background: rgba(2, 8, 23, 0.65);
+  border: 1px solid var(--vs-border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.vs-fundraising-stat-label {
+  color: var(--vs-text-soft);
+  font-size: 13px;
+}
+
+.vs-fundraising-stat-value {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vs-fundraising-stat-delta {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vs-fundraising-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 18px;
+}
+
+.vs-fundraising-panel {
+  padding: 20px;
+}
+
+.vs-finance-alert-list,
+.vs-donor-segment-list,
+.vs-finance-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vs-finance-alert-item,
+.vs-donor-segment-item,
+.vs-finance-action-item {
+  background: rgba(2, 8, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+}
+
+.vs-finance-alert-item {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 14px;
+  padding: 14px;
+}
+
+.vs-finance-alert-severity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.vs-finance-alert-severity.high {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.vs-finance-alert-severity.medium {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+.vs-finance-alert-severity.low {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+}
+
+.vs-finance-alert-title,
+.vs-donor-segment-name,
+.vs-finance-action-title {
+  font-weight: 700;
+}
+
+.vs-finance-alert-detail,
+.vs-donor-segment-meta,
+.vs-finance-action-owner,
+.vs-finance-action-detail {
+  margin-top: 6px;
+  color: var(--vs-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vs-donor-segment-item,
+.vs-finance-action-item {
+  padding: 16px;
+}
+
+.vs-donor-segment-top,
+.vs-finance-action-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.vs-donor-segment-score {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vs-donor-segment-bar {
+  margin-top: 10px;
+  height: 10px;
+  width: 100%;
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.vs-donor-segment-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #22c55e);
+}
+
+.vs-donor-segment-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vs-finance-action-due {
+  color: var(--vs-accent);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .vs-fundraising-hero,
+  .vs-fundraising-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .vs-fundraising-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-finance-alert-item {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-donor-segment-top,
+  .vs-finance-action-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
