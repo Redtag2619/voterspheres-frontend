@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
+import AppShell from "./app/layout/AppShell";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Candidates = lazy(() => import("./pages/Candidates"));
@@ -17,30 +17,13 @@ const CampaignSimulator = lazy(() => import("./pages/CampaignSimulator"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 
 function LoadingScreen() {
-  return (
-    <div
-      style={{
-        minHeight: "calc(100vh - 72px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#020617",
-        color: "#e2e8f0",
-        fontSize: "18px",
-        padding: "24px"
-      }}
-    >
-      Loading VoterSpheres...
-    </div>
-  );
+  return <div className="vs-loading-screen">Loading VoterSpheres...</div>;
 }
 
 function App() {
   return (
     <BrowserRouter>
-      <div style={{ minHeight: "100vh", background: "#020617" }}>
-        <Navbar />
-
+      <AppShell>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -57,7 +40,7 @@ function App() {
             <Route path="/command-center" element={<CommandCenter />} />
           </Routes>
         </Suspense>
-      </div>
+      </AppShell>
     </BrowserRouter>
   );
 }
