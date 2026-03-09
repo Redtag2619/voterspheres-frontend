@@ -2563,4 +2563,230 @@ button {
   .vs-map-alert-item {
     grid-template-columns: 1fr;
   }
+
+  .vs-aichat-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.vs-aichat-hero {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(7, 18, 36, 0.96));
+}
+
+.vs-aichat-title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  max-width: 820px;
+}
+
+.vs-aichat-copy {
+  margin: 14px 0 0;
+  color: var(--vs-text-soft);
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 760px;
+}
+
+.vs-aichat-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vs-aichat-stat-card {
+  background: rgba(2, 8, 23, 0.65);
+  border: 1px solid var(--vs-border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.vs-aichat-stat-label {
+  color: var(--vs-text-soft);
+  font-size: 13px;
+}
+
+.vs-aichat-stat-value {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vs-aichat-stat-delta {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vs-aichat-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 18px;
+}
+
+.vs-aichat-panel {
+  padding: 20px;
+}
+
+.vs-aichat-panel-large {
+  grid-column: span 2;
+}
+
+.vs-aichat-console {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vs-aichat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vs-aichat-message {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  padding: 14px;
+  background: rgba(2, 8, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+}
+
+.vs-aichat-message.assistant {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(3, 15, 31, 0.72);
+}
+
+.vs-aichat-message-role {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 10px;
+  height: fit-content;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--vs-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.vs-aichat-message-title,
+.vs-aichat-capability-title,
+.vs-aichat-output-title,
+.vs-aichat-guardrail-title {
+  font-weight: 700;
+}
+
+.vs-aichat-message-text,
+.vs-aichat-capability-detail,
+.vs-aichat-output-note,
+.vs-aichat-guardrail-detail {
+  margin-top: 6px;
+  color: var(--vs-text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.vs-aichat-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+  background: rgba(2, 8, 23, 0.5);
+}
+
+.vs-aichat-input {
+  min-height: 72px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  color: var(--vs-text-soft);
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.vs-aichat-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.vs-aichat-prompt-list,
+.vs-aichat-capability-list,
+.vs-aichat-output-list,
+.vs-aichat-guardrail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vs-aichat-prompt-item,
+.vs-aichat-capability-item,
+.vs-aichat-output-item,
+.vs-aichat-guardrail-item {
+  background: rgba(2, 8, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.vs-aichat-prompt-item {
+  color: #dbeafe;
+  cursor: pointer;
+}
+
+.vs-aichat-prompt-item:hover {
+  border-color: rgba(56, 189, 248, 0.25);
+  background: rgba(4, 17, 35, 0.78);
+}
+
+.vs-aichat-output-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 10px;
+  width: fit-content;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--vs-accent);
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 1100px) {
+  .vs-aichat-hero,
+  .vs-aichat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-aichat-panel-large {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .vs-aichat-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-aichat-message {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-aichat-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
