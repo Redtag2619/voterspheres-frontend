@@ -326,4 +326,237 @@ button {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  
+ .vs-command-center {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.vs-command-hero {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(7, 18, 36, 0.96));
+}
+
+.vs-command-title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  max-width: 820px;
+}
+
+.vs-command-copy {
+  margin: 14px 0 0;
+  color: var(--vs-text-soft);
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 760px;
+}
+
+.vs-command-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vs-command-status-card {
+  background: rgba(2, 8, 23, 0.65);
+  border: 1px solid var(--vs-border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.vs-command-status-label {
+  color: var(--vs-text-soft);
+  font-size: 13px;
+}
+
+.vs-command-status-value {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vs-command-status-delta {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vs-command-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+}
+
+.vs-command-panel {
+  padding: 20px;
+}
+
+.vs-table-row-five,
+.vs-table-head:has(+ .vs-table-row-five),
+.vs-table .vs-table-head {
+  grid-template-columns: 1.25fr 0.9fr 0.8fr 0.9fr 0.9fr;
+}
+
+.vs-warfeed,
+.vs-action-list,
+.vs-driver-list,
+.vs-metric-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vs-warfeed-item,
+.vs-action-item,
+.vs-driver-item,
+.vs-metric-row,
+.vs-region-card {
+  background: rgba(2, 8, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+}
+
+.vs-warfeed-item {
+  display: grid;
+  grid-template-columns: 60px 82px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+}
+
+.vs-warfeed-time {
+  color: var(--vs-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vs-warfeed-severity,
+.vs-driver-impact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.vs-warfeed-severity.high,
+.vs-driver-impact.high {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.vs-warfeed-severity.medium,
+.vs-driver-impact.medium {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+.vs-warfeed-severity.low,
+.vs-driver-impact.low {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+}
+
+.vs-warfeed-title,
+.vs-action-title,
+.vs-driver-name,
+.vs-metric-name,
+.vs-region-name {
+  font-weight: 700;
+}
+
+.vs-warfeed-source,
+.vs-action-owner,
+.vs-action-detail,
+.vs-driver-note,
+.vs-metric-sub,
+.vs-region-status {
+  margin-top: 5px;
+  color: var(--vs-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vs-action-item,
+.vs-driver-item {
+  padding: 16px;
+}
+
+.vs-action-topline,
+.vs-driver-topline,
+.vs-metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vs-action-due {
+  color: var(--vs-accent);
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.vs-metric-row {
+  align-items: center;
+  padding: 14px 16px;
+}
+
+.vs-metric-values {
+  text-align: right;
+}
+
+.vs-metric-main,
+.vs-region-score {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vs-region-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vs-region-card {
+  padding: 16px;
+}
+
+.vs-region-trend {
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .vs-command-hero,
+  .vs-command-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .vs-warfeed-item {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-region-board {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-action-topline,
+  .vs-driver-topline,
+  .vs-metric-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
