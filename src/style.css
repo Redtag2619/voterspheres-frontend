@@ -559,4 +559,240 @@ button {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .vs-warroom-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.vs-warroom-hero {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(7, 18, 36, 0.96));
+}
+
+.vs-warroom-title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  max-width: 820px;
+}
+
+.vs-warroom-copy {
+  margin: 14px 0 0;
+  color: var(--vs-text-soft);
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 760px;
+}
+
+.vs-warroom-hero-stats {
+  display: grid;
+  gap: 14px;
+}
+
+.vs-warroom-stat-card {
+  background: rgba(2, 8, 23, 0.65);
+  border: 1px solid var(--vs-border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.vs-warroom-stat-label {
+  color: var(--vs-text-soft);
+  font-size: 13px;
+}
+
+.vs-warroom-stat-value {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vs-warroom-stat-delta {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vs-warroom-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+}
+
+.vs-warroom-panel {
+  padding: 20px;
+}
+
+.vs-threat-list,
+.vs-response-queue,
+.vs-signal-stream,
+.vs-draft-list,
+.vs-heat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vs-threat-item,
+.vs-response-item,
+.vs-signal-item,
+.vs-draft-item,
+.vs-heat-item {
+  background: rgba(2, 8, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+}
+
+.vs-threat-item {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 14px;
+  padding: 14px;
+}
+
+.vs-threat-severity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.vs-threat-severity.high {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.vs-threat-severity.medium {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+.vs-threat-severity.low {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+}
+
+.vs-threat-title,
+.vs-response-title,
+.vs-draft-headline,
+.vs-heat-topic,
+.vs-signal-channel {
+  font-weight: 700;
+}
+
+.vs-threat-meta,
+.vs-threat-recommendation,
+.vs-response-owner,
+.vs-draft-preview,
+.vs-signal-text,
+.vs-heat-intensity {
+  margin-top: 6px;
+  color: var(--vs-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vs-threat-meta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.vs-response-item,
+.vs-draft-item,
+.vs-heat-item {
+  padding: 16px;
+}
+
+.vs-response-topline,
+.vs-heat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.vs-response-priority {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--vs-accent);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.vs-response-eta {
+  color: var(--vs-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vs-heat-bar {
+  margin-top: 10px;
+  height: 10px;
+  width: 100%;
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.vs-heat-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #22c55e);
+}
+
+.vs-signal-item {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  padding: 14px;
+}
+
+.vs-signal-time,
+.vs-draft-type {
+  color: var(--vs-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vs-draft-headline {
+  margin-top: 6px;
+}
+
+@media (max-width: 1100px) {
+  .vs-warroom-hero,
+  .vs-warroom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .vs-threat-item,
+  .vs-signal-item {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-response-topline,
+  .vs-heat-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
