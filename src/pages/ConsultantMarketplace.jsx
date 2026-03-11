@@ -1,132 +1,131 @@
-import React, { useCallback } from "react";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
-import { api } from "../services/api";
+import { useEffect, useState } from "react";
+import api from "../api";
 
-const fallbackData = {
-  metrics: [
-    { label: "Top Rated Firms", value: "42", delta: "+6 this quarter", tone: "up" },
-    { label: "Active Categories", value: "11", delta: "+2", tone: "up" },
-    { label: "High-Demand Vendors", value: "18", delta: "+5", tone: "up" },
-    { label: "Execution Risk Flags", value: "7", delta: "+1", tone: "down" }
-  ],
-  featured: [
-    {
-      name: "Red Tag Strategies",
-      specialty: "Political mail recovery and postal campaign execution",
-      score: "91.2",
-      momentum: "+3.8",
-      category: "Mail / Operations",
-      note: "Strongest reliability profile for campaign mail tracking and support."
-    },
-    {
-      name: "Summit Strategy Group",
-      specialty: "Paid media and persuasion planning",
-      score: "89.7",
-      momentum: "+1.9",
-      category: "Media",
-      note: "High-performance placement and optimization."
+export default function ConsultantMarketplace() {
+  const [rows, setRows] = useState([]);
+  const [states, setStates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [filters, setFilters] = useState({
+    q: "",
+    state: "",
+    page: 1,
+    limit: 12
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadStates() {
+      try {
+        const data = await api.consultantStates();
+        if (!active) return;
+        setStates(data || []);
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || "Failed to load consultant filters");
+      }
     }
-  ],
-  board: [
-    { firm: "Red Tag Strategies", category: "Mail Ops", score: "91.2", demand: "High", trend: "+3.8", status: "Leader" },
-    { firm: "Blue Ridge Analytics", category: "Analytics", score: "88.4", demand: "Medium", trend: "+2.2", status: "Climbing" }
-  ],
-  guidance: [
-    { title: "Best for execution reliability", detail: "Red Tag Strategies leads when the problem is mission-critical delivery." },
-    { title: "Best for strategic modeling", detail: "Blue Ridge Analytics is best for forecasting and battleground analysis." }
-  ]
-};
 
-function toneClass(v) {
-  return String(v).startsWith("-") ? "down" : "up";
-}
+    loadStates();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-function scoreWidth(v) {
-  return { width: `${v}%` };
-}
+  useEffect(() => {
+    let active = true;
 
-const ConsultantMarketplace = () => {
-  const fetcher = useCallback(() => api.marketplace(), []);
-  const { data, loading, error } = useApiResource(fetcher, fallbackData);
+    async function loadConsultants() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await api.consultants(filters);
+        if (!active) return;
+        setRows(data?.results || []);
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || "Failed to load consultants");
+        setRows([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadConsultants();
+    return () => {
+      active = false;
+    };
+  }, [filters]);
 
   return (
-    <TerminalPage
-      eyebrow="Consultant Marketplace"
-      title="The operating directory for political consultants, vendors, and execution partners."
-      description="Evaluate firms by reliability, momentum, demand, and strategic fit across media, analytics, mail, field, and campaign operations."
-      metrics={data?.metrics || []}
-    >
-      <Panel title="Featured Firms" subtitle="Highest-priority firms in the current campaign-services market">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-marketplace-featured-list">
-            {data.featured.map((item) => (
-              <div key={item.name} className="vs-marketplace-featured-item">
-                <div className="vs-marketplace-featured-top">
-                  <div>
-                    <div className="vs-marketplace-featured-name">{item.name}</div>
-                    <div className="vs-marketplace-featured-specialty">{item.specialty}</div>
-                  </div>
-                  <div className="vs-marketplace-featured-side">
-                    <div className="vs-marketplace-featured-score">{item.score}</div>
-                    <div className={toneClass(item.momentum)}>{item.momentum}</div>
-                  </div>
-                </div>
-                <div className="vs-marketplace-featured-tags">
-                  <span className="vs-marketplace-tag">{item.category}</span>
-                </div>
-                <div className="vs-marketplace-featured-bar">
-                  <div className="vs-marketplace-featured-fill" style={scoreWidth(item.score)} />
-                </div>
-                <div className="vs-marketplace-featured-note">{item.note}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+    <div className="space-y-6 p-6 text-white">
+      <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 shadow-xl">
+        <h1 className="mb-2 text-3xl font-bold">Consultant Marketplace</h1>
+        <p className="mb-4 text-sm text-slate-400">
+          Live consultant discovery for campaigns, PACs, and advocacy operations.
+        </p>
 
-      <Panel title="Vendor Market Board" subtitle="Comparative ranking across top consulting categories">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-table">
-            <div className="vs-table-head">
-              <span>Firm</span>
-              <span>Category</span>
-              <span>Score</span>
-              <span>Demand</span>
-              <span>Trend</span>
-              <span>Status</span>
-            </div>
-            {data.board.map((row) => (
-              <div key={row.firm} className="vs-table-row vs-table-row-six">
-                <span>{row.firm}</span>
-                <span>{row.category}</span>
-                <span>{row.score}</span>
-                <span>{row.demand}</span>
-                <span className={toneClass(row.trend)}>{row.trend}</span>
-                <span>{row.status}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+        <div className="grid gap-3 md:grid-cols-2">
+          <input
+            className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm outline-none"
+            placeholder="Search consultants"
+            value={filters.q}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, q: e.target.value, page: 1 }))
+            }
+          />
 
-      <Panel title="Buyer Guidance" subtitle="Recommended consultant fits based on strategic need" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-marketplace-guidance-list">
-            {data.guidance.map((item) => (
-              <div key={item.title} className="vs-marketplace-guidance-item">
-                <div className="vs-marketplace-guidance-title">{item.title}</div>
-                <div className="vs-marketplace-guidance-detail">{item.detail}</div>
+          <select
+            className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm outline-none"
+            value={filters.state}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, state: e.target.value, page: 1 }))
+            }
+          >
+            <option value="">All states</option>
+            {states.map((item) => (
+              <option key={item.id ?? item.name} value={item.name}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 shadow-xl">
+        {loading ? (
+          <div className="text-sm text-slate-400">Loading consultants...</div>
+        ) : error ? (
+          <div className="text-sm text-red-400">{error}</div>
+        ) : rows.length === 0 ? (
+          <div className="text-sm text-slate-400">No consultants found.</div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {rows.map((consultant, index) => (
+              <div
+                key={consultant.id ?? `${consultant.name}-${index}`}
+                className="rounded-2xl border border-white/10 bg-[#111827] p-5"
+              >
+                <h3 className="text-lg font-semibold">
+                  {consultant.name || consultant.firm_name || "Unnamed Consultant"}
+                </h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  {consultant.state || "Unknown state"}
+                </p>
+                <p className="mt-3 text-sm text-slate-300">
+                  {consultant.specialty ||
+                    consultant.services ||
+                    consultant.category ||
+                    "Political consulting services"}
+                </p>
               </div>
             ))}
           </div>
         )}
-      </Panel>
-    </TerminalPage>
+      </div>
+    </div>
   );
-};
-
-export default ConsultantMarketplace;
+}
