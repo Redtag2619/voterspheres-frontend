@@ -1,28 +1,78 @@
-const BASE_URL = "https://voterspheres-backend.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
 
-export async function apiGet(path: string, token?: string) {
-  const res = await fetch(BASE_URL + path, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {}
-  });
+async function request(path, options = {}) {
+  const url = `${API_BASE}${path}`;
 
-  if (!res.ok) throw new Error("Request failed");
-
-  return res.json();
-}
-
-export async function apiPost(path: string, data: any) {
-  const res = await fetch(BASE_URL + path, {
-    method: "POST",
+  const response = await fetch(url, {
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(options.headers || {})
     },
-    body: JSON.stringify(data)
+    ...options
   });
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Request failed");
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const payload = isJson ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message =
+      typeof payload === "object" && payload?.error
+        ? payload.error
+        : `Request failed: ${response.status}`;
+    throw new Error(message);
   }
 
-  return res.json();
+  return payload;
 }
+
+export const api = {
+  health: () => request("/health"),
+
+  candidates: (params = {}) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        search.set(key, value);
+      }
+    });
+    return request(`/api/candidates${search.toString() ? `?${search}` : ""}`);
+  },
+
+  candidateStates: () => request("/api/candidates/dropdowns/states"),
+  candidateOffices: () => request("/api/candidates/dropdowns/offices"),
+  candidateParties: () => request("/api/candidates/dropdowns/parties"),
+  candidateCounties: () => request("/api/candidates/dropdowns/counties"),
+
+  consultants: (params = {}) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        search.set(key, value);
+      }
+    });
+    return request(`/api/consultants${search.toString() ? `?${search}` : ""}`);
+  },
+
+  consultantStates: () => request("/api/consultants/dropdowns/states"),
+
+  vendors: (params = {}) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        search.set(key, value);
+      }
+    });
+    return request(`/api/vendors${search.toString() ? `?${search}` : ""}`);
+  },
+
+  vendorStates: () => request("/api/vendors/dropdowns/states"),
+
+  intelligenceSummary: () => request("/api/intelligence/summary"),
+  intelligenceDashboard: () => request("/api/intelligence/dashboard"),
+  intelligenceForecast: () => request("/api/intelligence/forecast"),
+  intelligenceRankings: () => request("/api/intelligence/rankings"),
+  intelligenceMap: () => request("/api/intelligence/map")
+};
+
+export default api;
