@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { api } from "../services/api";
 
-const GEO_URL = "/us-states.geojson";
-
 function MetricCard({ label, value, delta }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
@@ -71,6 +69,7 @@ function getFillForState(name, battlegroundMap, selectedState) {
 
 export default function ElectionMap() {
   const [data, setData] = useState({ metrics: [], battlegrounds: [] });
+  const [geoJson, setGeoJson] = useState(null);
   const [selectedState, setSelectedState] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -83,11 +82,16 @@ export default function ElectionMap() {
         setLoading(true);
         setError("");
 
-        const result = await api.intelligenceMap();
+        const [result, geo] = await Promise.all([
+          api.intelligenceMap(),
+          api.statesGeoJson()
+        ]);
 
         if (!active) return;
 
         const battlegrounds = result?.battlegrounds || [];
+
+        setGeoJson(geo);
         setData({
           metrics: result?.metrics || [],
           battlegrounds
@@ -159,63 +163,77 @@ export default function ElectionMap() {
                 <h2 className="mb-4 text-xl font-semibold">Battleground Map</h2>
 
                 <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#08111d] p-4">
-                  <ComposableMap
-                    projection="geoAlbersUsa"
-                    projectionConfig={{ scale: 1100 }}
-                    width={980}
-                    height={580}
-                    style={{ width: "100%", height: "auto" }}
-                  >
-                    <Geographies geography={GEO_URL}>
-                      {({ geographies }) =>
-                        geographies.map((geo) => {
-                          const stateName = geo.properties.name;
+                  {geoJson ? (
+                    <ComposableMap
+                      projection="geoAlbersUsa"
+                      projectionConfig={{ scale: 1100 }}
+                      width={980}
+                      height={580}
+                      style={{ width: "100%", height: "auto" }}
+                    >
+                      <Geographies geography={geoJson}>
+                        {({ geographies }) =>
+                          geographies.map((geo) => {
+                            const stateName = geo.properties.name;
 
-                          return (
-                            <Geography
-                              key={geo.rsmKey}
-                              geography={geo}
-                              onClick={() => setSelectedState(stateName)}
-                              style={{
-                                default: {
-                                  fill: getFillForState(
-                                    stateName,
-                                    battlegroundMap,
-                                    selectedState
-                                  ),
-                                  stroke: "#0f172a",
-                                  strokeWidth: 0.8,
-                                  outline: "none",
-                                  cursor: "pointer"
-                                },
-                                hover: {
-                                  fill: "#38bdf8",
-                                  stroke: "#0f172a",
-                                  strokeWidth: 0.8,
-                                  outline: "none",
-                                  cursor: "pointer"
-                                },
-                                pressed: {
-                                  fill: "#06b6d4",
-                                  stroke: "#0f172a",
-                                  strokeWidth: 0.8,
-                                  outline: "none"
-                                }
-                              }}
+                            return (
+                              <Geography
+                                key={geo.rsmKey}
+                                geography={geo}
+                                onClick={() => setSelectedState(stateName)}
+                                style={{
+                                  default: {
+                                    fill: getFillForState(
+                                      stateName,
+                                      battlegroundMap,
+                                      selectedState
+                                    ),
+                                    stroke: "#0f172a",
+                                    strokeWidth: 0.8,
+                                    outline: "none",
+                                    cursor: "pointer"
+                                  },
+                                  hover: {
+                                    fill: "#38bdf8",
+                                    stroke: "#0f172a",
+                                    strokeWidth: 0.8,
+                                    outline: "none",
+                                    cursor: "pointer"
+                                  },
+                                  pressed: {
+                                    fill: "#06b6d4",
+                                    stroke: "#0f172a",
+                                    strokeWidth: 0.8,
+                                    outline: "none"
+                                  }
+                                }}
+                              />
+                            );
+                          })
+                        }
+                      </Geographies>
+
+                      {data.battlegrounds.map((row) =>
+                        Array.isArray(row.center) ? (
+                          <Marker
+                            key={row.name}
+                            coordinates={[row.center[1], row.center[0]]}
+                          >
+                            <circle
+                              r={4}
+                              fill="#f8fafc"
+                              stroke="#22d3ee"
+                              strokeWidth={2}
                             />
-                          );
-                        })
-                      }
-                    </Geographies>
-
-                    {data.battlegrounds.map((row) =>
-                      Array.isArray(row.center) ? (
-                        <Marker key={row.name} coordinates={[row.center[1], row.center[0]]}>
-                          <circle r={4} fill="#f8fafc" stroke="#22d3ee" strokeWidth={2} />
-                        </Marker>
-                      ) : null
-                    )}
-                  </ComposableMap>
+                          </Marker>
+                        ) : null
+                      )}
+                    </ComposableMap>
+                  ) : (
+                    <div className="p-8 text-sm text-slate-400">
+                      GeoJSON layer unavailable.
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400">
