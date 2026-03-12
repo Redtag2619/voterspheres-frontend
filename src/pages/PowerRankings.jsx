@@ -1,119 +1,128 @@
-import React, { useCallback } from "react";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
 
-const fallbackData = {
-  metrics: [
-    { label: "Top Rated Campaign", value: "Garcia Senate", delta: "+2.4", tone: "up" },
-    { label: "Fastest Climber", value: "Rivers MI-07", delta: "+5 spots", tone: "up" },
-    { label: "Highest Risk Drop", value: "Cole PA-08", delta: "-4 spots", tone: "down" },
-    { label: "Consultant Leader", value: "Red Tag Strategies", delta: "91.2 score", tone: "neutral" }
-  ],
-  campaigns: [
-    { rank: 1, name: "Garcia Senate", score: 94.8, movement: "+2", category: "Senate", signal: "Fundraising + message discipline" },
-    { rank: 2, name: "Coleman for Georgia", score: 92.7, movement: "+1", category: "Senate", signal: "Turnout + media advantage" }
-  ],
-  consultants: [
-    { rank: 1, firm: "Red Tag Strategies", specialty: "Political mail recovery", score: 91.2, trend: "+3.8" },
-    { rank: 2, firm: "Summit Strategy Group", specialty: "Paid media", score: 89.7, trend: "+1.9" }
-  ],
-  notes: [
-    { title: "Most undervalued category", detail: "Mail and operations support is often underbought relative to final-cycle impact." },
-    { title: "Highest-demand consultant stack", detail: "Analytics + media + mail execution is the strongest operating mix." }
-  ]
-};
-
-function toneClass(v) {
-  const s = String(v);
-  if (s.startsWith("-")) return "down";
-  if (s.startsWith("+")) return "up";
-  return "neutral";
-}
-
-function scoreWidth(v) {
-  return { width: `${v}%` };
-}
-
-const PowerRankings = () => {
-  const fetcher = useCallback(() => api.rankings(), []);
-  const { data, loading, error } = useApiResource(fetcher, fallbackData);
+function MetricCard({ label, value, delta, tone = "neutral" }) {
+  const toneClass =
+    tone === "up"
+      ? "text-emerald-300"
+      : tone === "down"
+      ? "text-rose-300"
+      : "text-slate-300";
 
   return (
-    <TerminalPage
-      eyebrow="Power Rankings"
-      title="The leaderboard for campaigns, consultants, and donor networks shaping the political market."
-      description="VoterSpheres ranks the strongest operators and campaigns by fundraising strength, message performance, momentum, resilience, and strategic execution."
-      metrics={data?.metrics || []}
-    >
-      <Panel title="Campaign Leaderboard" subtitle="Top campaigns ranked by total strategic strength">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-ranking-list">
-            {data.campaigns.map((item) => (
-              <div key={item.name} className="vs-ranking-item">
-                <div className="vs-ranking-topline">
-                  <div className="vs-ranking-left">
-                    <div className="vs-ranking-badge">#{item.rank}</div>
-                    <div>
-                      <div className="vs-ranking-name">{item.name}</div>
-                      <div className="vs-ranking-sub">{item.category}</div>
-                    </div>
-                  </div>
-                  <div className="vs-ranking-right">
-                    <div className="vs-ranking-score">{item.score}</div>
-                    <div className={toneClass(item.movement)}>{item.movement}</div>
-                  </div>
-                </div>
-                <div className="vs-ranking-bar">
-                  <div className="vs-ranking-fill" style={scoreWidth(item.score)} />
-                </div>
-                <div className="vs-ranking-signal">{item.signal}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <Panel title="Consultant Rankings" subtitle="Firms winning on delivery, reliability, and cycle impact">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-table">
-            <div className="vs-table-head">
-              <span>Rank</span>
-              <span>Firm</span>
-              <span>Specialty</span>
-              <span>Score</span>
-              <span>Trend</span>
-            </div>
-            {data.consultants.map((row) => (
-              <div key={row.firm} className="vs-table-row vs-table-row-five">
-                <span>#{row.rank}</span>
-                <span>{row.firm}</span>
-                <span>{row.specialty}</span>
-                <span>{row.score}</span>
-                <span className={toneClass(row.trend)}>{row.trend}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <Panel title="AI Marketplace Notes" subtitle="Machine-assisted read on vendor strategy and market shape" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-ai-note-list">
-            {data.notes.map((item) => (
-              <div key={item.title} className="vs-ai-note-item">
-                <div className="vs-ai-note-title">{item.title}</div>
-                <div className="vs-ai-note-detail">{item.detail}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-    </TerminalPage>
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-3 text-3xl font-semibold text-white">{value}</div>
+      <div className={`mt-2 text-sm ${toneClass}`}>{delta}</div>
+    </div>
   );
-};
+}
 
-export default PowerRankings;
+function RankingRow({ row }) {
+  return (
+    <div className="grid grid-cols-12 items-center gap-3 rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm">
+      <div className="col-span-1 text-slate-400">#{row.rank}</div>
+      <div className="col-span-3 font-medium text-white">{row.leader}</div>
+      <div className="col-span-2 text-slate-300">{row.state}</div>
+      <div className="col-span-2 text-slate-300">{row.office}</div>
+      <div className="col-span-2 text-center text-cyan-300">
+        {row.winProbability}%
+      </div>
+      <div className="col-span-2 text-right text-emerald-300">{row.rating}</div>
+    </div>
+  );
+}
+
+export default function PowerRankings() {
+  const [data, setData] = useState({ metrics: [], campaigns: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRankings() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const result = await api.intelligenceRankings();
+
+        if (!active) return;
+
+        setData({
+          metrics: result?.metrics || [],
+          campaigns: result?.campaigns || []
+        });
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || "Failed to load power rankings");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadRankings();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#060b14] p-6 text-white">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+          <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">
+            VoterSpheres Modeled Rankings
+          </div>
+          <h1 className="mt-2 text-3xl font-semibold">Power Rankings</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Fundraising-weighted race rankings from the intelligence engine.
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 text-sm text-slate-400">
+            Loading rankings...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
+            {error}
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {data.metrics.map((metric) => (
+                <MetricCard
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.value}
+                  delta={metric.delta}
+                  tone={metric.tone}
+                />
+              ))}
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+              <h2 className="mb-4 text-xl font-semibold">Modeled Race Leaderboard</h2>
+              <div className="space-y-3">
+                {data.campaigns.length === 0 ? (
+                  <div className="text-sm text-slate-500">
+                    No ranking data available.
+                  </div>
+                ) : (
+                  data.campaigns.map((row) => (
+                    <RankingRow key={`${row.rank}-${row.raceKey}`} row={row} />
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
