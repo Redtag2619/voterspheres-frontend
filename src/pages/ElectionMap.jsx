@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
-import { api } from "../services/api";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker
+} from "react-simple-maps";
+import api from "../services/api";
 
 function MetricCard({ label, value, delta }) {
   return (
@@ -32,21 +37,48 @@ function DetailCard({ row }) {
             {row.state}
           </p>
         </div>
+
         <span
-          className="rounded-full px-3 py-1 text-xs"
-          style={{ backgroundColor: `${row.fill}22`, color: row.stroke }}
+          className="rounded-full px-3 py-1 text-xs font-medium"
+          style={{
+            backgroundColor: `${row.fill || "#334155"}22`,
+            color: row.stroke || "#cbd5e1",
+            border: `1px solid ${row.stroke || "#475569"}`
+          }}
         >
-          {row.overlayTier}
+          {row.overlayTier || row.raceRating || "watch"}
         </span>
       </div>
 
       <div className="mt-4 space-y-2 text-sm text-slate-300">
-        <p><span className="text-slate-500">Win Probability:</span> {row.winProb}%</p>
-        <p><span className="text-slate-500">Overlay Score:</span> {row.overlayScore}</p>
-        <p><span className="text-slate-500">Urgency:</span> {row.risk}</p>
-        <p><span className="text-slate-500">Finance Weight:</span> {row.financeWeight}</p>
-        <p><span className="text-slate-500">Competition Weight:</span> {row.competitionWeight}</p>
-        <p><span className="text-slate-500">Modeled Funds:</span> {row.funds}</p>
+        <p>
+          <span className="text-slate-500">Win Probability:</span>{" "}
+          {row.winProb ?? row.winProbability ?? 0}%
+        </p>
+        <p>
+          <span className="text-slate-500">Overlay Score:</span>{" "}
+          {row.overlayScore ?? "N/A"}
+        </p>
+        <p>
+          <span className="text-slate-500">Urgency:</span>{" "}
+          {row.risk || row.urgency || "Monitor"}
+        </p>
+        <p>
+          <span className="text-slate-500">Finance Weight:</span>{" "}
+          {row.financeWeight ?? "N/A"}
+        </p>
+        <p>
+          <span className="text-slate-500">Competition Weight:</span>{" "}
+          {row.competitionWeight ?? "N/A"}
+        </p>
+        <p>
+          <span className="text-slate-500">Modeled Funds:</span>{" "}
+          {row.funds || "N/A"}
+        </p>
+        <p>
+          <span className="text-slate-500">Momentum:</span>{" "}
+          {row.momentum || "N/A"}
+        </p>
         <p className="text-slate-400">{row.note}</p>
       </div>
     </div>
@@ -55,15 +87,19 @@ function DetailCard({ row }) {
 
 function getFillForState(name, battlegroundMap, selectedState) {
   const row = battlegroundMap[name];
+
   if (selectedState === name) return "#22d3ee";
   if (!row) return "#1f2937";
+
   return row.fill || "#334155";
 }
 
 function getStrokeForState(name, battlegroundMap, selectedState) {
   const row = battlegroundMap[name];
-  if (selectedState === name) return "#cffafe";
+
+  if (selectedState === name) return "#ecfeff";
   if (!row) return "#0f172a";
+
   return row.stroke || "#94a3b8";
 }
 
@@ -82,19 +118,20 @@ export default function ElectionMap() {
         setLoading(true);
         setError("");
 
-        const [result, geo] = await Promise.all([
+        const [mapData, geo] = await Promise.all([
           api.intelligenceMap(),
           api.statesGeoJson()
         ]);
 
         if (!active) return;
 
-        const battlegrounds = result?.battlegrounds || [];
-        setGeoJson(geo);
+        const battlegrounds = mapData?.battlegrounds || [];
+
         setData({
-          metrics: result?.metrics || [],
+          metrics: mapData?.metrics || [],
           battlegrounds
         });
+        setGeoJson(geo);
 
         if (battlegrounds.length > 0) {
           setSelectedState(battlegrounds[0].state);
@@ -108,6 +145,7 @@ export default function ElectionMap() {
     }
 
     loadMap();
+
     return () => {
       active = false;
     };
@@ -131,7 +169,7 @@ export default function ElectionMap() {
           </div>
           <h1 className="mt-2 text-3xl font-semibold">Election Map</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Live state overlays driven by forecast competitiveness and fundraising pressure.
+            Live state overlays driven by backend forecast and fundraising data.
           </p>
         </div>
 
@@ -239,11 +277,21 @@ export default function ElectionMap() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-300">
-                  <span className="rounded-full bg-[#ef4444] px-3 py-1 text-white">Critical</span>
-                  <span className="rounded-full bg-[#f59e0b] px-3 py-1 text-black">High</span>
-                  <span className="rounded-full bg-[#0ea5e9] px-3 py-1 text-white">Elevated</span>
-                  <span className="rounded-full bg-[#334155] px-3 py-1 text-white">Watch</span>
-                  <span className="rounded-full bg-[#22d3ee] px-3 py-1 text-black">Selected</span>
+                  <span className="rounded-full bg-[#ef4444] px-3 py-1 text-white">
+                    Critical
+                  </span>
+                  <span className="rounded-full bg-[#f59e0b] px-3 py-1 text-black">
+                    High
+                  </span>
+                  <span className="rounded-full bg-[#0ea5e9] px-3 py-1 text-white">
+                    Elevated
+                  </span>
+                  <span className="rounded-full bg-[#334155] px-3 py-1 text-white">
+                    Watch
+                  </span>
+                  <span className="rounded-full bg-[#22d3ee] px-3 py-1 text-black">
+                    Selected
+                  </span>
                 </div>
               </div>
 
@@ -254,6 +302,7 @@ export default function ElectionMap() {
                   <h3 className="text-lg font-semibold text-white">
                     Overlay States
                   </h3>
+
                   <div className="mt-4 space-y-2">
                     {data.battlegrounds.map((row) => (
                       <button
@@ -267,7 +316,7 @@ export default function ElectionMap() {
                         }`}
                       >
                         <span>{row.state}</span>
-                        <span>{row.overlayScore}</span>
+                        <span>{row.overlayScore ?? row.winProb ?? 0}</span>
                       </button>
                     ))}
                   </div>
