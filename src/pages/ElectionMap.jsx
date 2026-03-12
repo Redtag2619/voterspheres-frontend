@@ -32,24 +32,21 @@ function DetailCard({ row }) {
             {row.state}
           </p>
         </div>
-        <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs text-cyan-300">
-          {row.raceRating}
+        <span
+          className="rounded-full px-3 py-1 text-xs"
+          style={{ backgroundColor: `${row.fill}22`, color: row.stroke }}
+        >
+          {row.overlayTier}
         </span>
       </div>
 
       <div className="mt-4 space-y-2 text-sm text-slate-300">
-        <p>
-          <span className="text-slate-500">Win Probability:</span> {row.winProb}%
-        </p>
-        <p>
-          <span className="text-slate-500">Momentum:</span> {row.momentum}
-        </p>
-        <p>
-          <span className="text-slate-500">Modeled Funds:</span> {row.funds}
-        </p>
-        <p>
-          <span className="text-slate-500">Risk:</span> {row.risk}
-        </p>
+        <p><span className="text-slate-500">Win Probability:</span> {row.winProb}%</p>
+        <p><span className="text-slate-500">Overlay Score:</span> {row.overlayScore}</p>
+        <p><span className="text-slate-500">Urgency:</span> {row.risk}</p>
+        <p><span className="text-slate-500">Finance Weight:</span> {row.financeWeight}</p>
+        <p><span className="text-slate-500">Competition Weight:</span> {row.competitionWeight}</p>
+        <p><span className="text-slate-500">Modeled Funds:</span> {row.funds}</p>
         <p className="text-slate-400">{row.note}</p>
       </div>
     </div>
@@ -58,13 +55,16 @@ function DetailCard({ row }) {
 
 function getFillForState(name, battlegroundMap, selectedState) {
   const row = battlegroundMap[name];
-
   if (selectedState === name) return "#22d3ee";
   if (!row) return "#1f2937";
+  return row.fill || "#334155";
+}
 
-  if (row.raceRating === "Lean") return "#0ea5e9";
-  if (row.raceRating === "Toss-up") return "#f59e0b";
-  return "#334155";
+function getStrokeForState(name, battlegroundMap, selectedState) {
+  const row = battlegroundMap[name];
+  if (selectedState === name) return "#cffafe";
+  if (!row) return "#0f172a";
+  return row.stroke || "#94a3b8";
 }
 
 export default function ElectionMap() {
@@ -90,7 +90,6 @@ export default function ElectionMap() {
         if (!active) return;
 
         const battlegrounds = result?.battlegrounds || [];
-
         setGeoJson(geo);
         setData({
           metrics: result?.metrics || [],
@@ -109,7 +108,6 @@ export default function ElectionMap() {
     }
 
     loadMap();
-
     return () => {
       active = false;
     };
@@ -133,7 +131,7 @@ export default function ElectionMap() {
           </div>
           <h1 className="mt-2 text-3xl font-semibold">Election Map</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Real map rendering driven by live battleground intelligence.
+            Live state overlays driven by forecast competitiveness and fundraising pressure.
           </p>
         </div>
 
@@ -160,7 +158,7 @@ export default function ElectionMap() {
 
             <div className="grid gap-6 xl:grid-cols-[1.35fr,0.65fr]">
               <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
-                <h2 className="mb-4 text-xl font-semibold">Battleground Map</h2>
+                <h2 className="mb-4 text-xl font-semibold">Overlay Map</h2>
 
                 <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#08111d] p-4">
                   {geoJson ? (
@@ -188,22 +186,26 @@ export default function ElectionMap() {
                                       battlegroundMap,
                                       selectedState
                                     ),
-                                    stroke: "#0f172a",
-                                    strokeWidth: 0.8,
+                                    stroke: getStrokeForState(
+                                      stateName,
+                                      battlegroundMap,
+                                      selectedState
+                                    ),
+                                    strokeWidth: 1.1,
                                     outline: "none",
                                     cursor: "pointer"
                                   },
                                   hover: {
                                     fill: "#38bdf8",
-                                    stroke: "#0f172a",
-                                    strokeWidth: 0.8,
+                                    stroke: "#e0f2fe",
+                                    strokeWidth: 1.2,
                                     outline: "none",
                                     cursor: "pointer"
                                   },
                                   pressed: {
                                     fill: "#06b6d4",
-                                    stroke: "#0f172a",
-                                    strokeWidth: 0.8,
+                                    stroke: "#ecfeff",
+                                    strokeWidth: 1.2,
                                     outline: "none"
                                   }
                                 }}
@@ -220,9 +222,9 @@ export default function ElectionMap() {
                             coordinates={[row.center[1], row.center[0]]}
                           >
                             <circle
-                              r={4}
-                              fill="#f8fafc"
-                              stroke="#22d3ee"
+                              r={5}
+                              fill={row.fill || "#f8fafc"}
+                              stroke={row.stroke || "#22d3ee"}
                               strokeWidth={2}
                             />
                           </Marker>
@@ -236,10 +238,11 @@ export default function ElectionMap() {
                   )}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400">
-                  <span className="rounded-full bg-[#1f2937] px-3 py-1">Default</span>
-                  <span className="rounded-full bg-[#0ea5e9] px-3 py-1 text-white">Lean</span>
-                  <span className="rounded-full bg-[#f59e0b] px-3 py-1 text-black">Toss-up</span>
+                <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-300">
+                  <span className="rounded-full bg-[#ef4444] px-3 py-1 text-white">Critical</span>
+                  <span className="rounded-full bg-[#f59e0b] px-3 py-1 text-black">High</span>
+                  <span className="rounded-full bg-[#0ea5e9] px-3 py-1 text-white">Elevated</span>
+                  <span className="rounded-full bg-[#334155] px-3 py-1 text-white">Watch</span>
                   <span className="rounded-full bg-[#22d3ee] px-3 py-1 text-black">Selected</span>
                 </div>
               </div>
@@ -249,7 +252,7 @@ export default function ElectionMap() {
 
                 <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
                   <h3 className="text-lg font-semibold text-white">
-                    Battleground States
+                    Overlay States
                   </h3>
                   <div className="mt-4 space-y-2">
                     {data.battlegrounds.map((row) => (
@@ -264,7 +267,7 @@ export default function ElectionMap() {
                         }`}
                       >
                         <span>{row.state}</span>
-                        <span>{row.winProb}%</span>
+                        <span>{row.overlayScore}</span>
                       </button>
                     ))}
                   </div>
