@@ -35,6 +35,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(`/api/candidates${search.toString() ? `?${search}` : ""}`);
   },
 
@@ -50,6 +51,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(`/api/consultants${search.toString() ? `?${search}` : ""}`);
   },
 
@@ -62,6 +64,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(`/api/vendors${search.toString() ? `?${search}` : ""}`);
   },
 
@@ -80,6 +83,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(
       `/api/intelligence/fundraising/live${
         search.toString() ? `?${search}` : ""
@@ -97,6 +101,7 @@ export const api = {
     }),
 
   statesGeoJson: () => request("/api/map/geojson/states"),
+
   stateGeoJson: (stateName) =>
     request(`/api/map/geojson/states/${encodeURIComponent(stateName)}`),
 
