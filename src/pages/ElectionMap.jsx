@@ -1,171 +1,142 @@
-import React, { useCallback } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
-import "leaflet/dist/leaflet.css";
 
-const fallbackData = {
-  metrics: [
-    { label: "Battleground States", value: "12", delta: "+2", tone: "up" },
-    { label: "Competitive Districts", value: "29", delta: "+4", tone: "up" },
-    { label: "High-Risk Zones", value: "8", delta: "+1", tone: "down" },
-    { label: "Momentum Leaders", value: "5", delta: "+3", tone: "up" }
-  ],
-  battlegrounds: [
-    {
-      name: "Pennsylvania Senate",
-      state: "Pennsylvania",
-      center: [40.2732, -76.8867],
-      raceRating: "Lean",
-      winProb: 54,
-      momentum: "+2.1",
-      funds: "$19.2M",
-      risk: "Medium",
-      note: "Suburban turnout and affordability message discipline are driving gains."
-    },
-    {
-      name: "Georgia Senate",
-      state: "Georgia",
-      center: [33.749, -84.388],
-      raceRating: "Lean",
-      winProb: 57,
-      momentum: "+2.9",
-      funds: "$17.8M",
-      risk: "Medium",
-      note: "Turnout machine is strengthening."
+function MetricCard({ label, value, delta }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-3 text-3xl font-semibold text-white">{value}</div>
+      <div className="mt-2 text-sm text-cyan-300">{delta}</div>
+    </div>
+  );
+}
+
+function BattlegroundCard({ row }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">{row.name}</h3>
+          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+            {row.state}
+          </p>
+        </div>
+        <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs text-cyan-300">
+          {row.raceRating}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2 text-sm text-slate-300">
+        <p>
+          <span className="text-slate-500">Win Probability:</span> {row.winProb}%
+        </p>
+        <p>
+          <span className="text-slate-500">Momentum:</span> {row.momentum}
+        </p>
+        <p>
+          <span className="text-slate-500">Modeled Funds:</span> {row.funds}
+        </p>
+        <p>
+          <span className="text-slate-500">Risk:</span> {row.risk}
+        </p>
+        <p className="text-slate-400">{row.note}</p>
+        <p className="text-xs text-slate-500">
+          Center: {Array.isArray(row.center) ? row.center.join(", ") : "N/A"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function ElectionMap() {
+  const [data, setData] = useState({ metrics: [], battlegrounds: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadMap() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const result = await api.intelligenceMap();
+
+        if (!active) return;
+
+        setData({
+          metrics: result?.metrics || [],
+          battlegrounds: result?.battlegrounds || []
+        });
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || "Failed to load election map");
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  ],
-  alerts: [
-    {
-      severity: "High",
-      title: "Media-sensitive pressure rising in upper Midwest battlegrounds",
-      note: "Narrative instability is clustering around two top-tier contests."
-    }
-  ]
-};
 
-function toneClass(v) {
-  return String(v).startsWith("-") ? "down" : "up";
-}
+    loadMap();
 
-function severityClass(value) {
-  const v = value.toLowerCase();
-  if (v === "high") return "high";
-  if (v === "medium") return "medium";
-  return "low";
-}
-
-function markerColor(winProb) {
-  if (winProb >= 56) return "#22c55e";
-  if (winProb >= 51) return "#38bdf8";
-  if (winProb >= 48) return "#f59e0b";
-  return "#ef4444";
-}
-
-function markerRadius(winProb) {
-  return Math.max(12, Math.round(winProb / 3));
-}
-
-const ElectionMap = () => {
-  const fetcher = useCallback(() => api.electionMap(), []);
-  const { data, loading, error } = useApiResource(fetcher, fallbackData);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
-    <TerminalPage
-      eyebrow="Election Map Terminal"
-      title="See where the political map is moving, where pressure is building, and where the next gains can be made."
-      description="Track battleground geography, race pressure, regional strength, and strategic risk on a live political command map."
-      metrics={data?.metrics || []}
-    >
-      <Panel title="Battleground Command Map" subtitle="Marker size reflects race confidence and color reflects competitive temperature" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+    <div className="min-h-screen bg-[#060b14] p-6 text-white">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+          <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">
+            VoterSpheres National Map
+          </div>
+          <h1 className="mt-2 text-3xl font-semibold">Election Map</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Battleground geography shaped by live modeling and campaign finance.
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 text-sm text-slate-400">
+            Loading election map...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
+            {error}
+          </div>
+        ) : (
           <>
-            <div className="vs-map-legend">
-              <div className="vs-map-legend-item"><span className="vs-map-dot strong" /><span>Strong</span></div>
-              <div className="vs-map-legend-item"><span className="vs-map-dot lean" /><span>Lean</span></div>
-              <div className="vs-map-legend-item"><span className="vs-map-dot tossup" /><span>Toss-up</span></div>
-              <div className="vs-map-legend-item"><span className="vs-map-dot risk" /><span>Risk</span></div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {data.metrics.map((metric) => (
+                <MetricCard
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.value}
+                  delta={metric.delta}
+                />
+              ))}
             </div>
 
-            <div className="vs-map-canvas">
-              <MapContainer center={[39.8283, -98.5795]} zoom={4} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
-                <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {data.battlegrounds.map((race) => (
-                  <CircleMarker
-                    key={race.name}
-                    center={race.center}
-                    radius={markerRadius(race.winProb)}
-                    pathOptions={{
-                      color: markerColor(race.winProb),
-                      fillColor: markerColor(race.winProb),
-                      fillOpacity: 0.55,
-                      weight: 2
-                    }}
-                  >
-                    <Popup>
-                      <div className="vs-map-popup">
-                        <div className="vs-map-popup-title">{race.name}</div>
-                        <div className="vs-map-popup-row"><strong>State:</strong> {race.state}</div>
-                        <div className="vs-map-popup-row"><strong>Rating:</strong> {race.raceRating}</div>
-                        <div className="vs-map-popup-row"><strong>Win Probability:</strong> {race.winProb}%</div>
-                        <div className="vs-map-popup-row"><strong>Momentum:</strong> {race.momentum}</div>
-                        <div className="vs-map-popup-row"><strong>Funds:</strong> {race.funds}</div>
-                        <div className="vs-map-popup-row"><strong>Risk:</strong> {race.risk}</div>
-                        <div className="vs-map-popup-note">{race.note}</div>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                ))}
-              </MapContainer>
+            <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+              <h2 className="mb-4 text-xl font-semibold">Battleground States</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {data.battlegrounds.length === 0 ? (
+                  <div className="text-sm text-slate-500">
+                    No battleground map data available.
+                  </div>
+                ) : (
+                  data.battlegrounds.map((row) => (
+                    <BattlegroundCard key={row.name} row={row} />
+                  ))
+                )}
+              </div>
             </div>
           </>
         )}
-      </Panel>
-
-      <Panel title="Race Map Board" subtitle="Top battlegrounds and current map conditions">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-table">
-            <div className="vs-table-head">
-              <span>Race</span>
-              <span>Win Prob.</span>
-              <span>Momentum</span>
-              <span>Funds</span>
-              <span>Risk</span>
-            </div>
-            {data.battlegrounds.map((row) => (
-              <div key={row.name} className="vs-table-row vs-table-row-five">
-                <span>{row.name}</span>
-                <span>{row.winProb}%</span>
-                <span className={toneClass(row.momentum)}>{row.momentum}</span>
-                <span>{row.funds}</span>
-                <span>{row.risk}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <Panel title="Map Alert Feed" subtitle="Geographic signals shaping the current battlefield">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-map-alert-list">
-            {data.alerts.map((item) => (
-              <div key={item.title} className="vs-map-alert-item">
-                <div className={`vs-map-alert-severity ${severityClass(item.severity)}`}>{item.severity}</div>
-                <div className="vs-map-alert-body">
-                  <div className="vs-map-alert-title">{item.title}</div>
-                  <div className="vs-map-alert-note">{item.note}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-    </TerminalPage>
+      </div>
+    </div>
   );
-};
-
-export default ElectionMap;
+}
