@@ -1,113 +1,189 @@
-import React, { useCallback } from "react";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
 
-const fallbackData = {
-  metrics: [
-    { label: "Active Donor Networks", value: "86", delta: "+7 this month", tone: "up" },
-    { label: "Influence Clusters", value: "24", delta: "+3", tone: "up" },
-    { label: "At-Risk Capital", value: "$4.2M", delta: "+8.1%", tone: "down" },
-    { label: "High-Confidence Channels", value: "18", delta: "+5", tone: "up" }
-  ],
-  clusters: [
-    { name: "Digital Small-Dollar Coalition", score: 93, trend: "+6.2", influence: "National", note: "Highest growth efficiency and repeat conversion." },
-    { name: "National Finance Chairs", score: 89, trend: "+2.8", influence: "National", note: "Large-dollar backbone with durable reach." }
-  ],
-  networkMap: [
-    { cluster: "Northeast Finance Corridor", raised: "$5.8M", velocity: "+14%", confidence: "High", status: "Scaling" },
-    { cluster: "Pacific Digital Donor Base", raised: "$4.9M", velocity: "+21%", confidence: "High", status: "Breakout" }
-  ],
-  notes: [
-    { title: "Most valuable network right now", detail: "Digital small-dollar remains the most durable capital source." },
-    { title: "Greatest donor-side vulnerability", detail: "Regional business donors remain most exposed to confidence shocks." }
-  ]
-};
-
-function toneClass(v) {
-  return String(v).startsWith("-") ? "down" : "up";
+function MetricCard({ label, value, delta }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-3 text-3xl font-semibold text-white">{value}</div>
+      <div className="mt-2 text-sm text-emerald-300">{delta}</div>
+    </div>
+  );
 }
 
-function scoreWidth(v) {
-  return { width: `${v}%` };
+function LeaderboardRow({ row }) {
+  return (
+    <div className="grid grid-cols-12 items-center gap-3 rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm">
+      <div className="col-span-1 text-slate-400">#{row.rank}</div>
+      <div className="col-span-4 font-medium text-white">{row.name}</div>
+      <div className="col-span-2 text-slate-300">{row.state || "N/A"}</div>
+      <div className="col-span-2 text-slate-300">{row.office || "N/A"}</div>
+      <div className="col-span-3 text-right text-emerald-300">
+        ${Number(row.receipts || 0).toLocaleString()}
+      </div>
+    </div>
+  );
 }
 
-const DonorNetwork = () => {
-  const fetcher = useCallback(() => api.donors(), []);
-  const { data, loading, error } = useApiResource(fetcher, fallbackData);
+function LiveFundraisingCard({ item }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">{item.name}</h3>
+          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+            {item.party || "Unknown Party"}
+          </p>
+        </div>
+        <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs text-cyan-300">
+          {item.state || "Unknown State"}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2 text-sm text-slate-300">
+        <p>
+          <span className="text-slate-500">Office:</span> {item.office || "N/A"}
+        </p>
+        <p>
+          <span className="text-slate-500">Receipts:</span> $
+          {Number(item?.totals?.receipts || 0).toLocaleString()}
+        </p>
+        <p>
+          <span className="text-slate-500">Cash on hand:</span> $
+          {Number(item?.totals?.cash_on_hand_end_period || 0).toLocaleString()}
+        </p>
+        <p>
+          <span className="text-slate-500">Disbursements:</span> $
+          {Number(item?.totals?.disbursements || 0).toLocaleString()}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function DonorNetwork() {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [liveRows, setLiveRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [leaderboardData, liveData] = await Promise.all([
+          api.fundraisingLeaderboard(),
+          api.liveFundraising({ limit: 12 })
+        ]);
+
+        if (!active) return;
+
+        setLeaderboard(leaderboardData?.leaderboard || []);
+        setLiveRows(liveData?.results || []);
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || "Failed to load donor network");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const totalReceipts = leaderboard.reduce(
+    (sum, row) => sum + Number(row.receipts || 0),
+    0
+  );
 
   return (
-    <TerminalPage
-      eyebrow="Donor Network Intelligence"
-      title="Track donor influence, capital movement, and network confidence across the political money map."
-      description="VoterSpheres maps how donor clusters behave, where capital is flowing, and which networks can most shape a campaign’s strategic runway."
-      metrics={data?.metrics || []}
-    >
-      <Panel title="Donor Cluster Strength" subtitle="Highest-performing ecosystems by influence and reliability">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-donor-cluster-list">
-            {data.clusters.map((item) => (
-              <div key={item.name} className="vs-donor-cluster-item">
-                <div className="vs-donor-cluster-top">
-                  <div>
-                    <div className="vs-donor-cluster-name">{item.name}</div>
-                    <div className="vs-donor-cluster-scope">{item.influence} influence</div>
-                  </div>
-                  <div className="vs-donor-cluster-side">
-                    <div className="vs-donor-cluster-score">{item.score}</div>
-                    <div className={toneClass(item.trend)}>{item.trend}</div>
-                  </div>
-                </div>
-                <div className="vs-donor-cluster-bar">
-                  <div className="vs-donor-cluster-fill" style={scoreWidth(item.score)} />
-                </div>
-                <div className="vs-donor-cluster-note">{item.note}</div>
-              </div>
-            ))}
+    <div className="min-h-screen bg-[#060b14] p-6 text-white">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+          <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">
+            VoterSpheres Finance Intelligence
           </div>
-        )}
-      </Panel>
+          <h1 className="mt-2 text-3xl font-semibold">Donor Network</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Live fundraising intelligence powered by FEC-backed campaign data.
+          </p>
+        </div>
 
-      <Panel title="Regional Network Map" subtitle="Capital velocity, confidence, and network condition by cluster">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-table">
-            <div className="vs-table-head">
-              <span>Cluster</span>
-              <span>Raised</span>
-              <span>Velocity</span>
-              <span>Confidence</span>
-              <span>Status</span>
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 text-sm text-slate-400">
+            Loading donor network...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
+            {error}
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <MetricCard
+                label="Tracked Finance Leaders"
+                value={leaderboard.length}
+                delta="FEC-backed candidates"
+              />
+              <MetricCard
+                label="Modeled Receipts"
+                value={`$${(totalReceipts / 1000000).toFixed(1)}M`}
+                delta="Live leaderboard total"
+              />
+              <MetricCard
+                label="Live Finance Rows"
+                value={liveRows.length}
+                delta="Current ingestion sample"
+              />
             </div>
-            {data.networkMap.map((row) => (
-              <div key={row.cluster} className="vs-table-row vs-table-row-five">
-                <span>{row.cluster}</span>
-                <span>{row.raised}</span>
-                <span className={toneClass(row.velocity)}>{row.velocity}</span>
-                <span>{row.confidence}</span>
-                <span>{row.status}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
 
-      <Panel title="AI Donor Notes" subtitle="Machine-assisted interpretation of donor-network strength" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-ai-note-list">
-            {data.notes.map((item) => (
-              <div key={item.title} className="vs-ai-note-item">
-                <div className="vs-ai-note-title">{item.title}</div>
-                <div className="vs-ai-note-detail">{item.detail}</div>
+            <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+              <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+                <h2 className="mb-4 text-xl font-semibold">Fundraising Leaderboard</h2>
+                <div className="space-y-3">
+                  {leaderboard.length === 0 ? (
+                    <div className="text-sm text-slate-500">
+                      No fundraising leaderboard data available.
+                    </div>
+                  ) : (
+                    leaderboard.map((row) => (
+                      <LeaderboardRow key={`${row.rank}-${row.candidate_id}`} row={row} />
+                    ))
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
+                <h2 className="mb-4 text-xl font-semibold">Live FEC Snapshot</h2>
+                <div className="grid gap-4">
+                  {liveRows.length === 0 ? (
+                    <div className="text-sm text-slate-500">
+                      No live fundraising snapshot available.
+                    </div>
+                  ) : (
+                    liveRows.map((item) => (
+                      <LiveFundraisingCard
+                        key={item.candidate_id || item.name}
+                        item={item}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
         )}
-      </Panel>
-    </TerminalPage>
+      </div>
+    </div>
   );
-};
-
-export default DonorNetwork;
+}
