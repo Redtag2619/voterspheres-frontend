@@ -35,6 +35,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(`/api/candidates${search.toString() ? `?${search}` : ""}`);
   },
 
@@ -50,6 +51,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(`/api/consultants${search.toString() ? `?${search}` : ""}`);
   },
 
@@ -62,6 +64,7 @@ export const api = {
         search.set(key, value);
       }
     });
+
     return request(`/api/vendors${search.toString() ? `?${search}` : ""}`);
   },
 
@@ -71,7 +74,31 @@ export const api = {
   intelligenceDashboard: () => request("/api/intelligence/dashboard"),
   intelligenceForecast: () => request("/api/intelligence/forecast"),
   intelligenceRankings: () => request("/api/intelligence/rankings"),
-  intelligenceMap: () => request("/api/intelligence/map")
+  intelligenceMap: () => request("/api/intelligence/map"),
+
+  liveFundraising: (params = {}) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        search.set(key, value);
+      }
+    });
+
+    return request(
+      `/api/intelligence/fundraising/live${
+        search.toString() ? `?${search}` : ""
+      }`
+    );
+  },
+
+  fundraisingLeaderboard: () =>
+    request("/api/intelligence/fundraising/leaderboard"),
+
+  runFundraisingIngestion: (payload = {}) =>
+    request("/api/intelligence/fundraising/ingest", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
 };
 
 export default api;
