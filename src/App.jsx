@@ -1,48 +1,44 @@
-import React, { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import AppShell from "./components/AppShell";
 
-import AppShell from "./app/layout/AppShell";
+import Dashboard from "./pages/Dashboard";
+import Forecast from "./pages/Forecast";
+import ElectionMap from "./pages/ElectionMap";
+import Firms from "./pages/Firms";
+import CampaignPipeline from "./pages/CampaignPipeline";
+import CampaignWorkspace from "./pages/CampaignWorkspace";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Candidates = lazy(() => import("./pages/Candidates"));
-const ElectionMap = lazy(() => import("./pages/ElectionMap"));
-const DonorNetwork = lazy(() => import("./pages/DonorNetwork"));
-const AIWarRoom = lazy(() => import("./pages/AIWarRoom"));
-const AIChat = lazy(() => import("./pages/AIChat"));
-const ElectionForecast = lazy(() => import("./pages/ElectionForecast"));
-const FundraisingDashboard = lazy(() => import("./pages/FundraisingDashboard"));
-const PowerRankings = lazy(() => import("./pages/PowerRankings"));
-const ConsultantMarketplace = lazy(() => import("./pages/ConsultantMarketplace"));
-const CampaignSimulator = lazy(() => import("./pages/CampaignSimulator"));
-const CommandCenter = lazy(() => import("./pages/CommandCenter"));
-
-function LoadingScreen() {
-  return <div className="vs-loading-screen">Loading VoterSpheres...</div>;
+function NotFound() {
+  return (
+    <div className="min-h-screen bg-[#060b14] p-6 text-white">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-white/10 bg-[#0b1220] p-10 text-center shadow-2xl">
+        <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">
+          VoterSpheres
+        </div>
+        <h1 className="mt-3 text-3xl font-semibold">Page not found</h1>
+        <p className="mt-3 text-sm text-slate-400">
+          The route you requested does not exist in the current platform shell.
+        </p>
+      </div>
+    </div>
+  );
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppShell>
-        <Suspense fallback={<LoadingScreen />}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/candidates" element={<Candidates />} />
-            <Route path="/map" element={<ElectionMap />} />
-            <Route path="/donors" element={<DonorNetwork />} />
-            <Route path="/warroom" element={<AIWarRoom />} />
-            <Route path="/ai" element={<AIChat />} />
-            <Route path="/forecast" element={<ElectionForecast />} />
-            <Route path="/fundraising" element={<FundraisingDashboard />} />
-            <Route path="/rankings" element={<PowerRankings />} />
-            <Route path="/marketplace" element={<ConsultantMarketplace />} />
-            <Route path="/simulator" element={<CampaignSimulator />} />
-            <Route path="/command-center" element={<CommandCenter />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/forecast" element={<Forecast />} />
+          <Route path="/election-map" element={<ElectionMap />} />
+          <Route path="/firms" element={<Firms />} />
+          <Route path="/campaigns" element={<CampaignPipeline />} />
+          <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </AppShell>
     </BrowserRouter>
   );
 }
-
-export default App;
