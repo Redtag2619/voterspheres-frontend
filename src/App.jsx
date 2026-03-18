@@ -5,9 +5,9 @@ import Dashboard from "./pages/Dashboard";
 import Forecast from "./pages/Forecast";
 import ElectionMap from "./pages/ElectionMap";
 import Firms from "./pages/Firms";
-import CampaignPipeline from "./pages/CampaignPipeline";
-import CampaignWorkspace from "./pages/CampaignWorkspace"; 
 import FirmWorkspace from "./pages/FirmWorkspace";
+import CampaignPipeline from "./pages/CampaignPipeline";
+import CampaignWorkspace from "./pages/CampaignWorkspace";
 
 function NotFound() {
   return (
@@ -32,13 +32,17 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/election-map" element={<ElectionMap />} />
+
           <Route path="/firms" element={<Firms />} />
+          <Route path="/firms/:id" element={<FirmWorkspace />} />
+
           <Route path="/campaigns" element={<CampaignPipeline />} />
           <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
-          <Route path="*" element={<NotFound />} /> 
-          <Route path="/firms/:id" element={<FirmWorkspace />} />
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
     </BrowserRouter>
