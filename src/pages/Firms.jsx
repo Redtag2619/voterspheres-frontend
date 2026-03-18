@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
@@ -24,12 +25,13 @@ async function apiRequest(path, options = {}) {
 
 function FirmCard({ firm }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg transition hover:border-cyan-400/30">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-white">{firm.name}</h3>
           <p className="mt-1 text-sm text-slate-400">{firm.slug}</p>
         </div>
+
         <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
           {firm.firm_type || "Firm"}
         </span>
@@ -48,6 +50,7 @@ function FirmCard({ firm }) {
               target="_blank"
               rel="noreferrer"
               className="text-cyan-300 hover:text-cyan-200"
+              onClick={(e) => e.stopPropagation()}
             >
               {firm.website}
             </a>
@@ -59,6 +62,15 @@ function FirmCard({ firm }) {
           <span className="text-slate-500">Description:</span>{" "}
           {firm.description || "No description yet"}
         </p>
+      </div>
+
+      <div className="mt-5">
+        <Link
+          to={`/firms/${firm.id}`}
+          className="inline-flex rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-500/20"
+        >
+          Open Firm Workspace
+        </Link>
       </div>
     </div>
   );
@@ -148,8 +160,8 @@ export default function Firms() {
           </div>
           <h1 className="mt-2 text-3xl font-semibold">Firms</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Manage political consulting firms, operating partners, and campaign
-            organizations.
+            Manage consulting firms, operating groups, campaign clients, and
+            firm workspaces.
           </p>
         </div>
 
@@ -230,7 +242,7 @@ export default function Firms() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, description: e.target.value }))
                   }
-                  placeholder="Political consulting, media, direct mail, digital, and strategy."
+                  placeholder="Political consulting, media, direct mail, digital, fundraising, and strategy."
                 />
               </div>
 
