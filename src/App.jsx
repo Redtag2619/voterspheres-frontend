@@ -6,7 +6,8 @@ import Forecast from "./pages/Forecast";
 import ElectionMap from "./pages/ElectionMap";
 import Firms from "./pages/Firms";
 import CampaignPipeline from "./pages/CampaignPipeline";
-import CampaignWorkspace from "./pages/CampaignWorkspace";
+import CampaignWorkspace from "./pages/CampaignWorkspace"; 
+import FirmWorkspace from "./pages/FirmWorkspace";
 
 function NotFound() {
   return (
@@ -36,7 +37,8 @@ export default function App() {
           <Route path="/firms" element={<Firms />} />
           <Route path="/campaigns" element={<CampaignPipeline />} />
           <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} /> 
+          <Route path="/firms/:id" element={<FirmWorkspace />} />
         </Routes>
       </AppShell>
     </BrowserRouter>
