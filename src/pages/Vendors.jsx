@@ -48,15 +48,22 @@ function StatCard({ label, value, subtext }) {
 
 function VendorRow({ vendor }) {
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1.4fr,1fr,1fr,auto]">
+    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1.5fr,1fr,1fr,1fr,auto]">
       <div>
         <div className="font-semibold text-slate-900">{vendor.vendor_name}</div>
         <div className="mt-1 text-sm text-slate-500">
           {vendor.category || "Vendor"} • {vendor.campaign_name || "Campaign N/A"}
         </div>
         <div className="mt-2 text-xs text-slate-500">
-          Candidate: {vendor.candidate_name || "N/A"}
+          Candidate: {vendor.candidate_name || "N/A"} • Firm: {vendor.firm_name || "N/A"}
         </div>
+      </div>
+
+      <div className="text-sm text-slate-700">
+        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
+          State
+        </div>
+        <div className="mt-1">{vendor.state || "N/A"}</div>
       </div>
 
       <div className="text-sm text-slate-700">
@@ -86,103 +93,82 @@ export default function Vendors() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [crmDashboard, setCrmDashboard] = useState({
-    vendor_activity: [],
-    active_campaigns: [],
-    recent_activity: []
+  const [vendorsData, setVendorsData] = useState({
+    results: [],
+    summary: {
+      total_vendors: 0,
+      active_vendors: 0,
+      prospect_vendors: 0,
+      total_contract_value: 0
+    }
   });
+
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [statusOptions, setStatusOptions] = useState([]);
 
   const [filters, setFilters] = useState({
     search: "",
     category: "",
-    status: ""
+    status: "",
+    state: ""
   });
+
+  async function loadDropdowns() {
+    const [categories, statuses] = await Promise.all([
+      apiRequest("/api/vendors/dropdowns/categories"),
+      apiRequest("/api/vendors/dropdowns/statuses")
+    ]);
+
+    setCategoryOptions(categories.results || []);
+    setStatusOptions(statuses.results || []);
+  }
 
   async function loadVendors() {
     try {
       setLoading(true);
       setError("");
 
-      const data = await apiRequest("/api/crm-dashboard/summary");
-      setCrmDashboard(data || {});
+      const params = new URLSearchParams();
+
+      if (filters.search) params.set("search", filters.search);
+      if (filters.category) params.set("category", filters.category);
+      if (filters.status) params.set("status", filters.status);
+      if (filters.state) params.set("state", filters.state);
+
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const data = await apiRequest(`/api/vendors${query}`);
+
+      setVendorsData(
+        data || {
+          results: [],
+          summary: {
+            total_vendors: 0,
+            active_vendors: 0,
+            prospect_vendors: 0,
+            total_contract_value: 0
+          }
+        }
+      );
     } catch (err) {
-      setError(err.message || "Failed to load vendor activity");
+      setError(err.message || "Failed to load vendor directory");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadVendors();
+    Promise.all([loadDropdowns(), loadVendors()]).catch((err) => {
+      setError(err.message || "Failed to initialize vendors page");
+      setLoading(false);
+    });
   }, []);
 
-  const vendors = useMemo(() => {
-    const rows = crmDashboard.vendor_activity || [];
+  async function handleApplyFilters() {
+    await loadVendors();
+  }
 
-    return rows.filter((vendor) => {
-      const matchesSearch =
-        !filters.search ||
-        [
-          vendor.vendor_name,
-          vendor.category,
-          vendor.campaign_name,
-          vendor.candidate_name
-        ]
-          .filter(Boolean)
-          .some((value) =>
-            String(value).toLowerCase().includes(filters.search.toLowerCase())
-          );
-
-      const matchesCategory =
-        !filters.category ||
-        String(vendor.category || "").toLowerCase() ===
-          filters.category.toLowerCase();
-
-      const matchesStatus =
-        !filters.status ||
-        String(vendor.status || "").toLowerCase() ===
-          filters.status.toLowerCase();
-
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-  }, [crmDashboard.vendor_activity, filters]);
-
-  const categoryOptions = useMemo(() => {
-    const unique = new Set(
-      (crmDashboard.vendor_activity || [])
-        .map((vendor) => vendor.category)
-        .filter(Boolean)
-    );
-    return Array.from(unique).sort();
-  }, [crmDashboard.vendor_activity]);
-
-  const statusOptions = useMemo(() => {
-    const unique = new Set(
-      (crmDashboard.vendor_activity || [])
-        .map((vendor) => vendor.status)
-        .filter(Boolean)
-    );
-    return Array.from(unique).sort();
-  }, [crmDashboard.vendor_activity]);
-
-  const totalContractValue = useMemo(() => {
-    return vendors.reduce(
-      (sum, vendor) => sum + Number(vendor.contract_value || 0),
-      0
-    );
-  }, [vendors]);
-
-  const activeVendors = useMemo(() => {
-    return vendors.filter(
-      (vendor) => String(vendor.status || "").toLowerCase() === "active"
-    ).length;
-  }, [vendors]);
-
-  const prospectVendors = useMemo(() => {
-    return vendors.filter(
-      (vendor) => String(vendor.status || "").toLowerCase() === "prospect"
-    ).length;
-  }, [vendors]);
+  const vendors = useMemo(() => vendorsData.results || [], [vendorsData.results]);
+  const summary = vendorsData.summary || {};
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
@@ -193,8 +179,7 @@ export default function Vendors() {
           </div>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Vendors</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Track active campaign vendors, categories, contract value, and vendor
-            footprint across your political operations.
+            Search campaign vendors by category, status, state, campaign, and firm.
           </p>
         </div>
 
@@ -207,22 +192,22 @@ export default function Vendors() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Visible Vendors"
-            value={vendors.length}
+            value={summary.total_vendors || 0}
             subtext="Filtered vendor records"
           />
           <StatCard
             label="Active Vendors"
-            value={activeVendors}
-            subtext="Currently active relationships"
+            value={summary.active_vendors || 0}
+            subtext="Current active relationships"
           />
           <StatCard
             label="Prospects"
-            value={prospectVendors}
+            value={summary.prospect_vendors || 0}
             subtext="Pipeline vendor opportunities"
           />
           <StatCard
             label="Contract Value"
-            value={formatMoney(totalContractValue)}
+            value={formatMoney(summary.total_contract_value || 0)}
             subtext="Tracked vendor spend"
           />
         </div>
@@ -231,18 +216,18 @@ export default function Vendors() {
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-slate-900">Vendor Filters</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Search across vendor name, category, campaign, and candidate.
+              Filter vendors across your CRM and campaign workspaces.
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <input
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.search}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, search: e.target.value }))
               }
-              placeholder="Search vendors, campaigns, candidates..."
+              placeholder="Search vendors, campaigns, firms..."
             />
 
             <select
@@ -274,30 +259,62 @@ export default function Vendors() {
                 </option>
               ))}
             </select>
-          </div>
-        </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Vendor Activity</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Recent vendor relationships across campaign workspaces.
-              </p>
-            </div>
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+              value={filters.state}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, state: e.target.value }))
+              }
+              placeholder="Filter by state"
+            />
+          </div>
+
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              Apply Filters
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({
+                  search: "",
+                  category: "",
+                  status: "",
+                  state: ""
+                });
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
+            >
+              Clear Form
+            </button>
 
             <button
               type="button"
               onClick={loadVendors}
-              className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
             >
               Refresh
             </button>
           </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-slate-900">Vendor Directory</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Campaign vendor relationships across firms and workspaces.
+            </p>
+          </div>
 
           <div className="space-y-4">
             {loading ? (
-              <EmptyState text="Loading vendor activity..." />
+              <EmptyState text="Loading vendor directory..." />
             ) : vendors.length === 0 ? (
               <EmptyState text="No vendor records found for the current filters." />
             ) : (
