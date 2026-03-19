@@ -5,12 +5,12 @@ const primaryNavItems = [
   { label: "Forecast", to: "/forecast" },
   { label: "Election Map", to: "/election-map" },
   { label: "Firms", to: "/firms" },
-  { label: "Campaign Pipeline", to: "/campaigns" }
+  { label: "Campaign Pipeline", to: "/campaigns" },
+  { label: "Vendors", to: "/vendors" },
+  { label: "MailOps", to: "/mailops" }
 ];
 
 const secondaryNavItems = [
-  { label: "Vendors", to: "/vendors", disabled: true },
-  { label: "MailOps", to: "/mailops", disabled: true },
   { label: "Compliance", to: "/compliance", disabled: true },
   { label: "Calendar", to: "/calendar", disabled: true }
 ];
@@ -92,10 +92,10 @@ export default function AppShell({ children }) {
                 Platform Mode
               </div>
               <div className="mt-2 text-sm font-semibold text-white">
-                Consultant CRM + Race Intelligence
+                Consultant CRM + Race Intelligence + MailOps
               </div>
               <div className="mt-2 text-sm text-slate-400">
-                Firms, campaigns, fundraising, forecasting, and national election operations.
+                Firms, campaigns, fundraising, forecasting, vendors, and mail tracking.
               </div>
             </div>
           </div>
