@@ -26,6 +26,18 @@ function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+function StatCard({ label, value, delta }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
+      <div className="mt-2 text-sm text-slate-500">{delta}</div>
+    </div>
+  );
+}
+
 function EmptyState({ text }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
@@ -34,97 +46,108 @@ function EmptyState({ text }) {
   );
 }
 
-function StatCard({ label, value, subtext }) {
+function ProgramCard({ item }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-slate-900">{item.program_name}</div>
+          <div className="mt-1 text-sm text-slate-500">
+            {item.campaign_name} • {item.candidate_name}
+          </div>
+        </div>
+        <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
+          {item.status}
+        </span>
       </div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-2 text-sm text-slate-500">{subtext}</div>
+
+      <div className="mt-4 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+        <div>Type: {item.mail_type || "N/A"}</div>
+        <div>Vendor: {item.vendor_name || "N/A"}</div>
+        <div>Quantity: {Number(item.quantity || 0).toLocaleString()}</div>
+        <div>Budget: {formatMoney(item.budget || 0)}</div>
+        <div>Drop Date: {item.drop_date || "N/A"}</div>
+        <div>State: {item.state || "N/A"}</div>
+      </div>
     </div>
   );
 }
 
-function Section({ title, subtitle, right, children }) {
+function EventCard({ item }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
-          {subtitle ? (
-            <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-          ) : null}
+          <div className="font-medium text-slate-900">{item.event_type}</div>
+          <div className="mt-1 text-sm text-slate-500">
+            {item.program_name} • {item.campaign_name}
+          </div>
         </div>
-        {right}
+        <div className="text-xs text-slate-500">
+          {item.event_timestamp
+            ? new Date(item.event_timestamp).toLocaleString()
+            : "N/A"}
+        </div>
       </div>
-      {children}
-    </section>
+      <div className="mt-2 text-sm text-slate-700">
+        {item.location_name || "Location N/A"}
+      </div>
+      <div className="mt-1 text-xs text-slate-500">
+        {item.description || "No description"}
+      </div>
+    </div>
   );
 }
 
 export default function MailOpsDashboard() {
   const [loading, setLoading] = useState(true);
-  const [savingProgram, setSavingProgram] = useState(false);
-  const [savingDrop, setSavingDrop] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [dashboard, setDashboard] = useState({
     metrics: [],
     summary: {},
-    recent_drops: [],
-    recent_programs: []
+    recent_programs: [],
+    recent_events: []
   });
 
-  const [campaigns, setCampaigns] = useState([]);
-  const [programs, setPrograms] = useState([]);
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "",
+    state: ""
+  });
+
+  const [programsData, setProgramsData] = useState({
+    results: []
+  });
 
   const [programForm, setProgramForm] = useState({
     campaign_id: "",
-    name: "",
-    vendor_name: "",
+    program_name: "",
     mail_type: "",
-    target_universe: "",
+    vendor_name: "",
+    audience_name: "",
     quantity: "",
     budget: "",
-    status: "draft",
-    in_home_start: "",
-    in_home_end: "",
-    notes: ""
-  });
-
-  const [dropForm, setDropForm] = useState({
-    program_id: "",
-    campaign_id: "",
-    drop_name: "",
+    expected_in_home_start: "",
+    expected_in_home_end: "",
     drop_date: "",
-    entered_at: "",
-    usps_entry_facility: "",
-    region: "",
-    quantity: "",
-    expected_delivery_start: "",
-    expected_delivery_end: "",
-    actual_delivery_date: "",
     status: "planned",
-    tracking_status: "",
     notes: ""
   });
 
-  async function loadMailOps() {
+  async function loadDashboard() {
     try {
       setLoading(true);
       setError("");
 
-      const [dashboardData, campaignsData, programsData] = await Promise.all([
+      const [dash, programs] = await Promise.all([
         apiRequest("/api/mail/dashboard"),
-        apiRequest("/api/crm/campaigns"),
         apiRequest("/api/mail/programs")
       ]);
 
-      setDashboard(dashboardData || {});
-      setCampaigns(campaignsData.results || []);
-      setPrograms(programsData.results || []);
+      setDashboard(dash || {});
+      setProgramsData(programs || { results: [] });
     } catch (err) {
       setError(err.message || "Failed to load MailOps dashboard");
     } finally {
@@ -133,130 +156,71 @@ export default function MailOpsDashboard() {
   }
 
   useEffect(() => {
-    loadMailOps();
+    loadDashboard();
   }, []);
-
-  const selectedProgramCampaignId = useMemo(() => {
-    const program = programs.find(
-      (item) => String(item.id) === String(dropForm.program_id)
-    );
-    return program?.campaign_id ? String(program.campaign_id) : "";
-  }, [dropForm.program_id, programs]);
-
-  useEffect(() => {
-    if (selectedProgramCampaignId) {
-      setDropForm((prev) => ({
-        ...prev,
-        campaign_id: selectedProgramCampaignId
-      }));
-    }
-  }, [selectedProgramCampaignId]);
 
   async function handleCreateProgram(e) {
     e.preventDefault();
 
     try {
-      setSavingProgram(true);
-      setError("");
       setSuccess("");
+      setError("");
 
       await apiRequest("/api/mail/programs", {
         method: "POST",
         body: JSON.stringify({
+          ...programForm,
           campaign_id: Number(programForm.campaign_id),
-          name: programForm.name,
-          vendor_name: programForm.vendor_name || null,
-          mail_type: programForm.mail_type || null,
-          target_universe: programForm.target_universe || null,
           quantity: Number(programForm.quantity || 0),
-          budget: Number(programForm.budget || 0),
-          status: programForm.status || "draft",
-          in_home_start: programForm.in_home_start || null,
-          in_home_end: programForm.in_home_end || null,
-          notes: programForm.notes || null
+          budget: Number(programForm.budget || 0)
         })
       });
 
       setProgramForm({
         campaign_id: "",
-        name: "",
-        vendor_name: "",
+        program_name: "",
         mail_type: "",
-        target_universe: "",
+        vendor_name: "",
+        audience_name: "",
         quantity: "",
         budget: "",
-        status: "draft",
-        in_home_start: "",
-        in_home_end: "",
+        expected_in_home_start: "",
+        expected_in_home_end: "",
+        drop_date: "",
+        status: "planned",
         notes: ""
       });
 
       setSuccess("Mail program created.");
-      await loadMailOps();
+      await loadDashboard();
     } catch (err) {
       setError(err.message || "Failed to create mail program");
-    } finally {
-      setSavingProgram(false);
     }
   }
 
-  async function handleCreateDrop(e) {
-    e.preventDefault();
-
+  async function handleApplyFilters() {
     try {
-      setSavingDrop(true);
-      setError("");
-      setSuccess("");
+      setLoading(true);
+      const params = new URLSearchParams();
 
-      await apiRequest("/api/mail/drops", {
-        method: "POST",
-        body: JSON.stringify({
-          program_id: Number(dropForm.program_id),
-          campaign_id: Number(dropForm.campaign_id),
-          drop_name: dropForm.drop_name,
-          drop_date: dropForm.drop_date || null,
-          entered_at: dropForm.entered_at || null,
-          usps_entry_facility: dropForm.usps_entry_facility || null,
-          region: dropForm.region || null,
-          quantity: Number(dropForm.quantity || 0),
-          expected_delivery_start: dropForm.expected_delivery_start || null,
-          expected_delivery_end: dropForm.expected_delivery_end || null,
-          actual_delivery_date: dropForm.actual_delivery_date || null,
-          status: dropForm.status || "planned",
-          tracking_status: dropForm.tracking_status || null,
-          notes: dropForm.notes || null
-        })
-      });
+      if (filters.search) params.set("search", filters.search);
+      if (filters.status) params.set("status", filters.status);
+      if (filters.state) params.set("state", filters.state);
 
-      setDropForm({
-        program_id: "",
-        campaign_id: "",
-        drop_name: "",
-        drop_date: "",
-        entered_at: "",
-        usps_entry_facility: "",
-        region: "",
-        quantity: "",
-        expected_delivery_start: "",
-        expected_delivery_end: "",
-        actual_delivery_date: "",
-        status: "planned",
-        tracking_status: "",
-        notes: ""
-      });
-
-      setSuccess("Mail drop created.");
-      await loadMailOps();
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const programs = await apiRequest(`/api/mail/programs${query}`);
+      setProgramsData(programs || { results: [] });
     } catch (err) {
-      setError(err.message || "Failed to create mail drop");
+      setError(err.message || "Failed to filter mail programs");
     } finally {
-      setSavingDrop(false);
+      setLoading(false);
     }
   }
 
-  const summary = dashboard.summary || {};
-  const recentPrograms = dashboard.recent_programs || [];
-  const recentDrops = dashboard.recent_drops || [];
+  const visiblePrograms = useMemo(
+    () => programsData.results || [],
+    [programsData.results]
+  );
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
@@ -266,10 +230,10 @@ export default function MailOpsDashboard() {
             VoterSpheres MailOps
           </div>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-            Mail Operations Dashboard
+            MailOps Dashboard
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            Track mail programs, drops, USPS entry, delivery windows, and campaign mail execution.
+            Track political mail programs, USPS movement, in-home windows, and delivery risk.
           </p>
         </div>
 
@@ -286,77 +250,274 @@ export default function MailOpsDashboard() {
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Mail Programs"
-            value={summary.programs || 0}
-            subtext="Tracked programs"
-          />
-          <StatCard
-            label="Mail Drops"
-            value={summary.drops || 0}
-            subtext="Tracked drops"
-          />
-          <StatCard
-            label="In Transit"
-            value={summary.in_transit || 0}
-            subtext="USPS movement"
-          />
-          <StatCard
-            label="Delivered"
-            value={summary.delivered || 0}
-            subtext="Completed delivery"
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
-          <StatCard
-            label="Total Quantity"
-            value={Number(summary.total_quantity || 0).toLocaleString()}
-            subtext="Pieces across drops"
-          />
-          <StatCard
-            label="Total Budget"
-            value={formatMoney(summary.total_budget || 0)}
-            subtext="Program budget tracked"
-          />
+          {(dashboard.metrics || []).map((metric, index) => (
+            <StatCard
+              key={`${metric.label}-${index}`}
+              label={metric.label}
+              value={metric.value}
+              delta={metric.delta}
+            />
+          ))}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Section title="Create Mail Program" subtitle="Define campaign mail strategy">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-900">Create Mail Program</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Attach a mail program to a campaign workspace.
+              </p>
+            </div>
+
             <form className="space-y-3" onSubmit={handleCreateProgram}>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-                value={programForm.campaign_id}
-                onChange={(e) =>
-                  setProgramForm((prev) => ({
-                    ...prev,
-                    campaign_id: e.target.value
-                  }))
-                }
-                required
-              >
-                <option value="">Select campaign</option>
-                {campaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.campaign_name} • {campaign.candidate_name}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-                placeholder="Program name"
-                value={programForm.name}
-                onChange={(e) =>
-                  setProgramForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                required
-              />
-
               <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  placeholder="Campaign ID"
+                  value={programForm.campaign_id}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      campaign_id: e.target.value
+                    }))
+                  }
+                  required
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  placeholder="Program name"
+                  value={programForm.program_name}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      program_name: e.target.value
+                    }))
+                  }
+                  required
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  placeholder="Mail type"
+                  value={programForm.mail_type}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      mail_type: e.target.value
+                    }))
+                  }
+                />
                 <input
                   className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
                   placeholder="Vendor name"
                   value={programForm.vendor_name}
                   onChange={(e) =>
-                   
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      vendor_name: e.target.value
+                    }))
+                  }
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  placeholder="Audience"
+                  value={programForm.audience_name}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      audience_name: e.target.value
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-4">
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  placeholder="Quantity"
+                  value={programForm.quantity}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      quantity: e.target.value
+                    }))
+                  }
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  placeholder="Budget"
+                  value={programForm.budget}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      budget: e.target.value
+                    }))
+                  }
+                />
+                <input
+                  type="date"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  value={programForm.drop_date}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      drop_date: e.target.value
+                    }))
+                  }
+                />
+                <select
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  value={programForm.status}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      status: e.target.value
+                    }))
+                  }
+                >
+                  <option value="planned">planned</option>
+                  <option value="entered_usps">entered_usps</option>
+                  <option value="in_transit">in_transit</option>
+                  <option value="out_for_delivery">out_for_delivery</option>
+                  <option value="delivered">delivered</option>
+                  <option value="issue">issue</option>
+                </select>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  type="date"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  value={programForm.expected_in_home_start}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      expected_in_home_start: e.target.value
+                    }))
+                  }
+                />
+                <input
+                  type="date"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                  value={programForm.expected_in_home_end}
+                  onChange={(e) =>
+                    setProgramForm((prev) => ({
+                      ...prev,
+                      expected_in_home_end: e.target.value
+                    }))
+                  }
+                />
+              </div>
+
+              <textarea
+                className="min-h-[100px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                placeholder="Notes"
+                value={programForm.notes}
+                onChange={(e) =>
+                  setProgramForm((prev) => ({
+                    ...prev,
+                    notes: e.target.value
+                  }))
+                }
+              />
+
+              <button
+                type="submit"
+                className="rounded-xl bg-[#0176D3] px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Create Mail Program
+              </button>
+            </form>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-900">Mail Filters</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Filter visible mail programs.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <input
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                placeholder="Search programs"
+                value={filters.search}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, search: e.target.value }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                placeholder="Status"
+                value={filters.status}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, status: e.target.value }))
+                }
+              />
+              <input
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+                placeholder="State"
+                value={filters.state}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, state: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={handleApplyFilters}
+                className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Apply Filters
+              </button>
+
+              <button
+                type="button"
+                onClick={loadDashboard}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {(dashboard.recent_events || []).length === 0 ? (
+                <EmptyState text="No recent mail tracking events yet." />
+              ) : (
+                dashboard.recent_events.slice(0, 6).map((item) => (
+                  <EventCard key={`${item.id}-${item.mail_program_id}`} item={item} />
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-slate-900">Mail Programs</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Live program tracking across campaigns.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {loading ? (
+              <EmptyState text="Loading mail programs..." />
+            ) : visiblePrograms.length === 0 ? (
+              <EmptyState text="No mail programs found." />
+            ) : (
+              visiblePrograms.map((item) => (
+                <ProgramCard key={`${item.id}-${item.campaign_id}`} item={item} />
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
