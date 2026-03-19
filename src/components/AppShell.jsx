@@ -17,14 +17,14 @@ const secondaryNavItems = [
 
 function navClass({ isActive }, disabled = false) {
   if (disabled) {
-    return "block cursor-not-allowed rounded-xl border border-white/5 bg-[#0b1220] px-4 py-3 text-sm font-medium text-slate-500 opacity-70";
+    return "block cursor-not-allowed rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-400 opacity-70";
   }
 
   return [
     "block rounded-xl px-4 py-3 text-sm font-medium transition",
     isActive
-      ? "bg-[#0176D3] text-white shadow-lg"
-      : "text-slate-300 hover:bg-white/5 hover:text-white"
+      ? "bg-[#0176D3] text-white shadow-sm"
+      : "text-slate-700 hover:bg-white hover:text-slate-900"
   ].join(" ");
 }
 
@@ -41,7 +41,7 @@ function NavGroup({ title, items }) {
             <div key={item.label} className={navClass({ isActive: false }, true)}>
               <div className="flex items-center justify-between gap-3">
                 <span>{item.label}</span>
-                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-500">
+                <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-500">
                   Soon
                 </span>
               </div>
@@ -66,15 +66,15 @@ export default function AppShell({ children }) {
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
       <div className="flex min-h-screen">
-        <aside className="hidden w-80 shrink-0 border-r border-slate-200 bg-[#0b1220] xl:flex xl:flex-col">
-          <div className="border-b border-white/10 px-6 py-6">
-            <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">
+        <aside className="hidden w-80 shrink-0 border-r border-slate-200 bg-[#f8fafc] xl:flex xl:flex-col">
+          <div className="border-b border-slate-200 px-6 py-6">
+            <div className="text-xs uppercase tracking-[0.24em] text-[#0176D3]">
               VoterSpheres
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-slate-900">
               Political Command Cloud
             </div>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-500">
               Salesforce-style campaign operations with Bloomberg-style political intelligence.
             </p>
           </div>
@@ -86,16 +86,16 @@ export default function AppShell({ children }) {
             </div>
           </div>
 
-          <div className="border-t border-white/10 px-6 py-5">
-            <div className="rounded-2xl border border-white/10 bg-[#111827] p-4 shadow-lg">
+          <div className="border-t border-slate-200 px-6 py-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Platform Mode
               </div>
-              <div className="mt-2 text-sm font-semibold text-white">
+              <div className="mt-2 text-sm font-semibold text-slate-900">
                 Consultant CRM + Race Intelligence + MailOps
               </div>
-              <div className="mt-2 text-sm text-slate-400">
-                Firms, campaigns, fundraising, forecasting, vendors, and mail tracking.
+              <div className="mt-2 text-sm text-slate-500">
+                Firms, campaigns, fundraising, forecasting, vendor intelligence, and political mail operations.
               </div>
             </div>
           </div>
