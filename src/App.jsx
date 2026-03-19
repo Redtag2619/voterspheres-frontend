@@ -7,18 +7,19 @@ import ElectionMap from "./pages/ElectionMap";
 import Firms from "./pages/Firms";
 import FirmWorkspace from "./pages/FirmWorkspace";
 import CampaignPipeline from "./pages/CampaignPipeline";
-import CampaignWorkspace from "./pages/CampaignWorkspace"; 
+import CampaignWorkspace from "./pages/CampaignWorkspace";
 import Vendors from "./pages/Vendors";
+import MailOpsDashboard from "./pages/MailOpsDashboard";
 
 function NotFound() {
   return (
-    <div className="min-h-screen bg-[#060b14] p-6 text-white">
-      <div className="mx-auto max-w-3xl rounded-3xl border border-white/10 bg-[#0b1220] p-10 text-center shadow-2xl">
-        <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">
+    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+        <div className="text-xs uppercase tracking-[0.24em] text-[#0176D3]">
           VoterSpheres
         </div>
         <h1 className="mt-3 text-3xl font-semibold">Page not found</h1>
-        <p className="mt-3 text-sm text-slate-400">
+        <p className="mt-3 text-sm text-slate-500">
           The route you requested does not exist in the current platform shell.
         </p>
       </div>
@@ -44,6 +45,9 @@ export default function App() {
           <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
 
           <Route path="/vendors" element={<Vendors />} />
+          <Route path="/mailops" element={<MailOpsDashboard />} />
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
     </BrowserRouter>
