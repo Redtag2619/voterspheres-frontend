@@ -2,7 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000"; 
+
+const [mailTimeline, setMailTimeline] = useState([]);
+
+const [trackingEventForm, setTrackingEventForm] = useState({
+  mail_drop_id: "",
+  event_type: "entered_usps",
+  status: "entered_usps",
+  location_name: "",
+  facility_type: "",
+  event_time: "",
+  notes: "",
+  source: "manual"
+});
 
 const TABS = [
   "Overview",
