@@ -18,7 +18,9 @@ function NotFound() {
         <div className="text-xs uppercase tracking-[0.24em] text-[#0176D3]">
           VoterSpheres
         </div>
-        <h1 className="mt-3 text-3xl font-semibold">Page not found</h1>
+        <h1 className="mt-3 text-3xl font-semibold text-slate-900">
+          Page not found
+        </h1>
         <p className="mt-3 text-sm text-slate-500">
           The route you requested does not exist in the current platform shell.
         </p>
