@@ -412,20 +412,67 @@ export default function CampaignWorkspace() {
     }
   }
 
-  async function loadMailOps() {
-    try {
-      const [programsRes, dropsRes] = await Promise.all([
-        apiRequest(`/api/mail/programs?campaign_id=${id}`),
-        apiRequest(`/api/mail/drops?campaign_id=${id}`)
-      ]);
+ async function loadMailOps() {
+  try {
+    const [programsRes, dropsRes, timelineRes] = await Promise.all([
+      apiRequest(`/api/mail/programs?campaign_id=${id}`),
+      apiRequest(`/api/mail/drops?campaign_id=${id}`),
+      apiRequest(`/api/mail/campaigns/${id}/timeline`)
+    ]);
 
-      setMailPrograms(programsRes?.results || []);
-      setMailDrops(dropsRes?.results || []);
-    } catch {
-      setMailPrograms([]);
-      setMailDrops([]);
-    }
+    setMailPrograms(programsRes?.results || []);
+    setMailDrops(dropsRes?.results || []);
+    setMailTimeline(timelineRes?.results || []);
+  } catch {
+    setMailPrograms([]);
+    setMailDrops([]);
+    setMailTimeline([]);
   }
+} 
+  
+  async function handleAddTrackingEvent(e) {
+  e.preventDefault();
+
+  try {
+    setBusy(true);
+    setError("");
+    setSuccess("");
+
+    await apiRequest("/api/mail/tracking-events", {
+      method: "POST",
+      body: JSON.stringify({
+        campaign_id: Number(id),
+        mail_drop_id: Number(trackingEventForm.mail_drop_id),
+        event_type: trackingEventForm.event_type,
+        status: trackingEventForm.status,
+        location_name: trackingEventForm.location_name || null,
+        facility_type: trackingEventForm.facility_type || null,
+        event_time: trackingEventForm.event_time || null,
+        notes: trackingEventForm.notes || null,
+        source: trackingEventForm.source || "manual"
+      })
+    });
+
+    setTrackingEventForm({
+      mail_drop_id: "",
+      event_type: "entered_usps",
+      status: "entered_usps",
+      location_name: "",
+      facility_type: "",
+      event_time: "",
+      notes: "",
+      source: "manual"
+    });
+
+    setSuccess("Tracking event added.");
+    await refreshAll();
+    setActiveTab("MailOps");
+  } catch (err) {
+    setError(err.message || "Failed to add tracking event");
+  } finally {
+    setBusy(false);
+  }
+}
 
   async function bootstrap() {
     try {
@@ -1401,7 +1448,165 @@ export default function CampaignWorkspace() {
                 label="Mail Drops"
                 value={mailOpsSummary.drops}
                 subtext="Tracked execution drops"
-              />
+              /> 
+              <div className="grid gap-6 xl:grid-cols-2">
+  <Section title="Add Tracking Event" subtitle="Track mail movement for this campaign">
+    <form className="space-y-3" onSubmit={handleAddTrackingEvent}>
+      <select
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+        value={trackingEventForm.mail_drop_id}
+        onChange={(e) =>
+          setTrackingEventForm((prev) => ({
+            ...prev,
+            mail_drop_id: e.target.value
+          }))
+        }
+        required
+      >
+        <option value="">Select mail drop</option>
+        {mailDrops.map((drop) => (
+          <option key={drop.id} value={drop.id}>
+            {drop.drop_name || `Drop #${drop.id}`}
+          </option>
+        ))}
+      </select>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <select
+          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+          value={trackingEventForm.event_type}
+          onChange={(e) =>
+            setTrackingEventForm((prev) => ({
+              ...prev,
+              event_type: e.target.value
+            }))
+          }
+        >
+          <option value="entered_usps">entered_usps</option>
+          <option value="in_transit">in_transit</option>
+          <option value="out_for_delivery">out_for_delivery</option>
+          <option value="delivered">delivered</option>
+          <option value="delayed">delayed</option>
+          <option value="returned">returned</option>
+        </select>
+
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+          placeholder="Status"
+          value={trackingEventForm.status}
+          onChange={(e) =>
+            setTrackingEventForm((prev) => ({
+              ...prev,
+              status: e.target.value
+            }))
+          }
+        />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+          placeholder="Location name"
+          value={trackingEventForm.location_name}
+          onChange={(e) =>
+            setTrackingEventForm((prev) => ({
+              ...prev,
+              location_name: e.target.value
+            }))
+          }
+        />
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+          placeholder="Facility type"
+          value={trackingEventForm.facility_type}
+          onChange={(e) =>
+            setTrackingEventForm((prev) => ({
+              ...prev,
+              facility_type: e.target.value
+            }))
+          }
+        />
+      </div>
+
+      <input
+        type="datetime-local"
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+        value={trackingEventForm.event_time}
+        onChange={(e) =>
+          setTrackingEventForm((prev) => ({
+            ...prev,
+            event_time: e.target.value
+          }))
+        }
+      />
+
+      <textarea
+        className="min-h-[100px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
+        placeholder="Notes"
+        value={trackingEventForm.notes}
+        onChange={(e) =>
+          setTrackingEventForm((prev) => ({
+            ...prev,
+            notes: e.target.value
+          }))
+        }
+      />
+
+      <button
+        type="submit"
+        disabled={busy}
+        className="rounded-xl bg-[#0176D3] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Add Tracking Event
+      </button>
+    </form>
+  </Section>
+
+  <Section title="Tracking Timeline" subtitle="Campaign-level mail movement history">
+    <div className="space-y-3">
+      {mailTimeline.length ? (
+        mailTimeline.map((event) => (
+          <div
+            key={event.id}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold text-slate-900">
+                  {event.event_type || "tracking_event"}
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {event.drop_name || "Drop N/A"} • {event.vendor_name || "Vendor N/A"}
+                </div>
+              </div>
+              <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
+                {event.status || event.event_type || "pending"}
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-1 text-xs text-slate-500 md:grid-cols-2">
+              <div>Location: {event.location_name || "N/A"}</div>
+              <div>Facility: {event.facility_type || "N/A"}</div>
+              <div>
+                Event Time:{" "}
+                {event.event_time
+                  ? new Date(event.event_time).toLocaleString()
+                  : "N/A"}
+              </div>
+              <div>Source: {event.source || "manual"}</div>
+            </div>
+
+            <div className="mt-2 text-xs text-slate-500">
+              Notes: {event.notes || "No notes"}
+            </div>
+          </div>
+        ))
+      ) : (
+        <EmptyState text="No tracking events yet for this campaign." />
+      )}
+    </div>
+  </Section>
+</div>
               <StatCard
                 label="Mail Budget"
                 value={formatMoneyCompact(mailOpsSummary.budget)}
