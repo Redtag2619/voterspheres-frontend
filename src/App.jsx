@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell";
 
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
@@ -11,6 +11,7 @@ import CampaignPipeline from "./pages/CampaignPipeline";
 import CampaignWorkspace from "./pages/CampaignWorkspace";
 import Vendors from "./pages/Vendors";
 import MailOpsDashboard from "./pages/MailOpsDashboard";
+import AlertsCenter from "./pages/AlertsCenter";
 
 function NotFound() {
   return (
@@ -35,33 +36,18 @@ export default function App() {
     <BrowserRouter>
       <AppShell>
         <Routes>
-          {/* PRIMARY COMMAND CENTER */}
           <Route path="/" element={<ExecutiveDashboard />} />
-
-          {/* Legacy dashboard kept but secondary */}
           <Route path="/dashboard" element={<Dashboard />} />
-
-          {/* Optional explicit route */}
           <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
-
-          {/* Intelligence */}
+          <Route path="/alerts" element={<AlertsCenter />} />
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/election-map" element={<ElectionMap />} />
-
-          {/* CRM */}
           <Route path="/firms" element={<Firms />} />
           <Route path="/firms/:id" element={<FirmWorkspace />} />
-
           <Route path="/campaigns" element={<CampaignPipeline />} />
           <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
-
-          {/* Marketplace */}
           <Route path="/vendors" element={<Vendors />} />
-
-          {/* Operations */}
           <Route path="/mailops" element={<MailOpsDashboard />} />
-
-          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
