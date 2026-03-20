@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell";
 
+import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import Dashboard from "./pages/Dashboard";
 import Forecast from "./pages/Forecast";
 import ElectionMap from "./pages/ElectionMap";
@@ -34,21 +35,33 @@ export default function App() {
     <BrowserRouter>
       <AppShell>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          {/* PRIMARY COMMAND CENTER */}
+          <Route path="/" element={<ExecutiveDashboard />} />
 
+          {/* Legacy dashboard kept but secondary */}
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Optional explicit route */}
+          <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+
+          {/* Intelligence */}
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/election-map" element={<ElectionMap />} />
 
+          {/* CRM */}
           <Route path="/firms" element={<Firms />} />
           <Route path="/firms/:id" element={<FirmWorkspace />} />
 
           <Route path="/campaigns" element={<CampaignPipeline />} />
           <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
 
+          {/* Marketplace */}
           <Route path="/vendors" element={<Vendors />} />
+
+          {/* Operations */}
           <Route path="/mailops" element={<MailOpsDashboard />} />
 
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
