@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
@@ -22,187 +22,95 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
-function formatMoney(value) {
-  return `$${Number(value || 0).toLocaleString()}`;
+function Card({ title, subtitle, children }) {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+        {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function EmptyState({ text }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+      {text}
+    </div>
+  );
 }
 
 function StatCard({ label, value, subtext }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</div>
       <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
       <div className="mt-2 text-sm text-slate-500">{subtext}</div>
     </div>
   );
 }
 
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-      {text}
-    </div>
-  );
-}
-
-function TimelineEventCard({ event }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-semibold text-slate-900">
-            {event.event_type || "tracking_event"}
-          </div>
-          <div className="mt-1 text-sm text-slate-500">
-            {event.campaign_name || "Campaign N/A"} • {event.drop_name || "Drop N/A"}
-          </div>
-        </div>
-        <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-          {event.status || event.event_type || "pending"}
-        </span>
-      </div>
-
-      <div className="mt-3 grid gap-1 text-xs text-slate-500 md:grid-cols-2">
-        <div>Location: {event.location_name || "N/A"}</div>
-        <div>Facility: {event.facility_type || "N/A"}</div>
-        <div>Source: {event.source || "manual"}</div>
-        <div>
-          Event Time:{" "}
-          {event.event_time ? new Date(event.event_time).toLocaleString() : "N/A"}
-        </div>
-      </div>
-
-      <div className="mt-2 text-xs text-slate-500">
-        Notes: {event.notes || "No notes"}
-      </div>
-    </div>
-  );
-}
-
 export default function MailOpsDashboard() {
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  const [dashboard, setDashboard] = useState({
-    summary: {},
-    programs: [],
-    drops: [],
-    timeline: []
+  const [dashboard, setDashboard] = useState({ metrics: [] });
+  const [timeline, setTimeline] = useState([]);
+  const [intelligence, setIntelligence] = useState({
+    metrics: [],
+    vendor_rankings: [],
+    campaign_rankings: [],
+    regional_heatmap: [],
+    recent_drop_stats: []
   });
 
-  const [drops, setDrops] = useState([]);
-  const [eventForm, setEventForm] = useState({
-    campaign_id: "",
-    mail_drop_id: "",
-    event_type: "entered_usps",
-    status: "entered_usps",
-    location_name: "",
-    facility_type: "",
-    event_time: "",
-    notes: "",
-    source: "manual"
-  });
-
-  async function loadDashboard() {
+  async function loadAll() {
     try {
       setLoading(true);
       setError("");
 
-      const [dashboardRes, dropsRes] = await Promise.all([
+      const [dashboardRes, timelineRes, intelligenceRes] = await Promise.all([
         apiRequest("/api/mail/dashboard"),
-        apiRequest("/api/mail/drops")
+        apiRequest("/api/mail/timeline"),
+        apiRequest("/api/mail/intelligence/summary")
       ]);
 
-      setDashboard(
-        dashboardRes || {
-          summary: {},
-          programs: [],
-          drops: [],
-          timeline: []
+      setDashboard(dashboardRes || { metrics: [] });
+      setTimeline(Array.isArray(timelineRes) ? timelineRes : []);
+      setIntelligence(
+        intelligenceRes || {
+          metrics: [],
+          vendor_rankings: [],
+          campaign_rankings: [],
+          regional_heatmap: [],
+          recent_drop_stats: []
         }
       );
-      setDrops(dropsRes?.results || []);
     } catch (err) {
-      setError(err.message || "Failed to load MailOps dashboard");
+      setError(err.message || "Failed to load MailOps intelligence");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadDashboard();
+    loadAll();
   }, []);
-
-  const summary = dashboard.summary || {};
-  const programs = dashboard.programs || [];
-  const recentDrops = dashboard.drops || [];
-  const timeline = dashboard.timeline || [];
-
-  const selectedDrop = useMemo(() => {
-    return drops.find((drop) => String(drop.id) === String(eventForm.mail_drop_id)) || null;
-  }, [drops, eventForm.mail_drop_id]);
-
-  async function handleCreateEvent(e) {
-    e.preventDefault();
-
-    try {
-      setBusy(true);
-      setError("");
-      setSuccess("");
-
-      await apiRequest("/api/mail/tracking-events", {
-        method: "POST",
-        body: JSON.stringify({
-          campaign_id: eventForm.campaign_id
-            ? Number(eventForm.campaign_id)
-            : Number(selectedDrop?.campaign_id),
-          mail_drop_id: Number(eventForm.mail_drop_id),
-          event_type: eventForm.event_type,
-          status: eventForm.status,
-          location_name: eventForm.location_name || null,
-          facility_type: eventForm.facility_type || null,
-          event_time: eventForm.event_time || null,
-          notes: eventForm.notes || null,
-          source: eventForm.source || "manual"
-        })
-      });
-
-      setEventForm({
-        campaign_id: "",
-        mail_drop_id: "",
-        event_type: "entered_usps",
-        status: "entered_usps",
-        location_name: "",
-        facility_type: "",
-        event_time: "",
-        notes: "",
-        source: "manual"
-      });
-
-      setSuccess("Tracking event added.");
-      await loadDashboard();
-    } catch (err) {
-      setError(err.message || "Failed to add tracking event");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-            VoterSpheres MailOps
+            VoterSpheres Mail Intelligence
           </div>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-            MailOps Dashboard
+            MailOps + Intelligence
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            Manage political mail programs, track drops, and monitor delivery movement through event timelines.
+            Track delivery operations, evaluate vendors, surface delay risk, and benchmark campaign execution.
           </p>
         </div>
 
@@ -212,278 +120,224 @@ export default function MailOpsDashboard() {
           </div>
         ) : null}
 
-        {success ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {success}
-          </div>
-        ) : null}
-
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Mail Programs"
-            value={summary.programs || 0}
-            subtext="Active and draft programs"
-          />
-          <StatCard
-            label="Mail Drops"
-            value={summary.drops || 0}
-            subtext="Tracked execution records"
-          />
-          <StatCard
-            label="Mail Budget"
-            value={formatMoney(summary.total_budget || 0)}
-            subtext="Budget across programs"
-          />
-          <StatCard
-            label="Pieces Planned"
-            value={Number(summary.total_quantity || 0).toLocaleString()}
-            subtext="Total mail quantity"
-          />
+          {(intelligence.metrics || []).map((metric, index) => (
+            <StatCard
+              key={`${metric.label}-${index}`}
+              label={metric.label}
+              value={metric.value}
+              subtext={metric.delta}
+            />
+          ))}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">
-                Add Tracking Event
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Record USPS entry, transit, delivery, or operational movement.
-              </p>
-            </div>
-
-            <form className="space-y-3" onSubmit={handleCreateEvent}>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                value={eventForm.mail_drop_id}
-                onChange={(e) =>
-                  setEventForm((prev) => ({
-                    ...prev,
-                    mail_drop_id: e.target.value,
-                    campaign_id:
-                      drops.find((d) => String(d.id) === String(e.target.value))
-                        ?.campaign_id || ""
-                  }))
-                }
-                required
-              >
-                <option value="">Select mail drop</option>
-                {drops.map((drop) => (
-                  <option key={drop.id} value={drop.id}>
-                    {drop.drop_name || `Drop #${drop.id}`} — {drop.campaign_name || "Campaign"}
-                  </option>
-                ))}
-              </select>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <select
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                  value={eventForm.event_type}
-                  onChange={(e) =>
-                    setEventForm((prev) => ({
-                      ...prev,
-                      event_type: e.target.value
-                    }))
-                  }
-                >
-                  <option value="entered_usps">entered_usps</option>
-                  <option value="in_transit">in_transit</option>
-                  <option value="out_for_delivery">out_for_delivery</option>
-                  <option value="delivered">delivered</option>
-                  <option value="delayed">delayed</option>
-                  <option value="returned">returned</option>
-                </select>
-
-                <input
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                  placeholder="Status"
-                  value={eventForm.status}
-                  onChange={(e) =>
-                    setEventForm((prev) => ({
-                      ...prev,
-                      status: e.target.value
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <input
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                  placeholder="Location name"
-                  value={eventForm.location_name}
-                  onChange={(e) =>
-                    setEventForm((prev) => ({
-                      ...prev,
-                      location_name: e.target.value
-                    }))
-                  }
-                />
-                <input
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                  placeholder="Facility type"
-                  value={eventForm.facility_type}
-                  onChange={(e) =>
-                    setEventForm((prev) => ({
-                      ...prev,
-                      facility_type: e.target.value
-                    }))
-                  }
-                />
-              </div>
-
-              <input
-                type="datetime-local"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                value={eventForm.event_time}
-                onChange={(e) =>
-                  setEventForm((prev) => ({
-                    ...prev,
-                    event_time: e.target.value
-                  }))
-                }
-              />
-
-              <textarea
-                className="min-h-[100px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-[#0176D3]"
-                placeholder="Notes"
-                value={eventForm.notes}
-                onChange={(e) =>
-                  setEventForm((prev) => ({
-                    ...prev,
-                    notes: e.target.value
-                  }))
-                }
-              />
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-xl bg-[#0176D3] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Add Tracking Event
-              </button>
-            </form>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Programs</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Current campaign mail programs
-              </p>
-            </div>
-
+          <Card title="Vendor Reliability" subtitle="Best-performing mail operators">
             <div className="space-y-3">
               {loading ? (
-                <EmptyState text="Loading mail programs..." />
-              ) : programs.length === 0 ? (
-                <EmptyState text="No mail programs yet." />
-              ) : (
-                programs.map((program) => (
+                <EmptyState text="Loading vendor intelligence..." />
+              ) : intelligence.vendor_rankings?.length ? (
+                intelligence.vendor_rankings.map((vendor, index) => (
                   <div
-                    key={program.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                    key={`${vendor.vendor_name}-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-white p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="font-semibold text-slate-900">
-                          {program.name || program.program_name}
+                          {vendor.vendor_name}
                         </div>
                         <div className="mt-1 text-sm text-slate-500">
-                          {program.campaign_name || "Campaign N/A"} •{" "}
-                          {program.mail_type || "Mail Program"}
+                          {vendor.drops_count} drops • {vendor.delivered_rate}% delivered
                         </div>
                       </div>
                       <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-                        {program.status || "draft"}
+                        Score {vendor.reliability_score}
                       </span>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                      <div>Delayed: {vendor.delay_rate}%</div>
+                      <div>Avg Transit: {vendor.avg_transit_hours}h</div>
+                      <div>Median Transit: {vendor.median_transit_hours}h</div>
                     </div>
                   </div>
                 ))
+              ) : (
+                <EmptyState text="No vendor intelligence yet." />
               )}
             </div>
-          </section>
+          </Card>
+
+          <Card title="Campaign Mail Performance" subtitle="Which campaigns are executing best">
+            <div className="space-y-3">
+              {loading ? (
+                <EmptyState text="Loading campaign intelligence..." />
+              ) : intelligence.campaign_rankings?.length ? (
+                intelligence.campaign_rankings.map((campaign) => (
+                  <div
+                    key={campaign.campaign_id}
+                    className="rounded-2xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          Campaign #{campaign.campaign_id}
+                        </div>
+                        <div className="mt-1 text-sm text-slate-500">
+                          {campaign.drops_count} drops • {campaign.pieces_total.toLocaleString()} pieces
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
+                        Score {campaign.reliability_score}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                      <div>Delivered: {campaign.delivered_count}</div>
+                      <div>Delayed: {campaign.delayed_count}</div>
+                      <div>Avg Transit: {campaign.avg_transit_hours}h</div>
+                    </div>
+
+                    {campaign.alerts?.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {campaign.alerts.map((alert, index) => (
+                          <span
+                            key={`${campaign.campaign_id}-alert-${index}`}
+                            className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700"
+                          >
+                            {alert}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No campaign intelligence yet." />
+              )}
+            </div>
+          </Card>
         </div>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">
-                Tracking Timeline
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Platform-wide recent mail movement events
-              </p>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card title="Regional Heatmap" subtitle="Operational hotspots by facility and geography">
+            <div className="space-y-3">
+              {loading ? (
+                <EmptyState text="Loading regional intelligence..." />
+              ) : intelligence.regional_heatmap?.length ? (
+                intelligence.regional_heatmap.map((region, index) => (
+                  <div
+                    key={`${region.region}-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">{region.region}</div>
+                        <div className="mt-1 text-sm text-slate-500">
+                          {region.events} total events
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
+                        Delay {region.delay_rate}%
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                      <div>Entered: {region.entered_events}</div>
+                      <div>Delivered: {region.delivered_events}</div>
+                      <div>Delayed: {region.delayed_events}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No regional intelligence yet." />
+              )}
             </div>
+          </Card>
 
-            <button
-              type="button"
-              onClick={loadDashboard}
-              className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-            >
-              Refresh
-            </button>
-          </div>
+          <Card title="Recent Drop Intelligence" subtitle="Latest drop-level operational summaries">
+            <div className="space-y-3">
+              {loading ? (
+                <EmptyState text="Loading drop intelligence..." />
+              ) : intelligence.recent_drop_stats?.length ? (
+                intelligence.recent_drop_stats.map((drop) => (
+                  <div
+                    key={drop.mail_drop_id}
+                    className="rounded-2xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          Drop #{drop.mail_drop_id}
+                        </div>
+                        <div className="mt-1 text-sm text-slate-500">
+                          Campaign #{drop.campaign_id} • {drop.quantity.toLocaleString()} pieces
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
+                        {drop.latest_status}
+                      </span>
+                    </div>
 
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                      <div>Transit: {drop.transit_hours ?? "N/A"}h</div>
+                      <div>Processing: {drop.processing_hours ?? "N/A"}h</div>
+                      <div>Delayed Events: {drop.delayed_count}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No drop intelligence yet." />
+              )}
+            </div>
+          </Card>
+        </div>
+
+        <Card title="Raw Tracking Timeline" subtitle="Recent mail movement events across the platform">
           <div className="space-y-3">
             {loading ? (
-              <EmptyState text="Loading tracking timeline..." />
-            ) : timeline.length === 0 ? (
-              <EmptyState text="No tracking events yet." />
-            ) : (
+              <EmptyState text="Loading timeline..." />
+            ) : timeline.length ? (
               timeline.map((event) => (
-                <TimelineEventCard key={event.id} event={event} />
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Recent Drops</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Operational timeline for recent mail execution
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {loading ? (
-              <EmptyState text="Loading mail drops..." />
-            ) : recentDrops.length === 0 ? (
-              <EmptyState text="No mail drops yet." />
-            ) : (
-              recentDrops.map((drop) => (
                 <div
-                  key={drop.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  key={event.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-semibold text-slate-900">
-                        {drop.drop_name || `Drop #${drop.id}`}
+                        {event.event_type || "event"}
                       </div>
                       <div className="mt-1 text-sm text-slate-500">
-                        {drop.campaign_name || "Campaign N/A"} •{" "}
-                        {drop.vendor_name || "Vendor N/A"}
+                        Drop #{event.mail_drop_id} • Campaign #{event.campaign_id}
                       </div>
                     </div>
-                    <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-                      {drop.tracking_status || drop.status || "pending"}
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
+                      {event.status || "pending"}
                     </span>
                   </div>
 
-                  <div className="mt-3 grid gap-1 text-xs text-slate-500 md:grid-cols-4">
-                    <div>Quantity: {Number(drop.quantity || 0).toLocaleString()}</div>
-                    <div>Region: {drop.region || "N/A"}</div>
-                    <div>Drop Date: {drop.drop_date || "N/A"}</div>
-                    <div>Delivery: {drop.expected_delivery_window || "N/A"}</div>
+                  <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-4">
+                    <div>Location: {event.location_name || "N/A"}</div>
+                    <div>Facility: {event.facility_type || "N/A"}</div>
+                    <div>Source: {event.source || "manual"}</div>
+                    <div>
+                      Time:{" "}
+                      {event.created_at ? new Date(event.created_at).toLocaleString() : "N/A"}
+                    </div>
                   </div>
+
+                  {event.notes ? (
+                    <div className="mt-2 text-xs text-slate-500">Notes: {event.notes}</div>
+                  ) : null}
                 </div>
               ))
+            ) : (
+              <EmptyState text="No tracking events yet." />
             )}
           </div>
-        </section>
+        </Card>
       </div>
     </div>
   );
