@@ -103,6 +103,7 @@ export default function CampaignWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState("");
+  const [activity, setActivity] = useState([]);
   const [alertNotes, setAlertNotes] = useState({});
 
   const [data, setData] = useState({
@@ -173,11 +174,20 @@ export default function CampaignWorkspace() {
   });
 
   async function loadWorkspace() {
+    const result = await apiRequest(`/api/campaigns/${id}/command-center`);
+    setData(result || {});
+  }
+
+  async function loadActivity() {
+    const result = await apiRequest(`/api/campaigns/${id}/activity`);
+    setActivity(result || []);
+  }
+
+  async function loadAll() {
     try {
       setLoading(true);
       setError("");
-      const result = await apiRequest(`/api/campaigns/${id}/command-center`);
-      setData(result || {});
+      await Promise.all([loadWorkspace(), loadActivity()]);
     } catch (err) {
       setError(err.message || "Failed to load campaign workspace");
     } finally {
@@ -186,7 +196,7 @@ export default function CampaignWorkspace() {
   }
 
   useEffect(() => {
-    loadWorkspace();
+    loadAll();
   }, [id]);
 
   async function submitForm(formName, path, body, resetFn) {
@@ -200,7 +210,7 @@ export default function CampaignWorkspace() {
       });
 
       resetFn();
-      await loadWorkspace();
+      await loadAll();
     } catch (err) {
       setError(err.message || "Failed to save");
     } finally {
@@ -212,11 +222,13 @@ export default function CampaignWorkspace() {
     try {
       setSubmitting(formName);
       setError("");
+
       await apiRequest(path, {
         method: "PATCH",
         body: JSON.stringify(body)
       });
-      await loadWorkspace();
+
+      await loadAll();
     } catch (err) {
       setError(err.message || "Failed to update");
     } finally {
@@ -240,7 +252,7 @@ export default function CampaignWorkspace() {
         })
       });
 
-      await loadWorkspace();
+      await loadAll();
     } catch (err) {
       setError(err.message || `Failed to ${action} alert`);
     } finally {
@@ -249,37 +261,31 @@ export default function CampaignWorkspace() {
   }
 
   async function quickResolveAlert(alert) {
-    if (alert.type === "task" && alert.meta?.task_id) {
-      await patchEntity(
-        `task-inline-${alert.meta.task_id}`,
-        `/api/campaigns/${id}/tasks/${alert.meta.task_id}`,
-        { status: "done" }
-      );
-      await actOnAlert(alert, "resolve");
-      return;
-    }
+    try {
+      if (alert.type === "task" && alert.meta?.task_id) {
+        await patchEntity(
+          `task-inline-${alert.meta.task_id}`,
+          `/api/campaigns/${id}/tasks/${alert.meta.task_id}`,
+          { status: "done" }
+        );
+      } else if (alert.type === "vendor" && alert.meta?.vendor_id) {
+        await patchEntity(
+          `vendor-inline-${alert.meta.vendor_id}`,
+          `/api/campaigns/${id}/vendors/${alert.meta.vendor_id}`,
+          { status: "active" }
+        );
+      } else if (alert.type === "mail_delay" && alert.meta?.mail_event_id) {
+        await patchEntity(
+          `mail-inline-${alert.meta.mail_event_id}`,
+          `/api/campaigns/${id}/mail-events/${alert.meta.mail_event_id}`,
+          { event_type: "delivered", status: "delivered" }
+        );
+      }
 
-    if (alert.type === "vendor" && alert.meta?.vendor_id) {
-      await patchEntity(
-        `vendor-inline-${alert.meta.vendor_id}`,
-        `/api/campaigns/${id}/vendors/${alert.meta.vendor_id}`,
-        { status: "active" }
-      );
       await actOnAlert(alert, "resolve");
-      return;
+    } catch (err) {
+      setError(err.message || "Failed to resolve alert");
     }
-
-    if (alert.type === "mail_delay" && alert.meta?.mail_event_id) {
-      await patchEntity(
-        `mail-inline-${alert.meta.mail_event_id}`,
-        `/api/campaigns/${id}/mail-events/${alert.meta.mail_event_id}`,
-        { event_type: "delivered", status: "delivered" }
-      );
-      await actOnAlert(alert, "resolve");
-      return;
-    }
-
-    await actOnAlert(alert, "resolve");
   }
 
   const campaignTitle = useMemo(() => {
@@ -761,452 +767,497 @@ export default function CampaignWorkspace() {
           </Card>
         </div>
 
-        <Card title="Action Panels" subtitle="Write directly into the campaign operating system">
-          <div className="grid gap-6 xl:grid-cols-2">
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "task",
-                  `/api/campaigns/${id}/tasks`,
-                  taskForm,
-                  () =>
-                    setTaskForm({
-                      title: "",
-                      description: "",
-                      priority: "medium",
-                      status: "todo"
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Create Task</div>
-              <Field label="Title">
-                <input
-                  className={inputClass}
-                  value={taskForm.title}
-                  onChange={(e) => setTaskForm((s) => ({ ...s, title: e.target.value }))}
-                />
-              </Field>
-              <Field label="Description">
-                <textarea
-                  className={textareaClass}
-                  value={taskForm.description}
-                  onChange={(e) => setTaskForm((s) => ({ ...s, description: e.target.value }))}
-                />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Priority">
-                  <select
-                    className={inputClass}
-                    value={taskForm.priority}
-                    onChange={(e) => setTaskForm((s) => ({ ...s, priority: e.target.value }))}
-                  >
-                    <option value="high">high</option>
-                    <option value="medium">medium</option>
-                    <option value="low">low</option>
-                  </select>
-                </Field>
-                <Field label="Status">
-                  <select
-                    className={inputClass}
-                    value={taskForm.status}
-                    onChange={(e) => setTaskForm((s) => ({ ...s, status: e.target.value }))}
-                  >
-                    <option value="todo">todo</option>
-                    <option value="in_progress">in_progress</option>
-                    <option value="done">done</option>
-                  </select>
-                </Field>
-              </div>
-              <button
-                type="submit"
-                disabled={submitting === "task"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+        <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+          <Card title="Action Panels" subtitle="Write directly into the campaign operating system">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "task",
+                    `/api/campaigns/${id}/tasks`,
+                    taskForm,
+                    () =>
+                      setTaskForm({
+                        title: "",
+                        description: "",
+                        priority: "medium",
+                        status: "todo"
+                      })
+                  );
+                }}
               >
-                {submitting === "task" ? "Saving..." : "Create Task"}
-              </button>
-            </form>
-
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "contact",
-                  `/api/campaigns/${id}/contacts`,
-                  contactForm,
-                  () =>
-                    setContactForm({
-                      full_name: "",
-                      email: "",
-                      phone: "",
-                      role: ""
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Add Contact</div>
-              <Field label="Full Name">
-                <input
-                  className={inputClass}
-                  value={contactForm.full_name}
-                  onChange={(e) => setContactForm((s) => ({ ...s, full_name: e.target.value }))}
-                />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Email">
+                <div className="text-lg font-semibold text-slate-900">Create Task</div>
+                <Field label="Title">
                   <input
                     className={inputClass}
-                    value={contactForm.email}
-                    onChange={(e) => setContactForm((s) => ({ ...s, email: e.target.value }))}
+                    value={taskForm.title}
+                    onChange={(e) => setTaskForm((s) => ({ ...s, title: e.target.value }))}
                   />
                 </Field>
-                <Field label="Phone">
-                  <input
-                    className={inputClass}
-                    value={contactForm.phone}
-                    onChange={(e) => setContactForm((s) => ({ ...s, phone: e.target.value }))}
+                <Field label="Description">
+                  <textarea
+                    className={textareaClass}
+                    value={taskForm.description}
+                    onChange={(e) => setTaskForm((s) => ({ ...s, description: e.target.value }))}
                   />
                 </Field>
-              </div>
-              <Field label="Role">
-                <input
-                  className={inputClass}
-                  value={contactForm.role}
-                  onChange={(e) => setContactForm((s) => ({ ...s, role: e.target.value }))}
-                />
-              </Field>
-              <button
-                type="submit"
-                disabled={submitting === "contact"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
-              >
-                {submitting === "contact" ? "Saving..." : "Add Contact"}
-              </button>
-            </form>
-
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "vendor",
-                  `/api/campaigns/${id}/vendors`,
-                  {
-                    ...vendorForm,
-                    contract_value: Number(vendorForm.contract_value || 0)
-                  },
-                  () =>
-                    setVendorForm({
-                      vendor_name: "",
-                      category: "",
-                      status: "active",
-                      contract_value: ""
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Add Vendor</div>
-              <Field label="Vendor Name">
-                <input
-                  className={inputClass}
-                  value={vendorForm.vendor_name}
-                  onChange={(e) => setVendorForm((s) => ({ ...s, vendor_name: e.target.value }))}
-                />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Category">
-                  <input
-                    className={inputClass}
-                    value={vendorForm.category}
-                    onChange={(e) => setVendorForm((s) => ({ ...s, category: e.target.value }))}
-                  />
-                </Field>
-                <Field label="Status">
-                  <select
-                    className={inputClass}
-                    value={vendorForm.status}
-                    onChange={(e) => setVendorForm((s) => ({ ...s, status: e.target.value }))}
-                  >
-                    <option value="active">active</option>
-                    <option value="at_risk">at_risk</option>
-                    <option value="paused">paused</option>
-                  </select>
-                </Field>
-              </div>
-              <Field label="Contract Value">
-                <input
-                  className={inputClass}
-                  type="number"
-                  value={vendorForm.contract_value}
-                  onChange={(e) => setVendorForm((s) => ({ ...s, contract_value: e.target.value }))}
-                />
-              </Field>
-              <button
-                type="submit"
-                disabled={submitting === "vendor"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
-              >
-                {submitting === "vendor" ? "Saving..." : "Add Vendor"}
-              </button>
-            </form>
-
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "document",
-                  `/api/campaigns/${id}/documents`,
-                  documentForm,
-                  () =>
-                    setDocumentForm({
-                      title: "",
-                      document_type: "",
-                      file_url: ""
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Add Document</div>
-              <Field label="Title">
-                <input
-                  className={inputClass}
-                  value={documentForm.title}
-                  onChange={(e) => setDocumentForm((s) => ({ ...s, title: e.target.value }))}
-                />
-              </Field>
-              <Field label="Document Type">
-                <input
-                  className={inputClass}
-                  value={documentForm.document_type}
-                  onChange={(e) => setDocumentForm((s) => ({ ...s, document_type: e.target.value }))}
-                />
-              </Field>
-              <Field label="File URL">
-                <input
-                  className={inputClass}
-                  value={documentForm.file_url}
-                  onChange={(e) => setDocumentForm((s) => ({ ...s, file_url: e.target.value }))}
-                />
-              </Field>
-              <button
-                type="submit"
-                disabled={submitting === "document"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
-              >
-                {submitting === "document" ? "Saving..." : "Add Document"}
-              </button>
-            </form>
-
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "mailProgram",
-                  `/api/campaigns/${id}/mail-programs`,
-                  mailProgramForm,
-                  () =>
-                    setMailProgramForm({
-                      name: "",
-                      description: ""
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Create Mail Program</div>
-              <Field label="Name">
-                <input
-                  className={inputClass}
-                  value={mailProgramForm.name}
-                  onChange={(e) => setMailProgramForm((s) => ({ ...s, name: e.target.value }))}
-                />
-              </Field>
-              <Field label="Description">
-                <textarea
-                  className={textareaClass}
-                  value={mailProgramForm.description}
-                  onChange={(e) => setMailProgramForm((s) => ({ ...s, description: e.target.value }))}
-                />
-              </Field>
-              <button
-                type="submit"
-                disabled={submitting === "mailProgram"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
-              >
-                {submitting === "mailProgram" ? "Saving..." : "Create Mail Program"}
-              </button>
-            </form>
-
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "mailDrop",
-                  `/api/campaigns/${id}/mail-drops`,
-                  {
-                    ...mailDropForm,
-                    program_id: mailDropForm.program_id ? Number(mailDropForm.program_id) : null,
-                    quantity: Number(mailDropForm.quantity || 0)
-                  },
-                  () =>
-                    setMailDropForm({
-                      program_id: "",
-                      drop_date: "",
-                      quantity: ""
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Create Mail Drop</div>
-              <Field label="Program">
-                <select
-                  className={inputClass}
-                  value={mailDropForm.program_id}
-                  onChange={(e) => setMailDropForm((s) => ({ ...s, program_id: e.target.value }))}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Priority">
+                    <select
+                      className={inputClass}
+                      value={taskForm.priority}
+                      onChange={(e) => setTaskForm((s) => ({ ...s, priority: e.target.value }))}
+                    >
+                      <option value="high">high</option>
+                      <option value="medium">medium</option>
+                      <option value="low">low</option>
+                    </select>
+                  </Field>
+                  <Field label="Status">
+                    <select
+                      className={inputClass}
+                      value={taskForm.status}
+                      onChange={(e) => setTaskForm((s) => ({ ...s, status: e.target.value }))}
+                    >
+                      <option value="todo">todo</option>
+                      <option value="in_progress">in_progress</option>
+                      <option value="done">done</option>
+                    </select>
+                  </Field>
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting === "task"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
                 >
-                  <option value="">No linked program</option>
-                  {(data.mail?.programs || []).map((program) => (
-                    <option key={program.id} value={program.id}>
-                      {program.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Drop Date">
+                  {submitting === "task" ? "Saving..." : "Create Task"}
+                </button>
+              </form>
+
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "contact",
+                    `/api/campaigns/${id}/contacts`,
+                    contactForm,
+                    () =>
+                      setContactForm({
+                        full_name: "",
+                        email: "",
+                        phone: "",
+                        role: ""
+                      })
+                  );
+                }}
+              >
+                <div className="text-lg font-semibold text-slate-900">Add Contact</div>
+                <Field label="Full Name">
                   <input
                     className={inputClass}
-                    type="date"
-                    value={mailDropForm.drop_date}
-                    onChange={(e) => setMailDropForm((s) => ({ ...s, drop_date: e.target.value }))}
+                    value={contactForm.full_name}
+                    onChange={(e) => setContactForm((s) => ({ ...s, full_name: e.target.value }))}
                   />
                 </Field>
-                <Field label="Quantity">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Email">
+                    <input
+                      className={inputClass}
+                      value={contactForm.email}
+                      onChange={(e) => setContactForm((s) => ({ ...s, email: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Phone">
+                    <input
+                      className={inputClass}
+                      value={contactForm.phone}
+                      onChange={(e) => setContactForm((s) => ({ ...s, phone: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+                <Field label="Role">
+                  <input
+                    className={inputClass}
+                    value={contactForm.role}
+                    onChange={(e) => setContactForm((s) => ({ ...s, role: e.target.value }))}
+                  />
+                </Field>
+                <button
+                  type="submit"
+                  disabled={submitting === "contact"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {submitting === "contact" ? "Saving..." : "Add Contact"}
+                </button>
+              </form>
+
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "vendor",
+                    `/api/campaigns/${id}/vendors`,
+                    {
+                      ...vendorForm,
+                      contract_value: Number(vendorForm.contract_value || 0)
+                    },
+                    () =>
+                      setVendorForm({
+                        vendor_name: "",
+                        category: "",
+                        status: "active",
+                        contract_value: ""
+                      })
+                  );
+                }}
+              >
+                <div className="text-lg font-semibold text-slate-900">Add Vendor</div>
+                <Field label="Vendor Name">
+                  <input
+                    className={inputClass}
+                    value={vendorForm.vendor_name}
+                    onChange={(e) => setVendorForm((s) => ({ ...s, vendor_name: e.target.value }))}
+                  />
+                </Field>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Category">
+                    <input
+                      className={inputClass}
+                      value={vendorForm.category}
+                      onChange={(e) => setVendorForm((s) => ({ ...s, category: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Status">
+                    <select
+                      className={inputClass}
+                      value={vendorForm.status}
+                      onChange={(e) => setVendorForm((s) => ({ ...s, status: e.target.value }))}
+                    >
+                      <option value="active">active</option>
+                      <option value="at_risk">at_risk</option>
+                      <option value="paused">paused</option>
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Contract Value">
                   <input
                     className={inputClass}
                     type="number"
-                    value={mailDropForm.quantity}
-                    onChange={(e) => setMailDropForm((s) => ({ ...s, quantity: e.target.value }))}
+                    value={vendorForm.contract_value}
+                    onChange={(e) => setVendorForm((s) => ({ ...s, contract_value: e.target.value }))}
                   />
                 </Field>
-              </div>
-              <button
-                type="submit"
-                disabled={submitting === "mailDrop"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
-              >
-                {submitting === "mailDrop" ? "Saving..." : "Create Mail Drop"}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={submitting === "vendor"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {submitting === "vendor" ? "Saving..." : "Add Vendor"}
+                </button>
+              </form>
 
-            <form
-              className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 xl:col-span-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitForm(
-                  "mailEvent",
-                  `/api/campaigns/${id}/mail-events`,
-                  {
-                    ...mailEventForm,
-                    mail_drop_id: mailEventForm.mail_drop_id ? Number(mailEventForm.mail_drop_id) : null
-                  },
-                  () =>
-                    setMailEventForm({
-                      mail_drop_id: "",
-                      event_type: "entered_usps",
-                      status: "",
-                      location_name: "",
-                      facility_type: "",
-                      notes: "",
-                      source: "manual"
-                    })
-                );
-              }}
-            >
-              <div className="text-lg font-semibold text-slate-900">Add Mail Event</div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Mail Drop">
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "document",
+                    `/api/campaigns/${id}/documents`,
+                    documentForm,
+                    () =>
+                      setDocumentForm({
+                        title: "",
+                        document_type: "",
+                        file_url: ""
+                      })
+                  );
+                }}
+              >
+                <div className="text-lg font-semibold text-slate-900">Add Document</div>
+                <Field label="Title">
+                  <input
+                    className={inputClass}
+                    value={documentForm.title}
+                    onChange={(e) => setDocumentForm((s) => ({ ...s, title: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Document Type">
+                  <input
+                    className={inputClass}
+                    value={documentForm.document_type}
+                    onChange={(e) => setDocumentForm((s) => ({ ...s, document_type: e.target.value }))}
+                  />
+                </Field>
+                <Field label="File URL">
+                  <input
+                    className={inputClass}
+                    value={documentForm.file_url}
+                    onChange={(e) => setDocumentForm((s) => ({ ...s, file_url: e.target.value }))}
+                  />
+                </Field>
+                <button
+                  type="submit"
+                  disabled={submitting === "document"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {submitting === "document" ? "Saving..." : "Add Document"}
+                </button>
+              </form>
+
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "mailProgram",
+                    `/api/campaigns/${id}/mail-programs`,
+                    mailProgramForm,
+                    () =>
+                      setMailProgramForm({
+                        name: "",
+                        description: ""
+                      })
+                  );
+                }}
+              >
+                <div className="text-lg font-semibold text-slate-900">Create Mail Program</div>
+                <Field label="Name">
+                  <input
+                    className={inputClass}
+                    value={mailProgramForm.name}
+                    onChange={(e) => setMailProgramForm((s) => ({ ...s, name: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Description">
+                  <textarea
+                    className={textareaClass}
+                    value={mailProgramForm.description}
+                    onChange={(e) => setMailProgramForm((s) => ({ ...s, description: e.target.value }))}
+                  />
+                </Field>
+                <button
+                  type="submit"
+                  disabled={submitting === "mailProgram"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {submitting === "mailProgram" ? "Saving..." : "Create Mail Program"}
+                </button>
+              </form>
+
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "mailDrop",
+                    `/api/campaigns/${id}/mail-drops`,
+                    {
+                      ...mailDropForm,
+                      program_id: mailDropForm.program_id ? Number(mailDropForm.program_id) : null,
+                      quantity: Number(mailDropForm.quantity || 0)
+                    },
+                    () =>
+                      setMailDropForm({
+                        program_id: "",
+                        drop_date: "",
+                        quantity: ""
+                      })
+                  );
+                }}
+              >
+                <div className="text-lg font-semibold text-slate-900">Create Mail Drop</div>
+                <Field label="Program">
                   <select
                     className={inputClass}
-                    value={mailEventForm.mail_drop_id}
-                    onChange={(e) => setMailEventForm((s) => ({ ...s, mail_drop_id: e.target.value }))}
+                    value={mailDropForm.program_id}
+                    onChange={(e) => setMailDropForm((s) => ({ ...s, program_id: e.target.value }))}
                   >
-                    <option value="">No linked drop</option>
-                    {(data.mail?.drops || []).map((drop) => (
-                      <option key={drop.id} value={drop.id}>
-                        Drop #{drop.id} • {drop.drop_date}
+                    <option value="">No linked program</option>
+                    {(data.mail?.programs || []).map((program) => (
+                      <option key={program.id} value={program.id}>
+                        {program.name}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Event Type">
-                  <select
-                    className={inputClass}
-                    value={mailEventForm.event_type}
-                    onChange={(e) => setMailEventForm((s) => ({ ...s, event_type: e.target.value }))}
-                  >
-                    <option value="entered_usps">entered_usps</option>
-                    <option value="in_transit">in_transit</option>
-                    <option value="delayed">delayed</option>
-                    <option value="delivered">delivered</option>
-                  </select>
-                </Field>
-                <Field label="Status">
-                  <input
-                    className={inputClass}
-                    value={mailEventForm.status}
-                    onChange={(e) => setMailEventForm((s) => ({ ...s, status: e.target.value }))}
-                  />
-                </Field>
-              </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Drop Date">
+                    <input
+                      className={inputClass}
+                      type="date"
+                      value={mailDropForm.drop_date}
+                      onChange={(e) => setMailDropForm((s) => ({ ...s, drop_date: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Quantity">
+                    <input
+                      className={inputClass}
+                      type="number"
+                      value={mailDropForm.quantity}
+                      onChange={(e) => setMailDropForm((s) => ({ ...s, quantity: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting === "mailDrop"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {submitting === "mailDrop" ? "Saving..." : "Create Mail Drop"}
+                </button>
+              </form>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Location">
-                  <input
-                    className={inputClass}
-                    value={mailEventForm.location_name}
-                    onChange={(e) => setMailEventForm((s) => ({ ...s, location_name: e.target.value }))}
-                  />
-                </Field>
-                <Field label="Facility Type">
-                  <input
-                    className={inputClass}
-                    value={mailEventForm.facility_type}
-                    onChange={(e) => setMailEventForm((s) => ({ ...s, facility_type: e.target.value }))}
-                  />
-                </Field>
-                <Field label="Source">
-                  <input
-                    className={inputClass}
-                    value={mailEventForm.source}
-                    onChange={(e) => setMailEventForm((s) => ({ ...s, source: e.target.value }))}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Notes">
-                <textarea
-                  className={textareaClass}
-                  value={mailEventForm.notes}
-                  onChange={(e) => setMailEventForm((s) => ({ ...s, notes: e.target.value }))}
-                />
-              </Field>
-
-              <button
-                type="submit"
-                disabled={submitting === "mailEvent"}
-                className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+              <form
+                className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 xl:col-span-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm(
+                    "mailEvent",
+                    `/api/campaigns/${id}/mail-events`,
+                    {
+                      ...mailEventForm,
+                      mail_drop_id: mailEventForm.mail_drop_id ? Number(mailEventForm.mail_drop_id) : null
+                    },
+                    () =>
+                      setMailEventForm({
+                        mail_drop_id: "",
+                        event_type: "entered_usps",
+                        status: "",
+                        location_name: "",
+                        facility_type: "",
+                        notes: "",
+                        source: "manual"
+                      })
+                  );
+                }}
               >
-                {submitting === "mailEvent" ? "Saving..." : "Add Mail Event"}
-              </button>
-            </form>
-          </div>
-        </Card>
+                <div className="text-lg font-semibold text-slate-900">Add Mail Event</div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Field label="Mail Drop">
+                    <select
+                      className={inputClass}
+                      value={mailEventForm.mail_drop_id}
+                      onChange={(e) => setMailEventForm((s) => ({ ...s, mail_drop_id: e.target.value }))}
+                    >
+                      <option value="">No linked drop</option>
+                      {(data.mail?.drops || []).map((drop) => (
+                        <option key={drop.id} value={drop.id}>
+                          Drop #{drop.id} • {drop.drop_date}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Event Type">
+                    <select
+                      className={inputClass}
+                      value={mailEventForm.event_type}
+                      onChange={(e) => setMailEventForm((s) => ({ ...s, event_type: e.target.value }))}
+                    >
+                      <option value="entered_usps">entered_usps</option>
+                      <option value="in_transit">in_transit</option>
+                      <option value="delayed">delayed</option>
+                      <option value="delivered">delivered</option>
+                    </select>
+                  </Field>
+                  <Field label="Status">
+                    <input
+                      className={inputClass}
+                      value={mailEventForm.status}
+                      onChange={(e) => setMailEventForm((s) => ({ ...s, status: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Field label="Location">
+                    <input
+                      className={inputClass}
+                      value={mailEventForm.location_name}
+                      onChange={(e) => setMailEventForm((s) => ({ ...s, location_name: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Facility Type">
+                    <input
+                      className={inputClass}
+                      value={mailEventForm.facility_type}
+                      onChange={(e) => setMailEventForm((s) => ({ ...s, facility_type: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Source">
+                    <input
+                      className={inputClass}
+                      value={mailEventForm.source}
+                      onChange={(e) => setMailEventForm((s) => ({ ...s, source: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Notes">
+                  <textarea
+                    className={textareaClass}
+                    value={mailEventForm.notes}
+                    onChange={(e) => setMailEventForm((s) => ({ ...s, notes: e.target.value }))}
+                  />
+                </Field>
+
+                <button
+                  type="submit"
+                  disabled={submitting === "mailEvent"}
+                  className="rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  {submitting === "mailEvent" ? "Saving..." : "Add Mail Event"}
+                </button>
+              </form>
+            </div>
+          </Card>
+
+          <Card title="Activity Timeline" subtitle="Live campaign audit rail">
+            <div className="space-y-3 max-h-[900px] overflow-y-auto pr-2">
+              {loading ? (
+                <EmptyState text="Loading activity..." />
+              ) : activity.length ? (
+                activity.map((item) => {
+                  const d = item.details || {};
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-slate-900">
+                          {String(item.activity_type || "").replaceAll("_", " ")}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {new Date(item.created_at).toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 text-xs text-slate-500">
+                        Actor: {d.actor || "system"}
+                      </div>
+
+                      <div className="mt-2 space-y-1 text-xs text-slate-500">
+                        {Object.entries(d)
+                          .filter(([k]) => k !== "actor" && k !== "timestamp")
+                          .map(([k, v]) => (
+                            <div key={k}>
+                              {k}: {String(v)}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <EmptyState text="No activity yet." />
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
