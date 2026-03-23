@@ -103,6 +103,7 @@ export default function CampaignWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState("");
+  const [alertNotes, setAlertNotes] = useState({});
 
   const [data, setData] = useState({
     campaign: null,
@@ -207,6 +208,80 @@ export default function CampaignWorkspace() {
     }
   }
 
+  async function patchEntity(formName, path, body) {
+    try {
+      setSubmitting(formName);
+      setError("");
+      await apiRequest(path, {
+        method: "PATCH",
+        body: JSON.stringify(body)
+      });
+      await loadWorkspace();
+    } catch (err) {
+      setError(err.message || "Failed to update");
+    } finally {
+      setSubmitting("");
+    }
+  }
+
+  async function actOnAlert(alert, action) {
+    try {
+      setSubmitting(`${action}-${alert.alert_key}`);
+      setError("");
+
+      await apiRequest(`/api/alerts/${action}`, {
+        method: "POST",
+        body: JSON.stringify({
+          alert_key: alert.alert_key,
+          alert_type: alert.type,
+          campaign_id: alert.campaign_id,
+          entity_id: alert.entity_id,
+          notes: alertNotes[alert.alert_key] || ""
+        })
+      });
+
+      await loadWorkspace();
+    } catch (err) {
+      setError(err.message || `Failed to ${action} alert`);
+    } finally {
+      setSubmitting("");
+    }
+  }
+
+  async function quickResolveAlert(alert) {
+    if (alert.type === "task" && alert.meta?.task_id) {
+      await patchEntity(
+        `task-inline-${alert.meta.task_id}`,
+        `/api/campaigns/${id}/tasks/${alert.meta.task_id}`,
+        { status: "done" }
+      );
+      await actOnAlert(alert, "resolve");
+      return;
+    }
+
+    if (alert.type === "vendor" && alert.meta?.vendor_id) {
+      await patchEntity(
+        `vendor-inline-${alert.meta.vendor_id}`,
+        `/api/campaigns/${id}/vendors/${alert.meta.vendor_id}`,
+        { status: "active" }
+      );
+      await actOnAlert(alert, "resolve");
+      return;
+    }
+
+    if (alert.type === "mail_delay" && alert.meta?.mail_event_id) {
+      await patchEntity(
+        `mail-inline-${alert.meta.mail_event_id}`,
+        `/api/campaigns/${id}/mail-events/${alert.meta.mail_event_id}`,
+        { event_type: "delivered", status: "delivered" }
+      );
+      await actOnAlert(alert, "resolve");
+      return;
+    }
+
+    await actOnAlert(alert, "resolve");
+  }
+
   const campaignTitle = useMemo(() => {
     if (!data?.campaign) return "Campaign Workspace";
     return data.campaign.campaign_name || data.campaign.candidate_name || "Campaign Workspace";
@@ -267,20 +342,20 @@ export default function CampaignWorkspace() {
         <div className="grid gap-6 xl:grid-cols-3">
           <Card
             title="Alert Panel"
-            subtitle="Live warnings and operational flags"
+            subtitle="Resolve or dismiss issues directly from the cockpit"
             right={
               <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                 {data.alerts?.length || 0} alerts
               </span>
             }
           >
-            <div className="space-y-3">
+            <div className="space-y-4">
               {loading ? (
                 <EmptyState text="Loading alerts..." />
               ) : data.alerts?.length ? (
                 data.alerts.map((alert) => (
                   <div
-                    key={alert.id}
+                    key={alert.alert_key}
                     className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -296,7 +371,44 @@ export default function CampaignWorkspace() {
                         {alert.severity}
                       </span>
                     </div>
-                    <div className="mt-3 text-xs text-slate-500">Type: {alert.type}</div>
+
+                    <div className="mt-3 text-xs text-slate-500">
+                      Type: {alert.type} • Status: {alert.action_status || "open"}
+                    </div>
+
+                    <div className="mt-3">
+                      <textarea
+                        className={textareaClass}
+                        placeholder="Resolution notes"
+                        value={alertNotes[alert.alert_key] || ""}
+                        onChange={(e) =>
+                          setAlertNotes((s) => ({
+                            ...s,
+                            [alert.alert_key]: e.target.value
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => quickResolveAlert(alert)}
+                        disabled={submitting === `resolve-${alert.alert_key}`}
+                        className="rounded-2xl bg-[#0176D3] px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        Resolve + Apply
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => actOnAlert(alert, "dismiss")}
+                        disabled={submitting === `dismiss-${alert.alert_key}`}
+                        className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -305,7 +417,7 @@ export default function CampaignWorkspace() {
             </div>
           </Card>
 
-          <Card title="Open Tasks" subtitle="Execution workflow">
+          <Card title="Open Tasks" subtitle="Inline status control">
             <div className="space-y-3">
               {loading ? (
                 <EmptyState text="Loading tasks..." />
@@ -333,6 +445,35 @@ export default function CampaignWorkspace() {
                       >
                         {task.priority || "medium"}
                       </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchEntity(
+                            `task-${task.id}`,
+                            `/api/campaigns/${id}/tasks/${task.id}`,
+                            { status: "in_progress" }
+                          )
+                        }
+                        className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                      >
+                        Mark In Progress
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchEntity(
+                            `task-${task.id}`,
+                            `/api/campaigns/${id}/tasks/${task.id}`,
+                            { status: "done" }
+                          )
+                        }
+                        className="rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Mark Done
+                      </button>
                     </div>
                   </div>
                 ))
@@ -371,7 +512,7 @@ export default function CampaignWorkspace() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card title="Vendors" subtitle="Campaign partner network">
+          <Card title="Vendors" subtitle="Inline status control">
             <div className="space-y-3">
               {loading ? (
                 <EmptyState text="Loading vendors..." />
@@ -398,8 +539,38 @@ export default function CampaignWorkspace() {
                         {vendor.status || "active"}
                       </span>
                     </div>
+
                     <div className="mt-3 text-xs text-slate-500">
                       Contract: ${Number(vendor.contract_value || 0).toLocaleString()}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchEntity(
+                            `vendor-${vendor.id}`,
+                            `/api/campaigns/${id}/vendors/${vendor.id}`,
+                            { status: "active" }
+                          )
+                        }
+                        className="rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Mark Active
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchEntity(
+                            `vendor-${vendor.id}`,
+                            `/api/campaigns/${id}/vendors/${vendor.id}`,
+                            { status: "at_risk" }
+                          )
+                        }
+                        className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                      >
+                        Mark At Risk
+                      </button>
                     </div>
                   </div>
                 ))
@@ -454,7 +625,7 @@ export default function CampaignWorkspace() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card title="MailOps Panel" subtitle="Programs, drops, and network events">
+          <Card title="MailOps Panel" subtitle="Inline event status control">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Programs</div>
@@ -504,6 +675,35 @@ export default function CampaignWorkspace() {
                       >
                         {event.status || event.event_type || "event"}
                       </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchEntity(
+                            `mail-${event.id}`,
+                            `/api/campaigns/${id}/mail-events/${event.id}`,
+                            { event_type: "in_transit", status: "in_transit" }
+                          )
+                        }
+                        className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                      >
+                        Mark In Transit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchEntity(
+                            `mail-${event.id}`,
+                            `/api/campaigns/${id}/mail-events/${event.id}`,
+                            { event_type: "delivered", status: "delivered" }
+                          )
+                        }
+                        className="rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Mark Delivered
+                      </button>
                     </div>
                   </div>
                 ))
