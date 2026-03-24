@@ -1,7 +1,10 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import AppShell from "./components/AppShell";
 
-import ExecutiveDashboard from "./pages/ExecutiveDashboard";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Forecast from "./pages/Forecast";
 import ElectionMap from "./pages/ElectionMap";
@@ -11,7 +14,6 @@ import CampaignPipeline from "./pages/CampaignPipeline";
 import CampaignWorkspace from "./pages/CampaignWorkspace";
 import Vendors from "./pages/Vendors";
 import MailOpsDashboard from "./pages/MailOpsDashboard";
-import AlertsCenter from "./pages/AlertsCenter";
 
 function NotFound() {
   return (
@@ -31,15 +33,13 @@ function NotFound() {
   );
 }
 
-export default function App() {
+function ProtectedApp() {
   return (
-    <BrowserRouter>
+    <ProtectedRoute>
       <AppShell>
         <Routes>
-          <Route path="/" element={<ExecutiveDashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
-          <Route path="/alerts" element={<AlertsCenter />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/election-map" element={<ElectionMap />} />
           <Route path="/firms" element={<Firms />} />
@@ -51,6 +51,20 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
-    </BrowserRouter>
+    </ProtectedRoute>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/*" element={<ProtectedApp />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
