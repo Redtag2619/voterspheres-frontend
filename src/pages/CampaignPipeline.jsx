@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
@@ -63,11 +63,224 @@ function statusBadge(status) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function Field({ label, children }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+const inputClass =
+  "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none";
+
+function CreateCampaignModal({
+  open,
+  onClose,
+  onSubmit,
+  form,
+  setForm,
+  creating
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-[#0176D3]">
+              New Campaign
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+              Create Campaign
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Launch a new campaign record and route directly into its live workspace.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+          >
+            Close
+          </button>
+        </div>
+
+        <form
+          className="mt-6 grid gap-4 md:grid-cols-2"
+          onSubmit={onSubmit}
+        >
+          <Field label="Campaign Name">
+            <input
+              className={inputClass}
+              value={form.campaign_name}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, campaign_name: e.target.value }))
+              }
+              placeholder="Louisiana Governor 2027"
+            />
+          </Field>
+
+          <Field label="Candidate Name">
+            <input
+              className={inputClass}
+              value={form.candidate_name}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, candidate_name: e.target.value }))
+              }
+              placeholder="John Example"
+            />
+          </Field>
+
+          <Field label="Office">
+            <input
+              className={inputClass}
+              value={form.office}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, office: e.target.value }))
+              }
+              placeholder="Governor"
+            />
+          </Field>
+
+          <Field label="State">
+            <input
+              className={inputClass}
+              value={form.state}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, state: e.target.value }))
+              }
+              placeholder="Louisiana"
+            />
+          </Field>
+
+          <Field label="Party">
+            <input
+              className={inputClass}
+              value={form.party}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, party: e.target.value }))
+              }
+              placeholder="Republican / Democrat / Independent"
+            />
+          </Field>
+
+          <Field label="Stage">
+            <select
+              className={inputClass}
+              value={form.stage}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, stage: e.target.value }))
+              }
+            >
+              <option value="lead">lead</option>
+              <option value="active">active</option>
+              <option value="won">won</option>
+              <option value="lost">lost</option>
+            </select>
+          </Field>
+
+          <Field label="Status">
+            <select
+              className={inputClass}
+              value={form.status}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, status: e.target.value }))
+              }
+            >
+              <option value="open">open</option>
+              <option value="active">active</option>
+              <option value="closed">closed</option>
+              <option value="at_risk">at_risk</option>
+            </select>
+          </Field>
+
+          <Field label="Contract Value">
+            <input
+              className={inputClass}
+              type="number"
+              value={form.contract_value}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, contract_value: e.target.value }))
+              }
+              placeholder="125000"
+            />
+          </Field>
+
+          <Field label="Budget Total">
+            <input
+              className={inputClass}
+              type="number"
+              value={form.budget_total}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, budget_total: e.target.value }))
+              }
+              placeholder="500000"
+            />
+          </Field>
+
+          <Field label="County">
+            <input
+              className={inputClass}
+              value={form.county}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, county: e.target.value }))
+              }
+              placeholder="Optional"
+            />
+          </Field>
+
+          <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={creating}
+              className="rounded-2xl bg-[#0176D3] px-5 py-3 text-sm font-semibold text-white"
+            >
+              {creating ? "Creating..." : "Create Campaign & Open Workspace"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignPipeline() {
+  const navigate = useNavigate();
+
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    campaign_name: "",
+    candidate_name: "",
+    office: "",
+    state: "",
+    county: "",
+    party: "",
+    stage: "active",
+    status: "open",
+    budget_total: "",
+    contract_value: ""
+  });
 
   async function loadCampaigns() {
     try {
@@ -86,6 +299,59 @@ export default function CampaignPipeline() {
   useEffect(() => {
     loadCampaigns();
   }, []);
+
+  async function handleCreateCampaign(e) {
+    e.preventDefault();
+
+    try {
+      setCreating(true);
+      setError("");
+
+      const payload = {
+        campaign_name: createForm.campaign_name,
+        candidate_name: createForm.candidate_name,
+        office: createForm.office,
+        state: createForm.state,
+        county: createForm.county || null,
+        party: createForm.party || null,
+        stage: createForm.stage,
+        status: createForm.status,
+        budget_total: Number(createForm.budget_total || 0),
+        contract_value: Number(createForm.contract_value || 0)
+      };
+
+      const created = await apiRequest("/api/crm/campaigns", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      const newId = created?.id;
+      if (!newId) {
+        throw new Error("Campaign created but no id was returned");
+      }
+
+      setShowCreateModal(false);
+      setCreateForm({
+        campaign_name: "",
+        candidate_name: "",
+        office: "",
+        state: "",
+        county: "",
+        party: "",
+        stage: "active",
+        status: "open",
+        budget_total: "",
+        contract_value: ""
+      });
+
+      await loadCampaigns();
+      navigate(`/campaigns/${newId}`);
+    } catch (err) {
+      setError(err.message || "Failed to create campaign");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   const filteredCampaigns = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -131,15 +397,27 @@ export default function CampaignPipeline() {
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
         <section className="rounded-[28px] border border-[#d8dde6] bg-gradient-to-r from-[#0176D3] to-[#0b5cab] p-8 text-white shadow-sm">
-          <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
-            Campaign Pipeline
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
+                Campaign Pipeline
+              </div>
+              <h1 className="mt-2 text-3xl font-semibold">
+                Campaign Pipeline + Workspace Launcher
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm text-blue-50">
+                Track every campaign in the system and jump directly into the live campaign cockpit.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#0176D3] shadow-sm"
+            >
+              + Create Campaign
+            </button>
           </div>
-          <h1 className="mt-2 text-3xl font-semibold">
-            Campaign Pipeline + Workspace Launcher
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm text-blue-50">
-            Track every campaign in the system and jump directly into the live campaign cockpit.
-          </p>
         </section>
 
         {error ? (
@@ -278,6 +556,17 @@ export default function CampaignPipeline() {
           )}
         </section>
       </div>
+
+      <CreateCampaignModal
+        open={showCreateModal}
+        onClose={() => {
+          if (!creating) setShowCreateModal(false);
+        }}
+        onSubmit={handleCreateCampaign}
+        form={createForm}
+        setForm={setCreateForm}
+        creating={creating}
+      />
     </div>
   );
 }
