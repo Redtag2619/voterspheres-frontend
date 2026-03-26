@@ -1,4 +1,4 @@
-const TOKEN_KEY = "voterspheres_token";
+const TOKEN_KEY = "voterspheres_token"; 
 const USER_KEY = "voterspheres_user";
 
 function isBrowser() {
