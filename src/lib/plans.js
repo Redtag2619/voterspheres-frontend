@@ -21,3 +21,18 @@ export function hasPlanAccess(currentPlan, requiredPlan = "free") {
 
   return (PLAN_ORDER[current] ?? 0) >= (PLAN_ORDER[required] ?? 0);
 }
+
+export function getUpgradeMessage(requiredPlan) {
+  const plan = normalizePlan(requiredPlan);
+
+  switch (plan) {
+    case "starter":
+      return "This feature requires a Starter plan or higher.";
+    case "pro":
+      return "This feature requires a Pro plan or higher.";
+    case "enterprise":
+      return "This feature requires an Enterprise plan.";
+    default:
+      return "Your current plan does not include this feature.";
+  }
+}
