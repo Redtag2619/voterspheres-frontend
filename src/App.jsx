@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import AppShell from "./app/layout/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PlanProtectedRoute from "./components/PlanProtectedRoute";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Candidates = lazy(() => import("./pages/Candidates"));
@@ -33,15 +34,87 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/candidates" element={<Candidates />} />
             <Route path="/map" element={<ElectionMap />} />
-            <Route path="/donors" element={<DonorNetwork />} />
-            <Route path="/warroom" element={<AIWarRoom />} />
-            <Route path="/ai" element={<AIChat />} />
-            <Route path="/forecast" element={<ElectionForecast />} />
-            <Route path="/fundraising" element={<FundraisingDashboard />} />
-            <Route path="/rankings" element={<PowerRankings />} />
-            <Route path="/marketplace" element={<ConsultantMarketplace />} />
-            <Route path="/simulator" element={<CampaignSimulator />} />
-            <Route path="/command-center" element={<CommandCenter />} />
+
+            <Route
+              path="/donors"
+              element={
+                <PlanProtectedRoute requiredPlan="enterprise">
+                  <DonorNetwork />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/warroom"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <AIWarRoom />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/ai"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <AIChat />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/forecast"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <ElectionForecast />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/fundraising"
+              element={
+                <PlanProtectedRoute requiredPlan="enterprise">
+                  <FundraisingDashboard />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/rankings"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <PowerRankings />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/marketplace"
+              element={
+                <PlanProtectedRoute requiredPlan="enterprise">
+                  <ConsultantMarketplace />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/simulator"
+              element={
+                <PlanProtectedRoute requiredPlan="enterprise">
+                  <CampaignSimulator />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/command-center"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <CommandCenter />
+                </PlanProtectedRoute>
+              }
+            />
 
             <Route
               path="/billing"
