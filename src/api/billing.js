@@ -1,7 +1,9 @@
 import axios from "axios";
+import { getAuthHeader } from "../lib/auth";
 
 const API_BASE =
   import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") + "/api" ||
   "https://voterspheres-backend.onrender.com/api";
 
 export async function getBillingConfig() {
@@ -9,17 +11,30 @@ export async function getBillingConfig() {
   return res.data;
 }
 
-export async function createCheckoutSession({ firm_id, priceId }) {
-  const res = await axios.post(`${API_BASE}/billing/checkout-session`, {
-    firm_id,
-    priceId,
-  });
+export async function createCheckoutSession({ priceId }) {
+  const res = await axios.post(
+    `${API_BASE}/billing/checkout-session`,
+    { priceId },
+    {
+      headers: {
+        ...getAuthHeader(),
+      },
+    }
+  );
+
   return res.data;
 }
 
-export async function createPortalSession({ firm_id }) {
-  const res = await axios.post(`${API_BASE}/billing/portal-session`, {
-    firm_id,
-  });
+export async function createPortalSession() {
+  const res = await axios.post(
+    `${API_BASE}/billing/portal-session`,
+    {},
+    {
+      headers: {
+        ...getAuthHeader(),
+      },
+    }
+  );
+
   return res.data;
 }
