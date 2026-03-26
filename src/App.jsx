@@ -20,6 +20,15 @@ const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const Billing = lazy(() => import("./pages/Billing"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
+const AlertsCenter = lazy(() => import("./pages/AlertsCenter"));
+const CampaignPipeline = lazy(() => import("./pages/CampaignPipeline"));
+const CampaignWorkspace = lazy(() => import("./pages/CampaignWorkspace"));
+const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
+const FirmWorkspace = lazy(() => import("./pages/FirmWorkspace"));
+const Firms = lazy(() => import("./pages/Firms"));
+const Forecast = lazy(() => import("./pages/Forecast"));
+const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard"));
+const Vendors = lazy(() => import("./pages/Vendors"));
 
 function LoadingScreen() {
   return <div className="vs-loading-screen">Loading VoterSpheres...</div>;
@@ -34,6 +43,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/candidates" element={<Candidates />} />
             <Route path="/map" element={<ElectionMap />} />
+            <Route path="/vendors" element={<Vendors />} />
 
             <Route
               path="/donors"
@@ -67,6 +77,15 @@ function App() {
               element={
                 <PlanProtectedRoute requiredPlan="pro">
                   <ElectionForecast />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/forecast-dashboard"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <Forecast />
                 </PlanProtectedRoute>
               }
             />
@@ -112,6 +131,69 @@ function App() {
               element={
                 <PlanProtectedRoute requiredPlan="pro">
                   <CommandCenter />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/alerts"
+              element={
+                <PlanProtectedRoute requiredPlan="pro">
+                  <AlertsCenter />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/campaign-pipeline"
+              element={
+                <PlanProtectedRoute requiredPlan="starter">
+                  <CampaignPipeline />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/campaign-workspace"
+              element={
+                <PlanProtectedRoute requiredPlan="starter">
+                  <CampaignWorkspace />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/executive-dashboard"
+              element={
+                <PlanProtectedRoute requiredPlan="enterprise">
+                  <ExecutiveDashboard />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/firm-workspace"
+              element={
+                <PlanProtectedRoute requiredPlan="starter">
+                  <FirmWorkspace />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/firms"
+              element={
+                <PlanProtectedRoute requiredPlan="starter">
+                  <Firms />
+                </PlanProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/mailops"
+              element={
+                <PlanProtectedRoute requiredPlan="enterprise">
+                  <MailOpsDashboard />
                 </PlanProtectedRoute>
               }
             />
