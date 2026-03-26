@@ -1,31 +1,30 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const publicLinks = [
-  { to: "/", label: "Dashboard" },
-  { to: "/candidates", label: "Candidates" },
-  { to: "/map", label: "Election Map" },
-  { to: "/donors", label: "Donors" },
-  { to: "/warroom", label: "War Room" },
-  { to: "/ai", label: "AI" },
-  { to: "/forecast", label: "Forecast" },
-  { to: "/fundraising", label: "Fundraising" },
-  { to: "/rankings", label: "Rankings" },
-  { to: "/marketplace", label: "Marketplace" },
-  { to: "/simulator", label: "Simulator" },
-  { to: "/command-center", label: "Command Center" },
+const navItems = [
+  { to: "/", label: "Dashboard", minPlan: "free" },
+  { to: "/candidates", label: "Candidates", minPlan: "free" },
+  { to: "/map", label: "Election Map", minPlan: "free" },
+  { to: "/donors", label: "Donors", minPlan: "enterprise" },
+  { to: "/warroom", label: "War Room", minPlan: "pro" },
+  { to: "/ai", label: "AI", minPlan: "pro" },
+  { to: "/forecast", label: "Forecast", minPlan: "pro" },
+  { to: "/fundraising", label: "Fundraising", minPlan: "enterprise" },
+  { to: "/rankings", label: "Rankings", minPlan: "pro" },
+  { to: "/marketplace", label: "Marketplace", minPlan: "enterprise" },
+  { to: "/simulator", label: "Simulator", minPlan: "enterprise" },
+  { to: "/command-center", label: "Command Center", minPlan: "pro" },
 ];
-
-const authedLinks = [{ to: "/billing", label: "Billing" }];
 
 export default function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, logout, firmId } = useAuth();
+  const { user, isAuthenticated, loading, logout, firmId, planTier, canAccess } =
+    useAuth();
 
-  const navLinks = isAuthenticated
-    ? [...publicLinks, ...authedLinks]
-    : publicLinks;
+  const visibleNavItems = navItems.filter((item) =>
+    canAccess ? canAccess(item.minPlan) : item.minPlan === "free"
+  );
 
   function handleLogout() {
     logout();
@@ -37,7 +36,9 @@ export default function AppShell({ children }) {
       <header style={styles.header}>
         <div style={styles.brandBlock}>
           <div style={styles.brand}>VoterSpheres</div>
-          <div style={styles.tagline}>Political intelligence and campaign operations</div>
+          <div style={styles.tagline}>
+            Political intelligence and campaign operations
+          </div>
         </div>
 
         <div style={styles.accountArea}>
@@ -49,8 +50,15 @@ export default function AppShell({ children }) {
                 <div style={styles.accountName}>
                   {user?.email || user?.first_name || "Authenticated User"}
                 </div>
-                <div style={styles.accountSub}>Firm ID: {firmId || "Not linked"}</div>
+                <div style={styles.accountSub}>
+                  Firm ID: {firmId || "Not linked"} | Plan: {planTier || "free"}
+                </div>
               </div>
+
+              <Link to="/billing" style={styles.billingLink}>
+                Billing
+              </Link>
+
               <button style={styles.authButton} onClick={handleLogout}>
                 Logout
               </button>
@@ -69,8 +77,9 @@ export default function AppShell({ children }) {
       </header>
 
       <nav style={styles.nav}>
-        {navLinks.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = location.pathname === item.to;
+
           return (
             <Link
               key={item.to}
@@ -84,6 +93,10 @@ export default function AppShell({ children }) {
             </Link>
           );
         })}
+
+        {!isAuthenticated && (
+          <div style={styles.navHint}>Log in to unlock paid features.</div>
+        )}
       </nav>
 
       <main style={styles.main}>{children}</main>
@@ -158,6 +171,15 @@ const styles = {
     cursor: "pointer",
     fontWeight: 700,
   },
+  billingLink: {
+    color: "#fff",
+    textDecoration: "none",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    background: "#2563eb",
+    border: "1px solid #2563eb",
+    fontWeight: 700,
+  },
   authLink: {
     color: "#c7d2fe",
     textDecoration: "none",
@@ -183,6 +205,7 @@ const styles = {
     padding: "14px 20px",
     borderBottom: "1px solid #1f2a44",
     background: "#0d1325",
+    alignItems: "center",
   },
   navLink: {
     color: "#c7d2fe",
@@ -198,6 +221,11 @@ const styles = {
     background: "#2563eb",
     color: "#ffffff",
     border: "1px solid #2563eb",
+  },
+  navHint: {
+    color: "#94a3b8",
+    fontSize: "0.9rem",
+    marginLeft: "6px",
   },
   main: {
     padding: "0",
