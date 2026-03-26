@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
+import AppShell from "./components/AppShell";
 
 import Dashboard from "./pages/Dashboard";
 import Candidates from "./pages/Candidates";
@@ -18,36 +18,22 @@ import Billing from "./pages/Billing";
 export default function App() {
   return (
     <BrowserRouter>
-      <div style={styles.app}>
-        <Navbar />
-        <main style={styles.main}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/candidates" element={<Candidates />} />
-            <Route path="/map" element={<ElectionMap />} />
-            <Route path="/donors" element={<DonorNetwork />} />
-            <Route path="/warroom" element={<AIWarRoom />} />
-            <Route path="/forecast" element={<ElectionForecast />} />
-            <Route path="/fundraising" element={<FundraisingDashboard />} />
-            <Route path="/consultants" element={<ConsultantMarketplace />} />
-            <Route path="/command-center" element={<CommandCenter />} />
-            <Route path="/simulator" element={<CampaignSimulator />} />
-            <Route path="/rankings" element={<PowerRankings />} />
-            <Route path="/billing" element={<Billing />} />
-          </Routes>
-        </main>
-      </div>
+      <AppShell>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/candidates" element={<Candidates />} />
+          <Route path="/map" element={<ElectionMap />} />
+          <Route path="/donors" element={<DonorNetwork />} />
+          <Route path="/warroom" element={<AIWarRoom />} />
+          <Route path="/forecast" element={<ElectionForecast />} />
+          <Route path="/fundraising" element={<FundraisingDashboard />} />
+          <Route path="/consultants" element={<ConsultantMarketplace />} />
+          <Route path="/command-center" element={<CommandCenter />} />
+          <Route path="/simulator" element={<CampaignSimulator />} />
+          <Route path="/rankings" element={<PowerRankings />} />
+          <Route path="/billing" element={<Billing />} />
+        </Routes>
+      </AppShell>
     </BrowserRouter>
   );
 }
-
-const styles = {
-  app: {
-    minHeight: "100vh",
-    background: "#0b1020",
-    color: "#ffffff",
-  },
-  main: {
-    width: "100%",
-  },
-};
