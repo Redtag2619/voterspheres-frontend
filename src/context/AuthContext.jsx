@@ -3,7 +3,7 @@ import {
   clearStoredAuth,
   getStoredToken,
   getStoredUser,
-  setStoredAuth
+  setStoredAuth,
 } from "../lib/auth";
 
 const API_BASE =
@@ -15,9 +15,9 @@ async function authRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(options.headers || {})
+      ...(options.headers || {}),
     },
-    ...options
+    ...options,
   });
 
   const text = await response.text();
@@ -30,9 +30,24 @@ async function authRequest(path, options = {}) {
   return data;
 }
 
+function normalizeUser(user) {
+  if (!user) return null;
+
+  return {
+    ...user,
+    firm_id:
+      user.firm_id ||
+      user.firmId ||
+      user.firm?.id ||
+      user.organization_id ||
+      null,
+    role: user.role || "user",
+  };
+}
+
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(getStoredToken());
-  const [user, setUser] = useState(getStoredUser());
+  const [token, setToken] = useState(getStoredToken() || "");
+  const [user, setUser] = useState(normalizeUser(getStoredUser()));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,13 +62,17 @@ export function AuthProvider({ children }) {
 
         const data = await authRequest("/api/auth/me", {
           headers: {
-            Authorization: `Bearer ${existingToken}`
-          }
+            Authorization: `Bearer ${existingToken}`,
+          },
         });
 
+        const normalizedUser = normalizeUser(data.user);
+
+        setStoredAuth(existingToken, normalizedUser);
         setToken(existingToken);
-        setUser(data.user);
-      } catch {
+        setUser(normalizedUser);
+      } catch (error) {
+        console.error("Auth bootstrap failed:", error);
         clearStoredAuth();
         setToken("");
         setUser(null);
@@ -68,25 +87,48 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const data = await authRequest("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
-    setStoredAuth(data.token, data.user);
+    const normalizedUser = normalizeUser(data.user);
+
+    setStoredAuth(data.token, normalizedUser);
     setToken(data.token);
-    setUser(data.user);
-    return data.user;
+    setUser(normalizedUser);
+
+    return normalizedUser;
   }
 
   async function signup(payload) {
     const data = await authRequest("/api/auth/signup", {
       method: "POST",
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    setStoredAuth(data.token, data.user);
+    const normalizedUser = normalizeUser(data.user);
+
+    setStoredAuth(data.token, normalizedUser);
     setToken(data.token);
-    setUser(data.user);
-    return data.user;
+    setUser(normalizedUser);
+
+    return normalizedUser;
+  }
+
+  async function refreshMe() {
+    if (!token) return null;
+
+    const data = await authRequest("/api/auth/me", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const normalizedUser = normalizeUser(data.user);
+
+    setStoredAuth(token, normalizedUser);
+    setUser(normalizedUser);
+
+    return normalizedUser;
   }
 
   function logout() {
@@ -101,9 +143,12 @@ export function AuthProvider({ children }) {
       user,
       loading,
       isAuthenticated: Boolean(token && user),
+      firmId: user?.firm_id || null,
+      role: user?.role || null,
       login,
       signup,
-      logout
+      logout,
+      refreshMe,
     }),
     [token, user, loading]
   );
