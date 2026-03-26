@@ -42,14 +42,36 @@ function ProtectedApp() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/billing" element={<Billing />} />
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/election-map" element={<ElectionMap />} />
           <Route path="/firms" element={<Firms />} />
           <Route path="/firms/:id" element={<FirmWorkspace />} />
           <Route path="/campaigns" element={<CampaignPipeline />} />
-          <Route path="/campaigns/:id" element={<CampaignWorkspace />} />
-          <Route path="/vendors" element={<Vendors />} />
-          <Route path="/mailops" element={<MailOpsDashboard />} />
+          <Route
+            path="/campaigns/:id"
+            element={
+              <PlanProtectedRoute minPlan="pro">
+                <CampaignWorkspace />
+              </PlanProtectedRoute>
+            }
+          />
+          <Route
+            path="/vendors"
+            element={
+              <PlanProtectedRoute minPlan="pro">
+                <Vendors />
+              </PlanProtectedRoute>
+            }
+          />
+          <Route
+            path="/mailops"
+            element={
+              <PlanProtectedRoute minPlan="pro">
+                <MailOpsDashboard />
+              </PlanProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
