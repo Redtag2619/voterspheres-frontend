@@ -8,7 +8,8 @@ const navItems = [
   { label: "MailOps", to: "/mailops" },
   { label: "Forecast", to: "/forecast" },
   { label: "Election Map", to: "/election-map" },
-  { label: "Firms", to: "/firms" }
+  { label: "Firms", to: "/firms" },
+  { label: "Billing", to: "/billing" }
 ];
 
 function navClass({ isActive }) {
