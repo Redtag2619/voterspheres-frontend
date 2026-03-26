@@ -5,6 +5,7 @@ import {
   getStoredUser,
   setStoredAuth,
 } from "../lib/auth";
+import { hasPlanAccess, normalizePlan } from "../lib/plans";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
@@ -42,6 +43,13 @@ function normalizeUser(user) {
       user.organization_id ||
       null,
     role: user.role || "user",
+    plan_tier: normalizePlan(
+      user.plan_tier ||
+        user.planTier ||
+        user.plan ||
+        user.subscription_plan ||
+        user.firm?.plan_tier
+    ),
   };
 }
 
@@ -137,6 +145,10 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  function canAccess(requiredPlan) {
+    return hasPlanAccess(user?.plan_tier, requiredPlan);
+  }
+
   const value = useMemo(
     () => ({
       token,
@@ -145,10 +157,12 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token && user),
       firmId: user?.firm_id || null,
       role: user?.role || null,
+      planTier: user?.plan_tier || "free",
       login,
       signup,
       logout,
       refreshMe,
+      canAccess,
     }),
     [token, user, loading]
   );
