@@ -11,30 +11,13 @@ export function normalizePlan(plan) {
   if (["starter", "basic"].includes(value)) return "starter";
   if (["pro", "professional"].includes(value)) return "pro";
   if (["enterprise", "business"].includes(value)) return "enterprise";
+
   return "free";
 }
 
-export function hasPlanAccess(userPlan, requiredPlan = "free") {
-  const normalizedUserPlan = normalizePlan(userPlan);
-  const normalizedRequiredPlan = normalizePlan(requiredPlan);
+export function hasPlanAccess(currentPlan, requiredPlan = "free") {
+  const current = normalizePlan(currentPlan);
+  const required = normalizePlan(requiredPlan);
 
-  return (
-    (PLAN_ORDER[normalizedUserPlan] ?? 0) >=
-    (PLAN_ORDER[normalizedRequiredPlan] ?? 0)
-  );
-}
-
-export function getUpgradeMessage(requiredPlan) {
-  const plan = normalizePlan(requiredPlan);
-
-  switch (plan) {
-    case "starter":
-      return "This feature requires a Starter plan or higher.";
-    case "pro":
-      return "This feature requires a Pro plan or higher.";
-    case "enterprise":
-      return "This feature requires an Enterprise plan.";
-    default:
-      return "Your current plan does not include this feature.";
-  }
+  return (PLAN_ORDER[current] ?? 0) >= (PLAN_ORDER[required] ?? 0);
 }
