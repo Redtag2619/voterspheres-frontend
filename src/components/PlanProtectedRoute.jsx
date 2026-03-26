@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";  
-import { getUpgradeMessage } from "../lib/plan";
+import { getUpgradeMessage } from "../lib/plan"; 
 
 export default function PlanProtectedRoute({
   children,
