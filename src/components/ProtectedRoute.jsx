@@ -7,17 +7,32 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f3f6f9] p-8 text-slate-900">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-          <div className="text-sm text-slate-500">Loading session...</div>
-        </div>
+      <div style={styles.loadingWrap}>
+        <div style={styles.loadingCard}>Loading your account...</div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   return children;
 }
+
+const styles = {
+  loadingWrap: {
+    minHeight: "60vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+  },
+  loadingCard: {
+    background: "#111827",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: "12px",
+    padding: "16px 20px",
+  },
+};
