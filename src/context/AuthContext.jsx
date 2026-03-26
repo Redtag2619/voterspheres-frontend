@@ -5,7 +5,7 @@ import {
   getStoredUser,
   setStoredAuth,
 } from "../lib/auth";
-import { hasPlanAccess, normalizePlan } from "../lib/plans";
+import { hasPlanAccess, normalizePlan } from "../lib/plan";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
