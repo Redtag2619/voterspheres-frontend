@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getUpgradeMessage } from "../lib/plans";
+import { getUpgradeMessage } from "../lib/plan";
 
 export default function PlanProtectedRoute({
   children,
@@ -28,23 +28,36 @@ export default function PlanProtectedRoute({
           <div style={styles.eyebrow}>Upgrade Required</div>
           <h2 style={styles.title}>This feature is not in your current plan</h2>
           <p style={styles.text}>{getUpgradeMessage(requiredPlan)}</p>
+
           <div style={styles.metaRow}>
             <span style={styles.metaLabel}>Your plan</span>
-            <span style={styles.metaValue}>{planTier || "free"}</span>
+            <span style={styles.metaValue}>
+              {String(planTier || "free")}
+            </span>
           </div>
+
           <div style={styles.metaRow}>
             <span style={styles.metaLabel}>Required plan</span>
-            <span style={styles.metaValue}>{requiredPlan}</span>
+            <span style={styles.metaValue}>
+              {String(requiredPlan || "starter")}
+            </span>
           </div>
-          <a href="/billing" style={styles.button}>
-            Upgrade in Billing
-          </a>
+
+          <NavigateButton />
         </div>
       </div>
     );
   }
 
   return children;
+}
+
+function NavigateButton() {
+  return (
+    <a href="/billing" style={styles.button}>
+      Upgrade in Billing
+    </a>
+  );
 }
 
 const styles = {
