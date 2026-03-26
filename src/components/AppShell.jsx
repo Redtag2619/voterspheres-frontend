@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import AppShell from "./components/AppShell";
+import AppShell from "./components/AppShell"; 
 
 import Dashboard from "./pages/Dashboard";
 import Candidates from "./pages/Candidates";
