@@ -1,226 +1,325 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
+import { useEffect, useMemo, useState } from "react";
+import {
+  getBillingConfig,
+  createCheckoutSession,
+  createPortalSession,
+} from "../api/billing";
 
 export default function Billing() {
-  const { token } = useAuth();
-
-  const [billing, setBilling] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState("");
+  const [config, setConfig] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [loadingCheckout, setLoadingCheckout] = useState("");
+  const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState("");
 
-  async function loadBilling() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await fetch(`${API_BASE}/api/billing/status`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to load billing");
-      }
-
-      setBilling(data);
-    } catch (err) {
-      setError(err.message || "Failed to load billing");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // TEMPORARY until auth wiring is finished
+  const firmId = 1;
 
   useEffect(() => {
-    if (token) {
-      loadBilling();
+    async function loadConfig() {
+      try {
+        setLoadingConfig(true);
+        setError("");
+        const data = await getBillingConfig();
+        setConfig(data);
+      } catch (err) {
+        console.error("Failed to load billing config:", err);
+        setError(
+          err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load billing config"
+        );
+      } finally {
+        setLoadingConfig(false);
+      }
     }
-  }, [token]);
 
-  async function startCheckout(plan) {
+    loadConfig();
+  }, []);
+
+  const plans = useMemo(() => {
+    if (!config?.prices) return [];
+
+    return [
+      {
+        key: "starter",
+        title: "Starter",
+        description: "Core access for firms getting started.",
+        priceId: config.prices.starter,
+        features: [
+          "Basic platform access",
+          "Core election research tools",
+          "Foundational campaign workflow",
+        ],
+      },
+      {
+        key: "pro",
+        title: "Pro",
+        description: "Advanced tools for active campaign operations.",
+        priceId: config.prices.pro,
+        features: [
+          "Everything in Starter",
+          "Expanded intelligence workflows",
+          "Advanced campaign support",
+        ],
+      },
+      {
+        key: "enterprise",
+        title: "Enterprise",
+        description: "Full-scale access for large teams and organizations.",
+        priceId: config.prices.enterprise,
+        features: [
+          "Everything in Pro",
+          "Team-scale operations",
+          "Premium workflow support",
+        ],
+      },
+    ];
+  }, [config]);
+
+  async function handleSubscribe(planKey, priceId) {
+    if (!priceId) {
+      setError(`Missing Stripe price for ${planKey}`);
+      return;
+    }
+
     try {
-      setActionLoading(plan);
+      setLoadingCheckout(planKey);
       setError("");
 
-      const response = await fetch(`${API_BASE}/api/billing/checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ plan })
+      const data = await createCheckoutSession({
+        firm_id: firmId,
+        priceId,
       });
 
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to start checkout");
+      if (!data?.url) {
+        throw new Error("Checkout URL not returned");
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      window.location.href = data.url;
     } catch (err) {
-      setError(err.message || "Checkout failed");
+      console.error("Checkout error:", err);
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to create checkout session"
+      );
     } finally {
-      setActionLoading("");
+      setLoadingCheckout("");
     }
   }
 
-  async function openPortal() {
+  async function handleOpenPortal() {
     try {
-      setActionLoading("portal");
+      setLoadingPortal(true);
       setError("");
 
-      const response = await fetch(`${API_BASE}/api/billing/portal`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const data = await createPortalSession({
+        firm_id: firmId,
       });
 
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to open billing portal");
+      if (!data?.url) {
+        throw new Error("Billing portal URL not returned");
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      window.location.href = data.url;
     } catch (err) {
-      setError(err.message || "Billing portal failed");
+      console.error("Portal error:", err);
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to open billing portal"
+      );
     } finally {
-      setActionLoading("");
+      setLoadingPortal(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-[28px] border border-[#d8dde6] bg-gradient-to-r from-[#0176D3] to-[#0b5cab] p-8 text-white shadow-sm">
-          <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
-            Billing
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold">Subscription & Access</h1>
-          <p className="mt-3 max-w-3xl text-sm text-blue-50">
-            Upgrade your firm to unlock full VoterSpheres campaign operations.
-          </p>
-        </section>
-
-        {error ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          {loading ? (
-            <div className="text-sm text-slate-500">Loading billing status...</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Firm</div>
-                <div className="mt-2 text-xl font-semibold text-slate-900">
-                  {billing?.firm?.name || "Unknown"}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Current Plan</div>
-                <div className="mt-2 text-xl font-semibold text-slate-900">
-                  {billing?.firm?.plan_tier || "trial"}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Subscription Status</div>
-                <div className="mt-2 text-xl font-semibold text-slate-900">
-                  {billing?.firm?.stripe_subscription_status || "not subscribed"}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="grid gap-6 md:grid-cols-3">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">Trial</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">$0</div>
-            <div className="mt-3 text-sm text-slate-500">
-              Basic access, evaluation mode, limited capability.
-            </div>
-            <ul className="mt-4 space-y-2 text-sm text-slate-600">
-              <li>Dashboard access</li>
-              <li>Campaign pipeline view</li>
-              <li>Limited workspace evaluation</li>
-            </ul>
-          </div>
-
-          <div className="rounded-3xl border-2 border-[#0176D3] bg-white p-6 shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">Pro</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">Paid</div>
-            <div className="mt-3 text-sm text-slate-500">
-              Full campaign operations for firms and operators.
-            </div>
-            <ul className="mt-4 space-y-2 text-sm text-slate-600">
-              <li>Command center</li>
-              <li>MailOps</li>
-              <li>Vendor management</li>
-              <li>Alerts + activity timeline</li>
-            </ul>
-            <button
-              type="button"
-              onClick={() => startCheckout("pro")}
-              disabled={actionLoading === "pro"}
-              className="mt-5 w-full rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white"
-            >
-              {actionLoading === "pro" ? "Starting..." : "Upgrade to Pro"}
-            </button>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">Enterprise</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">Custom</div>
-            <div className="mt-3 text-sm text-slate-500">
-              Advanced deployment and higher-touch support.
-            </div>
-            <ul className="mt-4 space-y-2 text-sm text-slate-600">
-              <li>Enterprise access control</li>
-              <li>Advanced billing support</li>
-              <li>Expanded deployment options</li>
-            </ul>
-            <button
-              type="button"
-              onClick={() => startCheckout("enterprise")}
-              disabled={actionLoading === "enterprise"}
-              className="mt-5 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
-            >
-              {actionLoading === "enterprise" ? "Starting..." : "Request Enterprise"}
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <button
-            type="button"
-            onClick={openPortal}
-            disabled={actionLoading === "portal"}
-            className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
-          >
-            {actionLoading === "portal" ? "Opening..." : "Open Billing Portal"}
-          </button>
-        </section>
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <h1 style={styles.h1}>VoterSpheres Billing</h1>
+        <p style={styles.subtext}>
+          Choose a plan and manage your VoterSpheres subscription.
+        </p>
       </div>
+
+      {loadingConfig && <div style={styles.infoBox}>Loading billing plans...</div>}
+
+      {error && <div style={styles.errorBox}>{error}</div>}
+
+      {!loadingConfig && !error && (
+        <>
+          <div style={styles.grid}>
+            {plans.map((plan) => (
+              <div key={plan.key} style={styles.card}>
+                <div style={styles.cardTop}>
+                  <h2 style={styles.cardTitle}>{plan.title}</h2>
+                  <p style={styles.cardDescription}>{plan.description}</p>
+                </div>
+
+                <ul style={styles.featureList}>
+                  {plan.features.map((feature) => (
+                    <li key={feature} style={styles.featureItem}>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  style={styles.primaryButton}
+                  onClick={() => handleSubscribe(plan.key, plan.priceId)}
+                  disabled={loadingCheckout === plan.key}
+                >
+                  {loadingCheckout === plan.key ? "Redirecting..." : `Choose ${plan.title}`}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div style={styles.portalSection}>
+            <h3 style={styles.portalTitle}>Already subscribed?</h3>
+            <p style={styles.portalText}>
+              Open the Stripe billing portal to manage payment methods,
+              invoices, and subscription details.
+            </p>
+
+            <button
+              style={styles.secondaryButton}
+              onClick={handleOpenPortal}
+              disabled={loadingPortal}
+            >
+              {loadingPortal ? "Opening..." : "Manage Billing"}
+            </button>
+          </div>
+
+          <div style={styles.noteBox}>
+            Temporary frontend note: this page is currently using{" "}
+            <strong>firm_id = 1</strong>. Next we will connect billing to your
+            live login/auth flow so the correct firm is selected automatically.
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+const styles = {
+  page: {
+    padding: "32px 20px",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    color: "#eaeaea",
+  },
+  header: {
+    marginBottom: "28px",
+  },
+  h1: {
+    margin: 0,
+    fontSize: "2rem",
+    fontWeight: 800,
+  },
+  subtext: {
+    marginTop: "8px",
+    color: "#b8b8b8",
+    fontSize: "1rem",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "20px",
+  },
+  card: {
+    background: "#121826",
+    border: "1px solid #243047",
+    borderRadius: "16px",
+    padding: "22px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    minHeight: "340px",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+  },
+  cardTop: {
+    marginBottom: "18px",
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: "1.4rem",
+    fontWeight: 700,
+  },
+  cardDescription: {
+    marginTop: "10px",
+    color: "#b8c0d4",
+    lineHeight: 1.5,
+  },
+  featureList: {
+    paddingLeft: "18px",
+    margin: "0 0 24px 0",
+    color: "#d9deeb",
+    lineHeight: 1.8,
+  },
+  featureItem: {
+    marginBottom: "4px",
+  },
+  primaryButton: {
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 16px",
+    fontSize: "0.95rem",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  secondaryButton: {
+    background: "#1f2937",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: "10px",
+    padding: "12px 16px",
+    fontSize: "0.95rem",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  portalSection: {
+    marginTop: "30px",
+    padding: "22px",
+    borderRadius: "16px",
+    background: "#10151f",
+    border: "1px solid #243047",
+  },
+  portalTitle: {
+    marginTop: 0,
+    marginBottom: "8px",
+    fontSize: "1.2rem",
+  },
+  portalText: {
+    marginTop: 0,
+    marginBottom: "16px",
+    color: "#b8c0d4",
+  },
+  infoBox: {
+    background: "#162032",
+    border: "1px solid #2a3a57",
+    color: "#dbe8ff",
+    padding: "14px 16px",
+    borderRadius: "12px",
+  },
+  errorBox: {
+    background: "#34181b",
+    border: "1px solid #7f1d1d",
+    color: "#fecaca",
+    padding: "14px 16px",
+    borderRadius: "12px",
+    marginBottom: "20px",
+  },
+  noteBox: {
+    marginTop: "24px",
+    background: "#1a1a1a",
+    border: "1px solid #333",
+    color: "#d1d5db",
+    padding: "14px 16px",
+    borderRadius: "12px",
+  },
+};
