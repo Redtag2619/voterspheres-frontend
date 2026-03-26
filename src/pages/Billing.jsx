@@ -85,19 +85,11 @@ export default function Billing() {
   }, [config]);
 
   async function handleSubscribe(planKey, priceId) {
-    if (!firmId) {
-      setError("No firm is linked to your account.");
-      return;
-    }
-
     try {
       setLoadingCheckout(planKey);
       setError("");
 
-      const data = await createCheckoutSession({
-        firm_id: firmId,
-        priceId,
-      });
+      const data = await createCheckoutSession({ priceId });
 
       if (!data?.url) {
         throw new Error("Checkout URL not returned");
@@ -117,18 +109,11 @@ export default function Billing() {
   }
 
   async function handlePortal() {
-    if (!firmId) {
-      setError("No firm is linked to your account.");
-      return;
-    }
-
     try {
       setLoadingPortal(true);
       setError("");
 
-      const data = await createPortalSession({
-        firm_id: firmId,
-      });
+      const data = await createPortalSession();
 
       if (!data?.url) {
         throw new Error("Portal URL not returned");
