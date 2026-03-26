@@ -14,6 +14,8 @@ import CampaignPipeline from "./pages/CampaignPipeline";
 import CampaignWorkspace from "./pages/CampaignWorkspace";
 import Vendors from "./pages/Vendors";
 import MailOpsDashboard from "./pages/MailOpsDashboard";
+import Billing from "./pages/Billing";
+import PlanProtectedRoute from "./components/PlanProtectedRoute";
 
 function NotFound() {
   return (
