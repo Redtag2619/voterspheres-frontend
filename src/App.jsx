@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import AppShell from "./app/layout/AppShell";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Candidates = lazy(() => import("./pages/Candidates"));
@@ -16,6 +17,8 @@ const ConsultantMarketplace = lazy(() => import("./pages/ConsultantMarketplace")
 const CampaignSimulator = lazy(() => import("./pages/CampaignSimulator"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const Billing = lazy(() => import("./pages/Billing"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
 
 function LoadingScreen() {
   return <div className="vs-loading-screen">Loading VoterSpheres...</div>;
@@ -39,7 +42,18 @@ function App() {
             <Route path="/marketplace" element={<ConsultantMarketplace />} />
             <Route path="/simulator" element={<CampaignSimulator />} />
             <Route path="/command-center" element={<CommandCenter />} />
-            <Route path="/billing" element={<Billing />} />
+
+            <Route
+              path="/billing"
+              element={
+                <ProtectedRoute>
+                  <Billing />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
           </Routes>
         </Suspense>
       </AppShell>
