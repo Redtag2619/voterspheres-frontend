@@ -100,7 +100,7 @@ const styles = {
   },
   secondaryButton: {
     padding: "12px 18px",
-    border: "1px solid #475569",
+    border: "1px solid #475569", 
     borderRadius: "10px",
     background: "#1f2937",
     color: "#fff",
