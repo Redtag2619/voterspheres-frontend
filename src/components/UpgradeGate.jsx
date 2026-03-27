@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { getPlanLabel, getUpgradeCopy } from "../lib/plan"; 
+import { getPlanLabel, getUpgradeCopy } from "../lib/plan";
 
 export default function UpgradeGate({
   requiredPlan = "pro",
@@ -24,17 +24,17 @@ export default function UpgradeGate({
 
         <div style={styles.actions}>
           <button
-            onClick={() => navigate("/billing")}
+            onClick={() => navigate("/pricing")}
             style={styles.primaryButton}
           >
-            Upgrade Now
+            View Plans
           </button>
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/billing")}
             style={styles.secondaryButton}
           >
-            Back to Dashboard
+            Go to Billing
           </button>
         </div>
       </div>
@@ -100,7 +100,7 @@ const styles = {
   },
   secondaryButton: {
     padding: "12px 18px",
-    border: "1px solid #475569", 
+    border: "1px solid #475569",
     borderRadius: "10px",
     background: "#1f2937",
     color: "#fff",
