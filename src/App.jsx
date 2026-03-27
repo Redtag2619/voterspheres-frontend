@@ -5,11 +5,13 @@ import AppShell from "./app/layout/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PlanProtectedRoute from "./components/PlanProtectedRoute";
 
+// Core Pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Candidates = lazy(() => import("./pages/Candidates"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap"));
 const Vendors = lazy(() => import("./pages/Vendors"));
 
+// AI / Intelligence
 const AIWarRoom = lazy(() => import("./pages/AIWarRoom"));
 const AIChat = lazy(() => import("./pages/AIChat"));
 const ElectionForecast = lazy(() => import("./pages/ElectionForecast"));
@@ -17,24 +19,29 @@ const Forecast = lazy(() => import("./pages/Forecast"));
 const PowerRankings = lazy(() => import("./pages/PowerRankings"));
 const AlertsCenter = lazy(() => import("./pages/AlertsCenter"));
 
+// Campaign Ops
 const CampaignSimulator = lazy(() => import("./pages/CampaignSimulator"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const CampaignPipeline = lazy(() => import("./pages/CampaignPipeline"));
 const CampaignWorkspace = lazy(() => import("./pages/CampaignWorkspace"));
 
+// Enterprise
 const DonorNetwork = lazy(() => import("./pages/DonorNetwork"));
 const FundraisingDashboard = lazy(() => import("./pages/FundraisingDashboard"));
 const ConsultantMarketplace = lazy(() => import("./pages/ConsultantMarketplace"));
 const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
 const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard"));
 
+// Firm
 const FirmWorkspace = lazy(() => import("./pages/FirmWorkspace"));
 const Firms = lazy(() => import("./pages/Firms"));
 
+// Auth / Billing
 const Billing = lazy(() => import("./pages/Billing"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
 
+// Pricing / Sales
 const Pricing = lazy(() => import("./pages/Pricing"));
 
 function LoadingScreen() {
@@ -47,15 +54,12 @@ function App() {
       <AppShell>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
-            {/* Public Core */}
             <Route path="/" element={<Dashboard />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/candidates" element={<Candidates />} />
             <Route path="/map" element={<ElectionMap />} />
             <Route path="/vendors" element={<Vendors />} />
 
-            <Route path="/pricing" element={<Pricing />} />
-
-            {/* Starter Tier */}
             <Route
               path="/campaign-pipeline"
               element={
@@ -89,7 +93,6 @@ function App() {
               }
             />
 
-            {/* Pro Tier */}
             <Route
               path="/warroom"
               element={
@@ -147,7 +150,6 @@ function App() {
               }
             />
 
-            {/* Enterprise Tier */}
             <Route
               path="/donors"
               element={
@@ -197,7 +199,6 @@ function App() {
               }
             />
 
-            {/* Billing */}
             <Route
               path="/billing"
               element={
@@ -207,7 +208,6 @@ function App() {
               }
             />
 
-            {/* Auth */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
           </Routes>
