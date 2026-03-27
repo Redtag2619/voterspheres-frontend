@@ -22,10 +22,20 @@ export async function getBillingDebug() {
   return res.data;
 }
 
-export async function createCheckoutSession({ priceId }) {
+export async function createCheckoutSession({
+  priceId,
+  successUrl,
+  cancelUrl,
+  trialDays,
+}) {
   const res = await axios.post(
     `${API_BASE}/billing/checkout-session`,
-    { priceId },
+    {
+      priceId,
+      successUrl,
+      cancelUrl,
+      trialDays,
+    },
     {
       headers: {
         ...getAuthHeader(),
