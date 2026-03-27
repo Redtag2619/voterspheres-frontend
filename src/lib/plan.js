@@ -21,6 +21,10 @@ export function hasPlan(userPlan, requiredPlan = "starter") {
   return current >= needed;
 }
 
+export function hasPlanAccess(userPlan, requiredPlan = "starter") {
+  return hasPlan(userPlan, requiredPlan);
+}
+
 export function getPlanLabel(plan) {
   return normalizePlan(plan).toUpperCase();
 }
