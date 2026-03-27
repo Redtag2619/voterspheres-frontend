@@ -1,9 +1,10 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext"; 
+import { useAuth } from "../../context/AuthContext";
 import { hasPlan } from "../../lib/plan";
 
 const navItems = [
   { to: "/", label: "Dashboard", requiredPlan: "free" },
+  { to: "/pricing", label: "Pricing", requiredPlan: "free" },
   { to: "/candidates", label: "Candidates", requiredPlan: "free" },
   { to: "/map", label: "Election Map", requiredPlan: "free" },
   { to: "/vendors", label: "Vendors", requiredPlan: "free" },
@@ -43,7 +44,7 @@ export default function AppShell({ children }) {
     const unlocked = hasPlan(user?.plan_tier, item.requiredPlan);
     const active = location.pathname === item.to;
 
-    if (unlocked) {
+    if (unlocked || item.requiredPlan === "free") {
       return (
         <Link
           key={item.to}
@@ -61,7 +62,7 @@ export default function AppShell({ children }) {
     return (
       <button
         key={item.to}
-        onClick={() => navigate("/billing")}
+        onClick={() => navigate("/pricing")}
         style={styles.lockedNavLink}
         title={`Upgrade to ${item.requiredPlan.toUpperCase()} to unlock`}
       >
@@ -108,7 +109,7 @@ export default function AppShell({ children }) {
                 Login
               </Link>
               <Link to="/signup" style={styles.authPrimaryLink}>
-                Sign Up
+                Start Trial
               </Link>
             </>
           )}
@@ -119,7 +120,7 @@ export default function AppShell({ children }) {
         {navItems.map(renderNavItem)}
 
         {!isAuthenticated && (
-          <div style={styles.navHint}>Log in to unlock paid features.</div>
+          <div style={styles.navHint}>Start a free trial to unlock premium features.</div>
         )}
       </nav>
 
