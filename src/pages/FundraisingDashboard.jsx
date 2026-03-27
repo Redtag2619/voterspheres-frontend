@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import { hasPlan } from "../lib/plan";
-import UpgradeGate from "../components/UpgradeGate";
+import UpgradeGate from "../components/UpgradeGate"; 
 
 export default function FundraisingDashboard() {
   const { user } = useAuth();
