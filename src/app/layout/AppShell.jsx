@@ -1,34 +1,73 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { hasPlan } from "../../lib/plan";
 
 const navItems = [
-  { to: "/", label: "Dashboard", minPlan: "free" },
-  { to: "/candidates", label: "Candidates", minPlan: "free" },
-  { to: "/map", label: "Election Map", minPlan: "free" },
-  { to: "/donors", label: "Donors", minPlan: "enterprise" },
-  { to: "/warroom", label: "War Room", minPlan: "pro" },
-  { to: "/ai", label: "AI", minPlan: "pro" },
-  { to: "/forecast", label: "Forecast", minPlan: "pro" },
-  { to: "/fundraising", label: "Fundraising", minPlan: "enterprise" },
-  { to: "/rankings", label: "Rankings", minPlan: "pro" },
-  { to: "/marketplace", label: "Marketplace", minPlan: "enterprise" },
-  { to: "/simulator", label: "Simulator", minPlan: "enterprise" },
-  { to: "/command-center", label: "Command Center", minPlan: "pro" },
+  { to: "/", label: "Dashboard", requiredPlan: "free" },
+  { to: "/candidates", label: "Candidates", requiredPlan: "free" },
+  { to: "/map", label: "Election Map", requiredPlan: "free" },
+  { to: "/vendors", label: "Vendors", requiredPlan: "free" },
+
+  { to: "/campaign-pipeline", label: "Campaign Pipeline", requiredPlan: "starter" },
+  { to: "/campaign-workspace", label: "Campaign Workspace", requiredPlan: "starter" },
+  { to: "/firm-workspace", label: "Firm Workspace", requiredPlan: "starter" },
+  { to: "/firms", label: "Firms", requiredPlan: "starter" },
+
+  { to: "/warroom", label: "War Room", requiredPlan: "pro" },
+  { to: "/ai", label: "AI", requiredPlan: "pro" },
+  { to: "/forecast", label: "Forecast", requiredPlan: "pro" },
+  { to: "/forecast-dashboard", label: "Forecast Dashboard", requiredPlan: "pro" },
+  { to: "/rankings", label: "Rankings", requiredPlan: "pro" },
+  { to: "/command-center", label: "Command Center", requiredPlan: "pro" },
+  { to: "/alerts", label: "Alerts", requiredPlan: "pro" },
+
+  { to: "/donors", label: "Donors", requiredPlan: "enterprise" },
+  { to: "/fundraising", label: "Fundraising", requiredPlan: "enterprise" },
+  { to: "/marketplace", label: "Marketplace", requiredPlan: "enterprise" },
+  { to: "/simulator", label: "Simulator", requiredPlan: "enterprise" },
+  { to: "/executive-dashboard", label: "Executive Dashboard", requiredPlan: "enterprise" },
+  { to: "/mailops", label: "MailOps", requiredPlan: "enterprise" },
 ];
 
 export default function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, logout, firmId, planTier, canAccess } =
-    useAuth();
-
-  const visibleNavItems = navItems.filter((item) =>
-    canAccess ? canAccess(item.minPlan) : item.minPlan === "free"
-  );
+  const { user, isAuthenticated, loading, logout, firmId, planTier } = useAuth();
 
   function handleLogout() {
     logout();
     navigate("/login");
+  }
+
+  function renderNavItem(item) {
+    const unlocked = hasPlan(user?.plan_tier, item.requiredPlan);
+    const active = location.pathname === item.to;
+
+    if (unlocked) {
+      return (
+        <Link
+          key={item.to}
+          to={item.to}
+          style={{
+            ...styles.navLink,
+            ...(active ? styles.navLinkActive : {}),
+          }}
+        >
+          {item.label}
+        </Link>
+      );
+    }
+
+    return (
+      <button
+        key={item.to}
+        onClick={() => navigate("/billing")}
+        style={styles.lockedNavLink}
+        title={`Upgrade to ${item.requiredPlan.toUpperCase()} to unlock`}
+      >
+        {item.label} 🔒
+      </button>
+    );
   }
 
   return (
@@ -51,12 +90,12 @@ export default function AppShell({ children }) {
                   {user?.email || user?.first_name || "Authenticated User"}
                 </div>
                 <div style={styles.accountSub}>
-                  Firm ID: {firmId || "Not linked"} | Plan: {planTier || "free"}
+                  Firm ID: {firmId || "Not linked"} | Plan: {String(planTier || "free").toUpperCase()}
                 </div>
               </div>
 
               <Link to="/billing" style={styles.billingLink}>
-                Billing
+                Upgrade / Billing
               </Link>
 
               <button style={styles.authButton} onClick={handleLogout}>
@@ -77,22 +116,7 @@ export default function AppShell({ children }) {
       </header>
 
       <nav style={styles.nav}>
-        {visibleNavItems.map((item) => {
-          const active = location.pathname === item.to;
-
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              style={{
-                ...styles.navLink,
-                ...(active ? styles.navLinkActive : {}),
-              }}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+        {navItems.map(renderNavItem)}
 
         {!isAuthenticated && (
           <div style={styles.navHint}>Log in to unlock paid features.</div>
@@ -221,6 +245,16 @@ const styles = {
     background: "#2563eb",
     color: "#ffffff",
     border: "1px solid #2563eb",
+  },
+  lockedNavLink: {
+    color: "#94a3b8",
+    padding: "9px 12px",
+    borderRadius: "10px",
+    background: "#11192d",
+    border: "1px dashed #334155",
+    fontSize: "0.92rem",
+    fontWeight: 600,
+    cursor: "pointer",
   },
   navHint: {
     color: "#94a3b8",
