@@ -254,6 +254,18 @@ export default function Billing() {
               label="Stripe Subscription ID"
               value={debugData.stripe_subscription_id}
             />
+            <DebugField
+              label="Last Webhook Event Type"
+              value={debugData.last_webhook_event_type}
+            />
+            <DebugField
+              label="Last Webhook Event ID"
+              value={debugData.last_webhook_event_id}
+            />
+            <DebugField
+              label="Last Webhook Event At"
+              value={debugData.last_webhook_event_at}
+            />
             <DebugField label="Updated At" value={debugData.updated_at} />
           </div>
         )}
