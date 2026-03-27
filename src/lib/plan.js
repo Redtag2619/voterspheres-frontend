@@ -8,7 +8,7 @@ export const PLAN_LEVELS = {
 export function normalizePlan(plan) {
   const value = String(plan || "free").toLowerCase().trim();
 
-  if (["starter", "basic"].includes(value)) return "starter";
+  if (["starter", "basic"].includes(value)) return "starter"; 
   if (["pro", "professional"].includes(value)) return "pro";
   if (["enterprise", "business"].includes(value)) return "enterprise";
 
