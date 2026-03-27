@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import {
   getBillingConfig,
+  getBillingDebug,
   createCheckoutSession,
   createPortalSession,
 } from "../api/billing";
@@ -15,6 +16,10 @@ export default function Billing() {
   const [loadingCheckout, setLoadingCheckout] = useState("");
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState("");
+
+  const [debugData, setDebugData] = useState(null);
+  const [loadingDebug, setLoadingDebug] = useState(false);
+  const [debugError, setDebugError] = useState("");
 
   useEffect(() => {
     async function loadConfig() {
@@ -37,6 +42,30 @@ export default function Billing() {
 
     loadConfig();
   }, []);
+
+  useEffect(() => {
+    async function loadDebug() {
+      if (!isAuthenticated) return;
+
+      try {
+        setLoadingDebug(true);
+        setDebugError("");
+        const data = await getBillingDebug();
+        setDebugData(data);
+      } catch (err) {
+        console.error("Failed to load billing debug:", err);
+        setDebugError(
+          err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load billing debug info"
+        );
+      } finally {
+        setLoadingDebug(false);
+      }
+    }
+
+    loadDebug();
+  }, [isAuthenticated]);
 
   const plans = useMemo(() => {
     if (!config?.prices) return [];
@@ -83,6 +112,24 @@ export default function Billing() {
       },
     ];
   }, [config]);
+
+  async function refreshDebug() {
+    try {
+      setLoadingDebug(true);
+      setDebugError("");
+      const data = await getBillingDebug();
+      setDebugData(data);
+    } catch (err) {
+      console.error("Failed to refresh billing debug:", err);
+      setDebugError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to refresh billing debug info"
+      );
+    } finally {
+      setLoadingDebug(false);
+    }
+  }
 
   async function handleSubscribe(planKey, priceId) {
     try {
@@ -168,6 +215,50 @@ export default function Billing() {
         </div>
       </div>
 
+      <div style={styles.debugSection}>
+        <div style={styles.debugHeader}>
+          <div>
+            <h3 style={styles.debugTitle}>Billing Debug</h3>
+            <p style={styles.debugText}>
+              Live billing sync state from the backend for your current firm.
+            </p>
+          </div>
+
+          <button
+            style={styles.secondaryButton}
+            onClick={refreshDebug}
+            disabled={loadingDebug}
+          >
+            {loadingDebug ? "Refreshing..." : "Refresh Debug"}
+          </button>
+        </div>
+
+        {debugError && <div style={styles.errorBox}>{debugError}</div>}
+
+        {!debugError && loadingDebug && !debugData && (
+          <div style={styles.infoBox}>Loading billing debug info...</div>
+        )}
+
+        {!debugError && debugData && (
+          <div style={styles.debugGrid}>
+            <DebugField label="Firm ID" value={debugData.firm_id} />
+            <DebugField label="Firm Name" value={debugData.firm_name} />
+            <DebugField label="Email" value={debugData.email} />
+            <DebugField label="Plan Tier" value={debugData.plan_tier} />
+            <DebugField label="Status" value={debugData.status} />
+            <DebugField
+              label="Stripe Customer ID"
+              value={debugData.stripe_customer_id}
+            />
+            <DebugField
+              label="Stripe Subscription ID"
+              value={debugData.stripe_subscription_id}
+            />
+            <DebugField label="Updated At" value={debugData.updated_at} />
+          </div>
+        )}
+      </div>
+
       {loadingConfig && <div style={styles.infoBox}>Loading billing plans...</div>}
 
       {error && <div style={styles.errorBox}>{error}</div>}
@@ -225,6 +316,15 @@ export default function Billing() {
   );
 }
 
+function DebugField({ label, value }) {
+  return (
+    <div style={styles.debugCard}>
+      <div style={styles.debugLabel}>{label}</div>
+      <div style={styles.debugValue}>{value || "—"}</div>
+    </div>
+  );
+}
+
 const styles = {
   page: {
     padding: "24px",
@@ -270,6 +370,51 @@ const styles = {
     color: "#ffffff",
     fontWeight: 600,
     fontSize: "0.95rem",
+  },
+  debugSection: {
+    marginBottom: "24px",
+    background: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: "14px",
+    padding: "20px",
+  },
+  debugHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: "16px",
+  },
+  debugTitle: {
+    margin: 0,
+    fontSize: "1.15rem",
+  },
+  debugText: {
+    marginTop: "8px",
+    marginBottom: 0,
+    color: "#cbd5e1",
+  },
+  debugGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "12px",
+  },
+  debugCard: {
+    background: "#111827",
+    border: "1px solid #334155",
+    borderRadius: "12px",
+    padding: "14px",
+  },
+  debugLabel: {
+    color: "#94a3b8",
+    fontSize: "0.82rem",
+    marginBottom: "8px",
+  },
+  debugValue: {
+    color: "#ffffff",
+    fontWeight: 700,
+    wordBreak: "break-word",
   },
   grid: {
     display: "grid",
