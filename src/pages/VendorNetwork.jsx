@@ -4,7 +4,7 @@ import api from "../api";
 export default function Vendors() {
   const [rows, setRows] = useState([]);
   const [states, setStates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); 
   const [error, setError] = useState("");
 
   const [filters, setFilters] = useState({
