@@ -8,7 +8,7 @@ export const PLAN_LEVELS = {
 export function normalizePlan(plan) {
   const value = String(plan || "free").toLowerCase().trim();
 
-  if (["starter", "basic"].includes(value)) return "starter"; 
+  if (["starter", "basic"].includes(value)) return "starter";
   if (["pro", "professional"].includes(value)) return "pro";
   if (["enterprise", "business"].includes(value)) return "enterprise";
 
@@ -45,4 +45,19 @@ export function getUpgradeCopy(requiredPlan) {
   }
 
   return "Upgrade your plan to unlock this feature.";
+}
+
+export function getUpgradeMessage(requiredPlan) {
+  const plan = normalizePlan(requiredPlan);
+
+  switch (plan) {
+    case "starter":
+      return "This feature requires a Starter plan or higher.";
+    case "pro":
+      return "This feature requires a Pro plan or higher.";
+    case "enterprise":
+      return "This feature requires an Enterprise plan.";
+    default:
+      return "Your current plan does not include this feature.";
+  }
 }
