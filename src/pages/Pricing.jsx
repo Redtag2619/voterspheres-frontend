@@ -4,28 +4,6 @@ import { createCheckoutSession } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
 
-const TRUST_ITEMS = [
-  "Built for political firms and campaign teams",
-  "Designed for fast-moving campaign decisions",
-  "Plan-based access for secure team operations",
-  "Billing and upgrades built directly into the platform",
-];
-
-const FAQS = [
-  {
-    q: "Is there a free trial?",
-    a: "Yes. New customers can start with a 7-day trial on eligible plans before committing to a paid subscription.",
-  },
-  {
-    q: "Can I upgrade later?",
-    a: "Yes. You can upgrade from Starter to Pro or Enterprise at any time from the Billing page.",
-  },
-  {
-    q: "Who is Enterprise for?",
-    a: "Enterprise is designed for firms, PACs, national programs, and operations that need fundraising intelligence, MailOps visibility, and executive reporting.",
-  },
-];
-
 export default function Pricing() {
   const navigate = useNavigate();
   const { isAuthenticated, planTier } = useAuth();
@@ -39,59 +17,50 @@ export default function Pricing() {
         name: "Starter",
         price: "$49",
         period: "/month",
-        badge: "Best for local teams",
-        headline: "Launch your political workspace",
-        description:
-          "Get organized fast with campaign CRM, election data, vendor access, and the core tools needed to manage operations.",
-        features: [
-          "Campaign CRM and contact tracking",
-          "Candidate and election data",
-          "Vendor directory access",
-          "Starter workflow tools",
-          "Up to 2 users",
-        ],
         trialDays: 7,
         featured: false,
+        description:
+          "Core campaign CRM, election data, vendor access, and starter workflow tools.",
+        features: [
+          "Campaign CRM",
+          "Candidate & election data",
+          "Vendor access",
+          "Up to 2 users",
+        ],
       },
       {
         key: "pro",
         name: "Pro",
         price: "$199",
         period: "/month",
-        badge: "Most Popular",
-        headline: "Run serious campaign operations",
+        trialDays: 7,
+        featured: true,
         description:
-          "Unlock forecasting, alerts, AI-assisted workflows, and decision tools for fast-moving campaign teams.",
+          "Forecasting, alerts, command tools, and advanced workflows for active teams.",
         features: [
           "Everything in Starter",
           "Forecasting dashboards",
-          "Alerts and intelligence views",
-          "Command Center access",
-          "War Room and AI workflows",
-          "Multi-user operations",
+          "Alerts",
+          "Command Center",
+          "War Room / AI tools",
         ],
-        trialDays: 7,
-        featured: true,
       },
       {
         key: "enterprise",
         name: "Enterprise",
         price: "$499",
         period: "/month",
-        badge: "For firms and PACs",
-        headline: "Operate at enterprise scale",
+        trialDays: 7,
+        featured: false,
         description:
-          "Gain fundraising intelligence, MailOps visibility, executive dashboards, and the workflows needed by larger organizations.",
+          "Fundraising intelligence, MailOps, executive dashboards, and enterprise workflows.",
         features: [
           "Everything in Pro",
           "Fundraising intelligence",
           "MailOps dashboard",
           "Executive dashboards",
-          "Firm-wide operational visibility",
-          "Priority support and scale",
+          "Priority support",
         ],
-        trialDays: 7,
-        featured: false,
       },
     ],
     []
@@ -157,6 +126,7 @@ export default function Pricing() {
 
   return (
     <div style={styles.page}>
+<<<<<<< Updated upstream
       <section style={styles.heroSection}>
         <div style={styles.heroContent}>
           <div style={styles.heroBadge}>Pricing & Plans</div>
@@ -167,37 +137,36 @@ export default function Pricing() {
             VoterSpheres helps firms, consultants, and campaign teams move faster
             with election intelligence, operational visibility, and execution tools
             built for political work.
+=======
+      <section style={styles.hero}>
+        <div style={styles.heroInner}>
+          <div style={styles.badge}>Pricing & Plans</div>
+          <h1 style={styles.title}>Run smarter campaigns with VoterSpheres</h1>
+          <p style={styles.subtitle}>
+            Political intelligence, campaign operations, and execution tools in one platform.
+>>>>>>> Stashed changes
           </p>
-
-          <div style={styles.heroActions}>
+          <div style={styles.actions}>
             <button
-              style={styles.primaryHeroButton}
+              style={styles.primaryButton}
               onClick={() => navigate(isAuthenticated ? "/billing" : "/signup")}
             >
               {isAuthenticated ? "Go to Billing" : "Start Your 7-Day Trial"}
             </button>
-
             <button
-              style={styles.secondaryHeroButton}
+              style={styles.secondaryButton}
               onClick={() => {
                 const el = document.getElementById("pricing-grid");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              Compare Plans
+              View Plans
             </button>
-          </div>
-
-          <div style={styles.trustRow}>
-            {TRUST_ITEMS.map((item) => (
-              <div key={item} style={styles.trustPill}>
-                {item}
-              </div>
-            ))}
           </div>
         </div>
       </section>
 
+<<<<<<< Updated upstream
       <section id="pricing-grid" style={styles.planSection}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Simple plans for serious political work</h2>
@@ -206,50 +175,51 @@ export default function Pricing() {
           </p>
         </div>
 
+=======
+      <section id="pricing-grid" style={styles.section}>
+>>>>>>> Stashed changes
         {error && <div style={styles.errorBox}>{error}</div>}
 
-        <div style={styles.planGrid}>
+        <div style={styles.grid}>
           {plans.map((plan) => (
             <div
               key={plan.key}
               style={{
-                ...styles.planCard,
-                ...(plan.featured ? styles.featuredPlanCard : {}),
+                ...styles.card,
+                ...(plan.featured ? styles.featuredCard : {}),
               }}
             >
-              <div style={styles.planTop}>
-                <div
-                  style={{
-                    ...styles.planBadge,
-                    ...(plan.featured ? styles.featuredBadge : {}),
-                  }}
-                >
-                  {plan.badge}
+              <div style={styles.cardTop}>
+                <div style={plan.featured ? styles.featuredTag : styles.tag}>
+                  {plan.featured ? "Most Popular" : plan.name}
                 </div>
-
-                <h3 style={styles.planName}>{plan.name}</h3>
-
+                <h2 style={styles.cardTitle}>{plan.name}</h2>
                 <div style={styles.priceRow}>
                   <span style={styles.price}>{plan.price}</span>
-                  <span style={styles.pricePeriod}>{plan.period}</span>
+                  <span style={styles.period}>{plan.period}</span>
                 </div>
+<<<<<<< Updated upstream
 
                 <div style={styles.trialText}>{plan.trialDays}-day free trial</div>
                 <p style={styles.planHeadline}>{plan.headline}</p>
                 <p style={styles.planDescription}>{plan.description}</p>
+=======
+                <div style={styles.trial}>{plan.trialDays}-day free trial</div>
+                <p style={styles.description}>{plan.description}</p>
+>>>>>>> Stashed changes
               </div>
 
               <button
-                style={plan.featured ? styles.featuredPlanButton : styles.planButton}
+                style={plan.featured ? styles.primaryButton : styles.planButton}
                 onClick={() => handlePlanAction(plan)}
                 disabled={loadingPlan === plan.key}
               >
                 {loadingPlan === plan.key ? "Redirecting..." : getButtonLabel(plan)}
               </button>
 
-              <ul style={styles.featureList}>
+              <ul style={styles.list}>
                 {plan.features.map((feature) => (
-                  <li key={feature} style={styles.featureItem}>
+                  <li key={feature} style={styles.listItem}>
                     {feature}
                   </li>
                 ))}
@@ -258,6 +228,7 @@ export default function Pricing() {
           ))}
         </div>
       </section>
+<<<<<<< Updated upstream
 
       <section style={styles.finalCtaSection}>
         <div style={styles.finalCtaCard}>
@@ -283,6 +254,8 @@ export default function Pricing() {
           </div>
         </div>
       </section>
+=======
+>>>>>>> Stashed changes
     </div>
   );
 }
@@ -290,18 +263,26 @@ export default function Pricing() {
 const styles = {
   page: {
     minHeight: "100vh",
-    color: "#ffffff",
+    color: "#fff",
     background:
       "radial-gradient(circle at top, rgba(37,99,235,0.12) 0%, rgba(11,16,32,1) 32%, rgba(15,23,42,1) 100%)",
   },
+<<<<<<< Updated upstream
   heroSection: {
     padding: "72px 24px 36px",
   },
   heroContent: {
     maxWidth: "1180px",
+=======
+  hero: {
+    padding: "72px 24px 36px",
+  },
+  heroInner: {
+    maxWidth: "1100px",
+>>>>>>> Stashed changes
     margin: "0 auto",
   },
-  heroBadge: {
+  badge: {
     display: "inline-block",
     padding: "7px 12px",
     borderRadius: "999px",
@@ -312,27 +293,27 @@ const styles = {
     fontWeight: 700,
     marginBottom: "16px",
   },
-  heroTitle: {
+  title: {
     margin: 0,
-    fontSize: "clamp(2.4rem, 5vw, 4.8rem)",
+    fontSize: "clamp(2.4rem, 5vw, 4.5rem)",
     lineHeight: 1.02,
     fontWeight: 900,
-    letterSpacing: "-0.03em",
-    maxWidth: "980px",
+    maxWidth: "900px",
   },
-  heroSubtitle: {
+  subtitle: {
     marginTop: "18px",
     maxWidth: "760px",
     color: "#cbd5e1",
     lineHeight: 1.8,
-    fontSize: "1.08rem",
+    fontSize: "1.05rem",
   },
-  heroActions: {
+  actions: {
     display: "flex",
     gap: "12px",
     flexWrap: "wrap",
     marginTop: "26px",
   },
+<<<<<<< Updated upstream
   primaryHeroButton: {
     padding: "13px 20px",
     borderRadius: "12px",
@@ -384,6 +365,12 @@ const styles = {
     color: "#94a3b8",
     lineHeight: 1.7,
     maxWidth: "760px",
+=======
+  section: {
+    maxWidth: "1100px",
+    margin: "0 auto",
+    padding: "26px 24px 48px",
+>>>>>>> Stashed changes
   },
   errorBox: {
     marginBottom: "18px",
@@ -393,12 +380,12 @@ const styles = {
     border: "1px solid #7f1d1d",
     color: "#fecaca",
   },
-  planGrid: {
+  grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
     gap: "18px",
   },
-  planCard: {
+  card: {
     display: "flex",
     flexDirection: "column",
     gap: "18px",
@@ -407,16 +394,16 @@ const styles = {
     borderRadius: "22px",
     padding: "26px",
   },
-  featuredPlanCard: {
+  featuredCard: {
     border: "1px solid rgba(37,99,235,0.7)",
     boxShadow: "0 18px 40px rgba(37,99,235,0.18)",
   },
-  planTop: {
+  cardTop: {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
   },
-  planBadge: {
+  tag: {
     display: "inline-block",
     alignSelf: "flex-start",
     padding: "6px 10px",
@@ -427,12 +414,18 @@ const styles = {
     fontSize: "0.8rem",
     fontWeight: 700,
   },
-  featuredBadge: {
+  featuredTag: {
+    display: "inline-block",
+    alignSelf: "flex-start",
+    padding: "6px 10px",
+    borderRadius: "999px",
     background: "#1d4ed8",
     border: "1px solid #1d4ed8",
     color: "#fff",
+    fontSize: "0.8rem",
+    fontWeight: 700,
   },
-  planName: {
+  cardTitle: {
     margin: 0,
     fontSize: "1.75rem",
     fontWeight: 900,
@@ -447,26 +440,38 @@ const styles = {
     fontWeight: 900,
     lineHeight: 1,
   },
-  pricePeriod: {
+  period: {
     color: "#94a3b8",
     fontWeight: 700,
     marginBottom: "4px",
   },
-  trialText: {
+  trial: {
     color: "#60a5fa",
     fontWeight: 700,
     fontSize: "0.92rem",
   },
-  planHeadline: {
-    margin: 0,
-    fontWeight: 800,
-    fontSize: "1rem",
-    color: "#ffffff",
-  },
-  planDescription: {
+  description: {
     margin: 0,
     color: "#cbd5e1",
     lineHeight: 1.7,
+  },
+  primaryButton: {
+    padding: "13px 18px",
+    borderRadius: "12px",
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  secondaryButton: {
+    padding: "13px 18px",
+    borderRadius: "12px",
+    border: "1px solid #475569",
+    background: "rgba(15,23,42,0.8)",
+    color: "#fff",
+    fontWeight: 700,
+    cursor: "pointer",
   },
   planButton: {
     padding: "13px 18px",
@@ -477,6 +482,7 @@ const styles = {
     fontWeight: 800,
     cursor: "pointer",
   },
+<<<<<<< Updated upstream
   featuredPlanButton: {
     padding: "13px 18px",
     borderRadius: "12px",
@@ -487,14 +493,18 @@ const styles = {
     cursor: "pointer",
   },
   featureList: {
+=======
+  list: {
+>>>>>>> Stashed changes
     margin: 0,
     paddingLeft: "18px",
     color: "#e5e7eb",
     lineHeight: 1.8,
   },
-  featureItem: {
+  listItem: {
     marginBottom: "4px",
   },
+<<<<<<< Updated upstream
   finalCtaSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -517,4 +527,6 @@ const styles = {
     lineHeight: 1.8,
     maxWidth: "760px",
   },
+=======
+>>>>>>> Stashed changes
 };
