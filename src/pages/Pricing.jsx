@@ -29,10 +29,7 @@ const FAQS = [
 export default function Pricing() {
   const navigate = useNavigate();
   const { isAuthenticated, planTier } = useAuth();
-<<<<<<< HEAD
 
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
   const [loadingPlan, setLoadingPlan] = useState("");
   const [error, setError] = useState("");
 
@@ -101,7 +98,6 @@ export default function Pricing() {
     []
   );
 
-<<<<<<< HEAD
   const comparisonRows = [
     { label: "Candidate & election data", starter: true, pro: true, enterprise: true },
     { label: "Campaign CRM", starter: true, pro: true, enterprise: true },
@@ -115,22 +111,20 @@ export default function Pricing() {
     { label: "Executive dashboards", starter: false, pro: false, enterprise: true },
   ];
 
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
   async function handlePlanAction(plan) {
     setError("");
 
     if (!isAuthenticated) {
-<<<<<<< HEAD
+
       navigate("/signup", {
         state: {
           selectedPlan: plan.key,
           trialDays: plan.trialDays,
         },
       });
-=======
+
       navigate("/signup");
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
       return;
     }
 
@@ -146,10 +140,10 @@ export default function Pricing() {
       const successUrl = `${frontendBase}/billing?success=1&plan=${plan.key}`;
       const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
-<<<<<<< HEAD
+
       const data = await createCheckoutSession({
         priceId: getPriceIdForPlan(plan.key),
-=======
+
       const priceMap = {
         starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
         pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
@@ -158,7 +152,7 @@ export default function Pricing() {
 
       const data = await createCheckoutSession({
         priceId: priceMap[plan.key],
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
         successUrl,
         cancelUrl,
         trialDays: plan.trialDays,
@@ -181,7 +175,6 @@ export default function Pricing() {
     }
   }
 
-<<<<<<< HEAD
   function getPriceIdForPlan(planKey) {
     const prices = {
       starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
@@ -221,7 +214,6 @@ export default function Pricing() {
             The operating system for modern political campaigns
           </h1>
 
-=======
   function getButtonLabel(plan) {
     if (!isAuthenticated) return `Start ${plan.trialDays}-Day Trial`;
     if (hasPlan(planTier, plan.key)) {
@@ -238,7 +230,7 @@ export default function Pricing() {
           <h1 style={styles.heroTitle}>
             The operating system for modern political campaigns
           </h1>
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
           <p style={styles.heroSubtitle}>
             VoterSpheres helps firms, consultants, and campaign teams move faster
             with election intelligence, operational visibility, and execution tools
@@ -274,7 +266,6 @@ export default function Pricing() {
         </div>
       </section>
 
-<<<<<<< HEAD
       <section style={styles.funnelSection}>
         <div style={styles.funnelGrid}>
           <div style={styles.funnelCard}>
@@ -303,8 +294,6 @@ export default function Pricing() {
         </div>
       </section>
 
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
       <section id="pricing-grid" style={styles.planSection}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Simple plans for serious political work</h2>
@@ -342,10 +331,7 @@ export default function Pricing() {
                 </div>
 
                 <div style={styles.trialText}>{plan.trialDays}-day free trial</div>
-<<<<<<< HEAD
 
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
                 <p style={styles.planHeadline}>{plan.headline}</p>
                 <p style={styles.planDescription}>{plan.description}</p>
               </div>
@@ -370,7 +356,6 @@ export default function Pricing() {
         </div>
       </section>
 
-<<<<<<< HEAD
       <section style={styles.comparisonSection}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Compare what unlocks at each level</h2>
@@ -432,8 +417,6 @@ export default function Pricing() {
         </div>
       </section>
 
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
       <section style={styles.finalCtaSection}>
         <div style={styles.finalCtaCard}>
           <h2 style={styles.finalCtaTitle}>Stop guessing. Start executing.</h2>
@@ -470,7 +453,7 @@ const styles = {
       "radial-gradient(circle at top, rgba(37,99,235,0.12) 0%, rgba(11,16,32,1) 32%, rgba(15,23,42,1) 100%)",
   },
   heroSection: {
-<<<<<<< HEAD
+
     position: "relative",
     overflow: "hidden",
     padding: "72px 24px 36px",
@@ -498,11 +481,11 @@ const styles = {
   heroContent: {
     position: "relative",
     zIndex: 2,
-=======
+
     padding: "72px 24px 36px",
   },
   heroContent: {
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
     maxWidth: "1180px",
     margin: "0 auto",
   },
@@ -516,10 +499,9 @@ const styles = {
     fontSize: "0.82rem",
     fontWeight: 700,
     marginBottom: "16px",
-<<<<<<< HEAD
+
     backdropFilter: "blur(8px)",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   heroTitle: {
     margin: 0,
@@ -550,10 +532,9 @@ const styles = {
     color: "#ffffff",
     fontWeight: 800,
     cursor: "pointer",
-<<<<<<< HEAD
+
     boxShadow: "0 10px 30px rgba(37,99,235,0.25)",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   secondaryHeroButton: {
     padding: "13px 20px",
@@ -579,7 +560,7 @@ const styles = {
     fontSize: "0.9rem",
     fontWeight: 600,
   },
-<<<<<<< HEAD
+
   funnelSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -612,8 +593,7 @@ const styles = {
     color: "#cbd5e1",
     lineHeight: 1.7,
   },
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   planSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -626,10 +606,9 @@ const styles = {
     margin: 0,
     fontSize: "2rem",
     fontWeight: 850,
-<<<<<<< HEAD
+
     letterSpacing: "-0.02em",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   sectionSubtitle: {
     marginTop: "10px",
@@ -658,18 +637,16 @@ const styles = {
     border: "1px solid #334155",
     borderRadius: "22px",
     padding: "26px",
-<<<<<<< HEAD
+
     boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   featuredPlanCard: {
     border: "1px solid rgba(37,99,235,0.7)",
     boxShadow: "0 18px 40px rgba(37,99,235,0.18)",
-<<<<<<< HEAD
+
     transform: "translateY(-4px)",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   planTop: {
     display: "flex",
@@ -745,10 +722,9 @@ const styles = {
     color: "#fff",
     fontWeight: 800,
     cursor: "pointer",
-<<<<<<< HEAD
+
     boxShadow: "0 10px 30px rgba(37,99,235,0.22)",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   featureList: {
     margin: 0,
@@ -759,7 +735,7 @@ const styles = {
   featureItem: {
     marginBottom: "4px",
   },
-<<<<<<< HEAD
+
   comparisonSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -842,8 +818,7 @@ const styles = {
     color: "#cbd5e1",
     lineHeight: 1.7,
   },
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   finalCtaSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -854,10 +829,9 @@ const styles = {
     borderRadius: "24px",
     background: "linear-gradient(135deg, #1d4ed8 0%, #172554 45%, #0f172a 100%)",
     border: "1px solid rgba(255,255,255,0.08)",
-<<<<<<< HEAD
+
     boxShadow: "0 18px 50px rgba(29,78,216,0.2)",
-=======
->>>>>>> 4d15259 (Fix plan exports and add pricing page)
+
   },
   finalCtaTitle: {
     margin: 0,
