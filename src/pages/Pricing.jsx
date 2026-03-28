@@ -127,6 +127,7 @@ export default function Pricing() {
   return (
     <div style={styles.page}>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       <section style={styles.heroSection}>
         <div style={styles.heroContent}>
           <div style={styles.heroBadge}>Pricing & Plans</div>
@@ -138,12 +139,17 @@ export default function Pricing() {
             with election intelligence, operational visibility, and execution tools
             built for political work.
 =======
+=======
+>>>>>>> Stashed changes
       <section style={styles.hero}>
         <div style={styles.heroInner}>
           <div style={styles.badge}>Pricing & Plans</div>
           <h1 style={styles.title}>Run smarter campaigns with VoterSpheres</h1>
           <p style={styles.subtitle}>
             Political intelligence, campaign operations, and execution tools in one platform.
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
           </p>
           <div style={styles.actions}>
@@ -167,6 +173,7 @@ export default function Pricing() {
       </section>
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       <section id="pricing-grid" style={styles.planSection}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Simple plans for serious political work</h2>
@@ -175,6 +182,9 @@ export default function Pricing() {
           </p>
         </div>
 
+=======
+      <section id="pricing-grid" style={styles.section}>
+>>>>>>> Stashed changes
 =======
       <section id="pricing-grid" style={styles.section}>
 >>>>>>> Stashed changes
@@ -199,10 +209,15 @@ export default function Pricing() {
                   <span style={styles.period}>{plan.period}</span>
                 </div>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
                 <div style={styles.trialText}>{plan.trialDays}-day free trial</div>
                 <p style={styles.planHeadline}>{plan.headline}</p>
                 <p style={styles.planDescription}>{plan.description}</p>
+=======
+                <div style={styles.trial}>{plan.trialDays}-day free trial</div>
+                <p style={styles.description}>{plan.description}</p>
+>>>>>>> Stashed changes
 =======
                 <div style={styles.trial}>{plan.trialDays}-day free trial</div>
                 <p style={styles.description}>{plan.description}</p>
@@ -228,6 +243,7 @@ export default function Pricing() {
           ))}
         </div>
       </section>
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 
       <section style={styles.finalCtaSection}>
@@ -256,6 +272,8 @@ export default function Pricing() {
       </section>
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     </div>
   );
 }
@@ -268,17 +286,23 @@ const styles = {
       "radial-gradient(circle at top, rgba(37,99,235,0.12) 0%, rgba(11,16,32,1) 32%, rgba(15,23,42,1) 100%)",
   },
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   heroSection: {
     padding: "72px 24px 36px",
   },
   heroContent: {
     maxWidth: "1180px",
 =======
+=======
+>>>>>>> Stashed changes
   hero: {
     padding: "72px 24px 36px",
   },
   heroInner: {
     maxWidth: "1100px",
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     margin: "0 auto",
   },
@@ -313,6 +337,7 @@ const styles = {
     flexWrap: "wrap",
     marginTop: "26px",
   },
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   primaryHeroButton: {
     padding: "13px 20px",
@@ -366,10 +391,15 @@ const styles = {
     lineHeight: 1.7,
     maxWidth: "760px",
 =======
+=======
+>>>>>>> Stashed changes
   section: {
     maxWidth: "1100px",
     margin: "0 auto",
     padding: "26px 24px 48px",
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   },
   errorBox: {
@@ -483,6 +513,7 @@ const styles = {
     cursor: "pointer",
   },
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   featuredPlanButton: {
     padding: "13px 18px",
     borderRadius: "12px",
@@ -496,6 +527,9 @@ const styles = {
 =======
   list: {
 >>>>>>> Stashed changes
+=======
+  list: {
+>>>>>>> Stashed changes
     margin: 0,
     paddingLeft: "18px",
     color: "#e5e7eb",
@@ -504,6 +538,7 @@ const styles = {
   listItem: {
     marginBottom: "4px",
   },
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   finalCtaSection: {
     maxWidth: "1180px",
@@ -527,6 +562,8 @@ const styles = {
     lineHeight: 1.8,
     maxWidth: "760px",
   },
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 };
