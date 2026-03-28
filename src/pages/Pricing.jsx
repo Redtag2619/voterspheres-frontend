@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCheckoutSession } from "../api/billing"; 
+import { createCheckoutSession } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
 
@@ -29,7 +29,6 @@ const FAQS = [
 export default function Pricing() {
   const navigate = useNavigate();
   const { isAuthenticated, planTier } = useAuth();
-
   const [loadingPlan, setLoadingPlan] = useState("");
   const [error, setError] = useState("");
 
@@ -98,33 +97,11 @@ export default function Pricing() {
     []
   );
 
-  const comparisonRows = [
-    { label: "Candidate & election data", starter: true, pro: true, enterprise: true },
-    { label: "Campaign CRM", starter: true, pro: true, enterprise: true },
-    { label: "Vendor access", starter: true, pro: true, enterprise: true },
-    { label: "Forecasting", starter: false, pro: true, enterprise: true },
-    { label: "Alerts", starter: false, pro: true, enterprise: true },
-    { label: "Command Center", starter: false, pro: true, enterprise: true },
-    { label: "AI / War Room workflows", starter: false, pro: true, enterprise: true },
-    { label: "Fundraising intelligence", starter: false, pro: false, enterprise: true },
-    { label: "MailOps dashboard", starter: false, pro: false, enterprise: true },
-    { label: "Executive dashboards", starter: false, pro: false, enterprise: true },
-  ];
-
   async function handlePlanAction(plan) {
     setError("");
 
     if (!isAuthenticated) {
-
-      navigate("/signup", {
-        state: {
-          selectedPlan: plan.key,
-          trialDays: plan.trialDays,
-        },
-      });
-
       navigate("/signup");
-
       return;
     }
 
@@ -140,10 +117,6 @@ export default function Pricing() {
       const successUrl = `${frontendBase}/billing?success=1&plan=${plan.key}`;
       const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
-
-      const data = await createCheckoutSession({
-        priceId: getPriceIdForPlan(plan.key),
-
       const priceMap = {
         starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
         pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
@@ -152,7 +125,6 @@ export default function Pricing() {
 
       const data = await createCheckoutSession({
         priceId: priceMap[plan.key],
-
         successUrl,
         cancelUrl,
         trialDays: plan.trialDays,
@@ -175,45 +147,6 @@ export default function Pricing() {
     }
   }
 
-  function getPriceIdForPlan(planKey) {
-    const prices = {
-      starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
-      pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
-      enterprise: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || "enterprise",
-    };
-
-    return prices[planKey];
-  }
-
-  function getButtonLabel(plan) {
-    if (!isAuthenticated) {
-      return `Start ${plan.trialDays}-Day Trial`;
-    }
-
-    if (hasPlan(planTier, plan.key)) {
-      return `Current Access: ${normalizePlan(plan.key).toUpperCase()}`;
-    }
-
-    return `Start ${plan.trialDays}-Day Trial`;
-  }
-
-  function renderCell(value) {
-    return value ? "✓" : "—";
-  }
-
-  return (
-    <div style={styles.page}>
-      <section style={styles.heroSection}>
-        <div style={styles.heroGlowOne} />
-        <div style={styles.heroGlowTwo} />
-
-        <div style={styles.heroContent}>
-          <div style={styles.heroBadge}>Pricing & Plans</div>
-
-          <h1 style={styles.heroTitle}>
-            The operating system for modern political campaigns
-          </h1>
-
   function getButtonLabel(plan) {
     if (!isAuthenticated) return `Start ${plan.trialDays}-Day Trial`;
     if (hasPlan(planTier, plan.key)) {
@@ -230,7 +163,6 @@ export default function Pricing() {
           <h1 style={styles.heroTitle}>
             The operating system for modern political campaigns
           </h1>
-
           <p style={styles.heroSubtitle}>
             VoterSpheres helps firms, consultants, and campaign teams move faster
             with election intelligence, operational visibility, and execution tools
@@ -262,34 +194,6 @@ export default function Pricing() {
                 {item}
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section style={styles.funnelSection}>
-        <div style={styles.funnelGrid}>
-          <div style={styles.funnelCard}>
-            <div style={styles.funnelStep}>01</div>
-            <h3 style={styles.funnelTitle}>Start your trial</h3>
-            <p style={styles.funnelText}>
-              Pick the plan that matches your operation and start with a low-friction trial.
-            </p>
-          </div>
-
-          <div style={styles.funnelCard}>
-            <div style={styles.funnelStep}>02</div>
-            <h3 style={styles.funnelTitle}>Unlock the right tools</h3>
-            <p style={styles.funnelText}>
-              Access forecasting, alerts, fundraising intelligence, MailOps, and team workflows.
-            </p>
-          </div>
-
-          <div style={styles.funnelCard}>
-            <div style={styles.funnelStep}>03</div>
-            <h3 style={styles.funnelTitle}>Scale with confidence</h3>
-            <p style={styles.funnelText}>
-              Upgrade as your campaign operation grows, without changing platforms.
-            </p>
           </div>
         </div>
       </section>
@@ -331,7 +235,6 @@ export default function Pricing() {
                 </div>
 
                 <div style={styles.trialText}>{plan.trialDays}-day free trial</div>
-
                 <p style={styles.planHeadline}>{plan.headline}</p>
                 <p style={styles.planDescription}>{plan.description}</p>
               </div>
@@ -351,67 +254,6 @@ export default function Pricing() {
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section style={styles.comparisonSection}>
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Compare what unlocks at each level</h2>
-          <p style={styles.sectionSubtitle}>
-            Turn pricing into a clear operational decision for your team.
-          </p>
-        </div>
-
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.thLeft}>Feature</th>
-                <th style={styles.th}>Starter</th>
-                <th style={styles.th}>Pro</th>
-                <th style={styles.th}>Enterprise</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonRows.map((row) => (
-                <tr key={row.label}>
-                  <td style={styles.tdLeft}>{row.label}</td>
-                  <td style={styles.td}>{renderCell(row.starter)}</td>
-                  <td style={styles.td}>{renderCell(row.pro)}</td>
-                  <td style={styles.td}>{renderCell(row.enterprise)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section style={styles.authoritySection}>
-        <div style={styles.authorityCard}>
-          <h2 style={styles.sectionTitle}>Built for the realities of campaigns</h2>
-          <p style={styles.authorityText}>
-            Political operations do not have time for fragmented tools, stale data,
-            or disconnected workflows. VoterSpheres brings your intelligence,
-            campaign visibility, and operational execution into one platform.
-          </p>
-        </div>
-      </section>
-
-      <section style={styles.faqSection}>
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Frequently asked questions</h2>
-          <p style={styles.sectionSubtitle}>
-            Answers that help teams move faster to a decision.
-          </p>
-        </div>
-
-        <div style={styles.faqGrid}>
-          {FAQS.map((faq) => (
-            <div key={faq.q} style={styles.faqCard}>
-              <h3 style={styles.faqQuestion}>{faq.q}</h3>
-              <p style={styles.faqAnswer}>{faq.a}</p>
             </div>
           ))}
         </div>
@@ -453,39 +295,9 @@ const styles = {
       "radial-gradient(circle at top, rgba(37,99,235,0.12) 0%, rgba(11,16,32,1) 32%, rgba(15,23,42,1) 100%)",
   },
   heroSection: {
-
-    position: "relative",
-    overflow: "hidden",
-    padding: "72px 24px 36px",
-  },
-  heroGlowOne: {
-    position: "absolute",
-    top: "-120px",
-    left: "-80px",
-    width: "320px",
-    height: "320px",
-    borderRadius: "50%",
-    background: "rgba(37,99,235,0.18)",
-    filter: "blur(70px)",
-  },
-  heroGlowTwo: {
-    position: "absolute",
-    top: "20px",
-    right: "-40px",
-    width: "300px",
-    height: "300px",
-    borderRadius: "50%",
-    background: "rgba(59,130,246,0.12)",
-    filter: "blur(80px)",
-  },
-  heroContent: {
-    position: "relative",
-    zIndex: 2,
-
     padding: "72px 24px 36px",
   },
   heroContent: {
-
     maxWidth: "1180px",
     margin: "0 auto",
   },
@@ -499,9 +311,6 @@ const styles = {
     fontSize: "0.82rem",
     fontWeight: 700,
     marginBottom: "16px",
-
-    backdropFilter: "blur(8px)",
-
   },
   heroTitle: {
     margin: 0,
@@ -532,9 +341,6 @@ const styles = {
     color: "#ffffff",
     fontWeight: 800,
     cursor: "pointer",
-
-    boxShadow: "0 10px 30px rgba(37,99,235,0.25)",
-
   },
   secondaryHeroButton: {
     padding: "13px 20px",
@@ -560,40 +366,6 @@ const styles = {
     fontSize: "0.9rem",
     fontWeight: 600,
   },
-
-  funnelSection: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "0 24px 28px",
-  },
-  funnelGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "16px",
-  },
-  funnelCard: {
-    background: "rgba(17,24,39,0.92)",
-    border: "1px solid #334155",
-    borderRadius: "18px",
-    padding: "22px",
-  },
-  funnelStep: {
-    fontSize: "0.82rem",
-    fontWeight: 800,
-    color: "#60a5fa",
-    marginBottom: "10px",
-  },
-  funnelTitle: {
-    margin: 0,
-    fontSize: "1.15rem",
-    fontWeight: 800,
-  },
-  funnelText: {
-    marginTop: "10px",
-    color: "#cbd5e1",
-    lineHeight: 1.7,
-  },
-
   planSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -606,9 +378,6 @@ const styles = {
     margin: 0,
     fontSize: "2rem",
     fontWeight: 850,
-
-    letterSpacing: "-0.02em",
-
   },
   sectionSubtitle: {
     marginTop: "10px",
@@ -637,16 +406,10 @@ const styles = {
     border: "1px solid #334155",
     borderRadius: "22px",
     padding: "26px",
-
-    boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
-
   },
   featuredPlanCard: {
     border: "1px solid rgba(37,99,235,0.7)",
     boxShadow: "0 18px 40px rgba(37,99,235,0.18)",
-
-    transform: "translateY(-4px)",
-
   },
   planTop: {
     display: "flex",
@@ -722,9 +485,6 @@ const styles = {
     color: "#fff",
     fontWeight: 800,
     cursor: "pointer",
-
-    boxShadow: "0 10px 30px rgba(37,99,235,0.22)",
-
   },
   featureList: {
     margin: 0,
@@ -735,90 +495,6 @@ const styles = {
   featureItem: {
     marginBottom: "4px",
   },
-
-  comparisonSection: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "12px 24px 34px",
-  },
-  tableWrap: {
-    overflowX: "auto",
-    borderRadius: "18px",
-    background: "rgba(17,24,39,0.96)",
-    border: "1px solid #334155",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  thLeft: {
-    textAlign: "left",
-    padding: "16px",
-    background: "#0f172a",
-    borderBottom: "1px solid #334155",
-  },
-  th: {
-    textAlign: "center",
-    padding: "16px",
-    background: "#0f172a",
-    borderBottom: "1px solid #334155",
-  },
-  tdLeft: {
-    padding: "14px 16px",
-    borderBottom: "1px solid #1f2937",
-    color: "#e5e7eb",
-  },
-  td: {
-    padding: "14px 16px",
-    borderBottom: "1px solid #1f2937",
-    textAlign: "center",
-    color: "#dbeafe",
-    fontWeight: 800,
-  },
-  authoritySection: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "0 24px 34px",
-  },
-  authorityCard: {
-    padding: "28px",
-    borderRadius: "20px",
-    background: "rgba(17,24,39,0.96)",
-    border: "1px solid #334155",
-  },
-  authorityText: {
-    marginTop: "14px",
-    color: "#cbd5e1",
-    lineHeight: 1.8,
-    maxWidth: "900px",
-  },
-  faqSection: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "0 24px 34px",
-  },
-  faqGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: "16px",
-  },
-  faqCard: {
-    background: "rgba(17,24,39,0.96)",
-    border: "1px solid #334155",
-    borderRadius: "18px",
-    padding: "22px",
-  },
-  faqQuestion: {
-    margin: 0,
-    fontSize: "1.05rem",
-    fontWeight: 800,
-  },
-  faqAnswer: {
-    marginTop: "10px",
-    color: "#cbd5e1",
-    lineHeight: 1.7,
-  },
-
   finalCtaSection: {
     maxWidth: "1180px",
     margin: "0 auto",
@@ -829,9 +505,6 @@ const styles = {
     borderRadius: "24px",
     background: "linear-gradient(135deg, #1d4ed8 0%, #172554 45%, #0f172a 100%)",
     border: "1px solid rgba(255,255,255,0.08)",
-
-    boxShadow: "0 18px 50px rgba(29,78,216,0.2)",
-
   },
   finalCtaTitle: {
     margin: 0,
