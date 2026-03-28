@@ -126,26 +126,14 @@ export default function Pricing() {
 
   return (
     <div style={styles.page}>
-<<<<<<< Updated upstream
-      <section style={styles.heroSection}>
-        <div style={styles.heroContent}>
-          <div style={styles.heroBadge}>Pricing & Plans</div>
-          <h1 style={styles.heroTitle}>
-            The operating system for modern political campaigns
-          </h1>
-          <p style={styles.heroSubtitle}>
-            VoterSpheres helps firms, consultants, and campaign teams move faster
-            with election intelligence, operational visibility, and execution tools
-            built for political work.
-=======
       <section style={styles.hero}>
         <div style={styles.heroInner}>
           <div style={styles.badge}>Pricing & Plans</div>
           <h1 style={styles.title}>Run smarter campaigns with VoterSpheres</h1>
           <p style={styles.subtitle}>
             Political intelligence, campaign operations, and execution tools in one platform.
->>>>>>> Stashed changes
           </p>
+
           <div style={styles.actions}>
             <button
               style={styles.primaryButton}
@@ -153,6 +141,7 @@ export default function Pricing() {
             >
               {isAuthenticated ? "Go to Billing" : "Start Your 7-Day Trial"}
             </button>
+
             <button
               style={styles.secondaryButton}
               onClick={() => {
@@ -166,18 +155,7 @@ export default function Pricing() {
         </div>
       </section>
 
-<<<<<<< Updated upstream
-      <section id="pricing-grid" style={styles.planSection}>
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Simple plans for serious political work</h2>
-          <p style={styles.sectionSubtitle}>
-            Choose the level of access your operation needs today and expand as you grow.
-          </p>
-        </div>
-
-=======
       <section id="pricing-grid" style={styles.section}>
->>>>>>> Stashed changes
         {error && <div style={styles.errorBox}>{error}</div>}
 
         <div style={styles.grid}>
@@ -198,15 +176,8 @@ export default function Pricing() {
                   <span style={styles.price}>{plan.price}</span>
                   <span style={styles.period}>{plan.period}</span>
                 </div>
-<<<<<<< Updated upstream
-
-                <div style={styles.trialText}>{plan.trialDays}-day free trial</div>
-                <p style={styles.planHeadline}>{plan.headline}</p>
-                <p style={styles.planDescription}>{plan.description}</p>
-=======
                 <div style={styles.trial}>{plan.trialDays}-day free trial</div>
                 <p style={styles.description}>{plan.description}</p>
->>>>>>> Stashed changes
               </div>
 
               <button
@@ -228,34 +199,6 @@ export default function Pricing() {
           ))}
         </div>
       </section>
-<<<<<<< Updated upstream
-
-      <section style={styles.finalCtaSection}>
-        <div style={styles.finalCtaCard}>
-          <h2 style={styles.finalCtaTitle}>Stop guessing. Start executing.</h2>
-          <p style={styles.finalCtaText}>
-            Choose your plan, start your trial, and put campaign intelligence to work.
-          </p>
-
-          <div style={styles.heroActions}>
-            <button
-              style={styles.primaryHeroButton}
-              onClick={() => navigate(isAuthenticated ? "/billing" : "/signup")}
-            >
-              {isAuthenticated ? "Manage Billing" : "Start Your Trial"}
-            </button>
-
-            <button
-              style={styles.secondaryHeroButton}
-              onClick={() => navigate("/")}
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      </section>
-=======
->>>>>>> Stashed changes
     </div>
   );
 }
@@ -267,19 +210,11 @@ const styles = {
     background:
       "radial-gradient(circle at top, rgba(37,99,235,0.12) 0%, rgba(11,16,32,1) 32%, rgba(15,23,42,1) 100%)",
   },
-<<<<<<< Updated upstream
-  heroSection: {
-    padding: "72px 24px 36px",
-  },
-  heroContent: {
-    maxWidth: "1180px",
-=======
   hero: {
     padding: "72px 24px 36px",
   },
   heroInner: {
     maxWidth: "1100px",
->>>>>>> Stashed changes
     margin: "0 auto",
   },
   badge: {
@@ -313,64 +248,10 @@ const styles = {
     flexWrap: "wrap",
     marginTop: "26px",
   },
-<<<<<<< Updated upstream
-  primaryHeroButton: {
-    padding: "13px 20px",
-    borderRadius: "12px",
-    border: "none",
-    background: "#2563eb",
-    color: "#ffffff",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  secondaryHeroButton: {
-    padding: "13px 20px",
-    borderRadius: "12px",
-    border: "1px solid #475569",
-    background: "rgba(15,23,42,0.8)",
-    color: "#ffffff",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  trustRow: {
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-    marginTop: "26px",
-  },
-  trustPill: {
-    padding: "10px 14px",
-    borderRadius: "999px",
-    background: "rgba(17,24,39,0.92)",
-    border: "1px solid #334155",
-    color: "#dbeafe",
-    fontSize: "0.9rem",
-    fontWeight: 600,
-  },
-  planSection: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "26px 24px 32px",
-  },
-  sectionHeader: {
-    marginBottom: "24px",
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: "2rem",
-    fontWeight: 850,
-  },
-  sectionSubtitle: {
-    marginTop: "10px",
-    color: "#94a3b8",
-    lineHeight: 1.7,
-    maxWidth: "760px",
-=======
   section: {
     maxWidth: "1100px",
     margin: "0 auto",
     padding: "26px 24px 48px",
->>>>>>> Stashed changes
   },
   errorBox: {
     marginBottom: "18px",
@@ -482,20 +363,7 @@ const styles = {
     fontWeight: 800,
     cursor: "pointer",
   },
-<<<<<<< Updated upstream
-  featuredPlanButton: {
-    padding: "13px 18px",
-    borderRadius: "12px",
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  featureList: {
-=======
   list: {
->>>>>>> Stashed changes
     margin: 0,
     paddingLeft: "18px",
     color: "#e5e7eb",
@@ -504,29 +372,4 @@ const styles = {
   listItem: {
     marginBottom: "4px",
   },
-<<<<<<< Updated upstream
-  finalCtaSection: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "0 24px 64px",
-  },
-  finalCtaCard: {
-    padding: "34px",
-    borderRadius: "24px",
-    background: "linear-gradient(135deg, #1d4ed8 0%, #172554 45%, #0f172a 100%)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  },
-  finalCtaTitle: {
-    margin: 0,
-    fontSize: "2.1rem",
-    fontWeight: 900,
-  },
-  finalCtaText: {
-    marginTop: "12px",
-    color: "#dbeafe",
-    lineHeight: 1.8,
-    maxWidth: "760px",
-  },
-=======
->>>>>>> Stashed changes
 };
