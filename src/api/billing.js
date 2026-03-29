@@ -1,4 +1,4 @@
-import api from "../services/api";
+import api from "../services/api"; 
 
 export async function getBillingConfig() {
   const res = await api.get("/billing/config");
