@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getChecklistProgress,
+  loadCelebrationState,
   loadChecklistState,
+  saveCelebrationState,
   saveChecklistState,
 } from "../lib/onboardingChecklist";
 
@@ -10,13 +12,41 @@ export function useOnboardingChecklist({ userId, firmId, planTier }) {
     loadChecklistState({ userId, firmId, planTier }).items
   );
 
+  const [celebration, setCelebration] = useState(() =>
+    loadCelebrationState({ userId, firmId })
+  );
+
+  const prevPercentRef = useRef(0);
+
   useEffect(() => {
     setItems(loadChecklistState({ userId, firmId, planTier }).items);
+    setCelebration(loadCelebrationState({ userId, firmId }));
   }, [userId, firmId, planTier]);
 
   useEffect(() => {
     saveChecklistState({ userId, firmId, items });
   }, [userId, firmId, items]);
+
+  useEffect(() => {
+    saveCelebrationState({ userId, firmId, state: celebration });
+  }, [userId, firmId, celebration]);
+
+  const progress = useMemo(() => getChecklistProgress(items), [items]);
+
+  useEffect(() => {
+    const prevPercent = prevPercentRef.current;
+
+    if (progress.percent === 100 && prevPercent < 100) {
+      setCelebration((prev) => ({
+        ...prev,
+        completedOnce: true,
+        dismissed: false,
+        lastShownAt: new Date().toISOString(),
+      }));
+    }
+
+    prevPercentRef.current = progress.percent;
+  }, [progress.percent]);
 
   function markComplete(itemId) {
     let changed = false;
@@ -104,13 +134,32 @@ export function useOnboardingChecklist({ userId, firmId, planTier }) {
         completedAt: null,
       }))
     );
+
+    setCelebration({
+      lastShownAt: null,
+      dismissed: false,
+      completedOnce: false,
+    });
   }
 
-  const progress = useMemo(() => getChecklistProgress(items), [items]);
+  function dismissCelebration() {
+    setCelebration((prev) => ({
+      ...prev,
+      dismissed: true,
+    }));
+  }
+
+  const shouldShowCelebration =
+    progress.percent === 100 &&
+    celebration.completedOnce &&
+    !celebration.dismissed;
 
   return {
     items,
     progress,
+    celebration,
+    shouldShowCelebration,
+    dismissCelebration,
     markComplete,
     markManyComplete,
     markIncomplete,
