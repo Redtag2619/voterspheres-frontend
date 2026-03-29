@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from "react"; 
-import { Routes, Route } from "react-router-dom"; 
+import React, { Suspense, lazy } from "react";
+import { Routes, Route } from "react-router-dom";
 
 import AppShell from "./app/layout/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -7,6 +7,7 @@ import PlanProtectedRoute from "./components/PlanProtectedRoute";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Pricing = lazy(() => import("./pages/Pricing"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 const Candidates = lazy(() => import("./pages/Candidates"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap"));
 const Vendors = lazy(() => import("./pages/Vendors"));
@@ -42,6 +43,16 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/pricing" element={<Pricing />} />
+
+          <Route
+            path="/checkout/success"
+            element={
+              <ProtectedRoute>
+                <CheckoutSuccess />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/candidates" element={<Candidates />} />
           <Route path="/map" element={<ElectionMap />} />
           <Route path="/vendors" element={<Vendors />} />
