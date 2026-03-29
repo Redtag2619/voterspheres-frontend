@@ -177,3 +177,24 @@ export function getChecklistProgress(items = []) {
 
   return { total, completed, percent };
 }
+
+export function getChecklistIdsForPath(pathname = "") {
+  const normalized = String(pathname || "").toLowerCase();
+
+  const routeMap = [
+    { route: "/", ids: ["visit_dashboard"] },
+    { route: "/billing", ids: ["review_billing"] },
+    { route: "/candidates", ids: ["browse_candidates"] },
+    { route: "/campaign-pipeline", ids: ["open_pipeline"] },
+    { route: "/firm-workspace", ids: ["open_firm_workspace"] },
+    { route: "/forecast", ids: ["open_forecast"] },
+    { route: "/rankings", ids: ["open_rankings"] },
+    { route: "/command-center", ids: ["open_command_center"] },
+    { route: "/fundraising", ids: ["open_fundraising"] },
+    { route: "/mailops", ids: ["open_mailops"] },
+    { route: "/executive-dashboard", ids: ["open_executive_dashboard"] },
+  ];
+
+  const exact = routeMap.find((item) => item.route === normalized);
+  return exact ? exact.ids : [];
+}
