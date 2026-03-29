@@ -32,6 +32,22 @@ export function useOnboardingChecklist({ userId, firmId, planTier }) {
     );
   }
 
+  function markManyComplete(itemIds = []) {
+    if (!Array.isArray(itemIds) || itemIds.length === 0) return;
+
+    setItems((prev) =>
+      prev.map((item) =>
+        itemIds.includes(item.id)
+          ? {
+              ...item,
+              completed: true,
+              completedAt: item.completedAt || new Date().toISOString(),
+            }
+          : item
+      )
+    );
+  }
+
   function markIncomplete(itemId) {
     setItems((prev) =>
       prev.map((item) =>
@@ -80,6 +96,7 @@ export function useOnboardingChecklist({ userId, firmId, planTier }) {
     items,
     progress,
     markComplete,
+    markManyComplete,
     markIncomplete,
     toggleComplete,
     resetChecklist,
