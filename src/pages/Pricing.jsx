@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCheckoutSession } from "../api/billing";
+import { createCheckoutSession } from "../api/billing"; 
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
 <<<<<<< Updated upstream
