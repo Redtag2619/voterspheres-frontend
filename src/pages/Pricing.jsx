@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { createCheckoutSession } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
+<<<<<<< Updated upstream
 import { getPriceIdForPlan } from "../lib/stripePlans";
 import { saveTrialIntent } from "../lib/trialIntent";
+=======
+>>>>>>> Stashed changes
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -78,6 +81,7 @@ export default function Pricing() {
     });
 
     if (!isAuthenticated) {
+<<<<<<< Updated upstream
       navigate("/signup", {
         state: {
           selectedPlan: plan.key,
@@ -85,6 +89,9 @@ export default function Pricing() {
           source: "pricing",
         },
       });
+=======
+      navigate("/signup");
+>>>>>>> Stashed changes
       return;
     }
 
@@ -100,8 +107,19 @@ export default function Pricing() {
       const successUrl = `${frontendBase}/billing?success=1&plan=${plan.key}`;
       const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
+<<<<<<< Updated upstream
       const data = await createCheckoutSession({
         priceId: getPriceIdForPlan(plan.key),
+=======
+      const priceMap = {
+        starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
+        pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
+        enterprise: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || "enterprise",
+      };
+
+      const data = await createCheckoutSession({
+        priceId: priceMap[plan.key],
+>>>>>>> Stashed changes
         successUrl,
         cancelUrl,
         trialDays: plan.trialDays,
@@ -141,7 +159,10 @@ export default function Pricing() {
           <p style={styles.subtitle}>
             Political intelligence, campaign operations, and execution tools in one platform.
           </p>
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
           <div style={styles.actions}>
             <button
               style={styles.primaryButton}
@@ -149,7 +170,6 @@ export default function Pricing() {
             >
               {isAuthenticated ? "Go to Billing" : "Start Your 7-Day Trial"}
             </button>
-
             <button
               style={styles.secondaryButton}
               onClick={() => {
