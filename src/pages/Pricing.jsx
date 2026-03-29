@@ -4,8 +4,11 @@ import { createCheckoutSession } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { getPriceIdForPlan } from "../lib/stripePlans";
 import { saveTrialIntent } from "../lib/trialIntent";
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
@@ -82,6 +85,7 @@ export default function Pricing() {
 
     if (!isAuthenticated) {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       navigate("/signup", {
         state: {
           selectedPlan: plan.key,
@@ -89,6 +93,9 @@ export default function Pricing() {
           source: "pricing",
         },
       });
+=======
+      navigate("/signup");
+>>>>>>> Stashed changes
 =======
       navigate("/signup");
 >>>>>>> Stashed changes
@@ -108,9 +115,12 @@ export default function Pricing() {
       const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       const data = await createCheckoutSession({
         priceId: getPriceIdForPlan(plan.key),
 =======
+=======
+>>>>>>> Stashed changes
       const priceMap = {
         starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
         pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
@@ -119,6 +129,9 @@ export default function Pricing() {
 
       const data = await createCheckoutSession({
         priceId: priceMap[plan.key],
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         successUrl,
         cancelUrl,
@@ -160,7 +173,10 @@ export default function Pricing() {
             Political intelligence, campaign operations, and execution tools in one platform.
           </p>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
           <div style={styles.actions}>
