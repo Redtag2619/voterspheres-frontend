@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import AppShell from "./app/layout/AppShell";
+import OnboardingRouteTracker from "./components/OnboardingRouteTracker";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PlanProtectedRoute from "./components/PlanProtectedRoute";
 
@@ -39,6 +40,8 @@ function LoadingScreen() {
 function App() {
   return (
     <AppShell>
+      <OnboardingRouteTracker />
+
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
