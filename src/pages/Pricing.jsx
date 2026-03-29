@@ -1,45 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createCheckoutSession } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
-import {
-  clearTrialIntent,
-  getTrialIntent,
-  saveTrialIntent,
-} from "../lib/trialIntent";
+import { getPriceIdForPlan } from "../lib/stripePlans";
+import { saveTrialIntent } from "../lib/trialIntent";
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { isAuthenticated, planTier } = useAuth();
-
   const [loadingPlan, setLoadingPlan] = useState("");
   const [error, setError] = useState("");
-
-  const intent = useMemo(() => {
-    const stateIntent = location.state || {};
-    const storedIntent = getTrialIntent();
-
-    return {
-      selectedPlan:
-        stateIntent.selectedPlan || storedIntent?.selectedPlan || "",
-      trialDays:
-        Number(stateIntent.trialDays || storedIntent?.trialDays || 7) || 7,
-      fromSignup: Boolean(stateIntent.fromSignup),
-      fromLogin: Boolean(stateIntent.fromLogin),
-    };
-  }, [location.state]);
-
-  useEffect(() => {
-    if (intent.selectedPlan) {
-      saveTrialIntent({
-        selectedPlan: intent.selectedPlan,
-        trialDays: intent.trialDays,
-        source: "pricing",
-      });
-    }
-  }, [intent]);
 
   const plans = useMemo(
     () => [
@@ -48,7 +19,7 @@ export default function Pricing() {
         name: "Starter",
         price: "$49",
         period: "/month",
-        trialDays: intent.trialDays || 7,
+        trialDays: 7,
         featured: false,
         description:
           "Core campaign CRM, election data, vendor access, and starter workflow tools.",
@@ -64,7 +35,7 @@ export default function Pricing() {
         name: "Pro",
         price: "$199",
         period: "/month",
-        trialDays: intent.trialDays || 7,
+        trialDays: 7,
         featured: true,
         description:
           "Forecasting, alerts, command tools, and advanced workflows for active teams.",
@@ -81,7 +52,7 @@ export default function Pricing() {
         name: "Enterprise",
         price: "$499",
         period: "/month",
-        trialDays: intent.trialDays || 7,
+        trialDays: 7,
         featured: false,
         description:
           "Fundraising intelligence, MailOps, executive dashboards, and enterprise workflows.",
@@ -94,7 +65,7 @@ export default function Pricing() {
         ],
       },
     ],
-    [intent.trialDays]
+    []
   );
 
   async function handlePlanAction(plan) {
@@ -129,14 +100,8 @@ export default function Pricing() {
       const successUrl = `${frontendBase}/billing?success=1&plan=${plan.key}`;
       const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
-      const priceMap = {
-        starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
-        pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
-        enterprise: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || "enterprise",
-      };
-
       const data = await createCheckoutSession({
-        priceId: priceMap[plan.key],
+        priceId: getPriceIdForPlan(plan.key),
         successUrl,
         cancelUrl,
         trialDays: plan.trialDays,
@@ -146,7 +111,6 @@ export default function Pricing() {
         throw new Error("Checkout URL not returned");
       }
 
-      clearTrialIntent();
       window.location.href = data.url;
     } catch (err) {
       console.error("Pricing checkout error:", err);
@@ -162,11 +126,9 @@ export default function Pricing() {
 
   function getButtonLabel(plan) {
     if (!isAuthenticated) return `Start ${plan.trialDays}-Day Trial`;
-
     if (hasPlan(planTier, plan.key)) {
       return `Current Access: ${normalizePlan(plan.key).toUpperCase()}`;
     }
-
     return `Start ${plan.trialDays}-Day Trial`;
   }
 
@@ -180,38 +142,12 @@ export default function Pricing() {
             Political intelligence, campaign operations, and execution tools in one platform.
           </p>
 
-          {intent.selectedPlan ? (
-            <div style={styles.intentBox}>
-              <div style={styles.intentBadge}>
-                {intent.fromSignup
-                  ? "Account created"
-                  : intent.fromLogin
-                  ? "Welcome back"
-                  : "Selected plan"}
-              </div>
-              <div style={styles.intentText}>
-                Your current trial path is{" "}
-                <strong>{String(intent.selectedPlan).toUpperCase()}</strong> with a{" "}
-                <strong>{intent.trialDays}-day trial</strong>.
-              </div>
-            </div>
-          ) : null}
-
           <div style={styles.actions}>
             <button
               style={styles.primaryButton}
-              onClick={() =>
-                navigate(isAuthenticated ? "/billing" : "/signup", {
-                  state: intent.selectedPlan
-                    ? {
-                        selectedPlan: intent.selectedPlan,
-                        trialDays: intent.trialDays,
-                      }
-                    : undefined,
-                })
-              }
+              onClick={() => navigate(isAuthenticated ? "/billing" : "/signup")}
             >
-              {isAuthenticated ? "Go to Billing" : "Start Your Trial"}
+              {isAuthenticated ? "Go to Billing" : "Start Your 7-Day Trial"}
             </button>
 
             <button
@@ -231,64 +167,44 @@ export default function Pricing() {
         {error && <div style={styles.errorBox}>{error}</div>}
 
         <div style={styles.grid}>
-          {plans.map((plan) => {
-            const isSelected = intent.selectedPlan === plan.key;
-
-            return (
-              <div
-                key={plan.key}
-                style={{
-                  ...styles.card,
-                  ...(plan.featured ? styles.featuredCard : {}),
-                  ...(isSelected ? styles.selectedCard : {}),
-                }}
-              >
-                <div style={styles.cardTop}>
-                  <div
-                    style={
-                      isSelected
-                        ? styles.selectedTag
-                        : plan.featured
-                        ? styles.featuredTag
-                        : styles.tag
-                    }
-                  >
-                    {isSelected
-                      ? "Selected"
-                      : plan.featured
-                      ? "Most Popular"
-                      : plan.name}
-                  </div>
-
-                  <h2 style={styles.cardTitle}>{plan.name}</h2>
-
-                  <div style={styles.priceRow}>
-                    <span style={styles.price}>{plan.price}</span>
-                    <span style={styles.period}>{plan.period}</span>
-                  </div>
-
-                  <div style={styles.trial}>{plan.trialDays}-day free trial</div>
-                  <p style={styles.description}>{plan.description}</p>
+          {plans.map((plan) => (
+            <div
+              key={plan.key}
+              style={{
+                ...styles.card,
+                ...(plan.featured ? styles.featuredCard : {}),
+              }}
+            >
+              <div style={styles.cardTop}>
+                <div style={plan.featured ? styles.featuredTag : styles.tag}>
+                  {plan.featured ? "Most Popular" : plan.name}
                 </div>
-
-                <button
-                  style={isSelected || plan.featured ? styles.primaryButton : styles.planButton}
-                  onClick={() => handlePlanAction(plan)}
-                  disabled={loadingPlan === plan.key}
-                >
-                  {loadingPlan === plan.key ? "Redirecting..." : getButtonLabel(plan)}
-                </button>
-
-                <ul style={styles.list}>
-                  {plan.features.map((feature) => (
-                    <li key={feature} style={styles.listItem}>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+                <h2 style={styles.cardTitle}>{plan.name}</h2>
+                <div style={styles.priceRow}>
+                  <span style={styles.price}>{plan.price}</span>
+                  <span style={styles.period}>{plan.period}</span>
+                </div>
+                <div style={styles.trial}>{plan.trialDays}-day free trial</div>
+                <p style={styles.description}>{plan.description}</p>
               </div>
-            );
-          })}
+
+              <button
+                style={plan.featured ? styles.primaryButton : styles.planButton}
+                onClick={() => handlePlanAction(plan)}
+                disabled={loadingPlan === plan.key}
+              >
+                {loadingPlan === plan.key ? "Redirecting..." : getButtonLabel(plan)}
+              </button>
+
+              <ul style={styles.list}>
+                {plan.features.map((feature) => (
+                  <li key={feature} style={styles.listItem}>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </section>
     </div>
@@ -334,27 +250,6 @@ const styles = {
     lineHeight: 1.8,
     fontSize: "1.05rem",
   },
-  intentBox: {
-    marginTop: "18px",
-    padding: "16px",
-    borderRadius: "14px",
-    background: "#111827",
-    border: "1px solid #2563eb",
-    maxWidth: "760px",
-  },
-  intentBadge: {
-    display: "inline-block",
-    padding: "5px 9px",
-    borderRadius: "999px",
-    background: "#2563eb",
-    fontSize: "0.76rem",
-    fontWeight: 700,
-    marginBottom: "10px",
-  },
-  intentText: {
-    color: "#dbeafe",
-    lineHeight: 1.6,
-  },
   actions: {
     display: "flex",
     gap: "12px",
@@ -392,10 +287,6 @@ const styles = {
     border: "1px solid rgba(37,99,235,0.7)",
     boxShadow: "0 18px 40px rgba(37,99,235,0.18)",
   },
-  selectedCard: {
-    border: "1px solid #60a5fa",
-    boxShadow: "0 0 0 1px rgba(96,165,250,0.3)",
-  },
   cardTop: {
     display: "flex",
     flexDirection: "column",
@@ -419,17 +310,6 @@ const styles = {
     borderRadius: "999px",
     background: "#1d4ed8",
     border: "1px solid #1d4ed8",
-    color: "#fff",
-    fontSize: "0.8rem",
-    fontWeight: 700,
-  },
-  selectedTag: {
-    display: "inline-block",
-    alignSelf: "flex-start",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    background: "#0f766e",
-    border: "1px solid #0f766e",
     color: "#fff",
     fontSize: "0.8rem",
     fontWeight: 700,
