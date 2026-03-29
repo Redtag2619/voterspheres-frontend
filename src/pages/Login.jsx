@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { createCheckoutSession } from "../api/billing";
+import { getPriceIdForPlan } from "../lib/stripePlans";
 import {
+  clearTrialIntent,
   getTrialIntent,
   saveTrialIntent,
 } from "../lib/trialIntent";
@@ -9,7 +12,7 @@ import {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,31 +32,31 @@ export default function Login() {
     };
   }, [location.state]);
 
-  useEffect(() => {
-    if (incomingIntent.selectedPlan) {
-      saveTrialIntent(incomingIntent);
+  async function redirectToCheckout(intent) {
+    const priceId = getPriceIdForPlan(intent.selectedPlan);
+
+    if (!priceId) {
+      throw new Error("Missing Stripe price for selected plan");
     }
-  }, [incomingIntent]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const intent = getTrialIntent();
+    const frontendBase = window.location.origin;
+    const successUrl = `${frontendBase}/billing?success=1&plan=${intent.selectedPlan}`;
+    const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
-      if (intent?.selectedPlan) {
-        navigate("/pricing", {
-          replace: true,
-          state: {
-            selectedPlan: intent.selectedPlan,
-            trialDays: intent.trialDays,
-            fromLogin: true,
-          },
-        });
-        return;
-      }
+    const data = await createCheckoutSession({
+      priceId,
+      successUrl,
+      cancelUrl,
+      trialDays: intent.trialDays,
+    });
 
-      navigate("/", { replace: true });
+    if (!data?.url) {
+      throw new Error("Checkout URL not returned");
     }
-  }, [isAuthenticated, navigate]);
+
+    clearTrialIntent();
+    window.location.href = data.url;
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -61,27 +64,23 @@ export default function Login() {
     setError("");
 
     try {
+      if (incomingIntent.selectedPlan) {
+        saveTrialIntent(incomingIntent);
+      }
+
       await login(email, password);
 
-      const intent = getTrialIntent();
-
-      if (intent?.selectedPlan) {
-        navigate("/pricing", {
-          replace: true,
-          state: {
-            selectedPlan: intent.selectedPlan,
-            trialDays: intent.trialDays,
-            fromLogin: true,
-          },
-        });
+      if (incomingIntent.selectedPlan) {
+        await redirectToCheckout(incomingIntent);
         return;
       }
 
+      clearTrialIntent();
       navigate("/", { replace: true });
     } catch (err) {
       setError(
-        err?.message ||
-          err?.response?.data?.error ||
+        err?.response?.data?.error ||
+          err?.message ||
           "Unable to log in right now."
       );
     } finally {
@@ -95,16 +94,16 @@ export default function Login() {
         <div style={styles.brand}>VoterSpheres</div>
         <h1 style={styles.title}>Log in</h1>
         <p style={styles.subtitle}>
-          Access your account and continue your pricing flow.
+          Access your account and continue straight into your selected trial.
         </p>
 
         {incomingIntent.selectedPlan ? (
           <div style={styles.intentBox}>
             <div style={styles.intentBadge}>Saved Selection</div>
             <div style={styles.intentText}>
-              After login, we’ll take you back to your{" "}
+              After login, you’ll be sent directly to Stripe for the{" "}
               <strong>{String(incomingIntent.selectedPlan).toUpperCase()}</strong>{" "}
-              trial flow.
+              plan.
             </div>
           </div>
         ) : null}
@@ -135,7 +134,15 @@ export default function Login() {
           </div>
 
           <button type="submit" disabled={submitting} style={styles.primaryButton}>
-            {submitting ? "Logging in..." : "Log In"}
+            {submitting
+              ? incomingIntent.selectedPlan
+                ? "Logging in and redirecting..."
+                : "Logging in..."
+              : incomingIntent.selectedPlan
+              ? `Log In & Start ${String(
+                  incomingIntent.selectedPlan
+                ).toUpperCase()} Trial`
+              : "Log In"}
           </button>
         </form>
 
