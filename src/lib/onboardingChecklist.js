@@ -1,4 +1,5 @@
 const STORAGE_PREFIX = "voterspheres_onboarding_checklist";
+const CELEBRATION_PREFIX = "voterspheres_onboarding_celebration";
 
 function safeParse(raw, fallback) {
   try {
@@ -10,6 +11,10 @@ function safeParse(raw, fallback) {
 
 export function getChecklistStorageKey({ userId, firmId }) {
   return `${STORAGE_PREFIX}:${userId || "anon"}:${firmId || "nofirm"}`;
+}
+
+export function getCelebrationStorageKey({ userId, firmId }) {
+  return `${CELEBRATION_PREFIX}:${userId || "anon"}:${firmId || "nofirm"}`;
 }
 
 export function getDefaultChecklist(planTier = "starter") {
@@ -197,4 +202,38 @@ export function getChecklistIdsForPath(pathname = "") {
 
   const exact = routeMap.find((item) => item.route === normalized);
   return exact ? exact.ids : [];
+}
+
+export function loadCelebrationState({ userId, firmId }) {
+  if (typeof window === "undefined") {
+    return {
+      lastShownAt: null,
+      dismissed: false,
+      completedOnce: false,
+    };
+  }
+
+  const key = getCelebrationStorageKey({ userId, firmId });
+  const raw = localStorage.getItem(key);
+
+  if (!raw) {
+    return {
+      lastShownAt: null,
+      dismissed: false,
+      completedOnce: false,
+    };
+  }
+
+  return safeParse(raw, {
+    lastShownAt: null,
+    dismissed: false,
+    completedOnce: false,
+  });
+}
+
+export function saveCelebrationState({ userId, firmId, state }) {
+  if (typeof window === "undefined") return;
+
+  const key = getCelebrationStorageKey({ userId, firmId });
+  localStorage.setItem(key, JSON.stringify(state));
 }
