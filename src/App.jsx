@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import AppShell from "./app/layout/AppShell";
+import AppWideOnboardingCelebration from "./components/AppWideOnboardingCelebration";
 import OnboardingRouteTracker from "./components/OnboardingRouteTracker";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PlanProtectedRoute from "./components/PlanProtectedRoute";
@@ -40,6 +41,7 @@ function LoadingScreen() {
 function App() {
   return (
     <AppShell>
+      <AppWideOnboardingCelebration />
       <OnboardingRouteTracker />
 
       <Suspense fallback={<LoadingScreen />}>
