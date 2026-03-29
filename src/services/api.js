@@ -30,11 +30,15 @@ api.interceptors.response.use(
     const status = error?.response?.status;
     const data = error?.response?.data || {};
 
-    if (status === 403 && (data?.requiredPlan || data?.error === "Upgrade required")) {
+    if (
+      status === 403 &&
+      (data?.requiredPlan || data?.error === "Upgrade required")
+    ) {
       triggerUpgradePrompt({
         requiredPlan: data.requiredPlan || "starter",
         currentPlan: data.currentPlan || "free",
-        message: data.message || "Your current plan does not include this feature.",
+        message:
+          data.message || "Your current plan does not include this feature.",
         source: error?.config?.url || "",
       });
     }
@@ -43,4 +47,5 @@ api.interceptors.response.use(
   }
 );
 
+export { api };
 export default api;
