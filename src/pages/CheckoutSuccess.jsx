@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getBillingDebug } from "../api/billing";
+import OnboardingChecklist from "../components/OnboardingChecklist";
 import { useAuth } from "../context/AuthContext";
+import { useOnboardingChecklist } from "../hooks/useOnboardingChecklist";
 import { normalizePlan } from "../lib/plan";
 
 function StepCard({ number, title, text, ctaLabel, ctaTo }) {
@@ -20,7 +22,7 @@ function StepCard({ number, title, text, ctaLabel, ctaTo }) {
 export default function CheckoutSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, user, planTier } = useAuth();
+  const { isAuthenticated, user, planTier, firmId } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState(null);
@@ -69,6 +71,17 @@ export default function CheckoutSuccess() {
   }, [isAuthenticated, navigate]);
 
   const livePlan = normalizePlan(debugInfo?.plan_tier || planTier || requestedPlan);
+
+  const {
+    items,
+    progress,
+    toggleComplete,
+    resetChecklist,
+  } = useOnboardingChecklist({
+    userId: user?.id || user?.email || "user",
+    firmId: firmId || debugInfo?.firm_id || "firm",
+    planTier: livePlan,
+  });
 
   const onboardingSteps = useMemo(() => {
     const base = [
@@ -173,6 +186,15 @@ export default function CheckoutSuccess() {
           </div>
         )}
       </div>
+
+      <section style={styles.section}>
+        <OnboardingChecklist
+          items={items}
+          progress={progress}
+          onToggle={toggleComplete}
+          onReset={resetChecklist}
+        />
+      </section>
 
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Your guided next steps</h2>
