@@ -1,115 +1,46 @@
+import axios from "axios";
+import { getStoredToken } from "../lib/auth";
+import { triggerUpgradePrompt } from "../lib/upgradePrompt";
+
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://voterspheres-backend.onrender.com";
 
-async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
+const api = axios.create({
+  baseURL: API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  const contentType = response.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const data = isJson ? await response.json() : await response.text();
+api.interceptors.request.use((config) => {
+  const token = getStoredToken();
 
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data?.error
-        ? data.error
-        : `Request failed: ${response.status}`;
-    throw new Error(message);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
-  return data;
-}
+  return config;
+});
 
-export const api = {
-  health: () => request("/health"),
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const data = error?.response?.data || {};
 
-  candidates: (params = {}) => {
-    const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        search.set(key, value);
-      }
-    });
+    if (status === 403 && (data?.requiredPlan || data?.error === "Upgrade required")) {
+      triggerUpgradePrompt({
+        requiredPlan: data.requiredPlan || "starter",
+        currentPlan: data.currentPlan || "free",
+        message: data.message || "Your current plan does not include this feature.",
+        source: error?.config?.url || "",
+      });
+    }
 
-    return request(`/api/candidates${search.toString() ? `?${search}` : ""}`);
-  },
-
-  candidateStates: () => request("/api/candidates/dropdowns/states"),
-  candidateOffices: () => request("/api/candidates/dropdowns/offices"),
-  candidateParties: () => request("/api/candidates/dropdowns/parties"),
-  candidateCounties: () => request("/api/candidates/dropdowns/counties"),
-
-  consultants: (params = {}) => {
-    const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        search.set(key, value);
-      }
-    });
-
-    return request(`/api/consultants${search.toString() ? `?${search}` : ""}`);
-  },
-
-  consultantStates: () => request("/api/consultants/dropdowns/states"),
-
-  vendors: (params = {}) => {
-    const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        search.set(key, value);
-      }
-    });
-
-    return request(`/api/vendors${search.toString() ? `?${search}` : ""}`);
-  },
-
-  vendorStates: () => request("/api/vendors/dropdowns/states"),
-
-  intelligenceSummary: () => request("/api/intelligence/summary"),
-  intelligenceDashboard: () => request("/api/intelligence/dashboard"),
-  intelligenceForecast: () => request("/api/intelligence/forecast"),
-  intelligenceRankings: () => request("/api/intelligence/rankings"),
-  intelligenceMap: () => request("/api/intelligence/map"),
-
-  liveFundraising: (params = {}) => {
-    const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        search.set(key, value);
-      }
-    });
-
-    return request(
-      `/api/intelligence/fundraising/live${
-        search.toString() ? `?${search}` : ""
-      }`
-    );
-  },
-
-  fundraisingLeaderboard: () =>
-    request("/api/intelligence/fundraising/leaderboard"),
-
-  runFundraisingIngestion: (payload = {}) =>
-    request("/api/intelligence/fundraising/ingest", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-
-  statesGeoJson: () => request("/api/map/geojson/states"),
-
-  stateGeoJson: (stateName) =>
-    request(`/api/map/geojson/states/${encodeURIComponent(stateName)}`),
-
-  runMapIngestion: (payload = {}) =>
-    request("/api/map/ingest", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
-};
+    return Promise.reject(error);
+  }
+);
 
 export default api;
