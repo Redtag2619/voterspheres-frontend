@@ -70,7 +70,6 @@ export default function Pricing() {
 
   async function handlePlanAction(plan) {
     setError("");
-
     saveTrialIntent({
       selectedPlan: plan.key,
       trialDays: plan.trialDays,
@@ -88,9 +87,6 @@ export default function Pricing() {
       });
 
       navigate("/signup");
-
-      navigate("/signup");
-
       return;
     }
 
