@@ -97,7 +97,7 @@ export default function Pricing() {
       setLoadingPlan(plan.key);
 
       const frontendBase = window.location.origin;
-      const successUrl = `${frontendBase}/billing?success=1&plan=${plan.key}`;
+      const successUrl = `${frontendBase}/checkout/success?success=1&plan=${plan.key}`;
       const cancelUrl = `${frontendBase}/pricing?canceled=1`;
 
       const data = await createCheckoutSession({
