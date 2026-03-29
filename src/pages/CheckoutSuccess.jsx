@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getBillingDebug } from "../api/billing";
+import OnboardingCelebrationBanner from "../components/OnboardingCelebrationBanner";
 import OnboardingChecklist from "../components/OnboardingChecklist";
 import { useAuth } from "../context/AuthContext";
 import { useOnboardingChecklist } from "../hooks/useOnboardingChecklist";
@@ -186,6 +187,12 @@ export default function CheckoutSuccess() {
           </div>
         )}
       </div>
+
+      {progress.percent === 100 ? (
+        <section style={styles.section}>
+          <OnboardingCelebrationBanner planTier={livePlan} />
+        </section>
+      ) : null}
 
       <section style={styles.section}>
         <OnboardingChecklist
