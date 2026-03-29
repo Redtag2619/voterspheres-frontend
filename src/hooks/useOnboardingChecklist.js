@@ -19,33 +19,49 @@ export function useOnboardingChecklist({ userId, firmId, planTier }) {
   }, [userId, firmId, items]);
 
   function markComplete(itemId) {
+    let changed = false;
+
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              completed: true,
-              completedAt: item.completedAt || new Date().toISOString(),
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        if (item.completed) return item;
+
+        changed = true;
+        return {
+          ...item,
+          completed: true,
+          completedAt: new Date().toISOString(),
+        };
+      })
     );
+
+    return changed;
   }
 
   function markManyComplete(itemIds = []) {
-    if (!Array.isArray(itemIds) || itemIds.length === 0) return;
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      return [];
+    }
+
+    const changedItems = [];
 
     setItems((prev) =>
-      prev.map((item) =>
-        itemIds.includes(item.id)
-          ? {
-              ...item,
-              completed: true,
-              completedAt: item.completedAt || new Date().toISOString(),
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (!itemIds.includes(item.id)) return item;
+        if (item.completed) return item;
+
+        const updated = {
+          ...item,
+          completed: true,
+          completedAt: new Date().toISOString(),
+        };
+
+        changedItems.push(updated);
+        return updated;
+      })
     );
+
+    return changedItems;
   }
 
   function markIncomplete(itemId) {
