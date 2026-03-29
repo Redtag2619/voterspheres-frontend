@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCheckoutSession } from "../api/billing"; 
+import { createCheckoutSession } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
 import { hasPlan, normalizePlan } from "../lib/plan";
 import { getPriceIdForPlan } from "../lib/stripePlans";
@@ -70,6 +70,7 @@ export default function Pricing() {
 
   async function handlePlanAction(plan) {
     setError("");
+
     saveTrialIntent({
       selectedPlan: plan.key,
       trialDays: plan.trialDays,
@@ -77,7 +78,6 @@ export default function Pricing() {
     });
 
     if (!isAuthenticated) {
-
       navigate("/signup", {
         state: {
           selectedPlan: plan.key,
@@ -85,8 +85,6 @@ export default function Pricing() {
           source: "pricing",
         },
       });
-
-      navigate("/signup");
       return;
     }
 
@@ -104,16 +102,6 @@ export default function Pricing() {
 
       const data = await createCheckoutSession({
         priceId: getPriceIdForPlan(plan.key),
-
-        const priceMap = {
-        starter: import.meta.env.VITE_STRIPE_PRICE_STARTER || "starter",
-        pro: import.meta.env.VITE_STRIPE_PRICE_PRO || "pro",
-        enterprise: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || "enterprise",
-      };
-
-      const data = await createCheckoutSession({
-        priceId: priceMap[plan.key],
-
         successUrl,
         cancelUrl,
         trialDays: plan.trialDays,
@@ -161,6 +149,7 @@ export default function Pricing() {
             >
               {isAuthenticated ? "Go to Billing" : "Start Your 7-Day Trial"}
             </button>
+
             <button
               style={styles.secondaryButton}
               onClick={() => {
