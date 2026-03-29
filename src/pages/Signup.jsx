@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -6,11 +6,13 @@ import {
   getTrialIntent,
   saveTrialIntent,
 } from "../lib/trialIntent";
+import { getPriceIdForPlan } from "../lib/stripePlans";
+import { createCheckoutSession } from "../api/billing";
 
 export default function Signup() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signup, isAuthenticated } = useAuth();
+  const { signup } = useAuth();
 
   const [form, setForm] = useState({
     first_name: "",
@@ -37,32 +39,6 @@ export default function Signup() {
     };
   }, [location.state]);
 
-  useEffect(() => {
-    if (incomingIntent.selectedPlan) {
-      saveTrialIntent(incomingIntent);
-    }
-  }, [incomingIntent]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      const intent = getTrialIntent();
-
-      if (intent?.selectedPlan) {
-        navigate("/pricing", {
-          replace: true,
-          state: {
-            selectedPlan: intent.selectedPlan,
-            trialDays: intent.trialDays,
-            fromSignup: true,
-          },
-        });
-        return;
-      }
-
-      navigate("/", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
-
   function updateField(event) {
     const { name, value } = event.target;
     setForm((prev) => ({
@@ -71,25 +47,46 @@ export default function Signup() {
     }));
   }
 
+  async function redirectToCheckout(intent) {
+    const priceId = getPriceIdForPlan(intent.selectedPlan);
+
+    if (!priceId) {
+      throw new Error("Missing Stripe price for selected plan");
+    }
+
+    const frontendBase = window.location.origin;
+    const successUrl = `${frontendBase}/billing?success=1&plan=${intent.selectedPlan}`;
+    const cancelUrl = `${frontendBase}/pricing?canceled=1`;
+
+    const data = await createCheckoutSession({
+      priceId,
+      successUrl,
+      cancelUrl,
+      trialDays: intent.trialDays,
+    });
+
+    if (!data?.url) {
+      throw new Error("Checkout URL not returned");
+    }
+
+    clearTrialIntent();
+    window.location.href = data.url;
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitting(true);
     setError("");
 
     try {
+      if (incomingIntent.selectedPlan) {
+        saveTrialIntent(incomingIntent);
+      }
+
       await signup(form);
 
-      const intent = getTrialIntent();
-
-      if (intent?.selectedPlan) {
-        navigate("/pricing", {
-          replace: true,
-          state: {
-            selectedPlan: intent.selectedPlan,
-            trialDays: intent.trialDays,
-            fromSignup: true,
-          },
-        });
+      if (incomingIntent.selectedPlan) {
+        await redirectToCheckout(incomingIntent);
         return;
       }
 
@@ -97,8 +94,8 @@ export default function Signup() {
       navigate("/", { replace: true });
     } catch (err) {
       setError(
-        err?.message ||
-          err?.response?.data?.error ||
+        err?.response?.data?.error ||
+          err?.message ||
           "Unable to create your account right now."
       );
     } finally {
@@ -112,16 +109,16 @@ export default function Signup() {
         <div style={styles.brand}>VoterSpheres</div>
         <h1 style={styles.title}>Create your account</h1>
         <p style={styles.subtitle}>
-          Get into the platform fast and continue your selected trial flow.
+          Get set up fast and continue directly into your selected trial.
         </p>
 
         {incomingIntent.selectedPlan ? (
           <div style={styles.intentBox}>
             <div style={styles.intentBadge}>Selected Trial</div>
             <div style={styles.intentText}>
-              You are signing up for a{" "}
+              After signup, you’ll be sent directly to Stripe for your{" "}
               <strong>{String(incomingIntent.selectedPlan).toUpperCase()}</strong>{" "}
-              plan path with a <strong>{incomingIntent.trialDays}-day trial</strong>.
+              plan with a <strong>{incomingIntent.trialDays}-day trial</strong>.
             </div>
           </div>
         ) : null}
@@ -203,9 +200,13 @@ export default function Signup() {
 
           <button type="submit" disabled={submitting} style={styles.primaryButton}>
             {submitting
-              ? "Creating account..."
+              ? incomingIntent.selectedPlan
+                ? "Creating account and redirecting..."
+                : "Creating account..."
               : incomingIntent.selectedPlan
-              ? `Continue to ${String(incomingIntent.selectedPlan).toUpperCase()} Trial`
+              ? `Create Account & Start ${String(
+                  incomingIntent.selectedPlan
+                ).toUpperCase()} Trial`
               : "Create Account"}
           </button>
         </form>
