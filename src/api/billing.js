@@ -1,13 +1,11 @@
-import api from "../services/api"; 
+import { billingApi } from "../services/api";
 
 export async function getBillingConfig() {
-  const res = await api.get("/billing/config");
-  return res.data;
+  return billingApi.config();
 }
 
 export async function getBillingDebug() {
-  const res = await api.get("/billing/debug/me");
-  return res.data;
+  return billingApi.debugMe();
 }
 
 export async function createCheckoutSession({
@@ -16,17 +14,14 @@ export async function createCheckoutSession({
   cancelUrl,
   trialDays,
 }) {
-  const res = await api.post("/billing/checkout-session", {
+  return billingApi.createCheckoutSession({
     priceId,
     successUrl,
     cancelUrl,
     trialDays,
   });
-
-  return res.data;
 }
 
 export async function createPortalSession() {
-  const res = await api.post("/billing/portal-session", {});
-  return res.data;
+  return billingApi.createPortalSession({});
 }
