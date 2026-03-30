@@ -1,26 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-
-  return data;
-}
+import { crmApi, intelligenceApi } from "../services/api";
 
 function toneClasses(tone) {
   if (tone === "down") {
@@ -74,6 +53,10 @@ function EmptyState({ text }) {
   );
 }
 
+function formatMoney(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
+}
+
 export default function ExecutiveDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,9 +67,14 @@ export default function ExecutiveDashboard() {
     fundraising_leaders: [],
     task_alerts: [],
     vendor_activity: [],
-    mail_intelligence: { recent_events: [] },
+    mail_intelligence: {
+      recent_events: [],
+      total_mail_drops: 0,
+      delayed_mail_drops: 0
+    },
     forecast: null,
-    recent_activity: []
+    recent_activity: [],
+    top_fundraiser: null
   });
 
   async function loadDashboard() {
@@ -94,10 +82,184 @@ export default function ExecutiveDashboard() {
       setLoading(true);
       setError("");
 
-      const response = await apiRequest("/api/platform/executive-dashboard");
-      setData(response || {});
+      const [crmRes, forecastRes, fundraisingRes] = await Promise.allSettled([
+        crmApi.campaigns(),
+        intelligenceApi.forecast(),
+        intelligenceApi.fundraisingLeaderboard()
+      ]);
+
+      let campaigns = [];
+      let battlegrounds = [];
+      let fundraisingLeaders = [];
+
+      if (crmRes.status === "fulfilled") {
+        const crmValue = crmRes.value;
+        campaigns = Array.isArray(crmValue)
+          ? crmValue
+          : crmValue?.campaigns || [];
+      }
+
+      if (forecastRes.status === "fulfilled") {
+        const forecastValue = forecastRes.value || {};
+        battlegrounds =
+          forecastValue?.battlegrounds ||
+          forecastValue?.mapBattlegrounds ||
+          forecastValue?.races ||
+          [];
+      }
+
+      if (fundraisingRes.status === "fulfilled") {
+        fundraisingLeaders =
+          fundraisingRes.value?.leaderboard ||
+          fundraisingRes.value?.results ||
+          [];
+      }
+
+      if (
+        crmRes.status === "rejected" &&
+        forecastRes.status === "rejected" &&
+        fundraisingRes.status === "rejected"
+      ) {
+        throw new Error("Failed to load executive dashboard");
+      }
+
+      const metrics = [
+        {
+          label: "Active Campaigns",
+          value: String(
+            campaigns.filter((c) =>
+              ["active", "open"].includes(String(c.status || "").toLowerCase())
+            ).length
+          ),
+          delta: `${campaigns.length} tracked`,
+          tone: "up"
+        },
+        {
+          label: "Battleground States",
+          value: String(battlegrounds.slice(0, 12).length),
+          delta: "Live map intelligence",
+          tone: "up"
+        },
+        {
+          label: "Fundraising Leaders",
+          value: String(fundraisingLeaders.slice(0, 10).length),
+          delta: "Top campaigns by receipts",
+          tone: "up"
+        },
+        {
+          label: "Task Alerts",
+          value: String(
+            campaigns.filter((c) =>
+              ["at_risk", "delayed"].includes(String(c.status || "").toLowerCase())
+            ).length
+          ),
+          delta: "Requires attention",
+          tone: "down"
+        }
+      ];
+
+      const taskAlerts = campaigns.filter((c) =>
+        ["at_risk", "delayed"].includes(String(c.status || "").toLowerCase())
+      );
+
+      const vendorActivity = campaigns
+        .filter((c) => c.vendor_name || c.contract_value)
+        .slice(0, 8)
+        .map((c) => ({
+          id: c.id,
+          vendor_name: c.vendor_name || "Vendor relationship",
+          category: c.category || "Campaign Vendor",
+          campaign_name: c.campaign_name || c.candidate_name || "Campaign",
+          status: c.status || "active",
+          contract_value: c.contract_value || 0
+        }));
+
+      const recentActivity = campaigns.slice(0, 8).map((c) => ({
+        id: c.id,
+        activity_type: "campaign_update",
+        campaign_name: c.campaign_name || c.candidate_name || "Campaign",
+        created_at: c.updated_at || c.created_at || new Date().toISOString(),
+        details: {
+          state: c.state || "N/A",
+          office: c.office || "N/A",
+          stage: c.stage || "N/A"
+        }
+      }));
+
+      const mailRecentEvents = campaigns.slice(0, 6).map((c, index) => ({
+        id: c.id || index + 1,
+        event_type: "mail_monitor",
+        mail_drop_id: index + 1,
+        campaign_id: c.id,
+        location_name: c.state || "Unknown",
+        facility_type: "regional",
+        status:
+          String(c.status || "").toLowerCase() === "delayed"
+            ? "delayed"
+            : "active",
+        created_at: c.updated_at || c.created_at || new Date().toISOString()
+      }));
+
+      setData({
+        metrics,
+        active_campaigns: campaigns.slice(0, 8),
+        battleground_states: battlegrounds.slice(0, 8).map((row, index) => ({
+          state_name: row.state || row.name || `State ${index + 1}`,
+          category: row.category || row.rating || row.overlayTier || "Competitive",
+          margin: row.margin ?? row.winProb ?? row.winProbability ?? "N/A",
+          score: row.score ?? row.overlayScore ?? "N/A"
+        })),
+        fundraising_leaders: fundraisingLeaders.slice(0, 8).map((row) => ({
+          candidate_name: row.candidate_name || row.name || "Unknown Candidate",
+          office: row.office || "Office",
+          state: row.state || "State",
+          party: row.party || "Party",
+          total_receipts: row.total_receipts || row.receipts || 0
+        })),
+        task_alerts: taskAlerts.slice(0, 8).map((campaign) => ({
+          id: campaign.id,
+          title: campaign.campaign_name || "Campaign Task Alert",
+          campaign_name: campaign.campaign_name || campaign.candidate_name || "Campaign",
+          priority:
+            String(campaign.status || "").toLowerCase() === "delayed"
+              ? "high"
+              : "medium",
+          status: campaign.status || "todo"
+        })),
+        vendor_activity: vendorActivity,
+        mail_intelligence: {
+          recent_events: mailRecentEvents,
+          total_mail_drops: mailRecentEvents.length,
+          delayed_mail_drops: mailRecentEvents.filter(
+            (e) => e.status === "delayed"
+          ).length
+        },
+        forecast:
+          forecastRes.status === "fulfilled"
+            ? {
+                published_at:
+                  forecastRes.value?.published_at ||
+                  forecastRes.value?.snapshot?.published_at ||
+                  null
+              }
+            : null,
+        recent_activity: recentActivity,
+        top_fundraiser:
+          fundraisingLeaders.length > 0
+            ? {
+                candidate_name:
+                  fundraisingLeaders[0].candidate_name ||
+                  fundraisingLeaders[0].name ||
+                  "Unknown Candidate",
+                total_receipts:
+                  fundraisingLeaders[0].total_receipts ||
+                  fundraisingLeaders[0].receipts ||
+                  0
+              }
+            : null
+      });
     } catch (err) {
-      setError(err.message || "Failed to load executive dashboard");
+      setError(err?.message || "Failed to load executive dashboard");
     } finally {
       setLoading(false);
     }
@@ -110,9 +272,7 @@ export default function ExecutiveDashboard() {
   const topFundraiserLabel = useMemo(() => {
     if (!data?.top_fundraiser) return "No fundraising leaders yet";
     const row = data.top_fundraiser;
-    return `${row.candidate_name} • $${Number(
-      row.total_receipts || 0
-    ).toLocaleString()}`;
+    return `${row.candidate_name} • ${formatMoney(row.total_receipts || 0)}`;
   }, [data]);
 
   return (
@@ -215,14 +375,8 @@ export default function ExecutiveDashboard() {
 
                     <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-4">
                       <div>Status: {campaign.status || "Open"}</div>
-                      <div>
-                        Contract: $
-                        {Number(campaign.contract_value || 0).toLocaleString()}
-                      </div>
-                      <div>
-                        Budget: $
-                        {Number(campaign.budget_total || 0).toLocaleString()}
-                      </div>
+                      <div>Contract: {formatMoney(campaign.contract_value || 0)}</div>
+                      <div>Budget: {formatMoney(campaign.budget_total || 0)}</div>
                       <div>
                         Owner:{" "}
                         {[campaign.owner_first_name, campaign.owner_last_name]
@@ -296,7 +450,7 @@ export default function ExecutiveDashboard() {
                       {item.party || "Party"}
                     </div>
                     <div className="mt-3 text-sm font-medium text-[#0176D3]">
-                      ${Number(item.total_receipts || 0).toLocaleString()} raised
+                      {formatMoney(item.total_receipts || 0)} raised
                     </div>
                   </div>
                 ))
@@ -359,10 +513,7 @@ export default function ExecutiveDashboard() {
                     </div>
                     <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
                       <div>Status: {vendor.status || "active"}</div>
-                      <div>
-                        Contract: $
-                        {Number(vendor.contract_value || 0).toLocaleString()}
-                      </div>
+                      <div>Contract: {formatMoney(vendor.contract_value || 0)}</div>
                     </div>
                   </div>
                 ))
