@@ -245,6 +245,20 @@ export const crmApi = {
     tryPost([`/campaigns/${campaignId}/mail-events`], payload),
   updateMailEvent: (campaignId, eventId, payload) =>
     tryPatch([`/campaigns/${campaignId}/mail-events/${eventId}`], payload),
+
+  firms: async (search = "") => {
+    const params = search ? { search } : {};
+    const data = await tryGet(["/crm/firms"], { params });
+    return Array.isArray(data) ? { results: data } : data;
+  },
+
+  createFirm: (payload) => tryPost(["/crm/firms"], payload),
+
+  firmWorkspace: (firmId) =>
+    tryGet([
+      `/firms/${firmId}/workspace`,
+      `/crm/firms/${firmId}/workspace`,
+    ]),
 };
 
 export const statesApi = {
@@ -308,6 +322,10 @@ export const api = {
 
   crmCampaigns: crmApi.campaigns,
   createCampaign: crmApi.createCampaign,
+
+  firms: crmApi.firms,
+  createFirm: crmApi.createFirm,
+  firmWorkspace: crmApi.firmWorkspace,
 };
 
 export { http };
