@@ -1,29 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
+import { alertsApi, crmApi } from "../services/api";
 
 const DEFAULT_CAMPAIGN_ID = "2";
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-
-  return data;
-}
 
 function toneClasses(tone) {
   if (tone === "down") {
@@ -177,12 +156,12 @@ export default function CampaignWorkspace() {
   });
 
   async function loadWorkspace() {
-    const result = await apiRequest(`/api/campaigns/${campaignId}/command-center`);
+    const result = await crmApi.commandCenter(campaignId);
     setData(result || {});
   }
 
   async function loadActivity() {
-    const result = await apiRequest(`/api/campaigns/${campaignId}/activity`);
+    const result = await crmApi.activity(campaignId);
     setActivity(result || []);
   }
 
@@ -192,7 +171,7 @@ export default function CampaignWorkspace() {
       setError("");
       await Promise.all([loadWorkspace(), loadActivity()]);
     } catch (err) {
-      setError(err.message || "Failed to load campaign workspace");
+      setError(err?.message || "Failed to load campaign workspace");
     } finally {
       setLoading(false);
     }
@@ -202,38 +181,31 @@ export default function CampaignWorkspace() {
     loadAll();
   }, [campaignId]);
 
-  async function submitForm(formName, path, body, resetFn) {
+  async function submitForm(formName, handler, body, resetFn) {
     try {
       setSubmitting(formName);
       setError("");
 
-      await apiRequest(path, {
-        method: "POST",
-        body: JSON.stringify(body)
-      });
+      await handler(body);
 
       resetFn();
       await loadAll();
     } catch (err) {
-      setError(err.message || "Failed to save");
+      setError(err?.message || "Failed to save");
     } finally {
       setSubmitting("");
     }
   }
 
-  async function patchEntity(formName, path, body) {
+  async function patchEntity(formName, handler, body) {
     try {
       setSubmitting(formName);
       setError("");
 
-      await apiRequest(path, {
-        method: "PATCH",
-        body: JSON.stringify(body)
-      });
-
+      await handler(body);
       await loadAll();
     } catch (err) {
-      setError(err.message || "Failed to update");
+      setError(err?.message || "Failed to update");
     } finally {
       setSubmitting("");
     }
@@ -244,20 +216,23 @@ export default function CampaignWorkspace() {
       setSubmitting(`${action}-${alert.alert_key}`);
       setError("");
 
-      await apiRequest(`/api/alerts/${action}`, {
-        method: "POST",
-        body: JSON.stringify({
-          alert_key: alert.alert_key,
-          alert_type: alert.type,
-          campaign_id: alert.campaign_id,
-          entity_id: alert.entity_id,
-          notes: alertNotes[alert.alert_key] || ""
-        })
-      });
+      const payload = {
+        alert_key: alert.alert_key,
+        alert_type: alert.type,
+        campaign_id: alert.campaign_id,
+        entity_id: alert.entity_id,
+        notes: alertNotes[alert.alert_key] || ""
+      };
+
+      if (action === "resolve") {
+        await alertsApi.resolve(payload);
+      } else {
+        await alertsApi.dismiss(payload);
+      }
 
       await loadAll();
     } catch (err) {
-      setError(err.message || `Failed to ${action} alert`);
+      setError(err?.message || `Failed to ${action} alert`);
     } finally {
       setSubmitting("");
     }
@@ -268,26 +243,26 @@ export default function CampaignWorkspace() {
       if (alert.type === "task" && alert.meta?.task_id) {
         await patchEntity(
           `task-inline-${alert.meta.task_id}`,
-          `/api/campaigns/${campaignId}/tasks/${alert.meta.task_id}`,
+          (payload) => crmApi.updateTask(campaignId, alert.meta.task_id, payload),
           { status: "done" }
         );
       } else if (alert.type === "vendor" && alert.meta?.vendor_id) {
         await patchEntity(
           `vendor-inline-${alert.meta.vendor_id}`,
-          `/api/campaigns/${campaignId}/vendors/${alert.meta.vendor_id}`,
+          (payload) => crmApi.updateVendor(campaignId, alert.meta.vendor_id, payload),
           { status: "active" }
         );
       } else if (alert.type === "mail_delay" && alert.meta?.mail_event_id) {
         await patchEntity(
           `mail-inline-${alert.meta.mail_event_id}`,
-          `/api/campaigns/${campaignId}/mail-events/${alert.meta.mail_event_id}`,
+          (payload) => crmApi.updateMailEvent(campaignId, alert.meta.mail_event_id, payload),
           { event_type: "delivered", status: "delivered" }
         );
       }
 
       await actOnAlert(alert, "resolve");
     } catch (err) {
-      setError(err.message || "Failed to resolve alert");
+      setError(err?.message || "Failed to resolve alert");
     }
   }
 
@@ -468,7 +443,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `task-${task.id}`,
-                            `/api/campaigns/${campaignId}/tasks/${task.id}`,
+                            (payload) => crmApi.updateTask(campaignId, task.id, payload),
                             { status: "in_progress" }
                           )
                         }
@@ -481,7 +456,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `task-${task.id}`,
-                            `/api/campaigns/${campaignId}/tasks/${task.id}`,
+                            (payload) => crmApi.updateTask(campaignId, task.id, payload),
                             { status: "done" }
                           )
                         }
@@ -565,7 +540,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `vendor-${vendor.id}`,
-                            `/api/campaigns/${campaignId}/vendors/${vendor.id}`,
+                            (payload) => crmApi.updateVendor(campaignId, vendor.id, payload),
                             { status: "active" }
                           )
                         }
@@ -578,7 +553,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `vendor-${vendor.id}`,
-                            `/api/campaigns/${campaignId}/vendors/${vendor.id}`,
+                            (payload) => crmApi.updateVendor(campaignId, vendor.id, payload),
                             { status: "at_risk" }
                           )
                         }
@@ -698,7 +673,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `mail-${event.id}`,
-                            `/api/campaigns/${campaignId}/mail-events/${event.id}`,
+                            (payload) => crmApi.updateMailEvent(campaignId, event.id, payload),
                             { event_type: "in_transit", status: "in_transit" }
                           )
                         }
@@ -711,7 +686,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `mail-${event.id}`,
-                            `/api/campaigns/${campaignId}/mail-events/${event.id}`,
+                            (payload) => crmApi.updateMailEvent(campaignId, event.id, payload),
                             { event_type: "delivered", status: "delivered" }
                           )
                         }
@@ -785,7 +760,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "task",
-                    `/api/campaigns/${campaignId}/tasks`,
+                    (payload) => crmApi.createTask(campaignId, payload),
                     taskForm,
                     () =>
                       setTaskForm({
@@ -851,7 +826,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "contact",
-                    `/api/campaigns/${campaignId}/contacts`,
+                    (payload) => crmApi.createContact(campaignId, payload),
                     contactForm,
                     () =>
                       setContactForm({
@@ -909,7 +884,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "vendor",
-                    `/api/campaigns/${campaignId}/vendors`,
+                    (payload) => crmApi.createVendor(campaignId, payload),
                     {
                       ...vendorForm,
                       contract_value: Number(vendorForm.contract_value || 0)
@@ -975,7 +950,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "document",
-                    `/api/campaigns/${campaignId}/documents`,
+                    (payload) => crmApi.createDocument(campaignId, payload),
                     documentForm,
                     () =>
                       setDocumentForm({
@@ -1023,7 +998,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "mailProgram",
-                    `/api/campaigns/${campaignId}/mail-programs`,
+                    (payload) => crmApi.createMailProgram(campaignId, payload),
                     mailProgramForm,
                     () =>
                       setMailProgramForm({
@@ -1063,7 +1038,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "mailDrop",
-                    `/api/campaigns/${campaignId}/mail-drops`,
+                    (payload) => crmApi.createMailDrop(campaignId, payload),
                     {
                       ...mailDropForm,
                       program_id: mailDropForm.program_id ? Number(mailDropForm.program_id) : null,
@@ -1126,7 +1101,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "mailEvent",
-                    `/api/campaigns/${campaignId}/mail-events`,
+                    (payload) => crmApi.createMailEvent(campaignId, payload),
                     {
                       ...mailEventForm,
                       mail_drop_id: mailEventForm.mail_drop_id ? Number(mailEventForm.mail_drop_id) : null
