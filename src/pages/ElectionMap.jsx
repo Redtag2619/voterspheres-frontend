@@ -118,10 +118,13 @@ export default function ElectionMap() {
         setLoading(true);
         setError("");
 
-        const [mapData, geo] = await Promise.all([
-          api.intelligenceMap(),
-          api.statesGeoJson()
-        ]);
+        const [mapRes, geoRes] = await Promise.all([
+  api.get("/api/intelligence/map"),
+  api.get("/api/states/geojson")
+]);
+
+const mapData = mapRes.data;
+const geo = geoRes.data;
 
         if (!active) return;
 
