@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../services/api";
+import { candidatesApi } from "../services/api";
 
 function CandidateCard({ candidate }) {
   return (
@@ -47,7 +47,7 @@ export default function Candidates() {
     office: "",
     party: "",
     page: 1,
-    limit: 12
+    limit: 12,
   });
 
   useEffect(() => {
@@ -55,18 +55,22 @@ export default function Candidates() {
 
     async function loadDropdowns() {
       try {
-       const [stateRes, officeRes, partyRes] = await Promise.all([
-  api.get("/api/candidates/states"),
-  api.get("/api/candidates/offices"),
-  api.get("/api/candidates/parties")
-]);
+        setError("");
 
-setStates(stateRes.data || []);
-setOffices(officeRes.data || []);
-setParties(partyRes.data || []);
-            } catch (err) {
+        const [stateData, officeData, partyData] = await Promise.all([
+          candidatesApi.states(),
+          candidatesApi.offices(),
+          candidatesApi.parties(),
+        ]);
+
         if (!active) return;
-        setError(err.message || "Failed to load candidate filters");
+
+        setStates(Array.isArray(stateData) ? stateData : stateData?.results || []);
+        setOffices(Array.isArray(officeData) ? officeData : officeData?.results || []);
+        setParties(Array.isArray(partyData) ? partyData : partyData?.results || []);
+      } catch (err) {
+        if (!active) return;
+        setError(err?.message || "Failed to load candidate filters");
       }
     }
 
@@ -85,20 +89,18 @@ setParties(partyRes.data || []);
         setLoading(true);
         setError("");
 
-       const res = await api.get("/api/candidates", {
-  params: filters
-});
+        const result = await candidatesApi.list(filters);
 
-const data = res.data;
+        if (!active) return;
 
-if (Array.isArray(data)) {
-  setRows(data);
-} else {
-  setRows(data?.results || data?.candidates || []);
-}
+        if (Array.isArray(result)) {
+          setRows(result);
+        } else {
+          setRows(result?.results || result?.candidates || []);
+        }
       } catch (err) {
         if (!active) return;
-        setError(err.message || "Failed to load candidates");
+        setError(err?.message || "Failed to load candidates");
         setRows([]);
       } finally {
         if (active) setLoading(false);
@@ -135,7 +137,7 @@ if (Array.isArray(data)) {
                 setFilters((prev) => ({
                   ...prev,
                   q: e.target.value,
-                  page: 1
+                  page: 1,
                 }))
               }
             />
@@ -147,7 +149,7 @@ if (Array.isArray(data)) {
                 setFilters((prev) => ({
                   ...prev,
                   state: e.target.value,
-                  page: 1
+                  page: 1,
                 }))
               }
             >
@@ -166,7 +168,7 @@ if (Array.isArray(data)) {
                 setFilters((prev) => ({
                   ...prev,
                   office: e.target.value,
-                  page: 1
+                  page: 1,
                 }))
               }
             >
@@ -185,7 +187,7 @@ if (Array.isArray(data)) {
                 setFilters((prev) => ({
                   ...prev,
                   party: e.target.value,
-                  page: 1
+                  page: 1,
                 }))
               }
             >
