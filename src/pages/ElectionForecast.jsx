@@ -4,7 +4,7 @@ import Panel from "../components/ui/Panel";
 import LoadingState from "../components/ui/LoadingState";
 import ErrorState from "../components/ui/ErrorState";
 import { useApiResource } from "../hooks/useApiResource";
-import { api } from "../services/api";
+import { intelligenceApi } from "../services/api";
 
 const fallbackData = {
   metrics: [
@@ -29,15 +29,55 @@ const fallbackData = {
 };
 
 function toneClass(v) {
-  return String(v).startsWith("-") ? "down" : "up";
+  return String(v || "").startsWith("-") ? "down" : "up";
 }
 
 function probabilityWidth(v) {
-  return { width: `${v}%` };
+  return { width: `${Number(v || 0)}%` };
+}
+
+function normalizeForecastData(raw) {
+  const data = raw || {};
+
+  const races =
+    data.races ||
+    data.results ||
+    data.forecast ||
+    [];
+
+  const metrics =
+    data.metrics ||
+    [
+      {
+        label: "Tracked Races",
+        value: String(Array.isArray(races) ? races.length : 0),
+        delta: "Live forecast feed",
+        tone: "up"
+      }
+    ];
+
+  const scenarios =
+    data.scenarios ||
+    [];
+
+  const notes =
+    data.notes ||
+    [];
+
+  return {
+    metrics,
+    races: Array.isArray(races) ? races : [],
+    scenarios: Array.isArray(scenarios) ? scenarios : [],
+    notes: Array.isArray(notes) ? notes : []
+  };
 }
 
 const ElectionForecast = () => {
-  const fetcher = useCallback(() => api.forecast(), []);
+  const fetcher = useCallback(async () => {
+    const result = await intelligenceApi.forecast();
+    return normalizeForecastData(result);
+  }, []);
+
   const { data, loading, error } = useApiResource(fetcher, fallbackData);
 
   return (
@@ -48,21 +88,39 @@ const ElectionForecast = () => {
       metrics={data?.metrics || []}
     >
       <Panel title="Race Probability Board" subtitle="Live model snapshot across top contested races">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : (
           <div className="vs-probability-board">
-            {data.races.map((row) => (
-              <div key={row.race} className="vs-probability-row">
+            {(data?.races || []).map((row, index) => (
+              <div
+                key={row.race || row.name || row.id || index}
+                className="vs-probability-row"
+              >
                 <div className="vs-probability-top">
-                  <div className="vs-probability-race">{row.race}</div>
-                  <div className="vs-probability-percent">{row.winProb}%</div>
+                  <div className="vs-probability-race">
+                    {row.race || row.name || `${row.state || "State"} ${row.office || ""}`.trim()}
+                  </div>
+                  <div className="vs-probability-percent">
+                    {Number(row.winProb ?? row.winProbability ?? 0)}%
+                  </div>
                 </div>
+
                 <div className="vs-probability-bar">
-                  <div className="vs-probability-fill" style={probabilityWidth(row.winProb)} />
+                  <div
+                    className="vs-probability-fill"
+                    style={probabilityWidth(row.winProb ?? row.winProbability ?? 0)}
+                  />
                 </div>
+
                 <div className="vs-probability-meta">
-                  <span className={toneClass(row.change)}>{row.change}</span>
-                  <span>{row.rating}</span>
-                  <span>{row.status}</span>
+                  <span className={toneClass(row.change || row.delta || "+0")}>
+                    {row.change || row.delta || "+0"}
+                  </span>
+                  <span>{row.rating || row.category || "Competitive"}</span>
+                  <span>{row.status || row.overlayTier || "Active"}</span>
                 </div>
               </div>
             ))}
@@ -71,15 +129,26 @@ const ElectionForecast = () => {
       </Panel>
 
       <Panel title="Scenario Deck" subtitle="Most likely modeled pathways over the next cycle">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : (
           <div className="vs-scenario-list">
-            {data.scenarios.map((item) => (
-              <div key={item.title} className="vs-scenario-item">
+            {(data?.scenarios || []).map((item, index) => (
+              <div
+                key={item.title || index}
+                className="vs-scenario-item"
+              >
                 <div className="vs-scenario-topline">
                   <div className="vs-scenario-title">{item.title}</div>
-                  <div className="vs-scenario-probability">{item.probability}</div>
+                  <div className="vs-scenario-probability">
+                    {item.probability || item.prob || "N/A"}
+                  </div>
                 </div>
-                <div className="vs-scenario-summary">{item.summary}</div>
+                <div className="vs-scenario-summary">
+                  {item.summary || item.outcome || "No scenario summary available."}
+                </div>
               </div>
             ))}
           </div>
@@ -87,12 +156,21 @@ const ElectionForecast = () => {
       </Panel>
 
       <Panel title="AI Forecast Notes" subtitle="Highest-signal model interpretation" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : (
           <div className="vs-ai-note-list">
-            {data.notes.map((item) => (
-              <div key={item.title} className="vs-ai-note-item">
+            {(data?.notes || []).map((item, index) => (
+              <div
+                key={item.title || index}
+                className="vs-ai-note-item"
+              >
                 <div className="vs-ai-note-title">{item.title}</div>
-                <div className="vs-ai-note-detail">{item.detail}</div>
+                <div className="vs-ai-note-detail">
+                  {item.detail || item.note || "No note detail available."}
+                </div>
               </div>
             ))}
           </div>
