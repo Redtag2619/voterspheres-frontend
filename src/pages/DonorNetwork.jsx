@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { intelligenceApi } from "../services/api";
 
 function MetricCard({ label, value, delta }) {
   return (
@@ -78,8 +78,8 @@ export default function DonorNetwork() {
         setError("");
 
         const [leaderboardData, liveData] = await Promise.all([
-          api.fundraisingLeaderboard(),
-          api.liveFundraising({ limit: 12 })
+          intelligenceApi.fundraisingLeaderboard(),
+          intelligenceApi.liveFundraising()
         ]);
 
         if (!active) return;
