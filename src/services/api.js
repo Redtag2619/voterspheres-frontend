@@ -183,27 +183,6 @@ export const platformApi = {
   simulator: () => tryGet(["/platform/simulator"]),
   commandCenter: () => tryGet(["/platform/command-center"]),
 
-  export const vendorsApi = {
-  states: async () => {
-    const data = await tryGet([
-      "/vendors/states",
-      "/platform/vendors/states",
-      "/crm/vendors/states"
-    ]);
-
-    return normalizeListResult(data, ["states"]);
-  },
-
-  list: async (params = {}) => {
-    const data = await tryGet(
-      ["/vendors", "/platform/vendors", "/crm/vendors"],
-      { params }
-    );
-
-    return Array.isArray(data) ? { results: data } : data;
-  }
-};
-
   consultants: async (params = {}) => {
     const data = await tryGet(
       ["/platform/consultants", "/consultants", "/marketplace/consultants"],
@@ -217,10 +196,28 @@ export const platformApi = {
       "/platform/consultants/states",
       "/consultants/states",
       "/marketplace/consultants/states",
-       ]);
-    
+    ]);
     return normalizeListResult(data, ["states"]);
   },
+};
+
+export const vendorsApi = {
+  states: async () => {
+    const data = await tryGet([
+      "/vendors/states",
+      "/platform/vendors/states",
+      "/crm/vendors/states"
+    ]);
+    return normalizeListResult(data, ["states"]);
+  },
+
+  list: async (params = {}) => {
+    const data = await tryGet(
+      ["/vendors", "/platform/vendors", "/crm/vendors"],
+      { params }
+    );
+    return Array.isArray(data) ? { results: data } : data;
+  }
 };
 
 export const alertsApi = {
@@ -298,7 +295,6 @@ export const statesApi = {
 };
 
 export const api = {
-  // raw axios-style access
   get: (...args) => http.get(...args),
   post: (...args) => http.post(...args),
   put: (...args) => http.put(...args),
@@ -336,6 +332,9 @@ export const api = {
   commandCenter: platformApi.commandCenter,
   consultants: platformApi.consultants,
   consultantStates: platformApi.consultantStates,
+
+  vendorStates: vendorsApi.states,
+  vendors: vendorsApi.list,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
