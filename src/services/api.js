@@ -102,16 +102,49 @@ export const platformApi = {
   postAiPrompt: (payload) => unwrap(http.post("/platform/ai-chat", payload)),
   warRoom: () => unwrap(http.get("/platform/war-room")),
   simulator: () => unwrap(http.get("/platform/simulator")),
+  commandCenter: () => unwrap(http.get("/platform/command-center")),
 };
 
 export const alertsApi = {
   list: () => unwrap(http.get("/alerts")),
   rebuild: () => unwrap(http.post("/alerts/rebuild", {})),
+  resolve: (payload) => unwrap(http.post("/alerts/resolve", payload)),
+  dismiss: (payload) => unwrap(http.post("/alerts/dismiss", payload)),
 };
 
 export const crmApi = {
   campaigns: (params = {}) => unwrap(http.get("/crm/campaigns", { params })),
   createCampaign: (payload) => unwrap(http.post("/crm/campaigns", payload)),
+
+  commandCenter: (campaignId) =>
+    unwrap(http.get(`/campaigns/${campaignId}/command-center`)),
+  activity: (campaignId) =>
+    unwrap(http.get(`/campaigns/${campaignId}/activity`)),
+
+  createTask: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/tasks`, payload)),
+  updateTask: (campaignId, taskId, payload) =>
+    unwrap(http.patch(`/campaigns/${campaignId}/tasks/${taskId}`, payload)),
+
+  createContact: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/contacts`, payload)),
+
+  createVendor: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/vendors`, payload)),
+  updateVendor: (campaignId, vendorId, payload) =>
+    unwrap(http.patch(`/campaigns/${campaignId}/vendors/${vendorId}`, payload)),
+
+  createDocument: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/documents`, payload)),
+
+  createMailProgram: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/mail-programs`, payload)),
+  createMailDrop: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/mail-drops`, payload)),
+  createMailEvent: (campaignId, payload) =>
+    unwrap(http.post(`/campaigns/${campaignId}/mail-events`, payload)),
+  updateMailEvent: (campaignId, eventId, payload) =>
+    unwrap(http.patch(`/campaigns/${campaignId}/mail-events/${eventId}`, payload)),
 };
 
 export const statesApi = {
@@ -161,6 +194,7 @@ export const api = {
   postAiPrompt: platformApi.postAiPrompt,
   warRoom: platformApi.warRoom,
   simulator: platformApi.simulator,
+  commandCenter: platformApi.commandCenter,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
