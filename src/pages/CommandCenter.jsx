@@ -4,7 +4,7 @@ import Panel from "../components/ui/Panel";
 import LoadingState from "../components/ui/LoadingState";
 import ErrorState from "../components/ui/ErrorState";
 import { useApiResource } from "../hooks/useApiResource";
-import { api } from "../services/api";
+import { platformApi } from "../services/api";
 
 const fallbackData = {
   metrics: [
@@ -53,7 +53,7 @@ function toneClass(value) {
 }
 
 const CommandCenter = () => {
-  const fetcher = useCallback(() => api.commandCenter(), []);
+  const fetcher = useCallback(() => platformApi.commandCenter(), []);
   const { data, loading, error } = useApiResource(fetcher, fallbackData);
 
   return (
