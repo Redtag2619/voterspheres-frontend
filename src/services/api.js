@@ -17,9 +17,72 @@ const http = axios.create({
   timeout: 30000,
 });
 
+function isNotFound(error) {
+  return error?.response?.status === 404;
+}
+
 async function unwrap(promise) {
   const response = await promise;
   return response.data;
+}
+
+async function tryGet(paths, config = {}) {
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      return await unwrap(http.get(path, config));
+    } catch (error) {
+      lastError = error;
+      if (!isNotFound(error)) break;
+    }
+  }
+
+  throw lastError;
+}
+
+async function tryPost(paths, body = {}, config = {}) {
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      return await unwrap(http.post(path, body, config));
+    } catch (error) {
+      lastError = error;
+      if (!isNotFound(error)) break;
+    }
+  }
+
+  throw lastError;
+}
+
+async function tryPatch(paths, body = {}, config = {}) {
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      return await unwrap(http.patch(path, body, config));
+    } catch (error) {
+      lastError = error;
+      if (!isNotFound(error)) break;
+    }
+  }
+
+  throw lastError;
+}
+
+function normalizeListResult(data, preferredKeys = []) {
+  if (Array.isArray(data)) return data;
+
+  for (const key of preferredKeys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
+
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.rows)) return data.rows;
+
+  return [];
 }
 
 http.interceptors.request.use(
@@ -79,89 +142,127 @@ export const billingApi = {
 };
 
 export const candidatesApi = {
-  list: (params = {}) => unwrap(http.get("/candidates", { params })),
-  states: () => unwrap(http.get("/candidates/states")),
-  offices: () => unwrap(http.get("/candidates/offices")),
-  parties: () => unwrap(http.get("/candidates/parties")),
+  list: async (params = {}) => {
+    const data = await tryGet(["/candidates"], { params });
+    return Array.isArray(data) ? data : data;
+  },
+  states: async () => {
+    const data = await tryGet(["/candidates/states"]);
+    return normalizeListResult(data, ["states"]);
+  },
+  offices: async () => {
+    const data = await tryGet(["/candidates/offices"]);
+    return normalizeListResult(data, ["offices"]);
+  },
+  parties: async () => {
+    const data = await tryGet(["/candidates/parties"]);
+    return normalizeListResult(data, ["parties"]);
+  },
   bySlug: (slug) => unwrap(http.get(`/candidates/${slug}`)),
 };
 
 export const intelligenceApi = {
-  summary: () => unwrap(http.get("/intelligence/summary")),
-  dashboard: () => unwrap(http.get("/intelligence/dashboard")),
-  forecast: () => unwrap(http.get("/intelligence/forecast")),
-  rankings: () => unwrap(http.get("/intelligence/rankings")),
-  map: () => unwrap(http.get("/intelligence/map")),
-  liveFundraising: () => unwrap(http.get("/intelligence/fundraising/live")),
+  summary: () => tryGet(["/intelligence/summary"]),
+  dashboard: () => tryGet(["/intelligence/dashboard"]),
+  forecast: () => tryGet(["/intelligence/forecast"]),
+  rankings: () => tryGet(["/intelligence/rankings"]),
+  map: () => tryGet(["/intelligence/map"]),
+  liveFundraising: () =>
+    tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
   fundraisingLeaderboard: () =>
-    unwrap(http.get("/intelligence/fundraising/leaderboard")),
+    tryGet([
+      "/intelligence/fundraising/leaderboard",
+      "/fec/fundraising/leaderboard",
+    ]),
 };
 
 export const platformApi = {
-  aiChat: () => unwrap(http.get("/platform/ai-chat")),
-  postAiPrompt: (payload) => unwrap(http.post("/platform/ai-chat", payload)),
-  warRoom: () => unwrap(http.get("/platform/war-room")),
-  simulator: () => unwrap(http.get("/platform/simulator")),
-  commandCenter: () => unwrap(http.get("/platform/command-center")),
+  aiChat: () => tryGet(["/platform/ai-chat"]),
+  postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], payload),
+  warRoom: () => tryGet(["/platform/war-room"]),
+  simulator: () => tryGet(["/platform/simulator"]),
+  commandCenter: () => tryGet(["/platform/command-center"]),
+
+  consultants: async (params = {}) => {
+    const data = await tryGet(
+      ["/platform/consultants", "/consultants", "/marketplace/consultants"],
+      { params }
+    );
+    return Array.isArray(data) ? { results: data } : data;
+  },
+
+  consultantStates: async () => {
+    const data = await tryGet([
+      "/platform/consultants/states",
+      "/consultants/states",
+      "/marketplace/consultants/states",
+    ]);
+    return normalizeListResult(data, ["states"]);
+  },
 };
 
 export const alertsApi = {
-  list: () => unwrap(http.get("/alerts")),
-  rebuild: () => unwrap(http.post("/alerts/rebuild", {})),
-  resolve: (payload) => unwrap(http.post("/alerts/resolve", payload)),
-  dismiss: (payload) => unwrap(http.post("/alerts/dismiss", payload)),
+  list: () => tryGet(["/alerts"]),
+  rebuild: () => tryPost(["/alerts/rebuild"], {}),
+  resolve: (payload) => tryPost(["/alerts/resolve"], payload),
+  dismiss: (payload) => tryPost(["/alerts/dismiss"], payload),
 };
 
 export const crmApi = {
-  campaigns: (params = {}) => unwrap(http.get("/crm/campaigns", { params })),
-  createCampaign: (payload) => unwrap(http.post("/crm/campaigns", payload)),
+  campaigns: async (params = {}) => {
+    const data = await tryGet(["/crm/campaigns"], { params });
+    return Array.isArray(data) ? data : data;
+  },
+
+  createCampaign: (payload) => tryPost(["/crm/campaigns"], payload),
 
   commandCenter: (campaignId) =>
-    unwrap(http.get(`/campaigns/${campaignId}/command-center`)),
-  activity: (campaignId) =>
-    unwrap(http.get(`/campaigns/${campaignId}/activity`)),
+    tryGet([`/campaigns/${campaignId}/command-center`]),
+
+  activity: (campaignId) => tryGet([`/campaigns/${campaignId}/activity`]),
 
   createTask: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/tasks`, payload)),
+    tryPost([`/campaigns/${campaignId}/tasks`], payload),
   updateTask: (campaignId, taskId, payload) =>
-    unwrap(http.patch(`/campaigns/${campaignId}/tasks/${taskId}`, payload)),
+    tryPatch([`/campaigns/${campaignId}/tasks/${taskId}`], payload),
 
   createContact: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/contacts`, payload)),
+    tryPost([`/campaigns/${campaignId}/contacts`], payload),
 
   createVendor: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/vendors`, payload)),
+    tryPost([`/campaigns/${campaignId}/vendors`], payload),
   updateVendor: (campaignId, vendorId, payload) =>
-    unwrap(http.patch(`/campaigns/${campaignId}/vendors/${vendorId}`, payload)),
+    tryPatch([`/campaigns/${campaignId}/vendors/${vendorId}`], payload),
 
   createDocument: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/documents`, payload)),
+    tryPost([`/campaigns/${campaignId}/documents`], payload),
 
   createMailProgram: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/mail-programs`, payload)),
+    tryPost([`/campaigns/${campaignId}/mail-programs`], payload),
   createMailDrop: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/mail-drops`, payload)),
+    tryPost([`/campaigns/${campaignId}/mail-drops`], payload),
   createMailEvent: (campaignId, payload) =>
-    unwrap(http.post(`/campaigns/${campaignId}/mail-events`, payload)),
+    tryPost([`/campaigns/${campaignId}/mail-events`], payload),
   updateMailEvent: (campaignId, eventId, payload) =>
-    unwrap(http.patch(`/campaigns/${campaignId}/mail-events/${eventId}`, payload)),
+    tryPatch([`/campaigns/${campaignId}/mail-events/${eventId}`], payload),
 };
 
 export const statesApi = {
   geoJson: async () => {
     try {
-      return await unwrap(http.get("/states/geojson"));
-    } catch {
-      const res = await fetch("/us-states.geojson");
-      if (!res.ok) {
-        throw new Error("Failed to load states GeoJSON");
+      return await tryGet(["/states/geojson"]);
+    } catch (error) {
+      const response = await fetch("/us-states.geojson");
+      if (!response.ok) {
+        throw error;
       }
-      return res.json();
+      return response.json();
     }
   },
 };
 
 export const api = {
+  // raw axios-style access
   get: (...args) => http.get(...args),
   post: (...args) => http.post(...args),
   put: (...args) => http.put(...args),
@@ -182,9 +283,11 @@ export const api = {
   candidateOffices: candidatesApi.offices,
   candidateParties: candidatesApi.parties,
 
-  intelligenceMap: intelligenceApi.map,
+  intelligenceSummary: intelligenceApi.summary,
+  intelligenceDashboard: intelligenceApi.dashboard,
   intelligenceForecast: intelligenceApi.forecast,
   intelligenceRankings: intelligenceApi.rankings,
+  intelligenceMap: intelligenceApi.map,
   liveFundraising: intelligenceApi.liveFundraising,
   fundraisingLeaderboard: intelligenceApi.fundraisingLeaderboard,
 
@@ -195,9 +298,13 @@ export const api = {
   warRoom: platformApi.warRoom,
   simulator: platformApi.simulator,
   commandCenter: platformApi.commandCenter,
+  consultants: platformApi.consultants,
+  consultantStates: platformApi.consultantStates,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
+  resolveAlert: alertsApi.resolve,
+  dismissAlert: alertsApi.dismiss,
 
   crmCampaigns: crmApi.campaigns,
   createCampaign: crmApi.createCampaign,
