@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { platformApi } from "../services/api";
 
 function ConsultantCard({ consultant }) {
   return (
@@ -51,7 +51,7 @@ export default function ConsultantMarketplace() {
 
     async function loadStates() {
       try {
-        const stateData = await api.consultantStates();
+        const stateData = await platformApi.consultantStates();
 
         if (!active) return;
         setStates(stateData || []);
@@ -62,10 +62,7 @@ export default function ConsultantMarketplace() {
     }
 
     loadStates();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false };
   }, []);
 
   useEffect(() => {
@@ -76,7 +73,7 @@ export default function ConsultantMarketplace() {
         setLoading(true);
         setError("");
 
-        const result = await api.consultants(filters);
+        const result = await platformApi.consultants(filters);
 
         if (!active) return;
 
@@ -91,21 +88,21 @@ export default function ConsultantMarketplace() {
     }
 
     loadConsultants();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false };
   }, [filters]);
 
   return (
     <div className="min-h-screen bg-[#060b14] p-6 text-white">
       <div className="mx-auto max-w-7xl space-y-6">
+
         <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
           <div className="flex flex-col gap-2">
             <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">
               VoterSpheres Marketplace
             </div>
-            <h1 className="text-3xl font-semibold">Consultant Marketplace</h1>
+            <h1 className="text-3xl font-semibold">
+              Consultant Marketplace
+            </h1>
             <p className="text-sm text-slate-400">
               Live consultant discovery for campaigns, PACs, and advocacy teams.
             </p>
