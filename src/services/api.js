@@ -217,9 +217,8 @@ export const platformApi = {
       "/platform/consultants/states",
       "/consultants/states",
       "/marketplace/consultants/states",
-   vendorStates: vendorsApi.states,
-     vendors: vendorsApi.list
-    ]);
+       ]);
+    
     return normalizeListResult(data, ["states"]);
   },
 };
