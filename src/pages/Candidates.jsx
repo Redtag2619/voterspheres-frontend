@@ -55,18 +55,16 @@ export default function Candidates() {
 
     async function loadDropdowns() {
       try {
-        const [stateData, officeData, partyData] = await Promise.all([
-          api.candidateStates(),
-          api.candidateOffices(),
-          api.candidateParties()
-        ]);
+       const [stateRes, officeRes, partyRes] = await Promise.all([
+  api.get("/api/candidates/states"),
+  api.get("/api/candidates/offices"),
+  api.get("/api/candidates/parties")
+]);
 
-        if (!active) return;
-
-        setStates(stateData || []);
-        setOffices(officeData || []);
-        setParties(partyData || []);
-      } catch (err) {
+setStates(stateRes.data || []);
+setOffices(officeRes.data || []);
+setParties(partyRes.data || []);
+            } catch (err) {
         if (!active) return;
         setError(err.message || "Failed to load candidate filters");
       }
@@ -87,11 +85,17 @@ export default function Candidates() {
         setLoading(true);
         setError("");
 
-        const result = await api.candidates(filters);
+       const res = await api.get("/api/candidates", {
+  params: filters
+});
 
-        if (!active) return;
+const data = res.data;
 
-        setRows(result?.results || []);
+if (Array.isArray(data)) {
+  setRows(data);
+} else {
+  setRows(data?.results || data?.candidates || []);
+}
       } catch (err) {
         if (!active) return;
         setError(err.message || "Failed to load candidates");
