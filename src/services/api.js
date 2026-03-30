@@ -17,11 +17,17 @@ const http = axios.create({
   timeout: 30000,
 });
 
+async function unwrap(promise) {
+  const response = await promise;
+  return response.data;
+}
+
 http.interceptors.request.use(
   (config) => {
-    const token = getStoredToken();
+    const token = getStoredToken?.();
 
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -40,7 +46,7 @@ http.interceptors.response.use(
       status === 403 &&
       (data?.requiredPlan || data?.error === "Upgrade required")
     ) {
-      triggerUpgradePrompt({
+      triggerUpgradePrompt?.({
         requiredPlan: data.requiredPlan || "starter",
         currentPlan: data.currentPlan || "free",
         message:
@@ -57,17 +63,14 @@ http.interceptors.response.use(
   }
 );
 
-async function unwrap(promise) {
-  const response = await promise;
-  return response.data;
-}
-
+// -------- Auth --------
 export const authApi = {
   signup: (payload) => unwrap(http.post("/auth/signup", payload)),
   login: (payload) => unwrap(http.post("/auth/login", payload)),
   me: () => unwrap(http.get("/auth/me")),
 };
 
+// -------- Billing --------
 export const billingApi = {
   config: () => unwrap(http.get("/billing/config")),
   debugMe: () => unwrap(http.get("/billing/debug/me")),
@@ -77,14 +80,16 @@ export const billingApi = {
     unwrap(http.post("/billing/portal-session", payload)),
 };
 
+// -------- Candidates --------
 export const candidatesApi = {
   list: (params = {}) => unwrap(http.get("/candidates", { params })),
   states: () => unwrap(http.get("/candidates/states")),
   offices: () => unwrap(http.get("/candidates/offices")),
   parties: () => unwrap(http.get("/candidates/parties")),
-  getBySlug: (slug) => unwrap(http.get(`/candidates/${slug}`)),
+  bySlug: (slug) => unwrap(http.get(`/candidates/${slug}`)),
 };
 
+// -------- Intelligence --------
 export const intelligenceApi = {
   summary: () => unwrap(http.get("/intelligence/summary")),
   dashboard: () => unwrap(http.get("/intelligence/dashboard")),
@@ -94,32 +99,94 @@ export const intelligenceApi = {
   liveFundraising: () => unwrap(http.get("/intelligence/fundraising/live")),
   fundraisingLeaderboard: () =>
     unwrap(http.get("/intelligence/fundraising/leaderboard")),
-  runFundraisingIngestion: (payload = {}) =>
-    unwrap(http.post("/intelligence/fundraising/ingest", payload)),
 };
 
-export const statesApi = {
-  geoJson: () => unwrap(http.get("/states/geojson")),
+// -------- Platform / AI --------
+export const platformApi = {
+  aiChat: () => unwrap(http.get("/platform/ai-chat")),
+  postAiPrompt: (payload) => unwrap(http.post("/platform/ai-chat", payload)),
+  warRoom: () => unwrap(http.get("/platform/war-room")),
+  simulator: () => unwrap(http.get("/platform/simulator")),
 };
 
-export const vendorsApi = {
-  list: (params = {}) => unwrap(http.get("/vendors", { params })),
+// -------- Alerts --------
+export const alertsApi = {
+  list: () => unwrap(http.get("/alerts")),
+  rebuild: () => unwrap(http.post("/alerts/rebuild", {})),
 };
 
-export const mapApi = {
-  regions: (params = {}) => unwrap(http.get("/map", { params })),
-};
-
+// -------- CRM --------
 export const crmApi = {
-  dashboard: () => unwrap(http.get("/crm-dashboard")),
-  listCampaigns: (params = {}) => unwrap(http.get("/crm/campaigns", { params })),
-  listContacts: (params = {}) => unwrap(http.get("/crm/contacts", { params })),
+  campaigns: (params = {}) => unwrap(http.get("/crm/campaigns", { params })),
+  createCampaign: (payload) => unwrap(http.post("/crm/campaigns", payload)),
 };
 
-export const firmApi = {
-  workspace: () => unwrap(http.get("/firms")),
+// -------- States / GeoJSON --------
+export const statesApi = {
+  geoJson: async () => {
+    try {
+      return await unwrap(http.get("/states/geojson"));
+    } catch {
+      const res = await fetch("/us-states.geojson");
+      if (!res.ok) {
+        throw new Error("Failed to load states GeoJSON");
+      }
+      return res.json();
+    }
+  },
+};
+
+// -------- Backward-compatible api object --------
+// This lets existing pages using api.someMethod() keep working.
+export const api = {
+  // raw axios-style access
+  get: (...args) => http.get(...args),
+  post: (...args) => http.post(...args),
+  put: (...args) => http.put(...args),
+  patch: (...args) => http.patch(...args),
+  delete: (...args) => http.delete(...args),
+
+  // auth
+  signup: authApi.signup,
+  login: authApi.login,
+  me: authApi.me,
+
+  // billing
+  billingConfig: billingApi.config,
+  billingDebug: billingApi.debugMe,
+  createCheckoutSession: billingApi.createCheckoutSession,
+  createPortalSession: billingApi.createPortalSession,
+
+  // candidates
+  candidates: candidatesApi.list,
+  candidateStates: candidatesApi.states,
+  candidateOffices: candidatesApi.offices,
+  candidateParties: candidatesApi.parties,
+
+  // intelligence
+  intelligenceMap: intelligenceApi.map,
+  intelligenceForecast: intelligenceApi.forecast,
+  intelligenceRankings: intelligenceApi.rankings,
+  liveFundraising: intelligenceApi.liveFundraising,
+  fundraisingLeaderboard: intelligenceApi.fundraisingLeaderboard,
+
+  // geo
+  statesGeoJson: statesApi.geoJson,
+
+  // platform / ai
+  aiChat: platformApi.aiChat,
+  postAiPrompt: platformApi.postAiPrompt,
+  warRoom: platformApi.warRoom,
+  simulator: platformApi.simulator,
+
+  // alerts
+  alerts: alertsApi.list,
+  rebuildAlerts: alertsApi.rebuild,
+
+  // crm
+  crmCampaigns: crmApi.campaigns,
+  createCampaign: crmApi.createCampaign,
 };
 
 export { http };
-export const api = http;
 export default http;
