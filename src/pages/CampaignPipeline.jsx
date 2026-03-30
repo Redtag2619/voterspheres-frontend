@@ -1,27 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-
-  return data;
-}
+import { crmApi } from "../services/api";
 
 function StatCard({ label, value, subtitle }) {
   return (
@@ -83,7 +62,7 @@ function CreateCampaignModal({
   onSubmit,
   form,
   setForm,
-  creating
+  creating,
 }) {
   if (!open) return null;
 
@@ -112,10 +91,7 @@ function CreateCampaignModal({
           </button>
         </div>
 
-        <form
-          className="mt-6 grid gap-4 md:grid-cols-2"
-          onSubmit={onSubmit}
-        >
+        <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <Field label="Campaign Name">
             <input
               className={inputClass}
@@ -279,7 +255,7 @@ export default function CampaignPipeline() {
     stage: "active",
     status: "open",
     budget_total: "",
-    contract_value: ""
+    contract_value: "",
   });
 
   async function loadCampaigns() {
@@ -287,10 +263,10 @@ export default function CampaignPipeline() {
       setLoading(true);
       setError("");
 
-      const result = await apiRequest("/api/crm/campaigns");
+      const result = await crmApi.campaigns();
       setCampaigns(Array.isArray(result) ? result : result?.campaigns || []);
     } catch (err) {
-      setError(err.message || "Failed to load campaign pipeline");
+      setError(err?.message || "Failed to load campaign pipeline");
     } finally {
       setLoading(false);
     }
@@ -317,13 +293,10 @@ export default function CampaignPipeline() {
         stage: createForm.stage,
         status: createForm.status,
         budget_total: Number(createForm.budget_total || 0),
-        contract_value: Number(createForm.contract_value || 0)
+        contract_value: Number(createForm.contract_value || 0),
       };
 
-      const created = await apiRequest("/api/crm/campaigns", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
+      const created = await crmApi.createCampaign(payload);
 
       const newId = created?.id;
       if (!newId) {
@@ -341,13 +314,13 @@ export default function CampaignPipeline() {
         stage: "active",
         status: "open",
         budget_total: "",
-        contract_value: ""
+        contract_value: "",
       });
 
       await loadCampaigns();
       navigate(`/campaigns/${newId}`);
     } catch (err) {
-      setError(err.message || "Failed to create campaign");
+      setError(err?.message || "Failed to create campaign");
     } finally {
       setCreating(false);
     }
@@ -365,7 +338,7 @@ export default function CampaignPipeline() {
         campaign.state,
         campaign.party,
         campaign.stage,
-        campaign.status
+        campaign.status,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q));
@@ -389,7 +362,7 @@ export default function CampaignPipeline() {
       total,
       active,
       lead,
-      totalValue
+      totalValue,
     };
   }, [campaigns]);
 
@@ -426,142 +399,83 @@ export default function CampaignPipeline() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard label="Total Campaigns" value={metrics.total} />
+          <StatCard label="Active" value={metrics.active} />
+          <StatCard label="Lead Stage" value={metrics.lead} />
           <StatCard
-            label="Total Campaigns"
-            value={metrics.total}
-            subtitle="All campaigns in pipeline"
-          />
-          <StatCard
-            label="Active / Open"
-            value={metrics.active}
-            subtitle="Campaigns in execution"
-          />
-          <StatCard
-            label="Lead Stage"
-            value={metrics.lead}
-            subtitle="Business development opportunities"
-          />
-          <StatCard
-            label="Contract Value"
+            label="Pipeline Value"
             value={`$${metrics.totalValue.toLocaleString()}`}
-            subtitle="Total tracked contract value"
           />
         </div>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">Campaign List</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Open any campaign directly in the live workspace.
-              </p>
-            </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Campaigns
+            </h2>
 
-            <div className="w-full md:w-[360px]">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search campaigns, candidate, office, state..."
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-              />
-            </div>
+            <input
+              className="w-full max-w-sm rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+              placeholder="Search campaigns..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
-          {loading ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
-              Loading campaigns...
-            </div>
-          ) : filteredCampaigns.length ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-y-3">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-[0.14em] text-slate-500">
-                    <th className="px-4 py-2">Campaign</th>
-                    <th className="px-4 py-2">Candidate</th>
-                    <th className="px-4 py-2">Office</th>
-                    <th className="px-4 py-2">State</th>
-                    <th className="px-4 py-2">Stage</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2">Contract</th>
-                    <th className="px-4 py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCampaigns.map((campaign) => (
-                    <tr
-                      key={campaign.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50"
-                    >
-                      <td className="px-4 py-4 text-sm font-semibold text-slate-900">
-                        {campaign.campaign_name || "Untitled Campaign"}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        {campaign.candidate_name || "—"}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        {campaign.office || "—"}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        {campaign.state || "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${stageBadge(
-                            campaign.stage
-                          )}`}
-                        >
-                          {campaign.stage || "active"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusBadge(
-                            campaign.status
-                          )}`}
-                        >
-                          {campaign.status || "open"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        ${Number(campaign.contract_value || 0).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            to={`/campaigns/${campaign.id}`}
-                            className="rounded-2xl bg-[#0176D3] px-4 py-2 text-sm font-semibold text-white"
-                          >
-                            Open Workspace
-                          </Link>
+          <div className="mt-5 space-y-3">
+            {loading ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                Loading campaign pipeline...
+              </div>
+            ) : filteredCampaigns.length ? (
+              filteredCampaigns.map((campaign) => (
+                <Link
+                  key={campaign.id}
+                  to={`/campaigns/${campaign.id}`}
+                  className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-[#0176D3]"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-semibold text-slate-900">
+                        {campaign.campaign_name}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {campaign.candidate_name} · {campaign.office} · {campaign.state}
+                      </div>
+                    </div>
 
-                          <Link
-                            to={`/campaigns/${campaign.id}`}
-                            className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-                          >
-                            View Cockpit
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
-              No campaigns found.
-            </div>
-          )}
-        </section>
+                    <div className="flex gap-2">
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${stageBadge(
+                          campaign.stage
+                        )}`}
+                      >
+                        {campaign.stage}
+                      </span>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(
+                          campaign.status
+                        )}`}
+                      >
+                        {campaign.status}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                No campaigns found.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <CreateCampaignModal
         open={showCreateModal}
-        onClose={() => {
-          if (!creating) setShowCreateModal(false);
-        }}
+        onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateCampaign}
         form={createForm}
         setForm={setCreateForm}
