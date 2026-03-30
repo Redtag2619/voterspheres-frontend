@@ -183,6 +183,27 @@ export const platformApi = {
   simulator: () => tryGet(["/platform/simulator"]),
   commandCenter: () => tryGet(["/platform/command-center"]),
 
+  export const vendorsApi = {
+  states: async () => {
+    const data = await tryGet([
+      "/vendors/states",
+      "/platform/vendors/states",
+      "/crm/vendors/states"
+    ]);
+
+    return normalizeListResult(data, ["states"]);
+  },
+
+  list: async (params = {}) => {
+    const data = await tryGet(
+      ["/vendors", "/platform/vendors", "/crm/vendors"],
+      { params }
+    );
+
+    return Array.isArray(data) ? { results: data } : data;
+  }
+};
+
   consultants: async (params = {}) => {
     const data = await tryGet(
       ["/platform/consultants", "/consultants", "/marketplace/consultants"],
@@ -196,6 +217,8 @@ export const platformApi = {
       "/platform/consultants/states",
       "/consultants/states",
       "/marketplace/consultants/states",
+   vendorStates: vendorsApi.states,
+     vendors: vendorsApi.list
     ]);
     return normalizeListResult(data, ["states"]);
   },
