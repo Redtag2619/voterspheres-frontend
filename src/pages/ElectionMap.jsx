@@ -3,9 +3,9 @@ import {
   ComposableMap,
   Geographies,
   Geography,
-  Marker
+  Marker,
 } from "react-simple-maps";
-import api from "../services/api";
+import { intelligenceApi, statesApi } from "../services/api";
 
 function MetricCard({ label, value, delta }) {
   return (
@@ -43,7 +43,7 @@ function DetailCard({ row }) {
           style={{
             backgroundColor: `${row.fill || "#334155"}22`,
             color: row.stroke || "#cbd5e1",
-            border: `1px solid ${row.stroke || "#475569"}`
+            border: `1px solid ${row.stroke || "#475569"}`,
           }}
         >
           {row.overlayTier || row.raceRating || "watch"}
@@ -118,22 +118,20 @@ export default function ElectionMap() {
         setLoading(true);
         setError("");
 
-        const [mapRes, geoRes] = await Promise.all([
-  api.get("/api/intelligence/map"),
-  api.get("/api/states/geojson")
-]);
-
-const mapData = mapRes.data;
-const geo = geoRes.data;
+        const [mapData, geo] = await Promise.all([
+          intelligenceApi.map(),
+          statesApi.geoJson(),
+        ]);
 
         if (!active) return;
 
-        const battlegrounds = mapData?.battlegrounds || [];
+        const battlegrounds = mapData?.battlegrounds || mapData?.mapBattlegrounds || [];
 
         setData({
           metrics: mapData?.metrics || [],
-          battlegrounds
+          battlegrounds,
         });
+
         setGeoJson(geo);
 
         if (battlegrounds.length > 0) {
@@ -141,7 +139,7 @@ const geo = geoRes.data;
         }
       } catch (err) {
         if (!active) return;
-        setError(err.message || "Failed to load election map");
+        setError(err?.message || "Failed to load election map");
       } finally {
         if (active) setLoading(false);
       }
@@ -234,21 +232,21 @@ const geo = geoRes.data;
                                     ),
                                     strokeWidth: 1.1,
                                     outline: "none",
-                                    cursor: "pointer"
+                                    cursor: "pointer",
                                   },
                                   hover: {
                                     fill: "#38bdf8",
                                     stroke: "#e0f2fe",
                                     strokeWidth: 1.2,
                                     outline: "none",
-                                    cursor: "pointer"
+                                    cursor: "pointer",
                                   },
                                   pressed: {
                                     fill: "#06b6d4",
                                     stroke: "#ecfeff",
                                     strokeWidth: 1.2,
-                                    outline: "none"
-                                  }
+                                    outline: "none",
+                                  },
                                 }}
                               />
                             );
