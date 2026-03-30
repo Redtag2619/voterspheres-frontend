@@ -1,10 +1,44 @@
 import { useEffect, useState } from "react";
-import api from "../api";
+import { api } from "../services/api";
+
+function VendorCard({ vendor }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5">
+      <h3 className="text-lg font-semibold text-white">
+        {vendor.name || vendor.vendor_name || "Unnamed Vendor"}
+      </h3>
+
+      <p className="mt-1 text-sm text-slate-400">
+        {vendor.state || vendor.primary_state || "Unknown state"}
+      </p>
+
+      <div className="mt-3 space-y-2 text-sm text-slate-300">
+        <p>
+          {vendor.category ||
+            vendor.services ||
+            vendor.description ||
+            "Campaign operations and political services"}
+        </p>
+
+        {vendor.website ? (
+          <a
+            href={vendor.website}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block text-cyan-300 hover:text-cyan-200"
+          >
+            {vendor.website}
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export default function Vendors() {
   const [rows, setRows] = useState([]);
   const [states, setStates] = useState([]);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [filters, setFilters] = useState({
@@ -20,15 +54,18 @@ export default function Vendors() {
     async function loadStates() {
       try {
         const data = await api.vendorStates();
+
         if (!active) return;
-        setStates(data || []);
+
+        setStates(Array.isArray(data) ? data : data?.results || data?.states || []);
       } catch (err) {
         if (!active) return;
-        setError(err.message || "Failed to load vendor filters");
+        setError(err?.message || "Failed to load vendor filters");
       }
     }
 
     loadStates();
+
     return () => {
       active = false;
     };
@@ -38,16 +75,22 @@ export default function Vendors() {
     let active = true;
 
     async function loadVendors() {
-      setLoading(true);
-      setError("");
-
       try {
+        setLoading(true);
+        setError("");
+
         const data = await api.vendors(filters);
+
         if (!active) return;
-        setRows(data?.results || []);
+
+        setRows(
+          Array.isArray(data)
+            ? data
+            : data?.results || data?.vendors || data?.rows || []
+        );
       } catch (err) {
         if (!active) return;
-        setError(err.message || "Failed to load vendors");
+        setError(err?.message || "Failed to load vendors");
         setRows([]);
       } finally {
         if (active) setLoading(false);
@@ -55,6 +98,7 @@ export default function Vendors() {
     }
 
     loadVendors();
+
     return () => {
       active = false;
     };
@@ -74,7 +118,11 @@ export default function Vendors() {
             placeholder="Search vendors"
             value={filters.q}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, q: e.target.value, page: 1 }))
+              setFilters((prev) => ({
+                ...prev,
+                q: e.target.value,
+                page: 1
+              }))
             }
           />
 
@@ -82,13 +130,17 @@ export default function Vendors() {
             className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm outline-none"
             value={filters.state}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, state: e.target.value, page: 1 }))
+              setFilters((prev) => ({
+                ...prev,
+                state: e.target.value,
+                page: 1
+              }))
             }
           >
             <option value="">All states</option>
-            {states.map((item) => (
-              <option key={item.id ?? item.name} value={item.name}>
-                {item.name}
+            {states.map((item, index) => (
+              <option key={item.id ?? item.name ?? index} value={item.name || item.state}>
+                {item.name || item.state}
               </option>
             ))}
           </select>
@@ -105,23 +157,10 @@ export default function Vendors() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {rows.map((vendor, index) => (
-              <div
-                key={vendor.id ?? `${vendor.name}-${index}`}
-                className="rounded-2xl border border-white/10 bg-[#111827] p-5"
-              >
-                <h3 className="text-lg font-semibold">
-                  {vendor.name || "Unnamed Vendor"}
-                </h3>
-                <p className="mt-1 text-sm text-slate-400">
-                  {vendor.state || "Unknown state"}
-                </p>
-                <p className="mt-3 text-sm text-slate-300">
-                  {vendor.category ||
-                    vendor.services ||
-                    vendor.description ||
-                    "Campaign operations and political services"}
-                </p>
-              </div>
+              <VendorCard
+                key={vendor.id ?? vendor.vendor_id ?? `${vendor.name || vendor.vendor_name}-${index}`}
+                vendor={vendor}
+              />
             ))}
           </div>
         )}
