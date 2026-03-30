@@ -63,14 +63,12 @@ http.interceptors.response.use(
   }
 );
 
-// -------- Auth --------
 export const authApi = {
   signup: (payload) => unwrap(http.post("/auth/signup", payload)),
   login: (payload) => unwrap(http.post("/auth/login", payload)),
   me: () => unwrap(http.get("/auth/me")),
 };
 
-// -------- Billing --------
 export const billingApi = {
   config: () => unwrap(http.get("/billing/config")),
   debugMe: () => unwrap(http.get("/billing/debug/me")),
@@ -80,7 +78,6 @@ export const billingApi = {
     unwrap(http.post("/billing/portal-session", payload)),
 };
 
-// -------- Candidates --------
 export const candidatesApi = {
   list: (params = {}) => unwrap(http.get("/candidates", { params })),
   states: () => unwrap(http.get("/candidates/states")),
@@ -89,7 +86,6 @@ export const candidatesApi = {
   bySlug: (slug) => unwrap(http.get(`/candidates/${slug}`)),
 };
 
-// -------- Intelligence --------
 export const intelligenceApi = {
   summary: () => unwrap(http.get("/intelligence/summary")),
   dashboard: () => unwrap(http.get("/intelligence/dashboard")),
@@ -101,7 +97,6 @@ export const intelligenceApi = {
     unwrap(http.get("/intelligence/fundraising/leaderboard")),
 };
 
-// -------- Platform / AI --------
 export const platformApi = {
   aiChat: () => unwrap(http.get("/platform/ai-chat")),
   postAiPrompt: (payload) => unwrap(http.post("/platform/ai-chat", payload)),
@@ -109,19 +104,16 @@ export const platformApi = {
   simulator: () => unwrap(http.get("/platform/simulator")),
 };
 
-// -------- Alerts --------
 export const alertsApi = {
   list: () => unwrap(http.get("/alerts")),
   rebuild: () => unwrap(http.post("/alerts/rebuild", {})),
 };
 
-// -------- CRM --------
 export const crmApi = {
   campaigns: (params = {}) => unwrap(http.get("/crm/campaigns", { params })),
   createCampaign: (payload) => unwrap(http.post("/crm/campaigns", payload)),
 };
 
-// -------- States / GeoJSON --------
 export const statesApi = {
   geoJson: async () => {
     try {
@@ -136,54 +128,43 @@ export const statesApi = {
   },
 };
 
-// -------- Backward-compatible api object --------
-// This lets existing pages using api.someMethod() keep working.
 export const api = {
-  // raw axios-style access
   get: (...args) => http.get(...args),
   post: (...args) => http.post(...args),
   put: (...args) => http.put(...args),
   patch: (...args) => http.patch(...args),
   delete: (...args) => http.delete(...args),
 
-  // auth
   signup: authApi.signup,
   login: authApi.login,
   me: authApi.me,
 
-  // billing
   billingConfig: billingApi.config,
   billingDebug: billingApi.debugMe,
   createCheckoutSession: billingApi.createCheckoutSession,
   createPortalSession: billingApi.createPortalSession,
 
-  // candidates
   candidates: candidatesApi.list,
   candidateStates: candidatesApi.states,
   candidateOffices: candidatesApi.offices,
   candidateParties: candidatesApi.parties,
 
-  // intelligence
   intelligenceMap: intelligenceApi.map,
   intelligenceForecast: intelligenceApi.forecast,
   intelligenceRankings: intelligenceApi.rankings,
   liveFundraising: intelligenceApi.liveFundraising,
   fundraisingLeaderboard: intelligenceApi.fundraisingLeaderboard,
 
-  // geo
   statesGeoJson: statesApi.geoJson,
 
-  // platform / ai
   aiChat: platformApi.aiChat,
   postAiPrompt: platformApi.postAiPrompt,
   warRoom: platformApi.warRoom,
   simulator: platformApi.simulator,
 
-  // alerts
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
 
-  // crm
   crmCampaigns: crmApi.campaigns,
   createCampaign: crmApi.createCampaign,
 };
