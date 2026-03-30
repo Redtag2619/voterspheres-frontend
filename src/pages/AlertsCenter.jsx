@@ -1,26 +1,5 @@
 import { useEffect, useState } from "react";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-
-  return data;
-}
+import { alertsApi } from "../services/api";
 
 function severityClasses(severity) {
   if (severity === "high") {
@@ -41,10 +20,10 @@ export default function AlertsCenter() {
     try {
       setLoading(true);
       setError("");
-      const result = await apiRequest("/api/alerts");
+      const result = await alertsApi.list();
       setData(result || { metrics: [], alerts: [] });
     } catch (err) {
-      setError(err.message || "Failed to load alerts");
+      setError(err?.message || "Failed to load alerts");
     } finally {
       setLoading(false);
     }
@@ -52,13 +31,10 @@ export default function AlertsCenter() {
 
   async function rebuildAlerts() {
     try {
-      await apiRequest("/api/alerts/rebuild", {
-        method: "POST",
-        body: JSON.stringify({})
-      });
+      await alertsApi.rebuild();
       await loadAlerts();
     } catch (err) {
-      setError(err.message || "Failed to rebuild alerts");
+      setError(err?.message || "Failed to rebuild alerts");
     }
   }
 
@@ -131,28 +107,20 @@ export default function AlertsCenter() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-semibold text-slate-900">{alert.title}</div>
+                      <div className="text-base font-semibold text-slate-900">
+                        {alert.title}
+                      </div>
                       <div className="mt-1 text-sm text-slate-500">
-                        {alert.message}
+                        {alert.description || alert.note || "No description provided."}
                       </div>
                     </div>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-medium ${severityClasses(
-                        alert.severity
+
+                    <div
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${severityClasses(
+                        String(alert.severity || "low").toLowerCase()
                       )}`}
                     >
-                      {alert.severity}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                    <div>Type: {alert.type}</div>
-                    <div>Campaign: {alert.campaign_id || "N/A"}</div>
-                    <div>
-                      Time:{" "}
-                      {alert.created_at
-                        ? new Date(alert.created_at).toLocaleString()
-                        : "N/A"}
+                      {alert.severity || "low"}
                     </div>
                   </div>
                 </div>
