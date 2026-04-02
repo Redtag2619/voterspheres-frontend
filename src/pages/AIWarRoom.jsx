@@ -64,7 +64,7 @@ const AIWarRoom = () => {
       <Panel title="Live Threat Board" subtitle="Highest-priority attacks and adverse narrative acceleration">
         {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
           <div className="vs-threat-list">
-            {data.threats.map((item) => (
+            {(data?.threats || []).map(...)}
               <div key={item.title} className="vs-threat-item">
                 <div className={`vs-threat-severity ${severityClass(item.severity)}`}>{item.severity}</div>
                 <div className="vs-threat-body">
@@ -84,7 +84,7 @@ const AIWarRoom = () => {
       <Panel title="Response Queue" subtitle="Immediate tactical moves for the next cycle">
         {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
           <div className="vs-response-queue">
-            {data.queue.map((item) => (
+            {(data?.threats || []).map(...)}
               <div key={item.item} className="vs-response-item">
                 <div className="vs-response-topline">
                   <div className="vs-response-priority">{item.priority}</div>
@@ -101,7 +101,7 @@ const AIWarRoom = () => {
       <Panel title="Signal Stream" subtitle="Cross-channel intelligence entering the terminal" large>
         {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
           <div className="vs-signal-stream">
-            {data.signals.map((item) => (
+            {(data?.signals || []).map(...)}
               <div key={`${item.time}-${item.channel}`} className="vs-signal-item">
                 <div className="vs-signal-time">{item.time}</div>
                 <div className="vs-signal-content">
