@@ -103,7 +103,7 @@ const AIChat = () => {
         {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
           <div className="vs-aichat-console">
             <div className="vs-aichat-messages">
-              {data.conversation.map((item, index) => (
+              {(data?.conversation || []).map(...)}
                 <div key={`${item.role}-${index}`} className={`vs-aichat-message ${item.role === "assistant" ? "assistant" : "user"}`}>
                   <div className="vs-aichat-message-role">{item.role === "assistant" ? "AI" : "You"}</div>
                   <div className="vs-aichat-message-body">
@@ -134,7 +134,7 @@ const AIChat = () => {
       <Panel title="Quick Prompts" subtitle="One-click questions for strategists and operators">
         {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
           <div className="vs-aichat-prompt-list">
-            {data.quickPrompts.map((item) => (
+            {(data?.quickPrompts || []).map(...)}
               <button
                 key={item}
                 className="vs-aichat-prompt-item"
@@ -150,7 +150,7 @@ const AIChat = () => {
       <Panel title="Suggested Outputs" subtitle="High-value deliverables the AI can generate">
         {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
           <div className="vs-aichat-output-list">
-            {data.outputs.map((item) => (
+            {(data?.outputs || []).map(...)}
               <div key={item.title} className="vs-aichat-output-item">
                 <div className="vs-aichat-output-type">{item.type}</div>
                 <div className="vs-aichat-output-title">{item.title}</div>
