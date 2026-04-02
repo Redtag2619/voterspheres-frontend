@@ -1,26 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-
-  return data;
-}
+import { api } from "../services/api";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
@@ -50,12 +29,16 @@ function VendorRow({ vendor }) {
   return (
     <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1.5fr,1fr,1fr,1fr,auto]">
       <div>
-        <div className="font-semibold text-slate-900">{vendor.vendor_name}</div>
+        <div className="font-semibold text-slate-900">
+          {vendor.vendor_name || vendor.name}
+        </div>
         <div className="mt-1 text-sm text-slate-500">
-          {vendor.category || "Vendor"} • {vendor.campaign_name || "Campaign N/A"}
+          {(vendor.category || "Vendor")} •{" "}
+          {vendor.campaign_name || "Campaign N/A"}
         </div>
         <div className="mt-2 text-xs text-slate-500">
-          Candidate: {vendor.candidate_name || "N/A"} • Firm: {vendor.firm_name || "N/A"}
+          Candidate: {vendor.candidate_name || "N/A"} • Firm:{" "}
+          {vendor.firm_name || "N/A"}
         </div>
       </div>
 
@@ -77,7 +60,9 @@ function VendorRow({ vendor }) {
         <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
           Contract
         </div>
-        <div className="mt-1">{formatMoney(vendor.contract_value || 0)}</div>
+        <div className="mt-1">
+          {formatMoney(vendor.contract_value || vendor.contractValue || 0)}
+        </div>
       </div>
 
       <div className="flex items-start justify-start lg:justify-end">
@@ -95,12 +80,7 @@ export default function Vendors() {
 
   const [vendorsData, setVendorsData] = useState({
     results: [],
-    summary: {
-      total_vendors: 0,
-      active_vendors: 0,
-      prospect_vendors: 0,
-      total_contract_value: 0
-    }
+    summary: {}
   });
 
   const [categoryOptions, setCategoryOptions] = useState([]);
@@ -114,13 +94,17 @@ export default function Vendors() {
   });
 
   async function loadDropdowns() {
-    const [categories, statuses] = await Promise.all([
-      apiRequest("/api/vendors/dropdowns/categories"),
-      apiRequest("/api/vendors/dropdowns/statuses")
-    ]);
+    try {
+      const [categories, statuses] = await Promise.all([
+        api.get("/vendors/dropdowns/categories").then(r => r.data),
+        api.get("/vendors/dropdowns/statuses").then(r => r.data)
+      ]);
 
-    setCategoryOptions(categories.results || []);
-    setStatusOptions(statuses.results || []);
+      setCategoryOptions(categories?.results || []);
+      setStatusOptions(statuses?.results || []);
+    } catch (err) {
+      console.warn("Dropdown load failed:", err.message);
+    }
   }
 
   async function loadVendors() {
@@ -128,25 +112,17 @@ export default function Vendors() {
       setLoading(true);
       setError("");
 
-      const params = new URLSearchParams();
-
-      if (filters.search) params.set("search", filters.search);
-      if (filters.category) params.set("category", filters.category);
-      if (filters.status) params.set("status", filters.status);
-      if (filters.state) params.set("state", filters.state);
-
-      const query = params.toString() ? `?${params.toString()}` : "";
-      const data = await apiRequest(`/api/vendors${query}`);
+      const data = await api.vendors({
+        search: filters.search,
+        category: filters.category,
+        status: filters.status,
+        state: filters.state
+      });
 
       setVendorsData(
         data || {
           results: [],
-          summary: {
-            total_vendors: 0,
-            active_vendors: 0,
-            prospect_vendors: 0,
-            total_contract_value: 0
-          }
+          summary: {}
         }
       );
     } catch (err) {
@@ -167,166 +143,119 @@ export default function Vendors() {
     await loadVendors();
   }
 
-  const vendors = useMemo(() => vendorsData.results || [], [vendorsData.results]);
+  const vendors = useMemo(() => vendorsData.results || [], [vendorsData]);
   const summary = vendorsData.summary || {};
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
+
+        {/* HEADER */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
             VoterSpheres Directory
           </div>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">Vendors</h1>
+          <h1 className="mt-2 text-3xl font-semibold">Vendors</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Search campaign vendors by category, status, state, campaign, and firm.
+            Campaign vendor intelligence across firms and operations.
           </p>
         </div>
 
-        {error ? (
+        {/* ERROR */}
+        {error && (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {error}
           </div>
-        ) : null}
+        )}
 
+        {/* STATS */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Visible Vendors"
-            value={summary.total_vendors || 0}
-            subtext="Filtered vendor records"
-          />
-          <StatCard
-            label="Active Vendors"
-            value={summary.active_vendors || 0}
-            subtext="Current active relationships"
-          />
-          <StatCard
-            label="Prospects"
-            value={summary.prospect_vendors || 0}
-            subtext="Pipeline vendor opportunities"
-          />
-          <StatCard
-            label="Contract Value"
-            value={formatMoney(summary.total_contract_value || 0)}
-            subtext="Tracked vendor spend"
-          />
+          <StatCard label="Vendors" value={summary.total_vendors || 0} subtext="Visible records" />
+          <StatCard label="Active" value={summary.active_vendors || 0} subtext="Live engagements" />
+          <StatCard label="Pipeline" value={summary.prospect_vendors || 0} subtext="Prospects" />
+          <StatCard label="Contract Value" value={formatMoney(summary.total_contract_value)} subtext="Tracked spend" />
         </div>
 
+        {/* FILTERS */}
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Vendor Filters</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Filter vendors across your CRM and campaign workspaces.
-            </p>
-          </div>
-
           <div className="grid gap-3 md:grid-cols-4">
             <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
+              className="input"
               value={filters.search}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, search: e.target.value }))
+                setFilters((p) => ({ ...p, search: e.target.value }))
               }
-              placeholder="Search vendors, campaigns, firms..."
+              placeholder="Search vendors..."
             />
 
             <select
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.category}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, category: e.target.value }))
+                setFilters((p) => ({ ...p, category: e.target.value }))
               }
             >
               <option value="">All categories</option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
+              {categoryOptions.map((c) => (
+                <option key={c}>{c}</option>
               ))}
             </select>
 
             <select
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.status}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, status: e.target.value }))
+                setFilters((p) => ({ ...p, status: e.target.value }))
               }
             >
               <option value="">All statuses</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
+              {statusOptions.map((s) => (
+                <option key={s}>{s}</option>
               ))}
             </select>
 
             <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.state}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, state: e.target.value }))
+                setFilters((p) => ({ ...p, state: e.target.value }))
               }
-              placeholder="Filter by state"
+              placeholder="State"
             />
           </div>
 
           <div className="mt-4 flex gap-3">
-            <button
-              type="button"
-              onClick={handleApplyFilters}
-              className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-            >
-              Apply Filters
+            <button onClick={handleApplyFilters} className="btn-primary">
+              Apply
             </button>
 
             <button
-              type="button"
-              onClick={() => {
+              onClick={() =>
                 setFilters({
                   search: "",
                   category: "",
                   status: "",
                   state: ""
-                });
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
+                })
+              }
             >
-              Clear Form
-            </button>
-
-            <button
-              type="button"
-              onClick={loadVendors}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
-            >
-              Refresh
+              Clear
             </button>
           </div>
         </section>
 
+        {/* LIST */}
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Vendor Directory</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Campaign vendor relationships across firms and workspaces.
-            </p>
-          </div>
-
           <div className="space-y-4">
             {loading ? (
-              <EmptyState text="Loading vendor directory..." />
+              <EmptyState text="Loading vendors..." />
             ) : vendors.length === 0 ? (
-              <EmptyState text="No vendor records found for the current filters." />
+              <EmptyState text="No vendors found." />
             ) : (
-              vendors.map((vendor) => (
-                <VendorRow
-                  key={`${vendor.id}-${vendor.campaign_id}-${vendor.vendor_name}`}
-                  vendor={vendor}
-                />
+              vendors.map((v, i) => (
+                <VendorRow key={v.id || i} vendor={v} />
               ))
             )}
           </div>
         </section>
+
       </div>
     </div>
   );
