@@ -4,7 +4,7 @@ import Panel from "../components/ui/Panel";
 import LoadingState from "../components/ui/LoadingState";
 import ErrorState from "../components/ui/ErrorState";
 import { useApiResource } from "../hooks/useApiResource";
-import { api } from "../services/api";
+import { platformApi } from "../services/api";
 
 const fallbackData = {
   metrics: [
@@ -40,18 +40,18 @@ const fallbackData = {
 };
 
 function severityClass(value) {
-  const v = value.toLowerCase();
+  const v = String(value || "").toLowerCase();
   if (v === "high") return "high";
   if (v === "medium") return "medium";
   return "low";
 }
 
 function toneClass(value) {
-  return String(value).startsWith("-") ? "down" : "up";
+  return String(value || "").startsWith("-") ? "down" : "up";
 }
 
 const AIWarRoom = () => {
-  const fetcher = useCallback(() => api.warRoom(), []);
+  const fetcher = useCallback(() => platformApi.warRoom(), []);
   const { data, loading, error } = useApiResource(fetcher, fallbackData);
 
   return (
@@ -62,11 +62,17 @@ const AIWarRoom = () => {
       metrics={data?.metrics || []}
     >
       <Panel title="Live Threat Board" subtitle="Highest-priority attacks and adverse narrative acceleration">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : (
           <div className="vs-threat-list">
-            {(data?.threats || []).map(...)}
+            {(data?.threats || []).map((item) => (
               <div key={item.title} className="vs-threat-item">
-                <div className={`vs-threat-severity ${severityClass(item.severity)}`}>{item.severity}</div>
+                <div className={`vs-threat-severity ${severityClass(item.severity)}`}>
+                  {item.severity}
+                </div>
                 <div className="vs-threat-body">
                   <div className="vs-threat-title">{item.title}</div>
                   <div className="vs-threat-meta">
@@ -82,9 +88,13 @@ const AIWarRoom = () => {
       </Panel>
 
       <Panel title="Response Queue" subtitle="Immediate tactical moves for the next cycle">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : (
           <div className="vs-response-queue">
-            {(data?.threats || []).map(...)}
+            {(data?.queue || []).map((item) => (
               <div key={item.item} className="vs-response-item">
                 <div className="vs-response-topline">
                   <div className="vs-response-priority">{item.priority}</div>
@@ -99,9 +109,13 @@ const AIWarRoom = () => {
       </Panel>
 
       <Panel title="Signal Stream" subtitle="Cross-channel intelligence entering the terminal" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : (
           <div className="vs-signal-stream">
-            {(data?.signals || []).map(...)}
+            {(data?.signals || []).map((item) => (
               <div key={`${item.time}-${item.channel}`} className="vs-signal-item">
                 <div className="vs-signal-time">{item.time}</div>
                 <div className="vs-signal-content">
