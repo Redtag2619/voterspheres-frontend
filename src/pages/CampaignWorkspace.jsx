@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { alertsApi, crmApi } from "../services/api";
+import { api } from "../services/api";
+import useLiveChannel from "../hooks/useLiveChannel";
 
 const DEFAULT_CAMPAIGN_ID = "2";
 
@@ -76,7 +77,21 @@ function Field({ label, children }) {
 const inputClass =
   "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none";
 const textareaClass =
-  "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none min-h-[100px]";
+  "w-full min-h-[100px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none";
+
+function formatCurrency(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
+}
+
+function createLiveActivity(payload, title) {
+  return {
+    id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    activity_type: title,
+    created_at: new Date().toISOString(),
+    summary: payload?.note || payload?.status || title,
+    details: payload || {}
+  };
+}
 
 export default function CampaignWorkspace() {
   const params = useParams();
@@ -87,6 +102,8 @@ export default function CampaignWorkspace() {
   const [submitting, setSubmitting] = useState("");
   const [activity, setActivity] = useState([]);
   const [alertNotes, setAlertNotes] = useState({});
+  const [liveBanner, setLiveBanner] = useState("");
+  const [livePulse, setLivePulse] = useState(false);
 
   const [data, setData] = useState({
     campaign: null,
@@ -155,25 +172,44 @@ export default function CampaignWorkspace() {
     source: "manual"
   });
 
+  const getJson = useCallback(async (path) => {
+    const response = await api.get(path);
+    return response.data;
+  }, []);
+
+  const postJson = useCallback(async (path, body) => {
+    const response = await api.post(path, body);
+    return response.data;
+  }, []);
+
+  const patchJson = useCallback(async (path, body) => {
+    const response = await api.patch(path, body);
+    return response.data;
+  }, []);
+
   async function loadWorkspace() {
-    const result = await crmApi.commandCenter(campaignId);
+    const result = await getJson(`/campaigns/${campaignId}/command-center`);
     setData(result || {});
   }
 
   async function loadActivity() {
-    const result = await crmApi.activity(campaignId);
-    setActivity(result || []);
+    const result = await getJson(`/campaigns/${campaignId}/activity`);
+    setActivity(Array.isArray(result) ? result : []);
   }
 
-  async function loadAll() {
+  async function loadAll(background = false) {
     try {
-      setLoading(true);
+      if (!background) {
+        setLoading(true);
+      }
       setError("");
       await Promise.all([loadWorkspace(), loadActivity()]);
     } catch (err) {
       setError(err?.message || "Failed to load campaign workspace");
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 
@@ -181,15 +217,90 @@ export default function CampaignWorkspace() {
     loadAll();
   }, [campaignId]);
 
-  async function submitForm(formName, handler, body, resetFn) {
+  useLiveChannel(`campaign:${campaignId}`, (event) => {
+    if (!event?.type) return;
+
+    if (event.type === "mail.delay_detected") {
+      const payload = event.payload || {};
+
+      setLiveBanner(
+        `Live alert: mail delay detected for drop #${payload.mailDropId || "N/A"} at ${
+          payload.location || "Unknown location"
+        }`
+      );
+      setLivePulse(true);
+
+      setTimeout(() => {
+        setLivePulse(false);
+      }, 1800);
+
+      setData((prev) => {
+        const liveMailEvent = {
+          id: `live-mail-${Date.now()}`,
+          mail_drop_id: payload.mailDropId || null,
+          campaign_id: payload.campaignId || campaignId,
+          event_type: "delayed",
+          status: payload.status || "delayed",
+          location_name: payload.location || "Unknown location",
+          facility_type: payload.facilityType || "live_signal",
+          notes: payload.note || "Live delay signal",
+          source: "live_intelligence",
+          created_at: new Date().toISOString()
+        };
+
+        const nextAlerts = [
+          {
+            alert_key: `mail-delay-${Date.now()}`,
+            title: "Live Mail Delay Alert",
+            message:
+              payload.note ||
+              `Mail delay detected at ${payload.location || "Unknown location"}`,
+            severity: "high",
+            type: "mail_delay",
+            campaign_id: payload.campaignId || campaignId,
+            entity_id: payload.mailDropId || null,
+            action_status: "open",
+            meta: {
+              mail_event_id: payload.mailDropId || null
+            }
+          },
+          ...(prev?.alerts || [])
+        ];
+
+        const nextRecent = [liveMailEvent, ...(prev?.mail?.recent_events || [])];
+        const nextDelayed = [liveMailEvent, ...(prev?.mail?.delayed_events || [])];
+
+        return {
+          ...prev,
+          alerts: nextAlerts,
+          mail: {
+            ...(prev?.mail || {}),
+            recent_events: nextRecent,
+            delayed_events: nextDelayed
+          }
+        };
+      });
+
+      setActivity((prev) => [
+        createLiveActivity(event.payload || {}, "mail.delay_detected"),
+        ...prev
+      ]);
+
+      setTimeout(() => {
+        loadAll(true);
+      }, 700);
+    }
+  });
+
+  async function submitForm(formName, path, body, resetFn) {
     try {
       setSubmitting(formName);
       setError("");
 
-      await handler(body);
+      await postJson(path, body);
 
       resetFn();
-      await loadAll();
+      await loadAll(true);
     } catch (err) {
       setError(err?.message || "Failed to save");
     } finally {
@@ -197,13 +308,14 @@ export default function CampaignWorkspace() {
     }
   }
 
-  async function patchEntity(formName, handler, body) {
+  async function patchEntity(formName, path, body) {
     try {
       setSubmitting(formName);
       setError("");
 
-      await handler(body);
-      await loadAll();
+      await patchJson(path, body);
+
+      await loadAll(true);
     } catch (err) {
       setError(err?.message || "Failed to update");
     } finally {
@@ -216,21 +328,15 @@ export default function CampaignWorkspace() {
       setSubmitting(`${action}-${alert.alert_key}`);
       setError("");
 
-      const payload = {
+      await postJson(`/alerts/${action}`, {
         alert_key: alert.alert_key,
         alert_type: alert.type,
         campaign_id: alert.campaign_id,
         entity_id: alert.entity_id,
         notes: alertNotes[alert.alert_key] || ""
-      };
+      });
 
-      if (action === "resolve") {
-        await alertsApi.resolve(payload);
-      } else {
-        await alertsApi.dismiss(payload);
-      }
-
-      await loadAll();
+      await loadAll(true);
     } catch (err) {
       setError(err?.message || `Failed to ${action} alert`);
     } finally {
@@ -243,19 +349,19 @@ export default function CampaignWorkspace() {
       if (alert.type === "task" && alert.meta?.task_id) {
         await patchEntity(
           `task-inline-${alert.meta.task_id}`,
-          (payload) => crmApi.updateTask(campaignId, alert.meta.task_id, payload),
+          `/campaigns/${campaignId}/tasks/${alert.meta.task_id}`,
           { status: "done" }
         );
       } else if (alert.type === "vendor" && alert.meta?.vendor_id) {
         await patchEntity(
           `vendor-inline-${alert.meta.vendor_id}`,
-          (payload) => crmApi.updateVendor(campaignId, alert.meta.vendor_id, payload),
+          `/campaigns/${campaignId}/vendors/${alert.meta.vendor_id}`,
           { status: "active" }
         );
       } else if (alert.type === "mail_delay" && alert.meta?.mail_event_id) {
         await patchEntity(
           `mail-inline-${alert.meta.mail_event_id}`,
-          (payload) => crmApi.updateMailEvent(campaignId, alert.meta.mail_event_id, payload),
+          `/campaigns/${campaignId}/mail-events/${alert.meta.mail_event_id}`,
           { event_type: "delivered", status: "delivered" }
         );
       }
@@ -268,13 +374,21 @@ export default function CampaignWorkspace() {
 
   const campaignTitle = useMemo(() => {
     if (!data?.campaign) return `Campaign Workspace #${campaignId}`;
-    return data.campaign.campaign_name || data.campaign.candidate_name || `Campaign Workspace #${campaignId}`;
+    return (
+      data.campaign.campaign_name ||
+      data.campaign.candidate_name ||
+      `Campaign Workspace #${campaignId}`
+    );
   }, [data, campaignId]);
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-[28px] border border-[#d8dde6] bg-gradient-to-r from-[#0176D3] to-[#0b5cab] p-8 text-white shadow-sm">
+        <section
+          className={`rounded-[28px] border border-[#d8dde6] bg-gradient-to-r from-[#0176D3] to-[#0b5cab] p-8 text-white shadow-sm transition ${
+            livePulse ? "ring-4 ring-amber-300/60" : ""
+          }`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs uppercase tracking-[0.22em] text-blue-100">
               Campaign Command Center
@@ -286,8 +400,15 @@ export default function CampaignWorkspace() {
 
           <h1 className="mt-2 text-3xl font-semibold">{campaignTitle}</h1>
           <p className="mt-3 max-w-3xl text-sm text-blue-50">
-            Live operational cockpit for campaign execution, alerts, vendors, fundraising, forecast context, and mail intelligence.
+            Live operational cockpit for campaign execution, alerts, vendors,
+            fundraising, forecast context, and mail intelligence.
           </p>
+
+          {liveBanner ? (
+            <div className="mt-5 rounded-2xl border border-amber-200/40 bg-amber-50/20 px-4 py-3 text-sm text-amber-50">
+              {liveBanner}
+            </div>
+          ) : null}
 
           {data?.campaign ? (
             <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -443,7 +564,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `task-${task.id}`,
-                            (payload) => crmApi.updateTask(campaignId, task.id, payload),
+                            `/campaigns/${campaignId}/tasks/${task.id}`,
                             { status: "in_progress" }
                           )
                         }
@@ -456,7 +577,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `task-${task.id}`,
-                            (payload) => crmApi.updateTask(campaignId, task.id, payload),
+                            `/campaigns/${campaignId}/tasks/${task.id}`,
                             { status: "done" }
                           )
                         }
@@ -483,7 +604,7 @@ export default function CampaignWorkspace() {
                     Total Receipts
                   </div>
                   <div className="mt-2 text-2xl font-semibold text-slate-900">
-                    ${Number(data.fundraising.total_receipts || 0).toLocaleString()}
+                    {formatCurrency(data.fundraising.total_receipts || 0)}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -491,7 +612,7 @@ export default function CampaignWorkspace() {
                     Cash on Hand
                   </div>
                   <div className="mt-2 text-2xl font-semibold text-slate-900">
-                    ${Number(data.fundraising.cash_on_hand || 0).toLocaleString()}
+                    {formatCurrency(data.fundraising.cash_on_hand || 0)}
                   </div>
                 </div>
               </div>
@@ -531,7 +652,7 @@ export default function CampaignWorkspace() {
                     </div>
 
                     <div className="mt-3 text-xs text-slate-500">
-                      Contract: ${Number(vendor.contract_value || 0).toLocaleString()}
+                      Contract: {formatCurrency(vendor.contract_value || 0)}
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -540,7 +661,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `vendor-${vendor.id}`,
-                            (payload) => crmApi.updateVendor(campaignId, vendor.id, payload),
+                            `/campaigns/${campaignId}/vendors/${vendor.id}`,
                             { status: "active" }
                           )
                         }
@@ -553,7 +674,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `vendor-${vendor.id}`,
-                            (payload) => crmApi.updateVendor(campaignId, vendor.id, payload),
+                            `/campaigns/${campaignId}/vendors/${vendor.id}`,
                             { status: "at_risk" }
                           )
                         }
@@ -615,7 +736,7 @@ export default function CampaignWorkspace() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card title="MailOps Panel" subtitle="Inline event status control">
+          <Card title="MailOps Panel" subtitle="Inline event status control + live campaign alerts">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Programs</div>
@@ -644,7 +765,11 @@ export default function CampaignWorkspace() {
                 data.mail.recent_events.map((event) => (
                   <div
                     key={event.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    className={`rounded-2xl border p-4 ${
+                      String(event.status || event.event_type || "").toLowerCase() === "delayed"
+                        ? "border-amber-300 bg-amber-50"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -652,7 +777,8 @@ export default function CampaignWorkspace() {
                           {event.event_type || "event"}
                         </div>
                         <div className="mt-1 text-sm text-slate-500">
-                          Drop #{event.mail_drop_id} • {event.location_name || event.facility_type || "Network"}
+                          Drop #{event.mail_drop_id} •{" "}
+                          {event.location_name || event.facility_type || "Network"}
                         </div>
                       </div>
                       <span
@@ -673,7 +799,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `mail-${event.id}`,
-                            (payload) => crmApi.updateMailEvent(campaignId, event.id, payload),
+                            `/campaigns/${campaignId}/mail-events/${event.id}`,
                             { event_type: "in_transit", status: "in_transit" }
                           )
                         }
@@ -686,7 +812,7 @@ export default function CampaignWorkspace() {
                         onClick={() =>
                           patchEntity(
                             `mail-${event.id}`,
-                            (payload) => crmApi.updateMailEvent(campaignId, event.id, payload),
+                            `/campaigns/${campaignId}/mail-events/${event.id}`,
                             { event_type: "delivered", status: "delivered" }
                           )
                         }
@@ -760,7 +886,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "task",
-                    (payload) => crmApi.createTask(campaignId, payload),
+                    `/campaigns/${campaignId}/tasks`,
                     taskForm,
                     () =>
                       setTaskForm({
@@ -826,7 +952,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "contact",
-                    (payload) => crmApi.createContact(campaignId, payload),
+                    `/campaigns/${campaignId}/contacts`,
                     contactForm,
                     () =>
                       setContactForm({
@@ -884,7 +1010,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "vendor",
-                    (payload) => crmApi.createVendor(campaignId, payload),
+                    `/campaigns/${campaignId}/vendors`,
                     {
                       ...vendorForm,
                       contract_value: Number(vendorForm.contract_value || 0)
@@ -950,7 +1076,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "document",
-                    (payload) => crmApi.createDocument(campaignId, payload),
+                    `/campaigns/${campaignId}/documents`,
                     documentForm,
                     () =>
                       setDocumentForm({
@@ -998,7 +1124,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "mailProgram",
-                    (payload) => crmApi.createMailProgram(campaignId, payload),
+                    `/campaigns/${campaignId}/mail-programs`,
                     mailProgramForm,
                     () =>
                       setMailProgramForm({
@@ -1038,7 +1164,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "mailDrop",
-                    (payload) => crmApi.createMailDrop(campaignId, payload),
+                    `/campaigns/${campaignId}/mail-drops`,
                     {
                       ...mailDropForm,
                       program_id: mailDropForm.program_id ? Number(mailDropForm.program_id) : null,
@@ -1101,7 +1227,7 @@ export default function CampaignWorkspace() {
                   e.preventDefault();
                   submitForm(
                     "mailEvent",
-                    (payload) => crmApi.createMailEvent(campaignId, payload),
+                    `/campaigns/${campaignId}/mail-events`,
                     {
                       ...mailEventForm,
                       mail_drop_id: mailEventForm.mail_drop_id ? Number(mailEventForm.mail_drop_id) : null
@@ -1200,7 +1326,7 @@ export default function CampaignWorkspace() {
           </Card>
 
           <Card title="Activity Timeline" subtitle="Live campaign audit rail">
-            <div className="space-y-3 max-h-[900px] overflow-y-auto pr-2">
+            <div className="max-h-[900px] space-y-3 overflow-y-auto pr-2">
               {loading ? (
                 <EmptyState text="Loading activity..." />
               ) : activity.length ? (
@@ -1216,7 +1342,9 @@ export default function CampaignWorkspace() {
                           {String(item.activity_type || "").replaceAll("_", " ")}
                         </div>
                         <div className="text-xs text-slate-400">
-                          {new Date(item.created_at).toLocaleString()}
+                          {item.created_at
+                            ? new Date(item.created_at).toLocaleString()
+                            : "No timestamp"}
                         </div>
                       </div>
 
