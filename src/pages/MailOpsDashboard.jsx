@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../services/api";
+import useLiveChannel from "../hooks/useLiveChannel";
 
 function Card({ title, subtitle, children }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5">
         <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
-        {subtitle ? (
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-        ) : null}
+        {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
       </div>
       {children}
     </section>
@@ -26,9 +25,7 @@ function EmptyState({ text }) {
 function StatCard({ label, value, subtext }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</div>
       <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
       <div className="mt-2 text-sm text-slate-500">{subtext}</div>
     </div>
@@ -47,7 +44,9 @@ function formatHours(value) {
 
 export default function MailOpsDashboard() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [liveNotice, setLiveNotice] = useState("");
 
   const [dashboard, setDashboard] = useState({ metrics: [] });
   const [timeline, setTimeline] = useState([]);
@@ -59,9 +58,14 @@ export default function MailOpsDashboard() {
     recent_drop_stats: []
   });
 
-  async function loadAll() {
+  const loadAll = useCallback(async (background = false) => {
     try {
-      setLoading(true);
+      if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       setError("");
 
       const [dashboardRes, timelineRes, intelligenceRes] = await Promise.all([
@@ -81,21 +85,11 @@ export default function MailOpsDashboard() {
       setIntelligence(
         intelligenceRes && typeof intelligenceRes === "object"
           ? {
-              metrics: Array.isArray(intelligenceRes.metrics)
-                ? intelligenceRes.metrics
-                : [],
-              vendor_rankings: Array.isArray(intelligenceRes.vendor_rankings)
-                ? intelligenceRes.vendor_rankings
-                : [],
-              campaign_rankings: Array.isArray(intelligenceRes.campaign_rankings)
-                ? intelligenceRes.campaign_rankings
-                : [],
-              regional_heatmap: Array.isArray(intelligenceRes.regional_heatmap)
-                ? intelligenceRes.regional_heatmap
-                : [],
-              recent_drop_stats: Array.isArray(intelligenceRes.recent_drop_stats)
-                ? intelligenceRes.recent_drop_stats
-                : []
+              metrics: Array.isArray(intelligenceRes.metrics) ? intelligenceRes.metrics : [],
+              vendor_rankings: Array.isArray(intelligenceRes.vendor_rankings) ? intelligenceRes.vendor_rankings : [],
+              campaign_rankings: Array.isArray(intelligenceRes.campaign_rankings) ? intelligenceRes.campaign_rankings : [],
+              regional_heatmap: Array.isArray(intelligenceRes.regional_heatmap) ? intelligenceRes.regional_heatmap : [],
+              recent_drop_stats: Array.isArray(intelligenceRes.recent_drop_stats) ? intelligenceRes.recent_drop_stats : []
             }
           : {
               metrics: [],
@@ -109,12 +103,43 @@ export default function MailOpsDashboard() {
       setError(err?.message || "Failed to load MailOps intelligence");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    loadAll(false);
+  }, [loadAll]);
+
+  useLiveChannel("mailops:alerts", (event) => {
+    if (event?.type !== "mail.delay_detected") return;
+
+    const payload = event.payload || {};
+
+    setLiveNotice(
+      `Live mail delay detected for campaign #${payload.campaignId || "N/A"} at ${payload.location || "Unknown location"}`
+    );
+
+    setTimeline((prev) => [
+      {
+        id: `live-${Date.now()}`,
+        event_type: "delayed",
+        mail_drop_id: payload.mailDropId || null,
+        campaign_id: payload.campaignId || null,
+        location_name: payload.location || "Unknown location",
+        facility_type: "live_signal",
+        notes: payload.note || "Live delay signal",
+        source: "live_intelligence",
+        status: payload.status || "delayed",
+        created_at: new Date().toISOString()
+      },
+      ...prev
+    ]);
+
+    setTimeout(() => {
+      loadAll(true);
+    }, 600);
+  });
 
   const metricCards =
     intelligence.metrics?.length > 0
@@ -127,17 +152,30 @@ export default function MailOpsDashboard() {
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-            VoterSpheres Mail Intelligence
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
+                VoterSpheres Mail Intelligence
+              </div>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-900">
+                MailOps + Intelligence
+              </h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Track delivery operations, evaluate vendors, surface delay risk, and benchmark campaign execution.
+              </p>
+            </div>
+
+            <div className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-4 py-2 text-xs font-medium text-[#0176D3]">
+              {refreshing ? "Refreshing live data..." : "Live monitoring active"}
+            </div>
           </div>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-            MailOps + Intelligence
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Track delivery operations, evaluate vendors, surface delay risk, and
-            benchmark campaign execution.
-          </p>
         </div>
+
+        {liveNotice ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {liveNotice}
+          </div>
+        ) : null}
 
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -157,26 +195,10 @@ export default function MailOpsDashboard() {
             ))
           ) : (
             <>
-              <StatCard
-                label="MailOps Status"
-                value={loading ? "Loading" : "Ready"}
-                subtext="Shared API connected"
-              />
-              <StatCard
-                label="Vendor Rankings"
-                value={formatCount(intelligence.vendor_rankings?.length)}
-                subtext="Tracked operators"
-              />
-              <StatCard
-                label="Campaign Rankings"
-                value={formatCount(intelligence.campaign_rankings?.length)}
-                subtext="Tracked campaigns"
-              />
-              <StatCard
-                label="Timeline Events"
-                value={formatCount(timeline.length)}
-                subtext="Recent tracking movement"
-              />
+              <StatCard label="MailOps Status" value={loading ? "Loading" : "Ready"} subtext="Shared API connected" />
+              <StatCard label="Vendor Rankings" value={formatCount(intelligence.vendor_rankings?.length)} subtext="Tracked operators" />
+              <StatCard label="Campaign Rankings" value={formatCount(intelligence.campaign_rankings?.length)} subtext="Tracked campaigns" />
+              <StatCard label="Timeline Events" value={formatCount(timeline.length)} subtext="Recent tracking movement" />
             </>
           )}
         </div>
@@ -198,8 +220,7 @@ export default function MailOpsDashboard() {
                           {vendor.vendor_name || "Unknown Vendor"}
                         </div>
                         <div className="mt-1 text-sm text-slate-500">
-                          {formatCount(vendor.drops_count)} drops •{" "}
-                          {vendor.delivered_rate ?? 0}% delivered
+                          {formatCount(vendor.drops_count)} drops • {vendor.delivered_rate ?? 0}% delivered
                         </div>
                       </div>
                       <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
@@ -210,9 +231,7 @@ export default function MailOpsDashboard() {
                     <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
                       <div>Delayed: {vendor.delay_rate ?? 0}%</div>
                       <div>Avg Transit: {formatHours(vendor.avg_transit_hours)}</div>
-                      <div>
-                        Median Transit: {formatHours(vendor.median_transit_hours)}
-                      </div>
+                      <div>Median Transit: {formatHours(vendor.median_transit_hours)}</div>
                     </div>
                   </div>
                 ))
@@ -222,10 +241,7 @@ export default function MailOpsDashboard() {
             </div>
           </Card>
 
-          <Card
-            title="Campaign Mail Performance"
-            subtitle="Which campaigns are executing best"
-          >
+          <Card title="Campaign Mail Performance" subtitle="Which campaigns are executing best">
             <div className="space-y-3">
               {loading ? (
                 <EmptyState text="Loading campaign intelligence..." />
@@ -241,8 +257,7 @@ export default function MailOpsDashboard() {
                           Campaign #{campaign.campaign_id ?? "N/A"}
                         </div>
                         <div className="mt-1 text-sm text-slate-500">
-                          {formatCount(campaign.drops_count)} drops •{" "}
-                          {formatCount(campaign.pieces_total)} pieces
+                          {formatCount(campaign.drops_count)} drops • {formatCount(campaign.pieces_total)} pieces
                         </div>
                       </div>
                       <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
@@ -278,10 +293,7 @@ export default function MailOpsDashboard() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card
-            title="Regional Heatmap"
-            subtitle="Operational hotspots by facility and geography"
-          >
+          <Card title="Regional Heatmap" subtitle="Operational hotspots by facility and geography">
             <div className="space-y-3">
               {loading ? (
                 <EmptyState text="Loading regional intelligence..." />
@@ -318,10 +330,7 @@ export default function MailOpsDashboard() {
             </div>
           </Card>
 
-          <Card
-            title="Recent Drop Intelligence"
-            subtitle="Latest drop-level operational summaries"
-          >
+          <Card title="Recent Drop Intelligence" subtitle="Latest drop-level operational summaries">
             <div className="space-y-3">
               {loading ? (
                 <EmptyState text="Loading drop intelligence..." />
@@ -337,8 +346,7 @@ export default function MailOpsDashboard() {
                           Drop #{drop.mail_drop_id ?? "N/A"}
                         </div>
                         <div className="mt-1 text-sm text-slate-500">
-                          Campaign #{drop.campaign_id ?? "N/A"} •{" "}
-                          {formatCount(drop.quantity)} pieces
+                          Campaign #{drop.campaign_id ?? "N/A"} • {formatCount(drop.quantity)} pieces
                         </div>
                       </div>
                       <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
@@ -360,10 +368,7 @@ export default function MailOpsDashboard() {
           </Card>
         </div>
 
-        <Card
-          title="Raw Tracking Timeline"
-          subtitle="Recent mail movement events across the platform"
-        >
+        <Card title="Raw Tracking Timeline" subtitle="Recent mail movement events across the platform">
           <div className="space-y-3">
             {loading ? (
               <EmptyState text="Loading timeline..." />
@@ -379,8 +384,7 @@ export default function MailOpsDashboard() {
                         {event.event_type || "event"}
                       </div>
                       <div className="mt-1 text-sm text-slate-500">
-                        Drop #{event.mail_drop_id ?? "N/A"} • Campaign #
-                        {event.campaign_id ?? "N/A"}
+                        Drop #{event.mail_drop_id ?? "N/A"} • Campaign #{event.campaign_id ?? "N/A"}
                       </div>
                     </div>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
@@ -393,17 +397,12 @@ export default function MailOpsDashboard() {
                     <div>Facility: {event.facility_type || "N/A"}</div>
                     <div>Source: {event.source || "manual"}</div>
                     <div>
-                      Time:{" "}
-                      {event.created_at
-                        ? new Date(event.created_at).toLocaleString()
-                        : "N/A"}
+                      Time: {event.created_at ? new Date(event.created_at).toLocaleString() : "N/A"}
                     </div>
                   </div>
 
                   {event.notes ? (
-                    <div className="mt-2 text-xs text-slate-500">
-                      Notes: {event.notes}
-                    </div>
+                    <div className="mt-2 text-xs text-slate-500">Notes: {event.notes}</div>
                   ) : null}
                 </div>
               ))
