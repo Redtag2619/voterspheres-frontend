@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import TerminalPage from "../components/ui/TerminalPage";
 import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
+import LoadingState from "../components/ui/LoadingState"; 
 import ErrorState from "../components/ui/ErrorState";
 import { useApiResource } from "../hooks/useApiResource";
 import { platformApi } from "../services/api";
