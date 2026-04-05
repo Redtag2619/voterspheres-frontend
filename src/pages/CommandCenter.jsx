@@ -4,51 +4,51 @@ import Panel from "../components/ui/Panel";
 import LoadingState from "../components/ui/LoadingState";
 import ErrorState from "../components/ui/ErrorState";
 import { useApiResource } from "../hooks/useApiResource";
-import { platformApi } from "../services/api";
+import { api } from "../services/api";
 import useLiveChannel from "../hooks/useLiveChannel";
 
 const fallbackData = {
   metrics: [
-    { label: "National Win Index", value: "61.4", delta: "+2.8", tone: "up" },
-    { label: "Active Threats", value: "12", delta: "+3", tone: "down" },
-    { label: "Fundraising Pulse", value: "$12.6M", delta: "+11.2%", tone: "up" },
-    { label: "Persuasion Opportunity", value: "8.7", delta: "+0.6", tone: "up" }
+    { label: "National Win Index", value: "61.8", delta: "+3.1", tone: "up" },
+    { label: "Active Threats", value: "4", delta: "2 require action", tone: "down" },
+    { label: "Fundraising Pulse", value: "$12.8M", delta: "+9.4%", tone: "up" },
+    { label: "Persuasion Opportunity", value: "8.9", delta: "+0.8", tone: "up" }
   ],
   battlegrounds: [
-    { race: "PA Senate", probability: "54%", momentum: "+2.1", risk: "Elevated", priority: "Tier 1" },
-    { race: "AZ-01", probability: "51%", momentum: "+1.4", risk: "Watch", priority: "Tier 1" },
-    { race: "MI-07", probability: "49%", momentum: "-0.8", risk: "High", priority: "Tier 1" }
+    { race: "GA Senate", probability: "57%", momentum: "+2.4", risk: "Elevated", priority: "Tier 1" },
+    { race: "PA Senate", probability: "54%", momentum: "+1.8", risk: "Watch", priority: "Tier 1" },
+    { race: "AZ Senate", probability: "51%", momentum: "+1.1", risk: "Watch", priority: "Tier 2" }
   ],
   actions: [
     {
-      title: "Reallocate persuasion spend",
-      owner: "Paid Media",
-      due: "Today",
-      detail: "Shift 14% of digital spend into three suburban battleground segments."
+      title: "Deploy suburban affordability contrast",
+      owner: "War Room",
+      due: "Now",
+      detail: "Shift message weight into metro persuadable voter clusters."
     },
     {
-      title: "Deploy rapid-response package",
-      owner: "War Room",
-      due: "2 hrs",
-      detail: "Push education-cost rebuttal kit to surrogates and state comms leads."
+      title: "Escalate mail delay response",
+      owner: "MailOps",
+      due: "45 min",
+      detail: "Coordinate with vendor and USPS contact to protect weekend delivery."
     }
   ],
   feed: [
     {
       id: 1,
       time: "08:12",
-      title: "Opposition message spike detected",
-      source: "Ad monitoring",
+      title: "Opposition affordability attack accelerating",
+      source: "War Room",
       severity: "High",
       type: "warroom.threat_detected"
     },
     {
       id: 2,
-      time: "09:05",
-      title: "Education narrative gaining traction",
-      source: "Media signal blend",
-      severity: "Medium",
-      type: "warroom.signal_detected"
+      time: "08:41",
+      title: "Mail delay detected at Atlanta NDC",
+      source: "Mail Intelligence",
+      severity: "High",
+      type: "mail.delay_detected"
     }
   ]
 };
@@ -64,13 +64,6 @@ function severityTone(value) {
   return "low";
 }
 
-function incrementMetric(metrics, label, updater) {
-  return (metrics || []).map((metric) => {
-    if (metric.label !== label) return metric;
-    return updater(metric);
-  });
-}
-
 function dedupeFeed(items) {
   const seen = new Set();
   return items.filter((item) => {
@@ -82,10 +75,10 @@ function dedupeFeed(items) {
 }
 
 const CommandCenter = () => {
-  const fetcher = useCallback(() => platformApi.commandCenter(), []);
+  const fetcher = useCallback(() => api.commandCenter(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
   const [liveBanner, setLiveBanner] = useState("");
-  const [pulse, setPulse] = useState(false);
+  const demoMode = localStorage.getItem("vs_demo_mode") === "1";
 
   useLiveChannel("intelligence:command-center", (event) => {
     if (!event?.type) return;
@@ -95,10 +88,10 @@ const CommandCenter = () => {
       const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
       setLiveBanner(`Live threat fused into Command Center: ${threat.title || "Threat detected"}`);
-      setPulse(true);
 
-      setData((prev) => {
-        const nextFeed = dedupeFeed([
+      setData((prev) => ({
+        ...(prev || fallbackData),
+        feed: dedupeFeed([
           {
             id: `cc-threat-${Date.now()}`,
             time: now,
@@ -108,30 +101,8 @@ const CommandCenter = () => {
             type: "warroom.threat_detected"
           },
           ...(prev?.feed || [])
-        ]).slice(0, 8);
-
-        const nextActions = [
-          {
-            title: threat.recommendation || "Review live threat",
-            owner: "War Room",
-            due: "Now",
-            detail: `Triggered by ${threat.source || "live threat feed"}.`
-          },
-          ...(prev?.actions || [])
-        ].slice(0, 4);
-
-        return {
-          ...(prev || fallbackData),
-          feed: nextFeed,
-          actions: nextActions,
-          metrics: incrementMetric(prev?.metrics || fallbackData.metrics, "Active Threats", (metric) => ({
-            ...metric,
-            value: String(Number(metric.value || 0) + 1),
-            delta: "Live threat fused",
-            tone: "down"
-          }))
-        };
-      });
+        ]).slice(0, 8)
+      }));
     }
 
     if (event.type === "warroom.signal_detected") {
@@ -139,7 +110,6 @@ const CommandCenter = () => {
       const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
       setLiveBanner(`Live signal fused into Command Center: ${signal.channel || "Signal detected"}`);
-      setPulse(true);
 
       setData((prev) => ({
         ...(prev || fallbackData),
@@ -156,73 +126,6 @@ const CommandCenter = () => {
         ]).slice(0, 8)
       }));
     }
-
-    if (event.type === "mail.delay_detected") {
-      const mail = event.payload || {};
-      const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-      setLiveBanner(`Live mail delay fused into Command Center: ${mail.location || "Mail issue detected"}`);
-      setPulse(true);
-
-      setData((prev) => ({
-        ...(prev || fallbackData),
-        feed: dedupeFeed([
-          {
-            id: `cc-mail-${Date.now()}`,
-            time: now,
-            title: `Mail delay detected at ${mail.location || "Unknown location"}`,
-            source: "Mail Intelligence",
-            severity: "High",
-            type: "mail.delay_detected"
-          },
-          ...(prev?.feed || [])
-        ]).slice(0, 8),
-        metrics: incrementMetric(prev?.metrics || fallbackData.metrics, "Active Threats", (metric) => ({
-          ...metric,
-          value: String(Number(metric.value || 0) + 1),
-          delta: "Mail disruption fused",
-          tone: "down"
-        }))
-      }));
-    }
-
-    if (event.type === "forecast.updated") {
-      const forecast = event.payload || {};
-
-      setLiveBanner(
-        `Live forecast fused into Command Center: ${forecast.state || "State"} ${forecast.office || "Race"}`
-      );
-      setPulse(true);
-
-      setData((prev) => ({
-        ...(prev || fallbackData),
-        battlegrounds: [
-          {
-            race: `${forecast.state || "State"} ${forecast.office || "Race"}`,
-            probability: `${forecast.winProbability ?? 50}%`,
-            momentum: forecast.change || "+0.0",
-            risk: "Watch",
-            priority: "Tier 1"
-          },
-          ...(prev?.battlegrounds || [])
-        ].slice(0, 6),
-        feed: dedupeFeed([
-          {
-            id: `cc-forecast-${Date.now()}`,
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            title: `Forecast updated for ${forecast.state || "State"} ${forecast.office || "Race"}`,
-            source: "Forecast Engine",
-            severity: "Medium",
-            type: "forecast.updated"
-          },
-          ...(prev?.feed || [])
-        ]).slice(0, 8)
-      }));
-    }
-
-    setTimeout(() => {
-      setPulse(false);
-    }, 1800);
   });
 
   useEffect(() => {
@@ -238,14 +141,14 @@ const CommandCenter = () => {
       description="Monitor battleground pressure, fundraising flow, narrative threats, and the next-best actions across the national map from one executive view."
       metrics={data?.metrics || []}
     >
+      {demoMode ? (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation.
+        </div>
+      ) : null}
+
       {liveBanner ? (
-        <div
-          className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
-            pulse
-              ? "border-amber-400 bg-amber-50 text-amber-800"
-              : "border-slate-200 bg-white text-slate-700"
-          }`}
-        >
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
           {liveBanner}
         </div>
       ) : null}
