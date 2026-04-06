@@ -1,71 +1,61 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import EmptyState from "../components/ui/EmptyState";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-      {text}
-    </div>
-  );
-}
-
-function StatCard({ label, value, delta, tone = "neutral" }) {
-  const toneClass =
-    tone === "up"
-      ? "text-emerald-600"
-      : tone === "down"
-      ? "text-rose-600"
-      : "text-slate-500";
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className={`mt-2 text-sm ${toneClass}`}>{delta}</div>
-    </div>
-  );
-}
-
 function LeaderRow({ row }) {
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[70px,1.6fr,1fr,1fr,1fr]">
-      <div className="text-xl font-semibold text-slate-400">#{row.rank}</div>
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "70px 1.6fr 1fr 1fr 1fr",
+          alignItems: "start"
+        }}
+      >
+        <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--vs-text-muted)" }}>
+          #{row.rank}
+        </div>
 
-      <div>
-        <div className="font-semibold text-slate-900">{row.name}</div>
-        <div className="mt-1 text-sm text-slate-500">
-          {row.state || "N/A"} • {row.office || "Race"}
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{row.name}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {row.state || "N/A"} • {row.office || "Race"}
+          </div>
         </div>
-      </div>
 
-      <div>
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          Party
+        <div>
+          <div className="vs-stat-label">Party</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.9rem", color: "var(--vs-text)" }}>
+            {row.party || "N/A"}
+          </div>
         </div>
-        <div className="mt-1 text-sm text-slate-700">{row.party || "N/A"}</div>
-      </div>
 
-      <div>
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          Receipts
+        <div>
+          <div className="vs-stat-label">Receipts</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.95rem", fontWeight: 700 }}>
+            {formatMoney(row.receipts || 0)}
+          </div>
         </div>
-        <div className="mt-1 text-sm font-semibold text-slate-900">
-          {formatMoney(row.receipts || 0)}
-        </div>
-      </div>
 
-      <div>
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          Cash on Hand
-        </div>
-        <div className="mt-1 text-sm font-semibold text-slate-900">
-          {formatMoney(row.cash_on_hand || 0)}
+        <div>
+          <div className="vs-stat-label">Cash on Hand</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.95rem", fontWeight: 700 }}>
+            {formatMoney(row.cash_on_hand || 0)}
+          </div>
         </div>
       </div>
     </div>
@@ -74,12 +64,20 @@ function LeaderRow({ row }) {
 
 function SummaryCard({ title, value, subtitle }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-        {title}
+    <div className="vs-card-muted">
+      <div className="vs-stat-label">{title}</div>
+      <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700, color: "var(--vs-text)" }}>
+        {value}
       </div>
-      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-2 text-sm text-slate-500">{subtitle}</div>
+      <div
+        style={{
+          marginTop: "0.5rem",
+          fontSize: "0.9rem",
+          color: "var(--vs-text-muted)"
+        }}
+      >
+        {subtitle}
+      </div>
     </div>
   );
 }
@@ -197,119 +195,86 @@ export default function FundraisingDashboard() {
   const summary = data.summary || fallbackData.summary;
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-              Fundraising Intelligence
-            </div>
-
-            {demoMode ? (
-              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                Demo Mode
-              </span>
-            ) : null}
-          </div>
-
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">
-            Finance strength across the field.
-          </h1>
-
-          <p className="mt-3 max-w-3xl text-sm text-slate-600">
-            Track fundraising leaders, reserve strength, and campaign finance posture across the top modeled races.
-          </p>
-
-          {demoMode ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Demo fundraising mode is active. Leaderboard totals and finance posture are preloaded for presentation.
-            </div>
-          ) : null}
-        </section>
-
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {(data.metrics || []).map((metric, index) => (
-            <StatCard
-              key={`${metric.label}-${index}`}
-              label={metric.label}
-              value={metric.value}
-              delta={metric.delta}
-              tone={metric.tone}
-            />
-          ))}
+    <PageShell
+      eyebrow="Fundraising Intelligence"
+      title="Finance strength across the field."
+      description="Track fundraising leaders, reserve strength, and campaign finance posture across the top modeled races."
+      demo={demoMode}
+      demoText="Demo fundraising mode is active. Leaderboard totals and finance posture are preloaded for presentation."
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
+      ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[1.25fr,0.9fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">
-                Fundraising Leaderboard
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Top candidates by receipts and reserve position.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {loading ? (
-                <EmptyState text="Loading fundraising leaderboard..." />
-              ) : !leaderboard.length ? (
-                <EmptyState text="No fundraising leaders available." />
-              ) : (
-                leaderboard.map((row) => (
-                  <LeaderRow
-                    key={`${row.rank}-${row.candidate_id || row.name}`}
-                    row={row}
-                  />
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">
-                Finance Summary
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Quick read on receipts, reserves, and fundraising depth.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <SummaryCard
-                title="Tracked Candidates"
-                value={summary.tracked_candidates || 0}
-                subtitle="Candidates included in the modeled finance layer"
-              />
-
-              <SummaryCard
-                title="Total Receipts"
-                value={formatMoney(summary.total_receipts || 0)}
-                subtitle="Combined receipts across the leaderboard"
-              />
-
-              <SummaryCard
-                title="Cash on Hand"
-                value={formatMoney(summary.total_cash_on_hand || 0)}
-                subtitle="Current reserve strength across tracked campaigns"
-              />
-
-              <SummaryCard
-                title="Average Raise"
-                value={formatMoney(summary.average_receipts || 0)}
-                subtitle="Average total receipts per ranked campaign"
-              />
-            </div>
-          </section>
-        </div>
+      <div className="vs-grid-4">
+        {(data.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
       </div>
-    </div>
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Fundraising Leaderboard"
+          subtitle="Top candidates by receipts and reserve position."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading fundraising leaderboard..." />
+            ) : !leaderboard.length ? (
+              <EmptyState text="No fundraising leaders available." />
+            ) : (
+              leaderboard.map((row) => (
+                <LeaderRow
+                  key={`${row.rank}-${row.candidate_id || row.name}`}
+                  row={row}
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Finance Summary"
+          subtitle="Quick read on receipts, reserves, and fundraising depth."
+        >
+          <div className="vs-stack">
+            <SummaryCard
+              title="Tracked Candidates"
+              value={summary.tracked_candidates || 0}
+              subtitle="Candidates included in the modeled finance layer"
+            />
+
+            <SummaryCard
+              title="Total Receipts"
+              value={formatMoney(summary.total_receipts || 0)}
+              subtitle="Combined receipts across the leaderboard"
+            />
+
+            <SummaryCard
+              title="Cash on Hand"
+              value={formatMoney(summary.total_cash_on_hand || 0)}
+              subtitle="Current reserve strength across tracked campaigns"
+            />
+
+            <SummaryCard
+              title="Average Raise"
+              value={formatMoney(summary.average_receipts || 0)}
+              subtitle="Average total receipts per ranked campaign"
+            />
+          </div>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
 }
