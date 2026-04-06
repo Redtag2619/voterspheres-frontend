@@ -6,6 +6,10 @@ import {
   createPortalSession
 } from "../api/billing";
 import { useAuth } from "../context/AuthContext";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
 const PLAN_META = {
   starter: {
@@ -53,21 +57,6 @@ const PLAN_META = {
   }
 };
 
-function Badge({ children, tone = "default" }) {
-  const classes =
-    tone === "demo"
-      ? "border-amber-200 bg-amber-50 text-amber-800"
-      : tone === "active"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : "border-slate-200 bg-slate-50 text-slate-700";
-
-  return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}>
-      {children}
-    </span>
-  );
-}
-
 function PlanCard({
   plan,
   currentPlan,
@@ -78,37 +67,45 @@ function PlanCard({
   const isCurrent = String(currentPlan || "").toLowerCase() === plan.key;
 
   return (
-    <div
-      className={`rounded-3xl border bg-white p-6 shadow-sm ${
-        plan.key === "enterprise"
-          ? "border-[#0176D3]/30"
-          : "border-slate-200"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
+    <div className="vs-card">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
         <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-[#0176D3]">
-            {plan.name}
-          </div>
-          <h2 className="mt-3 text-4xl font-semibold text-slate-900">
+          <div className="vs-eyebrow" style={{ marginTop: 0 }}>{plan.name}</div>
+          <div className="vs-title" style={{ marginTop: "0.75rem", fontSize: "2.5rem" }}>
             {plan.price}
-            <span className="ml-1 text-lg font-medium text-slate-500">
+            <span
+              style={{
+                marginLeft: "0.35rem",
+                fontSize: "1rem",
+                fontWeight: 500,
+                color: "var(--vs-text-muted)"
+              }}
+            >
               {plan.period}
             </span>
-          </h2>
+          </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
+        <div style={{ display: "grid", gap: "0.5rem", justifyItems: "end" }}>
           {billingTestMode ? <Badge tone="demo">Demo checkout</Badge> : null}
           {isCurrent ? <Badge tone="active">Current plan</Badge> : null}
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-600">{plan.description}</p>
+      <p className="vs-description" style={{ maxWidth: "100%", marginTop: "1rem" }}>
+        {plan.description}
+      </p>
 
-      <div className="mt-6 space-y-3">
+      <div className="vs-stack" style={{ marginTop: "1.5rem" }}>
         {plan.features.map((feature) => (
-          <div key={feature} className="text-sm text-slate-700">
+          <div key={feature} style={{ fontSize: "0.92rem", color: "var(--vs-text)" }}>
             • {feature}
           </div>
         ))}
@@ -118,7 +115,8 @@ function PlanCard({
         type="button"
         onClick={() => onChoose(plan)}
         disabled={loadingKey === plan.key}
-        className="mt-8 w-full rounded-2xl bg-[#0176D3] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="vs-button vs-button-primary"
+        style={{ width: "100%", marginTop: "2rem" }}
       >
         {loadingKey === plan.key
           ? billingTestMode
@@ -225,68 +223,41 @@ export default function Pricing() {
   const billingTestMode = Boolean(config?.billing_test_mode);
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-              VoterSpheres Pricing
-            </div>
+    <PageShell
+      eyebrow="VoterSpheres Pricing"
+      title="Choose the operating mode that fits your campaign."
+      description="Upgrade access to unlock deeper intelligence, executive workflows, and the full VoterSpheres operating system."
+      demo={billingTestMode}
+      demoText="Demo checkout is active. Plan selection will simulate checkout locally and route you through the billing success flow without using Stripe."
+    >
+      {error ? (
+        <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
+          {error}
+        </div>
+      ) : null}
 
-            {billingTestMode ? <Badge tone="demo">Demo checkout enabled</Badge> : null}
-            <Badge tone="active">Current plan: {currentPlan}</Badge>
+      <SectionCard
+        title="Subscription Plans"
+        subtitle="Professional pricing aligned with your Stripe plans."
+        right={<Badge tone="active">Current plan: {currentPlan}</Badge>}
+      >
+        {loadingConfig ? (
+          <EmptyState text="Loading pricing plans..." />
+        ) : (
+          <div className="vs-grid-3">
+            {plans.map((plan) => (
+              <PlanCard
+                key={plan.key}
+                plan={plan}
+                currentPlan={currentPlan}
+                billingTestMode={billingTestMode}
+                loadingKey={loadingKey}
+                onChoose={handleChoosePlan}
+              />
+            ))}
           </div>
-
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">
-            Choose the operating mode that fits your campaign.
-          </h1>
-
-          <p className="mt-3 max-w-3xl text-sm text-slate-600">
-            Upgrade access to unlock deeper intelligence, executive workflows, and the full VoterSpheres operating system.
-          </p>
-
-          {billingTestMode ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Demo checkout is active. Plan selection will simulate checkout locally and route you through the billing success flow without using Stripe.
-            </div>
-          ) : null}
-
-          {error ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
-          ) : null}
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-3">
-          {loadingConfig
-            ? ["starter", "pro", "enterprise"].map((key) => (
-                <div
-                  key={key}
-                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                  <div className="h-6 w-24 animate-pulse rounded bg-slate-100" />
-                  <div className="mt-4 h-10 w-32 animate-pulse rounded bg-slate-100" />
-                  <div className="mt-6 space-y-3">
-                    <div className="h-4 animate-pulse rounded bg-slate-100" />
-                    <div className="h-4 animate-pulse rounded bg-slate-100" />
-                    <div className="h-4 animate-pulse rounded bg-slate-100" />
-                  </div>
-                  <div className="mt-8 h-12 animate-pulse rounded-2xl bg-slate-100" />
-                </div>
-              ))
-            : plans.map((plan) => (
-                <PlanCard
-                  key={plan.key}
-                  plan={plan}
-                  currentPlan={currentPlan}
-                  billingTestMode={billingTestMode}
-                  loadingKey={loadingKey}
-                  onChoose={handleChoosePlan}
-                />
-              ))}
-        </section>
-      </div>
-    </div>
+        )}
+      </SectionCard>
+    </PageShell>
   );
 }
