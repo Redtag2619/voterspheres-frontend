@@ -1,183 +1,301 @@
-import React, { useCallback } from "react";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
-import { intelligenceApi } from "../services/api";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../services/api";
+
+function EmptyState({ text }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
+      {text}
+    </div>
+  );
+}
+
+function StatCard({ label, value, delta, tone = "neutral" }) {
+  const toneClass =
+    tone === "up"
+      ? "text-emerald-600"
+      : tone === "down"
+      ? "text-rose-600"
+      : "text-slate-500";
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
+      <div className={`mt-2 text-sm ${toneClass}`}>{delta}</div>
+    </div>
+  );
+}
+
+function RaceCard({ race }) {
+  const momentumUp = !String(race.change || "").startsWith("-");
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="font-semibold text-slate-900">{race.race}</div>
+          <div className="mt-1 text-sm text-slate-500">
+            {race.rating || "Competitive"} • {race.status || "Watch"}
+          </div>
+        </div>
+
+        <div className="text-right">
+          <div className="text-2xl font-semibold text-slate-900">
+            {race.winProb}%
+          </div>
+          <div
+            className={`mt-1 text-sm ${
+              momentumUp ? "text-emerald-600" : "text-rose-600"
+            }`}
+          >
+            {race.change}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-[#0176D3]"
+          style={{ width: `${Number(race.winProb || 0)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScenarioCard({ item }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-semibold text-slate-900">{item.title}</div>
+        <div className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs font-semibold text-[#0176D3]">
+          {item.probability}
+        </div>
+      </div>
+      <div className="mt-3 text-sm text-slate-600">{item.summary}</div>
+    </div>
+  );
+}
+
+function NoteCard({ item }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="font-semibold text-slate-900">{item.title}</div>
+      <div className="mt-2 text-sm text-slate-600">{item.detail}</div>
+    </div>
+  );
+}
 
 const fallbackData = {
   metrics: [
-    { label: "National Control Probability", value: "58%", delta: "+3.1", tone: "up" },
-    { label: "Battleground Volatility", value: "High", delta: "+7 signals", tone: "down" },
-    { label: "Turnout Confidence", value: "72", delta: "+4.8", tone: "up" },
-    { label: "Persuasion Efficiency", value: "8.3", delta: "+0.9", tone: "up" }
+    { label: "Tracked Races", value: "12", delta: "Live modeled states", tone: "up" },
+    { label: "High Confidence", value: "5", delta: "Stable lanes", tone: "up" },
+    { label: "Toss-ups", value: "3", delta: "Competitive map", tone: "down" },
+    { label: "Battlegrounds", value: "7", delta: "Priority states", tone: "up" }
   ],
   races: [
-    { race: "PA Senate", winProb: 54, change: "+2.1", rating: "Lean", status: "Momentum Up" },
-    { race: "GA Senate", winProb: 57, change: "+2.9", rating: "Lean", status: "Improving" },
-    { race: "AZ-01", winProb: 51, change: "+1.4", rating: "Toss-up", status: "Watch" }
+    { race: "GA Senate", winProb: 57, change: "+2.4", rating: "Lean D", status: "Improving" },
+    { race: "PA Senate", winProb: 54, change: "+1.8", rating: "Lean D", status: "Competitive" },
+    { race: "AZ Senate", winProb: 51, change: "+1.1", rating: "Toss-up", status: "Watch" }
   ],
   scenarios: [
-    { title: "Base Case", probability: "44%", summary: "Stable suburban gains and neutral press environment." },
-    { title: "Upside Breakout", probability: "27%", summary: "Stronger turnout and message dominance on affordability." }
+    {
+      title: "Base Case",
+      probability: "46%",
+      summary: "Suburban turnout holds, affordability message remains dominant."
+    },
+    {
+      title: "Upside Breakout",
+      probability: "24%",
+      summary: "Education contrast sticks and mail execution improves late vote returns."
+    }
   ],
   notes: [
-    { title: "Probability curve steepening in top suburban districts", detail: "Confidence is improving where affordability and turnout align." },
-    { title: "Most efficient growth path remains persuasion + validation", detail: "District-tuned validators outperform broad national messaging." }
+    {
+      title: "Georgia remains the clearest upside path",
+      detail: "Metro persuasion plus turnout quality is the strongest route to control."
+    }
   ]
 };
 
-function toneClass(v) {
-  return String(v || "").startsWith("-") ? "down" : "up";
-}
+export default function ElectionForecast() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [forecastData, setForecastData] = useState(fallbackData);
 
-function probabilityWidth(v) {
-  return { width: `${Number(v || 0)}%` };
-}
+  const demoMode =
+    typeof window !== "undefined" &&
+    localStorage.getItem("vs_demo_mode") === "1";
 
-function normalizeForecastData(raw) {
-  const data = raw || {};
+  useEffect(() => {
+    let active = true;
 
-  const races =
-    data.races ||
-    data.results ||
-    data.forecast ||
-    [];
+    async function loadForecast() {
+      try {
+        setLoading(true);
+        setError("");
 
-  const metrics =
-    data.metrics ||
-    [
-      {
-        label: "Tracked Races",
-        value: String(Array.isArray(races) ? races.length : 0),
-        delta: "Live forecast feed",
-        tone: "up"
+        const response = await api.get("/intelligence/forecast", {
+          timeout: 6000
+        });
+
+        if (!active) return;
+
+        const payload = response?.data || fallbackData;
+
+        setForecastData({
+          metrics: payload.metrics?.length ? payload.metrics : fallbackData.metrics,
+          races: payload.races?.length ? payload.races : fallbackData.races,
+          scenarios: payload.scenarios?.length
+            ? payload.scenarios
+            : fallbackData.scenarios,
+          notes: payload.notes?.length ? payload.notes : fallbackData.notes
+        });
+      } catch (err) {
+        if (!active) return;
+        setError(
+          err?.response?.data?.error || err?.message || "Failed to load forecast"
+        );
+        setForecastData(fallbackData);
+      } finally {
+        if (active) setLoading(false);
       }
-    ];
+    }
 
-  const scenarios =
-    data.scenarios ||
-    [];
+    loadForecast();
 
-  const notes =
-    data.notes ||
-    [];
-
-  return {
-    metrics,
-    races: Array.isArray(races) ? races : [],
-    scenarios: Array.isArray(scenarios) ? scenarios : [],
-    notes: Array.isArray(notes) ? notes : []
-  };
-}
-
-const ElectionForecast = () => {
-  const fetcher = useCallback(async () => {
-    const result = await intelligenceApi.forecast();
-    return normalizeForecastData(result);
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const { data, loading, error } = useApiResource(fetcher, fallbackData);
+  const races = useMemo(() => forecastData.races || [], [forecastData.races]);
+  const scenarios = useMemo(
+    () => forecastData.scenarios || [],
+    [forecastData.scenarios]
+  );
+  const notes = useMemo(() => forecastData.notes || [], [forecastData.notes]);
 
   return (
-    <TerminalPage
-      eyebrow="Election Forecast Terminal"
-      title="Probability, momentum, and scenario intelligence for the races that will decide control."
-      description="Track modeled win probability, battleground movement, scenario ranges, and the variables that most affect the path to victory."
-      metrics={data?.metrics || []}
-    >
-      <Panel title="Race Probability Board" subtitle="Live model snapshot across top contested races">
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <div className="vs-probability-board">
-            {(data?.races || []).map((row, index) => (
-              <div
-                key={row.race || row.name || row.id || index}
-                className="vs-probability-row"
-              >
-                <div className="vs-probability-top">
-                  <div className="vs-probability-race">
-                    {row.race || row.name || `${row.state || "State"} ${row.office || ""}`.trim()}
-                  </div>
-                  <div className="vs-probability-percent">
-                    {Number(row.winProb ?? row.winProbability ?? 0)}%
-                  </div>
-                </div>
+    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
+              Election Forecast
+            </div>
 
-                <div className="vs-probability-bar">
-                  <div
-                    className="vs-probability-fill"
-                    style={probabilityWidth(row.winProb ?? row.winProbability ?? 0)}
-                  />
-                </div>
-
-                <div className="vs-probability-meta">
-                  <span className={toneClass(row.change || row.delta || "+0")}>
-                    {row.change || row.delta || "+0"}
-                  </span>
-                  <span>{row.rating || row.category || "Competitive"}</span>
-                  <span>{row.status || row.overlayTier || "Active"}</span>
-                </div>
-              </div>
-            ))}
+            {demoMode ? (
+              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                Demo Mode
+              </span>
+            ) : null}
           </div>
-        )}
-      </Panel>
 
-      <Panel title="Scenario Deck" subtitle="Most likely modeled pathways over the next cycle">
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <div className="vs-scenario-list">
-            {(data?.scenarios || []).map((item, index) => (
-              <div
-                key={item.title || index}
-                className="vs-scenario-item"
-              >
-                <div className="vs-scenario-topline">
-                  <div className="vs-scenario-title">{item.title}</div>
-                  <div className="vs-scenario-probability">
-                    {item.probability || item.prob || "N/A"}
-                  </div>
-                </div>
-                <div className="vs-scenario-summary">
-                  {item.summary || item.outcome || "No scenario summary available."}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+          <h1 className="mt-3 text-3xl font-semibold text-slate-900">
+            Forecast the races that will decide control.
+          </h1>
 
-      <Panel title="AI Forecast Notes" subtitle="Highest-signal model interpretation" large>
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <div className="vs-ai-note-list">
-            {(data?.notes || []).map((item, index) => (
-              <div
-                key={item.title || index}
-                className="vs-ai-note-item"
-              >
-                <div className="vs-ai-note-title">{item.title}</div>
-                <div className="vs-ai-note-detail">
-                  {item.detail || item.note || "No note detail available."}
-                </div>
-              </div>
-            ))}
+          <p className="mt-3 max-w-3xl text-sm text-slate-600">
+            Track modeled win probability, battleground movement, scenario ranges, and the variables most likely to change the map.
+          </p>
+
+          {demoMode ? (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Demo forecast mode is active. Battleground movement, race probabilities, and scenario paths are preloaded for presentation.
+            </div>
+          ) : null}
+        </section>
+
+        {error ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error}
           </div>
-        )}
-      </Panel>
-    </TerminalPage>
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {(forecastData.metrics || []).map((metric, index) => (
+            <StatCard
+              key={`${metric.label}-${index}`}
+              label={metric.label}
+              value={metric.value}
+              delta={metric.delta}
+              tone={metric.tone}
+            />
+          ))}
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.2fr,1fr]">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-900">
+                Race Probability Board
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Top battlegrounds requiring active campaign attention.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {loading ? (
+                <EmptyState text="Loading forecast races..." />
+              ) : !races.length ? (
+                <EmptyState text="No forecast race data available." />
+              ) : (
+                races.map((race) => (
+                  <RaceCard key={`${race.race}-${race.status}`} race={race} />
+                ))
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-900">
+                Scenario Deck
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Most likely modeled paths over the next phase of the cycle.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {loading ? (
+                <EmptyState text="Loading scenario paths..." />
+              ) : !scenarios.length ? (
+                <EmptyState text="No forecast scenarios available." />
+              ) : (
+                scenarios.map((item) => (
+                  <ScenarioCard key={`${item.title}-${item.probability}`} item={item} />
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-slate-900">Forecast Notes</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Highest-signal interpretation from the forecast layer.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {loading ? (
+              <EmptyState text="Loading forecast notes..." />
+            ) : !notes.length ? (
+              <EmptyState text="No forecast notes available." />
+            ) : (
+              notes.map((item) => (
+                <NoteCard key={item.title} item={item} />
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
   );
-};
-
-export default ElectionForecast;
+}
