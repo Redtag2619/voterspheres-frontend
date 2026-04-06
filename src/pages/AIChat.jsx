@@ -1,39 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
-
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-      {text}
-    </div>
-  );
-}
-
-function StatCard({ label, value, delta, tone = "neutral" }) {
-  const toneClass =
-    tone === "up"
-      ? "text-emerald-600"
-      : tone === "down"
-      ? "text-rose-600"
-      : "text-slate-500";
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className={`mt-2 text-sm ${toneClass}`}>{delta}</div>
-    </div>
-  );
-}
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
 function PromptChip({ text, onClick }) {
   return (
     <button
       type="button"
+      className="vs-button vs-button-secondary"
       onClick={() => onClick(text)}
-      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#0176D3] hover:text-[#0176D3]"
+      style={{ borderRadius: "9999px", padding: "0.6rem 1rem" }}
     >
       {text}
     </button>
@@ -45,48 +24,81 @@ function MessageBubble({ item }) {
 
   return (
     <div
-      className={`rounded-2xl border p-4 shadow-sm ${
-        isAssistant
-          ? "border-slate-200 bg-white"
-          : "border-[#0176D3]/20 bg-[#0176D3]/5"
-      }`}
+      className="vs-card-muted"
+      style={{
+        background: isAssistant ? "var(--vs-surface)" : "var(--vs-accent-soft)",
+        borderColor: isAssistant ? "var(--vs-border)" : "rgba(1, 118, 211, 0.18)"
+      }}
     >
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "center",
+          marginBottom: "0.75rem"
+        }}
+      >
         <div
-          className={`text-xs font-semibold uppercase tracking-[0.16em] ${
-            isAssistant ? "text-[#0176D3]" : "text-slate-500"
-          }`}
+          className="vs-eyebrow"
+          style={{ marginTop: 0, color: isAssistant ? "var(--vs-accent)" : "var(--vs-text-muted)" }}
         >
           {isAssistant ? "AI Analyst" : "You"}
         </div>
 
         {item.title ? (
-          <div className="text-xs text-slate-400">{item.title}</div>
+          <div style={{ fontSize: "0.75rem", color: "var(--vs-text-muted)" }}>
+            {item.title}
+          </div>
         ) : null}
       </div>
 
-      <div className="text-sm leading-6 text-slate-700">{item.text}</div>
+      <div
+        style={{
+          fontSize: "0.94rem",
+          lineHeight: 1.75,
+          color: "var(--vs-text)"
+        }}
+      >
+        {item.text}
+      </div>
     </div>
   );
 }
 
 function OutputCard({ item }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
         <div>
-          <div className="text-xs uppercase tracking-[0.16em] text-[#0176D3]">
+          <div className="vs-eyebrow" style={{ marginTop: 0 }}>
             {item.type || "Output"}
           </div>
-          <div className="mt-2 font-semibold text-slate-900">{item.title}</div>
+          <div style={{ marginTop: "0.5rem", fontWeight: 700, color: "var(--vs-text)" }}>
+            {item.title}
+          </div>
         </div>
 
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-          Generated
-        </span>
+        <Badge tone="accent">Generated</Badge>
       </div>
 
-      <div className="mt-3 text-sm text-slate-600">{item.note}</div>
+      <div
+        style={{
+          marginTop: "0.85rem",
+          fontSize: "0.92rem",
+          lineHeight: 1.7,
+          color: "var(--vs-text-muted)"
+        }}
+      >
+        {item.note}
+      </div>
     </div>
   );
 }
@@ -130,7 +142,6 @@ export default function AIChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [prompt, setPrompt] = useState("");
-
   const [chatData, setChatData] = useState(fallbackData);
 
   const demoMode =
@@ -155,19 +166,19 @@ export default function AIChat() {
 
         setChatData({
           metrics: payload.metrics?.length ? payload.metrics : fallbackData.metrics,
-          quickPrompts: payload.quickPrompts?.length
-            ? payload.quickPrompts
-            : fallbackData.quickPrompts,
-          conversation: payload.conversation?.length
-            ? payload.conversation
-            : fallbackData.conversation,
+          quickPrompts: payload.quickPrompts?.length ? payload.quickPrompts : fallbackData.quickPrompts,
+          conversation: payload.conversation?.length ? payload.conversation : fallbackData.conversation,
           outputs: payload.outputs?.length ? payload.outputs : fallbackData.outputs
         });
       } catch (err) {
         if (!active) return;
+
         setError(
-          err?.response?.data?.error || err?.message || "Failed to load AI workspace"
+          err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load AI workspace"
         );
+
         setChatData(fallbackData);
       } finally {
         if (active) setLoading(false);
@@ -231,7 +242,9 @@ export default function AIChat() {
       }));
     } catch (err) {
       setError(
-        err?.response?.data?.error || err?.message || "Failed to run AI prompt"
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to run AI prompt"
       );
 
       const assistantMessage = {
@@ -250,146 +263,121 @@ export default function AIChat() {
     }
   }
 
-  const conversation = useMemo(
-    () => chatData.conversation || [],
-    [chatData.conversation]
-  );
-
+  const conversation = useMemo(() => chatData.conversation || [], [chatData.conversation]);
   const outputs = useMemo(() => chatData.outputs || [], [chatData.outputs]);
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-              AI Strategy Workspace
-            </div>
-
-            {demoMode ? (
-              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                Demo Mode
-              </span>
-            ) : null}
-          </div>
-
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">
-            Ask the campaign brain what to do next.
-          </h1>
-
-          <p className="mt-3 max-w-3xl text-sm text-slate-600">
-            Generate strategic briefs, summarize threats, surface battleground movement, and turn campaign intelligence into clear action.
-          </p>
-
-          {demoMode ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Demo AI mode is active. Prompts and outputs are simulated for presentation, while still following your live AI workspace flow.
-            </div>
-          ) : null}
-        </section>
-
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {(chatData.metrics || []).map((metric, index) => (
-            <StatCard
-              key={`${metric.label}-${index}`}
-              label={metric.label}
-              value={metric.value}
-              delta={metric.delta}
-              tone={metric.tone}
-            />
-          ))}
+    <PageShell
+      eyebrow="AI Strategy Workspace"
+      title="Ask the campaign brain what to do next."
+      description="Generate strategic briefs, summarize threats, surface battleground movement, and turn campaign intelligence into clear action."
+      demo={demoMode}
+      demoText="Demo AI mode is active. Prompts and outputs are simulated for presentation, while still following your live AI workspace flow."
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
+      ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[1.3fr,0.9fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">AI Console</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Ask strategic questions and generate campaign-ready outputs.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <textarea
-                className="min-h-[120px] w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-                placeholder="Ask VoterSpheres AI what matters most right now..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => sendPrompt(prompt)}
-                  disabled={sending || !String(prompt || "").trim()}
-                  className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {sending ? "Running AI..." : "Run Analysis"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPrompt("")}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="mb-3 text-sm font-semibold text-slate-900">
-                Suggested Prompts
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {(chatData.quickPrompts || []).map((item) => (
-                  <PromptChip key={item} text={item} onClick={setPrompt} />
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              {loading ? (
-                <EmptyState text="Loading AI conversation..." />
-              ) : !conversation.length ? (
-                <EmptyState text="No AI conversation yet." />
-              ) : (
-                conversation.map((item, index) => (
-                  <MessageBubble key={`${item.role}-${index}-${item.title || "msg"}`} item={item} />
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Generated Outputs</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Recent strategic artifacts created by the AI workspace.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {loading ? (
-                <EmptyState text="Loading generated outputs..." />
-              ) : !outputs.length ? (
-                <EmptyState text="No generated outputs available." />
-              ) : (
-                outputs.map((item, index) => (
-                  <OutputCard key={`${item.type}-${index}-${item.title}`} item={item} />
-                ))
-              )}
-            </div>
-          </section>
-        </div>
+      <div className="vs-grid-4">
+        {(chatData.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
       </div>
-    </div>
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="AI Console"
+          subtitle="Ask strategic questions and generate campaign-ready outputs."
+        >
+          <div className="vs-card-muted">
+            <textarea
+              className="vs-textarea"
+              style={{ minHeight: "120px", resize: "none", background: "var(--vs-surface)" }}
+              placeholder="Ask VoterSpheres AI what matters most right now..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+
+            <div
+              style={{
+                marginTop: "1rem",
+                display: "flex",
+                gap: "0.75rem",
+                flexWrap: "wrap"
+              }}
+            >
+              <button
+                type="button"
+                className="vs-button vs-button-primary"
+                onClick={() => sendPrompt(prompt)}
+                disabled={sending || !String(prompt || "").trim()}
+              >
+                {sending ? "Running AI..." : "Run Analysis"}
+              </button>
+
+              <button
+                type="button"
+                className="vs-button vs-button-secondary"
+                onClick={() => setPrompt("")}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginTop: "1.25rem" }}>
+            <div className="vs-section-subtitle" style={{ marginTop: 0, marginBottom: "0.75rem" }}>
+              Suggested Prompts
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              {(chatData.quickPrompts || []).map((item) => (
+                <PromptChip key={item} text={item} onClick={setPrompt} />
+              ))}
+            </div>
+          </div>
+
+          <div className="vs-stack" style={{ marginTop: "1.5rem" }}>
+            {loading ? (
+              <EmptyState text="Loading AI conversation..." />
+            ) : !conversation.length ? (
+              <EmptyState text="No AI conversation yet." />
+            ) : (
+              conversation.map((item, index) => (
+                <MessageBubble key={`${item.role}-${index}-${item.title || "msg"}`} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Generated Outputs"
+          subtitle="Recent strategic artifacts created by the AI workspace."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading generated outputs..." />
+            ) : !outputs.length ? (
+              <EmptyState text="No generated outputs available." />
+            ) : (
+              outputs.map((item, index) => (
+                <OutputCard key={`${item.type}-${index}-${item.title}`} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
 }
