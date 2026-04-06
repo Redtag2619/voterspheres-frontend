@@ -1,42 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
-
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-      {text}
-    </div>
-  );
-}
-
-function StatCard({ label, value, subtext }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-2 text-sm text-slate-500">{subtext}</div>
-    </div>
-  );
-}
-
-function Badge({ children, tone = "default" }) {
-  const classes =
-    tone === "demo"
-      ? "border-amber-200 bg-amber-50 text-amber-800"
-      : tone === "active"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : tone === "premium"
-      ? "border-[#0176D3]/20 bg-[#0176D3]/10 text-[#0176D3]"
-      : "border-slate-200 bg-slate-50 text-slate-700";
-
-  return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}>
-      {children}
-    </span>
-  );
-}
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
 function ConsultantCard({ consultant }) {
   const specialties = Array.isArray(consultant.specialties)
@@ -52,71 +20,111 @@ function ConsultantCard({ consultant }) {
         .filter(Boolean);
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-lg font-semibold text-slate-900">
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
             {consultant.name || consultant.firm_name || "Consultant"}
           </div>
-          <div className="mt-1 text-sm text-slate-500">
+
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
             {consultant.location || consultant.state || "National"} •{" "}
-            {consultant.consultant_type || consultant.category || "Political Consulting"}
+            {consultant.consultant_type ||
+              consultant.category ||
+              "Political Consulting"}
           </div>
         </div>
 
-        <Badge tone="premium">
+        <Badge tone="accent">
           {consultant.tier || consultant.plan_tier || "Verified"}
         </Badge>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-600">
+      <div
+        style={{
+          marginTop: "1rem",
+          fontSize: "0.92rem",
+          lineHeight: 1.7,
+          color: "var(--vs-text-muted)"
+        }}
+      >
         {consultant.description ||
           consultant.summary ||
           "Experienced campaign consulting support across strategy, communications, voter contact, and execution."}
-      </p>
+      </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div
+        style={{
+          marginTop: "1rem",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem"
+        }}
+      >
         {specialties.length ? (
           specialties.slice(0, 5).map((item) => (
             <span
               key={item}
-              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700"
+              className="vs-badge"
             >
               {item}
             </span>
           ))
         ) : (
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
-            General Strategy
-          </span>
+          <span className="vs-badge">General Strategy</span>
         )}
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            State Reach
-          </div>
-          <div className="mt-2 text-sm font-semibold text-slate-900">
+      <div
+        style={{
+          marginTop: "1.25rem",
+          display: "grid",
+          gap: "0.75rem",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))"
+        }}
+      >
+        <div className="vs-card-muted" style={{ padding: "0.85rem" }}>
+          <div className="vs-stat-label">State Reach</div>
+          <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", fontWeight: 700 }}>
             {consultant.state || consultant.region || "National"}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            Focus
-          </div>
-          <div className="mt-2 text-sm font-semibold text-slate-900">
-            {consultant.primary_focus || consultant.category || "Campaign Strategy"}
+        <div className="vs-card-muted" style={{ padding: "0.85rem" }}>
+          <div className="vs-stat-label">Focus</div>
+          <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", fontWeight: 700 }}>
+            {consultant.primary_focus ||
+              consultant.category ||
+              "Campaign Strategy"}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            Contact
-          </div>
-          <div className="mt-2 text-sm font-semibold text-slate-900 break-all">
-            {consultant.website || consultant.email || "Available on request"}
+        <div className="vs-card-muted" style={{ padding: "0.85rem" }}>
+          <div className="vs-stat-label">Contact</div>
+          <div
+            style={{
+              marginTop: "0.4rem",
+              fontSize: "0.9rem",
+              fontWeight: 700,
+              wordBreak: "break-word"
+            }}
+          >
+            {consultant.website ||
+              consultant.email ||
+              "Available on request"}
           </div>
         </div>
       </div>
@@ -177,7 +185,6 @@ const fallbackData = {
 export default function ConsultantMarketplace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [marketplaceData, setMarketplaceData] = useState(fallbackData);
 
   const [filters, setFilters] = useState({
@@ -247,139 +254,121 @@ export default function ConsultantMarketplace() {
   const summary = marketplaceData.summary || fallbackData.summary;
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-              Consultant Marketplace
-            </div>
+    <PageShell
+      eyebrow="Consultant Marketplace"
+      title="Find the campaign operators behind the strongest programs."
+      description="Discover political consultants, strategy partners, field operators, and campaign specialists across the map."
+      demo={demoMode}
+      demoText="Demo consultant marketplace is active. Profiles are preloaded for presentation and testing."
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
+        </div>
+      ) : null}
 
-            {demoMode ? <Badge tone="demo">Demo Mode</Badge> : null}
-          </div>
+      <div className="vs-grid-4">
+        <StatCard
+          label="Visible Consultants"
+          value={summary.total_consultants || 0}
+          subtext="Profiles in the marketplace"
+        />
+        <StatCard
+          label="Featured Firms"
+          value={summary.featured_consultants || 0}
+          subtext="Highlighted consultant partners"
+        />
+        <StatCard
+          label="States Covered"
+          value={summary.states_covered || 0}
+          subtext="Regional and national reach"
+        />
+        <StatCard
+          label="Specialties Tracked"
+          value={summary.specialties_tracked || 0}
+          subtext="Capabilities across profiles"
+        />
+      </div>
 
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">
-            Find the campaign operators behind the strongest programs.
-          </h1>
-
-          <p className="mt-3 max-w-3xl text-sm text-slate-600">
-            Discover political consultants, strategy partners, field operators, and campaign specialists across the map.
-          </p>
-
-          {demoMode ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Demo consultant marketplace is active. Profiles are preloaded for presentation and testing.
-            </div>
-          ) : null}
-        </section>
-
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Visible Consultants"
-            value={summary.total_consultants || 0}
-            subtext="Profiles in the marketplace"
+      <SectionCard
+        title="Marketplace Filters"
+        subtitle="Narrow consultants by state, focus area, and search term."
+      >
+        <div className="vs-grid-3">
+          <input
+            className="vs-input"
+            value={filters.search}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, search: e.target.value }))
+            }
+            placeholder="Search firms, specialties, locations..."
           />
-          <StatCard
-            label="Featured Firms"
-            value={summary.featured_consultants || 0}
-            subtext="Highlighted consultant partners"
+
+          <input
+            className="vs-input"
+            value={filters.state}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, state: e.target.value }))
+            }
+            placeholder="Filter by state"
           />
-          <StatCard
-            label="States Covered"
-            value={summary.states_covered || 0}
-            subtext="Regional and national reach"
-          />
-          <StatCard
-            label="Specialties Tracked"
-            value={summary.specialties_tracked || 0}
-            subtext="Capabilities across profiles"
+
+          <input
+            className="vs-input"
+            value={filters.specialty}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, specialty: e.target.value }))
+            }
+            placeholder="Filter by specialty"
           />
         </div>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Marketplace Filters</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Narrow consultants by state, focus area, and search term.
-            </p>
-          </div>
+        <div
+          style={{
+            marginTop: "1rem",
+            display: "flex",
+            gap: "0.75rem",
+            flexWrap: "wrap"
+          }}
+        >
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() =>
+              setFilters({
+                search: "",
+                state: "",
+                specialty: ""
+              })
+            }
+          >
+            Clear Filters
+          </button>
+        </div>
+      </SectionCard>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.search}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, search: e.target.value }))
-              }
-              placeholder="Search firms, specialties, locations..."
-            />
-
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.state}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, state: e.target.value }))
-              }
-              placeholder="Filter by state"
-            />
-
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.specialty}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, specialty: e.target.value }))
-              }
-              placeholder="Filter by specialty"
-            />
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setFilters({
-                  search: "",
-                  state: "",
-                  specialty: ""
-                })
-              }
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Consultant Directory</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Political consultants and campaign operators across your active network.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {loading ? (
-              <EmptyState text="Loading consultant marketplace..." />
-            ) : !consultants.length ? (
-              <EmptyState text="No consultants found for the current filters." />
-            ) : (
-              consultants.map((consultant, index) => (
-                <ConsultantCard
-                  key={`${consultant.id || index}-${consultant.name || consultant.firm_name}`}
-                  consultant={consultant}
-                />
-              ))
-            )}
-          </div>
-        </section>
-      </div>
-    </div>
+      <SectionCard
+        title="Consultant Directory"
+        subtitle="Political consultants and campaign operators across your active network."
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading consultant marketplace..." />
+          ) : !consultants.length ? (
+            <EmptyState text="No consultants found for the current filters." />
+          ) : (
+            consultants.map((consultant, index) => (
+              <ConsultantCard
+                key={`${consultant.id || index}-${consultant.name || consultant.firm_name}`}
+                consultant={consultant}
+              />
+            ))
+          )}
+        </div>
+      </SectionCard>
+    </PageShell>
   );
 }
