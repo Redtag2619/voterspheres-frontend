@@ -1,68 +1,76 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-      {text}
-    </div>
-  );
-}
-
-function StatCard({ label, value, subtext }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-2 text-sm text-slate-500">{subtext}</div>
-    </div>
-  );
-}
-
 function VendorRow({ vendor }) {
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1.5fr,1fr,1fr,1fr,auto]">
-      <div>
-        <div className="font-semibold text-slate-900">{vendor.vendor_name}</div>
-        <div className="mt-1 text-sm text-slate-500">
-          {vendor.category || "Vendor"} • {vendor.campaign_name || "Campaign N/A"}
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto",
+          alignItems: "start"
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
+            {vendor.vendor_name}
+          </div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {vendor.category || "Vendor"} • {vendor.campaign_name || "Campaign N/A"}
+          </div>
+          <div
+            style={{
+              marginTop: "0.5rem",
+              fontSize: "0.78rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            Candidate: {vendor.candidate_name || "N/A"} • Firm: {vendor.firm_name || "N/A"}
+          </div>
         </div>
-        <div className="mt-2 text-xs text-slate-500">
-          Candidate: {vendor.candidate_name || "N/A"} • Firm: {vendor.firm_name || "N/A"}
-        </div>
-      </div>
 
-      <div className="text-sm text-slate-700">
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          State
+        <div>
+          <div className="vs-stat-label">State</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.92rem", color: "var(--vs-text)" }}>
+            {vendor.state || "N/A"}
+          </div>
         </div>
-        <div className="mt-1">{vendor.state || "N/A"}</div>
-      </div>
 
-      <div className="text-sm text-slate-700">
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          Status
+        <div>
+          <div className="vs-stat-label">Status</div>
+          <div style={{ marginTop: "0.35rem" }}>
+            <Badge tone={String(vendor.status || "").toLowerCase() === "active" ? "active" : "default"}>
+              {vendor.status || "prospect"}
+            </Badge>
+          </div>
         </div>
-        <div className="mt-1">{vendor.status || "prospect"}</div>
-      </div>
 
-      <div className="text-sm text-slate-700">
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          Contract
+        <div>
+          <div className="vs-stat-label">Contract</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.95rem", fontWeight: 700 }}>
+            {formatMoney(vendor.contract_value || 0)}
+          </div>
         </div>
-        <div className="mt-1">{formatMoney(vendor.contract_value || 0)}</div>
-      </div>
 
-      <div className="flex items-start justify-start lg:justify-end">
-        <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-          {vendor.category || "General"}
-        </span>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Badge tone="accent">{vendor.category || "General"}</Badge>
+        </div>
       </div>
     </div>
   );
@@ -109,22 +117,14 @@ export default function Vendors() {
 
       if (categoriesResponse.status === "fulfilled") {
         const nextCategories = categoriesResponse.value?.data?.results || [];
-        if (nextCategories.length) {
-          setCategoryOptions(nextCategories);
-        } else {
-          setCategoryOptions(FALLBACK_CATEGORIES);
-        }
+        setCategoryOptions(nextCategories.length ? nextCategories : FALLBACK_CATEGORIES);
       } else {
         setCategoryOptions(FALLBACK_CATEGORIES);
       }
 
       if (statusesResponse.status === "fulfilled") {
         const nextStatuses = statusesResponse.value?.data?.results || [];
-        if (nextStatuses.length) {
-          setStatusOptions(nextStatuses);
-        } else {
-          setStatusOptions(FALLBACK_STATUSES);
-        }
+        setStatusOptions(nextStatuses.length ? nextStatuses : FALLBACK_STATUSES);
       } else {
         setStatusOptions(FALLBACK_STATUSES);
       }
@@ -172,7 +172,11 @@ export default function Vendors() {
         }
       );
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Failed to load vendor directory");
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load vendor directory"
+      );
     } finally {
       setLoading(false);
     }
@@ -190,184 +194,163 @@ export default function Vendors() {
   const summary = vendorsData.summary || {};
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-              VoterSpheres Directory
-            </div>
-
-            {demoMode ? (
-              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                Demo Mode
-              </span>
-            ) : null}
-          </div>
-
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">Vendors</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Search campaign vendors by category, status, state, campaign, and firm.
-          </p>
-
-          {demoMode ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Demo campaign vendor relationships are active. The directory is preloaded for presentation and testing.
-            </div>
-          ) : null}
+    <PageShell
+      eyebrow="VoterSpheres Directory"
+      title="Vendors"
+      description="Search campaign vendors by category, status, state, campaign, and firm."
+      demo={demoMode}
+      demoText="Demo campaign vendor relationships are active. The directory is preloaded for presentation and testing."
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
+      ) : null}
 
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
+      {dropdownWarning ? (
+        <div className="vs-banner vs-banner-demo">{dropdownWarning}</div>
+      ) : null}
 
-        {dropdownWarning ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {dropdownWarning}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Visible Vendors"
-            value={summary.total_vendors || 0}
-            subtext="Filtered vendor records"
-          />
-          <StatCard
-            label="Active Vendors"
-            value={summary.active_vendors || 0}
-            subtext="Current active relationships"
-          />
-          <StatCard
-            label="Prospects"
-            value={summary.prospect_vendors || 0}
-            subtext="Pipeline vendor opportunities"
-          />
-          <StatCard
-            label="Contract Value"
-            value={formatMoney(summary.total_contract_value || 0)}
-            subtext="Tracked vendor spend"
-          />
-        </div>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Vendor Filters</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Filter vendors across your CRM and campaign workspaces.
-            </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-4">
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.search}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, search: e.target.value }))
-              }
-              placeholder="Search vendors, campaigns, firms..."
-            />
-
-            <select
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.category}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, category: e.target.value }))
-              }
-            >
-              <option value="">All categories</option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.status}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, status: e.target.value }))
-              }
-            >
-              <option value="">All statuses</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
-              value={filters.state}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, state: e.target.value }))
-              }
-              placeholder="Filter by state"
-            />
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={loadVendors}
-              className="rounded-xl bg-[#0176D3] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-            >
-              Refresh Results
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setFilters({
-                  search: "",
-                  category: "",
-                  status: "",
-                  state: ""
-                });
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
-            >
-              Clear Form
-            </button>
-
-            <button
-              type="button"
-              onClick={loadDropdowns}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-[#0176D3]"
-            >
-              Reload Filters
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-900">Vendor Directory</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Campaign vendor relationships across firms and workspaces.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {loading ? (
-              <EmptyState text="Loading vendor directory..." />
-            ) : vendors.length === 0 ? (
-              <EmptyState text="No vendor records found for the current filters." />
-            ) : (
-              vendors.map((vendor) => (
-                <VendorRow
-                  key={`${vendor.id}-${vendor.campaign_id || "none"}-${vendor.vendor_name}`}
-                  vendor={vendor}
-                />
-              ))
-            )}
-          </div>
-        </section>
+      <div className="vs-grid-4">
+        <StatCard
+          label="Visible Vendors"
+          value={summary.total_vendors || 0}
+          subtext="Filtered vendor records"
+        />
+        <StatCard
+          label="Active Vendors"
+          value={summary.active_vendors || 0}
+          subtext="Current active relationships"
+        />
+        <StatCard
+          label="Prospects"
+          value={summary.prospect_vendors || 0}
+          subtext="Pipeline vendor opportunities"
+        />
+        <StatCard
+          label="Contract Value"
+          value={formatMoney(summary.total_contract_value || 0)}
+          subtext="Tracked vendor spend"
+        />
       </div>
-    </div>
+
+      <SectionCard
+        title="Vendor Filters"
+        subtitle="Filter vendors across your CRM and campaign workspaces."
+      >
+        <div className="vs-grid-4">
+          <input
+            className="vs-input"
+            value={filters.search}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, search: e.target.value }))
+            }
+            placeholder="Search vendors, campaigns, firms..."
+          />
+
+          <select
+            className="vs-select"
+            value={filters.category}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, category: e.target.value }))
+            }
+          >
+            <option value="">All categories</option>
+            {categoryOptions.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="vs-select"
+            value={filters.status}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, status: e.target.value }))
+            }
+          >
+            <option value="">All statuses</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          <input
+            className="vs-input"
+            value={filters.state}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, state: e.target.value }))
+            }
+            placeholder="Filter by state"
+          />
+        </div>
+
+        <div
+          style={{
+            marginTop: "1rem",
+            display: "flex",
+            gap: "0.75rem",
+            flexWrap: "wrap"
+          }}
+        >
+          <button
+            type="button"
+            className="vs-button vs-button-primary"
+            onClick={loadVendors}
+          >
+            Refresh Results
+          </button>
+
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => {
+              setFilters({
+                search: "",
+                category: "",
+                status: "",
+                state: ""
+              });
+            }}
+          >
+            Clear Form
+          </button>
+
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={loadDropdowns}
+          >
+            Reload Filters
+          </button>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Vendor Directory"
+        subtitle="Campaign vendor relationships across firms and workspaces."
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading vendor directory..." />
+          ) : vendors.length === 0 ? (
+            <EmptyState text="No vendor records found for the current filters." />
+          ) : (
+            vendors.map((vendor) => (
+              <VendorRow
+                key={`${vendor.id}-${vendor.campaign_id || "none"}-${vendor.vendor_name}`}
+                vendor={vendor}
+              />
+            ))
+          )}
+        </div>
+      </SectionCard>
+    </PageShell>
   );
 }
