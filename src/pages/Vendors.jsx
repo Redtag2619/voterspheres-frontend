@@ -16,7 +16,9 @@ function EmptyState({ text }) {
 function StatCard({ label, value, subtext }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</div>
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
       <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
       <div className="mt-2 text-sm text-slate-500">{subtext}</div>
     </div>
@@ -37,17 +39,23 @@ function VendorRow({ vendor }) {
       </div>
 
       <div className="text-sm text-slate-700">
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">State</div>
+        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
+          State
+        </div>
         <div className="mt-1">{vendor.state || "N/A"}</div>
       </div>
 
       <div className="text-sm text-slate-700">
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Status</div>
+        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
+          Status
+        </div>
         <div className="mt-1">{vendor.status || "prospect"}</div>
       </div>
 
       <div className="text-sm text-slate-700">
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Contract</div>
+        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
+          Contract
+        </div>
         <div className="mt-1">{formatMoney(vendor.contract_value || 0)}</div>
       </div>
 
@@ -88,27 +96,43 @@ export default function Vendors() {
     state: ""
   });
 
+  const demoMode =
+    typeof window !== "undefined" &&
+    localStorage.getItem("vs_demo_mode") === "1";
+
   async function loadDropdowns() {
     try {
-      const [categories, statuses] = await Promise.allSettled([
+      const [categoriesResponse, statusesResponse] = await Promise.allSettled([
         api.get("/vendors/dropdowns/categories", { timeout: 4000 }),
         api.get("/vendors/dropdowns/statuses", { timeout: 4000 })
       ]);
 
-      if (categories.status === "fulfilled") {
-        const next = categories.value?.data?.results || [];
-        if (next.length) setCategoryOptions(next);
+      if (categoriesResponse.status === "fulfilled") {
+        const nextCategories = categoriesResponse.value?.data?.results || [];
+        if (nextCategories.length) {
+          setCategoryOptions(nextCategories);
+        } else {
+          setCategoryOptions(FALLBACK_CATEGORIES);
+        }
+      } else {
+        setCategoryOptions(FALLBACK_CATEGORIES);
       }
 
-      if (statuses.status === "fulfilled") {
-        const next = statuses.value?.data?.results || [];
-        if (next.length) setStatusOptions(next);
+      if (statusesResponse.status === "fulfilled") {
+        const nextStatuses = statusesResponse.value?.data?.results || [];
+        if (nextStatuses.length) {
+          setStatusOptions(nextStatuses);
+        } else {
+          setStatusOptions(FALLBACK_STATUSES);
+        }
+      } else {
+        setStatusOptions(FALLBACK_STATUSES);
       }
 
-      const anyRejected =
-        categories.status === "rejected" || statuses.status === "rejected";
-
-      if (anyRejected) {
+      if (
+        categoriesResponse.status === "rejected" ||
+        statusesResponse.status === "rejected"
+      ) {
         setDropdownWarning("Using fallback filter options while vendor filters warm up.");
       } else {
         setDropdownWarning("");
@@ -126,6 +150,7 @@ export default function Vendors() {
       setError("");
 
       const params = new URLSearchParams();
+
       if (filters.search) params.set("search", filters.search);
       if (filters.category) params.set("category", filters.category);
       if (filters.status) params.set("status", filters.status);
@@ -147,7 +172,7 @@ export default function Vendors() {
         }
       );
     } catch (err) {
-      setError(err?.message || "Failed to load vendor directory");
+      setError(err?.response?.data?.error || err?.message || "Failed to load vendor directory");
     } finally {
       setLoading(false);
     }
@@ -168,13 +193,28 @@ export default function Vendors() {
     <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-            VoterSpheres Directory
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
+              VoterSpheres Directory
+            </div>
+
+            {demoMode ? (
+              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                Demo Mode
+              </span>
+            ) : null}
           </div>
+
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Vendors</h1>
           <p className="mt-2 text-sm text-slate-500">
             Search campaign vendors by category, status, state, campaign, and firm.
           </p>
+
+          {demoMode ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Demo campaign vendor relationships are active. The directory is preloaded for presentation and testing.
+            </div>
+          ) : null}
         </div>
 
         {error ? (
@@ -190,10 +230,26 @@ export default function Vendors() {
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Visible Vendors" value={summary.total_vendors || 0} subtext="Filtered vendor records" />
-          <StatCard label="Active Vendors" value={summary.active_vendors || 0} subtext="Current active relationships" />
-          <StatCard label="Prospects" value={summary.prospect_vendors || 0} subtext="Pipeline vendor opportunities" />
-          <StatCard label="Contract Value" value={formatMoney(summary.total_contract_value || 0)} subtext="Tracked vendor spend" />
+          <StatCard
+            label="Visible Vendors"
+            value={summary.total_vendors || 0}
+            subtext="Filtered vendor records"
+          />
+          <StatCard
+            label="Active Vendors"
+            value={summary.active_vendors || 0}
+            subtext="Current active relationships"
+          />
+          <StatCard
+            label="Prospects"
+            value={summary.prospect_vendors || 0}
+            subtext="Pipeline vendor opportunities"
+          />
+          <StatCard
+            label="Contract Value"
+            value={formatMoney(summary.total_contract_value || 0)}
+            subtext="Tracked vendor spend"
+          />
         </div>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -208,14 +264,18 @@ export default function Vendors() {
             <input
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.search}
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, search: e.target.value }))
+              }
               placeholder="Search vendors, campaigns, firms..."
             />
 
             <select
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.category}
-              onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, category: e.target.value }))
+              }
             >
               <option value="">All categories</option>
               {categoryOptions.map((category) => (
@@ -228,7 +288,9 @@ export default function Vendors() {
             <select
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.status}
-              onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, status: e.target.value }))
+              }
             >
               <option value="">All statuses</option>
               {statusOptions.map((status) => (
@@ -241,12 +303,14 @@ export default function Vendors() {
             <input
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#0176D3]"
               value={filters.state}
-              onChange={(e) => setFilters((prev) => ({ ...prev, state: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, state: e.target.value }))
+              }
               placeholder="Filter by state"
             />
           </div>
 
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={loadVendors}
