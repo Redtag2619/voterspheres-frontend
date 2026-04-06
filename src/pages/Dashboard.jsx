@@ -1,61 +1,95 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-      {text}
-    </div>
-  );
-}
-
-function StatCard({ label, value, delta, tone = "neutral" }) {
-  const toneClass =
-    tone === "up"
-      ? "text-emerald-600"
-      : tone === "down"
-      ? "text-rose-600"
-      : "text-slate-500";
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className={`mt-2 text-sm ${toneClass}`}>{delta}</div>
-    </div>
-  );
-}
-
 function FeedItem({ item }) {
-  const severityClass =
+  const tone =
     String(item.severity || "").toLowerCase() === "high"
-      ? "border-rose-200 bg-rose-50 text-rose-700"
+      ? "danger"
       : String(item.severity || "").toLowerCase() === "medium"
-      ? "border-amber-200 bg-amber-50 text-amber-700"
-      : "border-slate-200 bg-slate-50 text-slate-700";
+      ? "demo"
+      : "default";
 
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="min-w-[56px] text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-        {item.time || "Now"}
-      </div>
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {item.source || "System"}
+            {item.type ? ` • ${item.type}` : ""}
+          </div>
+        </div>
 
-      <div className="flex-1">
-        <div className="font-semibold text-slate-900">{item.title}</div>
-        <div className="mt-1 text-sm text-slate-500">
-          {item.source || "System"}
-          {item.type ? ` • ${item.type}` : ""}
+        <div style={{ textAlign: "right", display: "grid", gap: "0.5rem" }}>
+          <div style={{ fontSize: "0.75rem", color: "var(--vs-text-muted)" }}>
+            {item.time || "Now"}
+          </div>
+          <Badge tone={tone}>{item.severity || "Info"}</Badge>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${severityClass}`}>
-        {item.severity || "Info"}
+function BattlegroundRow({ row }) {
+  const momentumUp = !String(row.momentum || "").startsWith("-");
+
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{row.race}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {row.risk} • {row.priority}
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--vs-text)" }}>
+            {row.probability}
+          </div>
+          <div
+            className={momentumUp ? "vs-tone-up" : "vs-tone-down"}
+            style={{ marginTop: "0.25rem", fontSize: "0.9rem", fontWeight: 600 }}
+          >
+            {row.momentum}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -63,33 +97,91 @@ function FeedItem({ item }) {
 
 function LeaderboardRow({ row }) {
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[60px,1.6fr,1fr,1fr,1fr]">
-      <div className="text-lg font-semibold text-slate-400">#{row.rank}</div>
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "60px 1.6fr 1fr 1fr 1fr",
+          alignItems: "start"
+        }}
+      >
+        <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--vs-text-muted)" }}>
+          #{row.rank}
+        </div>
 
-      <div>
-        <div className="font-semibold text-slate-900">{row.name}</div>
-        <div className="mt-1 text-sm text-slate-500">
-          {row.state || "N/A"} • {row.office || "Race"}
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{row.name}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {row.state || "N/A"} • {row.office || "Race"}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Party</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.9rem", color: "var(--vs-text)" }}>
+            {row.party || "N/A"}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Receipts</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.95rem", fontWeight: 700 }}>
+            {formatMoney(row.receipts || 0)}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Cash on Hand</div>
+          <div style={{ marginTop: "0.35rem", fontSize: "0.95rem", fontWeight: 700 }}>
+            {formatMoney(row.cash_on_hand || 0)}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div>
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Party</div>
-        <div className="mt-1 text-sm text-slate-700">{row.party || "N/A"}</div>
-      </div>
-
-      <div>
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Receipts</div>
-        <div className="mt-1 text-sm font-semibold text-slate-900">
-          {formatMoney(row.receipts || 0)}
+function VendorCard({ vendor }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{vendor.vendor_name}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {vendor.category || "Vendor"} • {vendor.state || "N/A"}
+          </div>
+          <div
+            style={{
+              marginTop: "0.75rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text)"
+            }}
+          >
+            Contract: {formatMoney(vendor.contract_value || 0)}
+          </div>
         </div>
-      </div>
 
-      <div>
-        <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Cash on Hand</div>
-        <div className="mt-1 text-sm font-semibold text-slate-900">
-          {formatMoney(row.cash_on_hand || 0)}
-        </div>
+        <Badge tone="accent">{vendor.status || "active"}</Badge>
       </div>
     </div>
   );
@@ -178,8 +270,8 @@ const fallbackData = {
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [dashboardData, setDashboardData] = useState(fallbackData);
+
   const demoMode =
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
@@ -217,10 +309,6 @@ export default function Dashboard() {
           ? vendorsPayload.results
           : fallbackData.vendors;
 
-        const feed = demoMode
-          ? fallbackData.feed
-          : fallbackData.feed;
-
         const metrics = dashboardPayload?.metrics?.length
           ? dashboardPayload.metrics
           : [
@@ -254,7 +342,7 @@ export default function Dashboard() {
 
         setDashboardData({
           metrics,
-          feed,
+          feed: fallbackData.feed,
           leaderboard,
           battlegrounds: fallbackData.battlegrounds,
           vendors
@@ -273,7 +361,7 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [demoMode]);
+  }, []);
 
   const topVendors = useMemo(
     () => (dashboardData.vendors || []).slice(0, 3),
@@ -281,196 +369,108 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-              VoterSpheres Executive Dashboard
-            </div>
-
-            {demoMode ? (
-              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                Demo Mode
-              </span>
-            ) : null}
-          </div>
-
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">
-            Campaign command at a glance.
-          </h1>
-
-          <p className="mt-3 max-w-3xl text-sm text-slate-600">
-            Track fundraising momentum, executive alerts, battleground pressure, and operational readiness from one view.
-          </p>
-
-          {demoMode ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Demo campaign is live. Fundraising, alert activity, battleground movement, and vendors are preloaded for presentation.
-            </div>
-          ) : null}
-        </section>
-
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {(dashboardData.metrics || []).map((metric, index) => (
-            <StatCard
-              key={`${metric.label}-${index}`}
-              label={metric.label}
-              value={metric.value}
-              delta={metric.delta}
-              tone={metric.tone}
-            />
-          ))}
+    <PageShell
+      eyebrow="VoterSpheres Executive Dashboard"
+      title="Campaign command at a glance."
+      description="Track fundraising momentum, executive alerts, battleground pressure, and operational readiness from one view."
+      demo={demoMode}
+      demoText="Demo campaign is live. Fundraising, alert activity, battleground movement, and vendors are preloaded for presentation."
+    >
+      {error ? (
+        <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
+          {error}
         </div>
+      ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[1.25fr,1fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Executive Feed</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Highest-priority campaign developments entering the system.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading executive feed..." />
-              ) : !(dashboardData.feed || []).length ? (
-                <EmptyState text="No active executive feed items." />
-              ) : (
-                (dashboardData.feed || []).map((item) => (
-                  <FeedItem key={item.id || `${item.time}-${item.title}`} item={item} />
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Battleground Snapshot</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Top contested races requiring executive awareness.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading battlegrounds..." />
-              ) : !(dashboardData.battlegrounds || []).length ? (
-                <EmptyState text="No battleground data available." />
-              ) : (
-                (dashboardData.battlegrounds || []).map((row) => (
-                  <div
-                    key={`${row.race}-${row.priority}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">{row.race}</div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          {row.risk} • {row.priority}
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-lg font-semibold text-slate-900">
-                          {row.probability}
-                        </div>
-                        <div
-                          className={`mt-1 text-sm ${
-                            String(row.momentum || "").startsWith("-")
-                              ? "text-rose-600"
-                              : "text-emerald-600"
-                          }`}
-                        >
-                          {row.momentum}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-[1.3fr,1fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">
-                Fundraising Leaderboard
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Top candidates by receipts and reserve strength.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading fundraising leaderboard..." />
-              ) : !(dashboardData.leaderboard || []).length ? (
-                <EmptyState text="No fundraising leaders available." />
-              ) : (
-                (dashboardData.leaderboard || []).map((row) => (
-                  <LeaderboardRow
-                    key={`${row.rank}-${row.candidate_id || row.name}`}
-                    row={row}
-                  />
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Priority Vendors</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Operational partners supporting the campaign right now.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading vendors..." />
-              ) : !topVendors.length ? (
-                <EmptyState text="No vendors available." />
-              ) : (
-                topVendors.map((vendor) => (
-                  <div
-                    key={`${vendor.id}-${vendor.vendor_name}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {vendor.vendor_name}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          {vendor.category || "Vendor"} • {vendor.state || "N/A"}
-                        </div>
-                      </div>
-
-                      <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-                        {vendor.status || "active"}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 text-sm text-slate-700">
-                      Contract: {formatMoney(vendor.contract_value || 0)}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
+      <div className="vs-grid-4">
+        {(dashboardData.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
       </div>
-    </div>
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Executive Feed"
+          subtitle="Highest-priority campaign developments entering the system."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading executive feed..." />
+            ) : !(dashboardData.feed || []).length ? (
+              <EmptyState text="No active executive feed items." />
+            ) : (
+              (dashboardData.feed || []).map((item) => (
+                <FeedItem key={item.id || `${item.time}-${item.title}`} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Battleground Snapshot"
+          subtitle="Top contested races requiring executive awareness."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading battlegrounds..." />
+            ) : !(dashboardData.battlegrounds || []).length ? (
+              <EmptyState text="No battleground data available." />
+            ) : (
+              (dashboardData.battlegrounds || []).map((row) => (
+                <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Fundraising Leaderboard"
+          subtitle="Top candidates by receipts and reserve strength."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading fundraising leaderboard..." />
+            ) : !(dashboardData.leaderboard || []).length ? (
+              <EmptyState text="No fundraising leaders available." />
+            ) : (
+              (dashboardData.leaderboard || []).map((row) => (
+                <LeaderboardRow
+                  key={`${row.rank}-${row.candidate_id || row.name}`}
+                  row={row}
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Priority Vendors"
+          subtitle="Operational partners supporting the campaign right now."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading vendors..." />
+            ) : !topVendors.length ? (
+              <EmptyState text="No vendors available." />
+            ) : (
+              topVendors.map((vendor) => (
+                <VendorCard
+                  key={`${vendor.id}-${vendor.vendor_name}`}
+                  vendor={vendor}
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
 }
