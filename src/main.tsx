@@ -1,18 +1,10 @@
 import React from "react";
-import ReactDOM from "react-dom/client"; 
-import { BrowserRouter } from "react-router-dom"; 
+import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
-import { AuthProvider } from "./context/AuthContext.jsx";
-import { UpgradePromptProvider } from "./context/UpgradePromptContext.jsx";
+import "./styles/theme.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <UpgradePromptProvider>
-          <App />
-        </UpgradePromptProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <App />
   </React.StrictMode>
 );
