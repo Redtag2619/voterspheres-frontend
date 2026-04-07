@@ -5,79 +5,37 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function VendorRow({ vendor }) {
-  return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto",
-          alignItems: "start"
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
-            {vendor.vendor_name}
-          </div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.9rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {vendor.category || "Vendor"} • {vendor.campaign_name || "Campaign N/A"}
-          </div>
-          <div
-            style={{
-              marginTop: "0.5rem",
-              fontSize: "0.78rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            Candidate: {vendor.candidate_name || "N/A"} • Firm: {vendor.firm_name || "N/A"}
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">State</div>
-          <div style={{ marginTop: "0.35rem", fontSize: "0.92rem", color: "var(--vs-text)" }}>
-            {vendor.state || "N/A"}
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Status</div>
-          <div style={{ marginTop: "0.35rem" }}>
-            <Badge tone={String(vendor.status || "").toLowerCase() === "active" ? "active" : "default"}>
-              {vendor.status || "prospect"}
-            </Badge>
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Contract</div>
-          <div style={{ marginTop: "0.35rem", fontSize: "0.95rem", fontWeight: 700 }}>
-            {formatMoney(vendor.contract_value || 0)}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Badge tone="accent">{vendor.category || "General"}</Badge>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const FALLBACK_CATEGORIES = ["Direct Mail", "Digital"];
 const FALLBACK_STATUSES = ["active", "prospect"];
+
+function VendorRow({ vendor }) {
+  return (
+    <ResponsiveRow
+      title={vendor.vendor_name}
+      subtitle={`${vendor.category || "Vendor"} • ${vendor.campaign_name || "Campaign N/A"}`}
+      meta={[
+        { label: "Candidate", value: vendor.candidate_name || "N/A" },
+        { label: "Firm", value: vendor.firm_name || "N/A" },
+        { label: "State", value: vendor.state || "N/A" },
+        { label: "Contract", value: formatMoney(vendor.contract_value || 0) }
+      ]}
+      right={
+        <div className="vs-chip-row">
+          <Badge tone={String(vendor.status || "").toLowerCase() === "active" ? "active" : "default"}>
+            {vendor.status || "prospect"}
+          </Badge>
+          <Badge tone="accent">{vendor.category || "General"}</Badge>
+        </div>
+      }
+    />
+  );
+}
 
 export default function Vendors() {
   const [loading, setLoading] = useState(true);
@@ -291,14 +249,7 @@ export default function Vendors() {
           />
         </div>
 
-        <div
-          style={{
-            marginTop: "1rem",
-            display: "flex",
-            gap: "0.75rem",
-            flexWrap: "wrap"
-          }}
-        >
+        <div className="vs-inline-actions" style={{ marginTop: "1rem" }}>
           <button
             type="button"
             className="vs-button vs-button-primary"
