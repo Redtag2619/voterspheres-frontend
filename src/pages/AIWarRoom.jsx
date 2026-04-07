@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
+import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 
 const fallbackData = {
@@ -64,22 +65,137 @@ const fallbackData = {
   ]
 };
 
-function severityClass(value) {
+function severityTone(value) {
   const v = String(value || "").toLowerCase();
-  if (v === "high") return "high";
-  if (v === "medium") return "medium";
-  return "low";
+  if (v === "high") return "danger";
+  if (v === "medium") return "demo";
+  return "default";
 }
 
 function toneClass(value) {
-  return String(value || "").startsWith("-") ? "down" : "up";
+  return String(value || "").startsWith("-") ? "vs-tone-down" : "vs-tone-up";
 }
 
-const AIWarRoom = () => {
+function ThreatRow({ item }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "120px auto",
+          alignItems: "start"
+        }}
+      >
+        <div>
+          <Badge tone={severityTone(item.severity)}>{item.severity}</Badge>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              display: "flex",
+              gap: "0.75rem",
+              flexWrap: "wrap",
+              fontSize: "0.85rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            <span>{item.source}</span>
+            <span className={toneClass(item.velocity)} style={{ fontWeight: 700 }}>
+              {item.velocity}
+            </span>
+          </div>
+          <div
+            style={{
+              marginTop: "0.75rem",
+              fontSize: "0.92rem",
+              lineHeight: 1.7,
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {item.recommendation}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QueueRow({ item }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "90px auto 100px",
+          alignItems: "start"
+        }}
+      >
+        <div>
+          <Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>
+            {item.priority}
+          </Badge>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.item}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.85rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            Owner: {item.owner}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Badge tone="accent">{item.eta}</Badge>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SignalRow({ item }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "80px 150px auto",
+          alignItems: "start"
+        }}
+      >
+        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--vs-text-muted)" }}>
+          {item.time}
+        </div>
+
+        <div>
+          <Badge tone="accent">{item.channel}</Badge>
+        </div>
+
+        <div style={{ fontSize: "0.92rem", lineHeight: 1.7, color: "var(--vs-text)" }}>
+          {item.text}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AIWarRoom() {
   const fetcher = useCallback(() => api.warRoom(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
   const [liveBanner, setLiveBanner] = useState("");
-  const demoMode = localStorage.getItem("vs_demo_mode") === "1";
+  const demoMode =
+    typeof window !== "undefined" &&
+    localStorage.getItem("vs_demo_mode") === "1";
 
   useLiveChannel("intelligence:warroom", (event) => {
     if (!event?.type) return;
@@ -125,79 +241,98 @@ const AIWarRoom = () => {
     return () => clearTimeout(timer);
   }, [liveBanner]);
 
+  const threats = useMemo(() => data?.threats || [], [data]);
+  const queue = useMemo(() => data?.queue || [], [data]);
+  const signals = useMemo(() => data?.signals || [], [data]);
+
   return (
-    <TerminalPage
+    <PageShell
       eyebrow="AI War Room"
       title="Detect threats early, shape the narrative fast, and move before the market does."
       description="AI War Room watches message velocity, media framing, donor sentiment, and emerging attack patterns so your campaign can respond with speed and precision."
-      metrics={data?.metrics || []}
+      demo={demoMode}
+      demoText="Demo campaign is live: threat feed, response queue, and signal stream are simulated for presentation."
     >
-      {demoMode ? (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Demo campaign is live: threat feed, response queue, and signal stream are simulated for presentation.
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
       ) : null}
 
       {liveBanner ? (
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <div className="vs-banner" style={{ borderColor: "var(--vs-border)", background: "var(--vs-surface)", color: "var(--vs-text)" }}>
           {liveBanner}
         </div>
       ) : null}
 
-      <Panel title="Live Threat Board" subtitle="Highest-priority attacks and adverse narrative acceleration">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-threat-list">
-            {(data?.threats || []).map((item) => (
-              <div key={item.id || item.title} className="vs-threat-item">
-                <div className={`vs-threat-severity ${severityClass(item.severity)}`}>{item.severity}</div>
-                <div className="vs-threat-body">
-                  <div className="vs-threat-title">{item.title}</div>
-                  <div className="vs-threat-meta">
-                    <span>{item.source}</span>
-                    <span className={toneClass(item.velocity)}>{item.velocity}</span>
-                  </div>
-                  <div className="vs-threat-recommendation">{item.recommendation}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+      <div className="vs-grid-4">
+        {(data?.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
+      </div>
 
-      <Panel title="Response Queue" subtitle="Immediate tactical moves for the next cycle">
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-response-queue">
-            {(data?.queue || []).map((item) => (
-              <div key={item.id || item.item} className="vs-response-item">
-                <div className="vs-response-topline">
-                  <div className="vs-response-priority">{item.priority}</div>
-                  <div className="vs-response-eta">{item.eta}</div>
-                </div>
-                <div className="vs-response-title">{item.item}</div>
-                <div className="vs-response-owner">Owner: {item.owner}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+      <SectionCard
+        title="Live Threat Board"
+        subtitle="Highest-priority attacks and adverse narrative acceleration."
+        right={<Badge tone="danger">{threats.length} threats</Badge>}
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading threat board..." />
+          ) : !threats.length ? (
+            <EmptyState text="No active threats available." />
+          ) : (
+            threats.map((item) => (
+              <ThreatRow key={item.id || item.title} item={item} />
+            ))
+          )}
+        </div>
+      </SectionCard>
 
-      <Panel title="Signal Stream" subtitle="Cross-channel intelligence entering the terminal" large>
-        {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : (
-          <div className="vs-signal-stream">
-            {(data?.signals || []).map((item) => (
-              <div key={item.id || `${item.time}-${item.channel}`} className="vs-signal-item">
-                <div className="vs-signal-time">{item.time}</div>
-                <div className="vs-signal-content">
-                  <div className="vs-signal-channel">{item.channel}</div>
-                  <div className="vs-signal-text">{item.text}</div>
-                </div>
-              </div>
-            ))}
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Response Queue"
+          subtitle="Immediate tactical moves for the next cycle."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading response queue..." />
+            ) : !queue.length ? (
+              <EmptyState text="No response queue items available." />
+            ) : (
+              queue.map((item) => (
+                <QueueRow key={item.id || item.item} item={item} />
+              ))
+            )}
           </div>
-        )}
-      </Panel>
-    </TerminalPage>
+        </SectionCard>
+
+        <SectionCard
+          title="Signal Stream"
+          subtitle="Cross-channel intelligence entering the terminal."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading signal stream..." />
+            ) : !signals.length ? (
+              <EmptyState text="No live signals available." />
+            ) : (
+              signals.map((item) => (
+                <SignalRow key={item.id || `${item.time}-${item.channel}`} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
-};
-
-export default AIWarRoom;
+}
