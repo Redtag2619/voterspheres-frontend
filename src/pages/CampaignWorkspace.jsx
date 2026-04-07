@@ -6,6 +6,7 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
 
 const DEFAULT_CAMPAIGN_ID = "1";
 
@@ -136,27 +137,6 @@ const demoWorkspace = {
     }
   ]
 };
-
-function CardListItem({ title, subtitle, right, meta }) {
-  return (
-    <div className="vs-card-muted">
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{title}</div>
-          {subtitle ? (
-            <div style={{ marginTop: "0.35rem", fontSize: "0.92rem", color: "var(--vs-text-muted)", lineHeight: 1.6 }}>
-              {subtitle}
-            </div>
-          ) : null}
-          {meta ? (
-            <div style={{ marginTop: "0.6rem", fontSize: "0.78rem", color: "var(--vs-text-muted)" }}>{meta}</div>
-          ) : null}
-        </div>
-        {right ? <div>{right}</div> : null}
-      </div>
-    </div>
-  );
-}
 
 export default function CampaignWorkspace() {
   const params = useParams();
@@ -304,11 +284,15 @@ export default function CampaignWorkspace() {
               <EmptyState text="No active alerts." />
             ) : (
               (workspace.alerts || []).map((alert) => (
-                <CardListItem
+                <ResponsiveRow
                   key={alert.id || alert.title}
                   title={alert.title}
                   subtitle={alert.message}
-                  meta={`Type: ${alert.type || "alert"} • Status: ${alert.action_status || "open"}`}
+                  meta={[
+                    { label: "Type", value: alert.type || "alert" },
+                    { label: "Status", value: alert.action_status || "open" },
+                    { label: "Severity", value: alert.severity }
+                  ]}
                   right={<Badge tone={statusTone(alert.severity)}>{alert.severity}</Badge>}
                 />
               ))
@@ -349,10 +333,14 @@ export default function CampaignWorkspace() {
               <EmptyState text="No tasks found." />
             ) : (
               (workspace.tasks || []).map((task) => (
-                <CardListItem
+                <ResponsiveRow
                   key={task.id}
                   title={task.title}
-                  subtitle={`Status: ${task.status || "todo"}`}
+                  subtitle="Campaign execution task"
+                  meta={[
+                    { label: "Status", value: task.status || "todo" },
+                    { label: "Priority", value: task.priority || "medium" }
+                  ]}
                   right={<Badge tone={statusTone(task.priority)}>{task.priority || "medium"}</Badge>}
                 />
               ))
@@ -368,11 +356,14 @@ export default function CampaignWorkspace() {
               <EmptyState text="No vendors found." />
             ) : (
               (workspace.vendors || []).map((vendor) => (
-                <CardListItem
+                <ResponsiveRow
                   key={vendor.id}
                   title={vendor.vendor_name}
                   subtitle={vendor.category || "Vendor"}
-                  meta={`Contract: ${formatMoney(vendor.contract_value || 0)}`}
+                  meta={[
+                    { label: "Status", value: vendor.status || "active" },
+                    { label: "Contract", value: formatMoney(vendor.contract_value || 0) }
+                  ]}
                   right={<Badge tone={statusTone(vendor.status)}>{vendor.status || "active"}</Badge>}
                 />
               ))
@@ -383,15 +374,17 @@ export default function CampaignWorkspace() {
         <SectionCard title="Contacts + Documents" subtitle="Team and campaign assets.">
           <div className="vs-stack">
             {(workspace.contacts || []).map((contact) => (
-              <CardListItem
+              <ResponsiveRow
                 key={`contact-${contact.id}`}
                 title={contact.full_name}
                 subtitle={contact.role || "Contact"}
-                meta={contact.email || "No email"}
+                meta={[
+                  { label: "Email", value: contact.email || "No email" }
+                ]}
               />
             ))}
             {(workspace.documents || []).map((document) => (
-              <CardListItem
+              <ResponsiveRow
                 key={`document-${document.id}`}
                 title={document.title}
                 subtitle={document.document_type || "Document"}
@@ -431,10 +424,14 @@ export default function CampaignWorkspace() {
               <EmptyState text="No mail events available." />
             ) : (
               (workspace.mail.recent_events || []).map((event) => (
-                <CardListItem
+                <ResponsiveRow
                   key={event.id}
                   title={event.event_type || "event"}
-                  subtitle={`Drop #${event.mail_drop_id} • ${event.location_name || event.facility_type || "Network"}`}
+                  subtitle={`Drop #${event.mail_drop_id}`}
+                  meta={[
+                    { label: "Location", value: event.location_name || event.facility_type || "Network" },
+                    { label: "Status", value: event.status || event.event_type || "event" }
+                  ]}
                   right={<Badge tone={statusTone(event.status || event.event_type)}>{event.status || event.event_type || "event"}</Badge>}
                 />
               ))
@@ -467,7 +464,7 @@ export default function CampaignWorkspace() {
               <EmptyState text="No forecast race context found." />
             ) : (
               (workspace.forecast.races || []).map((race) => (
-                <CardListItem
+                <ResponsiveRow
                   key={race.id}
                   title={`${race.state || "State"} • ${race.office || "Race"}`}
                   subtitle={race.rating || race.category || "Competitive"}
@@ -487,17 +484,20 @@ export default function CampaignWorkspace() {
           ) : (
             (workspace.activity || []).map((item) => {
               const details = item.details || item.metadata || {};
-              const detailText = Object.entries(details)
+              const detailEntries = Object.entries(details)
                 .filter(([k]) => k !== "timestamp")
-                .map(([k, v]) => `${k}: ${String(v)}`)
-                .join(" • ");
+                .slice(0, 4)
+                .map(([k, v]) => ({ label: k, value: String(v) }));
 
               return (
-                <CardListItem
+                <ResponsiveRow
                   key={item.id}
                   title={String(item.activity_type || "").replaceAll("_", " ")}
                   subtitle={item.summary}
-                  meta={`${item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown"}${detailText ? ` • ${detailText}` : ""}`}
+                  meta={[
+                    { label: "When", value: item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown" },
+                    ...detailEntries
+                  ]}
                 />
               );
             })
