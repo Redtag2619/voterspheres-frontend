@@ -1,114 +1,213 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-} from "react-simple-maps";
-import { intelligenceApi, statesApi } from "../services/api";
+import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
-function MetricCard({ label, value, delta }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-white">{value}</div>
-      <div className="mt-2 text-sm text-cyan-300">{delta}</div>
-    </div>
-  );
+function toneFromTier(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "critical") return "danger";
+  if (v === "watch") return "demo";
+  return "accent";
 }
 
-function DetailCard({ row }) {
-  if (!row) {
-    return (
-      <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 text-sm text-slate-400">
-        Select a battleground state on the map.
-      </div>
-    );
-  }
-
+function BattlegroundRow({ item }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
-      <div className="flex items-start justify-between gap-4">
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "1.5fr 1fr 1fr auto",
+          alignItems: "start"
+        }}
+      >
         <div>
-          <h3 className="text-lg font-semibold text-white">{row.name}</h3>
-          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-            {row.state}
-          </p>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
+            {item.state} • {item.office}
+          </div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.85rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            Overlay score and intelligence priority for this battleground.
+          </div>
         </div>
 
-        <span
-          className="rounded-full px-3 py-1 text-xs font-medium"
-          style={{
-            backgroundColor: `${row.fill || "#334155"}22`,
-            color: row.stroke || "#cbd5e1",
-            border: `1px solid ${row.stroke || "#475569"}`,
-          }}
-        >
-          {row.overlayTier || row.raceRating || "watch"}
-        </span>
-      </div>
+        <div>
+          <div className="vs-stat-label">Overlay Score</div>
+          <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>
+            {item.overlayScore}
+          </div>
+        </div>
 
-      <div className="mt-4 space-y-2 text-sm text-slate-300">
-        <p>
-          <span className="text-slate-500">Win Probability:</span>{" "}
-          {row.winProb ?? row.winProbability ?? 0}%
-        </p>
-        <p>
-          <span className="text-slate-500">Overlay Score:</span>{" "}
-          {row.overlayScore ?? "N/A"}
-        </p>
-        <p>
-          <span className="text-slate-500">Urgency:</span>{" "}
-          {row.risk || row.urgency || "Monitor"}
-        </p>
-        <p>
-          <span className="text-slate-500">Finance Weight:</span>{" "}
-          {row.financeWeight ?? "N/A"}
-        </p>
-        <p>
-          <span className="text-slate-500">Competition Weight:</span>{" "}
-          {row.competitionWeight ?? "N/A"}
-        </p>
-        <p>
-          <span className="text-slate-500">Modeled Funds:</span>{" "}
-          {row.funds || "N/A"}
-        </p>
-        <p>
-          <span className="text-slate-500">Momentum:</span>{" "}
-          {row.momentum || "N/A"}
-        </p>
-        <p className="text-slate-400">{row.note}</p>
+        <div>
+          <div className="vs-stat-label">Tier</div>
+          <div style={{ marginTop: "0.35rem" }}>
+            <Badge tone={toneFromTier(item.overlayTier)}>{item.overlayTier}</Badge>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div
+            style={{
+              width: "90px",
+              height: "10px",
+              borderRadius: "9999px",
+              background: "#e5e7eb",
+              overflow: "hidden",
+              marginTop: "0.4rem"
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.min(Number(item.overlayScore || 0), 100)}%`,
+                height: "100%",
+                borderRadius: "9999px",
+                background: "var(--vs-accent)"
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function getFillForState(name, battlegroundMap, selectedState) {
-  const row = battlegroundMap[name];
+function MapPanel({ items }) {
+  return (
+    <div
+      className="vs-card-muted"
+      style={{
+        minHeight: "420px",
+        display: "grid",
+        placeItems: "center",
+        position: "relative"
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: "620px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: "0.85rem"
+          }}
+        >
+          {[
+            "WA","OR","CA","NV",
+            "AZ","UT","CO","NM",
+            "TX","OK","KS","NE",
+            "SD","ND","MN","IA",
+            "MO","AR","LA","WI",
+            "IL","MI","IN","OH",
+            "KY","TN","MS","AL",
+            "GA","FL","SC","NC",
+            "VA","WV","PA","NY"
+          ].map((stateCode, index) => {
+            const live = (items || []).find((x) =>
+              String(x.state || "").toLowerCase().startsWith(stateCode.toLowerCase())
+            );
 
-  if (selectedState === name) return "#22d3ee";
-  if (!row) return "#1f2937";
+            const tone =
+              String(live?.overlayTier || "").toLowerCase() === "critical"
+                ? "#dc2626"
+                : String(live?.overlayTier || "").toLowerCase() === "watch"
+                ? "#d97706"
+                : live
+                ? "#0176d3"
+                : "#cbd5e1";
 
-  return row.fill || "#334155";
+            return (
+              <div
+                key={`${stateCode}-${index}`}
+                style={{
+                  border: "1px solid var(--vs-border)",
+                  borderRadius: "1rem",
+                  background: "white",
+                  padding: "0.75rem",
+                  minHeight: "64px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  boxShadow: "var(--vs-shadow)"
+                }}
+              >
+                <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--vs-text)" }}>
+                  {stateCode}
+                </div>
+                <div
+                  style={{
+                    marginTop: "0.4rem",
+                    height: "8px",
+                    borderRadius: "9999px",
+                    background: "#e5e7eb",
+                    overflow: "hidden"
+                  }}
+                >
+                  <div
+                    style={{
+                      width: live ? `${Math.min(Number(live.overlayScore || 0), 100)}%` : "18%",
+                      height: "100%",
+                      borderRadius: "9999px",
+                      background: tone
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function getStrokeForState(name, battlegroundMap, selectedState) {
-  const row = battlegroundMap[name];
-
-  if (selectedState === name) return "#ecfeff";
-  if (!row) return "#0f172a";
-
-  return row.stroke || "#94a3b8";
-}
+const fallbackData = {
+  summary: {
+    trackedStates: 8,
+    overlays: 8
+  },
+  battlegrounds: [
+    {
+      state: "Georgia",
+      office: "Senate",
+      overlayScore: 82,
+      overlayTier: "critical"
+    },
+    {
+      state: "Pennsylvania",
+      office: "Governor",
+      overlayScore: 74,
+      overlayTier: "watch"
+    },
+    {
+      state: "Arizona",
+      office: "Senate",
+      overlayScore: 71,
+      overlayTier: "watch"
+    },
+    {
+      state: "Michigan",
+      office: "House",
+      overlayScore: 66,
+      overlayTier: "priority"
+    }
+  ]
+};
 
 export default function ElectionMap() {
-  const [data, setData] = useState({ metrics: [], battlegrounds: [] });
-  const [geoJson, setGeoJson] = useState(null);
-  const [selectedState, setSelectedState] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [mapData, setMapData] = useState(fallbackData);
+
+  const demoMode =
+    typeof window !== "undefined" &&
+    localStorage.getItem("vs_demo_mode") === "1";
 
   useEffect(() => {
     let active = true;
@@ -118,28 +217,28 @@ export default function ElectionMap() {
         setLoading(true);
         setError("");
 
-        const [mapData, geo] = await Promise.all([
-          intelligenceApi.map(),
-          statesApi.geoJson(),
-        ]);
-
-        if (!active) return;
-
-        const battlegrounds = mapData?.battlegrounds || mapData?.mapBattlegrounds || [];
-
-        setData({
-          metrics: mapData?.metrics || [],
-          battlegrounds,
+        const response = await api.get("/intelligence/map", {
+          timeout: 6000
         });
 
-        setGeoJson(geo);
+        if (!active) return;
 
-        if (battlegrounds.length > 0) {
-          setSelectedState(battlegrounds[0].state);
-        }
+        const payload = response?.data || fallbackData;
+
+        setMapData({
+          summary: payload.summary || fallbackData.summary,
+          battlegrounds: payload.battlegrounds?.length
+            ? payload.battlegrounds
+            : fallbackData.battlegrounds
+        });
       } catch (err) {
         if (!active) return;
-        setError(err?.message || "Failed to load election map");
+        setError(
+          err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load election map"
+        );
+        setMapData(fallbackData);
       } finally {
         if (active) setLoading(false);
       }
@@ -152,181 +251,84 @@ export default function ElectionMap() {
     };
   }, []);
 
-  const battlegroundMap = useMemo(() => {
-    return data.battlegrounds.reduce((acc, row) => {
-      acc[row.state] = row;
-      return acc;
-    }, {});
-  }, [data.battlegrounds]);
-
-  const selectedRow = battlegroundMap[selectedState] || null;
+  const battlegrounds = useMemo(
+    () => mapData.battlegrounds || [],
+    [mapData.battlegrounds]
+  );
 
   return (
-    <div className="min-h-screen bg-[#060b14] p-6 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
-          <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">
-            VoterSpheres National Map
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold">Election Map</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Live state overlays driven by backend forecast and fundraising data.
-          </p>
+    <PageShell
+      eyebrow="Election Map"
+      title="See where the map is moving."
+      description="Visualize battleground states, overlay pressure, and race intensity across the modeled campaign landscape."
+      demo={demoMode}
+      demoText="Demo map mode is active. Battleground overlays and state pressure are preloaded for presentation."
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
+      ) : null}
 
-        {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 text-sm text-slate-400">
-            Loading election map...
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
-            {error}
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {data.metrics.map((metric) => (
-                <MetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.value}
-                  delta={metric.delta}
-                />
-              ))}
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[1.35fr,0.65fr]">
-              <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
-                <h2 className="mb-4 text-xl font-semibold">Overlay Map</h2>
-
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#08111d] p-4">
-                  {geoJson ? (
-                    <ComposableMap
-                      projection="geoAlbersUsa"
-                      projectionConfig={{ scale: 1100 }}
-                      width={980}
-                      height={580}
-                      style={{ width: "100%", height: "auto" }}
-                    >
-                      <Geographies geography={geoJson}>
-                        {({ geographies }) =>
-                          geographies.map((geo) => {
-                            const stateName = geo.properties.name;
-
-                            return (
-                              <Geography
-                                key={geo.rsmKey}
-                                geography={geo}
-                                onClick={() => setSelectedState(stateName)}
-                                style={{
-                                  default: {
-                                    fill: getFillForState(
-                                      stateName,
-                                      battlegroundMap,
-                                      selectedState
-                                    ),
-                                    stroke: getStrokeForState(
-                                      stateName,
-                                      battlegroundMap,
-                                      selectedState
-                                    ),
-                                    strokeWidth: 1.1,
-                                    outline: "none",
-                                    cursor: "pointer",
-                                  },
-                                  hover: {
-                                    fill: "#38bdf8",
-                                    stroke: "#e0f2fe",
-                                    strokeWidth: 1.2,
-                                    outline: "none",
-                                    cursor: "pointer",
-                                  },
-                                  pressed: {
-                                    fill: "#06b6d4",
-                                    stroke: "#ecfeff",
-                                    strokeWidth: 1.2,
-                                    outline: "none",
-                                  },
-                                }}
-                              />
-                            );
-                          })
-                        }
-                      </Geographies>
-
-                      {data.battlegrounds.map((row) =>
-                        Array.isArray(row.center) ? (
-                          <Marker
-                            key={row.name}
-                            coordinates={[row.center[1], row.center[0]]}
-                          >
-                            <circle
-                              r={5}
-                              fill={row.fill || "#f8fafc"}
-                              stroke={row.stroke || "#22d3ee"}
-                              strokeWidth={2}
-                            />
-                          </Marker>
-                        ) : null
-                      )}
-                    </ComposableMap>
-                  ) : (
-                    <div className="p-8 text-sm text-slate-400">
-                      GeoJSON layer unavailable.
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-300">
-                  <span className="rounded-full bg-[#ef4444] px-3 py-1 text-white">
-                    Critical
-                  </span>
-                  <span className="rounded-full bg-[#f59e0b] px-3 py-1 text-black">
-                    High
-                  </span>
-                  <span className="rounded-full bg-[#0ea5e9] px-3 py-1 text-white">
-                    Elevated
-                  </span>
-                  <span className="rounded-full bg-[#334155] px-3 py-1 text-white">
-                    Watch
-                  </span>
-                  <span className="rounded-full bg-[#22d3ee] px-3 py-1 text-black">
-                    Selected
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <DetailCard row={selectedRow} />
-
-                <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
-                  <h3 className="text-lg font-semibold text-white">
-                    Overlay States
-                  </h3>
-
-                  <div className="mt-4 space-y-2">
-                    {data.battlegrounds.map((row) => (
-                      <button
-                        key={row.name}
-                        type="button"
-                        onClick={() => setSelectedState(row.state)}
-                        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition ${
-                          selectedState === row.state
-                            ? "border-cyan-400 bg-cyan-500/10 text-cyan-300"
-                            : "border-white/10 bg-[#0b1220] text-slate-300 hover:border-cyan-400/40"
-                        }`}
-                      >
-                        <span>{row.state}</span>
-                        <span>{row.overlayScore ?? row.winProb ?? 0}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+      <div className="vs-grid-4">
+        <StatCard
+          label="Tracked States"
+          value={mapData.summary?.trackedStates || 0}
+          subtext="States in the overlay layer"
+        />
+        <StatCard
+          label="Overlay Zones"
+          value={mapData.summary?.overlays || 0}
+          subtext="Priority map signals"
+        />
+        <StatCard
+          label="Critical Battlegrounds"
+          value={battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "critical").length}
+          subtext="Highest-pressure states"
+        />
+        <StatCard
+          label="Watch States"
+          value={battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "watch").length}
+          subtext="Emerging movement"
+        />
       </div>
-    </div>
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="National Overlay Grid"
+          subtitle="Visual pressure map for battleground monitoring."
+        >
+          {loading ? (
+            <EmptyState text="Loading map overlays..." />
+          ) : (
+            <MapPanel items={battlegrounds} />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Battleground State Board"
+          subtitle="States and races requiring immediate strategic visibility."
+          right={<Badge tone="accent">{battlegrounds.length} active</Badge>}
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading battleground states..." />
+            ) : !battlegrounds.length ? (
+              <EmptyState text="No battleground states available." />
+            ) : (
+              battlegrounds.map((item) => (
+                <BattlegroundRow
+                  key={`${item.state}-${item.office}`}
+                  item={item}
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
 }
