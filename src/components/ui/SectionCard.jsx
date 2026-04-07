@@ -9,10 +9,11 @@ export default function SectionCard({ title, subtitle, right, children }) {
           justifyContent: "space-between",
           alignItems: "flex-start",
           gap: "1rem",
-          marginBottom: "1.25rem"
+          marginBottom: "1.1rem",
+          flexWrap: "wrap"
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           {title ? <div className="vs-section-title">{title}</div> : null}
           {subtitle ? <div className="vs-section-subtitle">{subtitle}</div> : null}
         </div>
