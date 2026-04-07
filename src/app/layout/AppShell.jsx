@@ -1,268 +1,78 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import { hasPlan } from "../../lib/plan";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 const navItems = [
-  { to: "/", label: "Dashboard", requiredPlan: "free" },
-  { to: "/pricing", label: "Pricing", requiredPlan: "free" },
-  { to: "/candidates", label: "Candidates", requiredPlan: "free" },
-  { to: "/map", label: "Election Map", requiredPlan: "free" },
-  { to: "/vendors", label: "Vendors", requiredPlan: "free" },
-
-  { to: "/campaign-pipeline", label: "Campaign Pipeline", requiredPlan: "starter" },
-  { to: "/campaign-workspace", label: "Campaign Workspace", requiredPlan: "starter" },
-  { to: "/firm-workspace", label: "Firm Workspace", requiredPlan: "starter" },
-  { to: "/firms", label: "Firms", requiredPlan: "starter" },
-
-  { to: "/warroom", label: "War Room", requiredPlan: "pro" },
-  { to: "/ai", label: "AI", requiredPlan: "pro" },
-  { to: "/forecast", label: "Forecast", requiredPlan: "pro" },
-  { to: "/forecast-dashboard", label: "Forecast Dashboard", requiredPlan: "pro" },
-  { to: "/rankings", label: "Rankings", requiredPlan: "pro" },
-  { to: "/command-center", label: "Command Center", requiredPlan: "pro" },
-  { to: "/alerts", label: "Alerts", requiredPlan: "pro" },
-
-  { to: "/donors", label: "Donors", requiredPlan: "enterprise" },
-  { to: "/fundraising", label: "Fundraising", requiredPlan: "enterprise" },
-  { to: "/marketplace", label: "Marketplace", requiredPlan: "enterprise" },
-  { to: "/simulator", label: "Simulator", requiredPlan: "enterprise" },
-  { to: "/executive-dashboard", label: "Executive Dashboard", requiredPlan: "enterprise" },
-  { to: "/mailops", label: "MailOps", requiredPlan: "enterprise" },
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/candidates", label: "Candidates" },
+  { to: "/map", label: "Map" },
+  { to: "/donors", label: "Donors" },
+  { to: "/forecast", label: "Forecast" },
+  { to: "/power-rankings", label: "Rankings" },
+  { to: "/fundraising", label: "Fundraising" },
+  { to: "/vendors", label: "Vendors" },
+  { to: "/consultants", label: "Consultants" },
+  { to: "/ai-chat", label: "AI Chat" },
+  { to: "/war-room", label: "War Room" },
+  { to: "/command-center", label: "Command Center" },
+  { to: "/billing", label: "Billing" }
 ];
 
-export default function AppShell({ children }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user, isAuthenticated, loading, logout, firmId, planTier } = useAuth();
+function navClass({ isActive }) {
+  return isActive
+    ? "inline-flex items-center rounded-full border border-[rgba(1,118,211,0.18)] bg-[rgba(1,118,211,0.08)] px-3 py-2 text-sm font-semibold text-[#0176d3]"
+    : "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-[#0176d3] hover:text-[#0176d3]";
+}
 
-  function handleLogout() {
-    logout();
-    navigate("/login");
-  }
-
-  function renderNavItem(item) {
-    const unlocked = hasPlan(user?.plan_tier, item.requiredPlan);
-    const active = location.pathname === item.to;
-
-    if (unlocked || item.requiredPlan === "free") {
-      return (
-        <Link
-          key={item.to}
-          to={item.to}
-          style={{
-            ...styles.navLink,
-            ...(active ? styles.navLinkActive : {}),
-          }}
-        >
-          {item.label}
-        </Link>
-      );
-    }
-
-    return (
-      <button
-        key={item.to}
-        onClick={() => navigate("/pricing")}
-        style={styles.lockedNavLink}
-        title={`Upgrade to ${item.requiredPlan.toUpperCase()} to unlock`}
-      >
-        {item.label} 🔒
-      </button>
-    );
-  }
-
+export default function AppShell() {
   return (
-    <div style={styles.shell}>
-      <header style={styles.header}>
-        <div style={styles.brandBlock}>
-          <div style={styles.brand}>VoterSpheres</div>
-          <div style={styles.tagline}>
-            Political intelligence and campaign operations
+    <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              to="/dashboard"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0176d3] text-sm font-bold text-white shadow-sm"
+            >
+              VS
+            </Link>
+
+            <div className="min-w-0">
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#0176d3]">
+                VoterSpheres
+              </div>
+              <div className="truncate text-sm text-slate-500">
+                Campaign intelligence operating system
+              </div>
+            </div>
           </div>
+
+          <nav className="hidden flex-wrap items-center gap-2 lg:flex">
+            {navItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={navClass}>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
         </div>
 
-        <div style={styles.accountArea}>
-          {loading ? (
-            <div style={styles.accountPill}>Loading...</div>
-          ) : isAuthenticated ? (
-            <>
-              <div style={styles.accountMeta}>
-                <div style={styles.accountName}>
-                  {user?.email || user?.first_name || "Authenticated User"}
-                </div>
-                <div style={styles.accountSub}>
-                  Firm ID: {firmId || "Not linked"} | Plan: {String(planTier || "free").toUpperCase()}
-                </div>
-              </div>
-
-              <Link to="/billing" style={styles.billingLink}>
-                Upgrade / Billing
-              </Link>
-
-              <button style={styles.authButton} onClick={handleLogout}>
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" style={styles.authLink}>
-                Login
-              </Link>
-              <Link to="/signup" style={styles.authPrimaryLink}>
-                Start Trial
-              </Link>
-            </>
-          )}
+        <div className="border-t border-slate-100 bg-[#f8fafc] lg:hidden">
+          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={navClass}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         </div>
       </header>
 
-      <nav style={styles.nav}>
-        {navItems.map(renderNavItem)}
-
-        {!isAuthenticated && (
-          <div style={styles.navHint}>Start a free trial to unlock premium features.</div>
-        )}
-      </nav>
-
-      <main style={styles.main}>{children}</main>
+      <main>
+        <Outlet />
+      </main>
     </div>
   );
 }
-
-const styles = {
-  shell: {
-    minHeight: "100vh",
-    background: "#0b1020",
-    color: "#ffffff",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "16px",
-    padding: "18px 20px 14px",
-    borderBottom: "1px solid #1f2a44",
-    background: "rgba(11,16,32,0.96)",
-    backdropFilter: "blur(10px)",
-    flexWrap: "wrap",
-  },
-  brandBlock: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  brand: {
-    fontSize: "1.25rem",
-    fontWeight: 800,
-    letterSpacing: "0.02em",
-  },
-  tagline: {
-    color: "#94a3b8",
-    fontSize: "0.9rem",
-  },
-  accountArea: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
-  accountMeta: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: "2px",
-  },
-  accountName: {
-    fontSize: "0.92rem",
-    fontWeight: 700,
-  },
-  accountSub: {
-    fontSize: "0.82rem",
-    color: "#94a3b8",
-  },
-  accountPill: {
-    background: "#11192d",
-    border: "1px solid #23314f",
-    padding: "8px 12px",
-    borderRadius: "999px",
-    color: "#cbd5e1",
-  },
-  authButton: {
-    background: "#1f2937",
-    color: "#fff",
-    border: "1px solid #475569",
-    borderRadius: "10px",
-    padding: "10px 14px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  billingLink: {
-    color: "#fff",
-    textDecoration: "none",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    background: "#2563eb",
-    border: "1px solid #2563eb",
-    fontWeight: 700,
-  },
-  authLink: {
-    color: "#c7d2fe",
-    textDecoration: "none",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    background: "#11192d",
-    border: "1px solid #23314f",
-    fontWeight: 600,
-  },
-  authPrimaryLink: {
-    color: "#fff",
-    textDecoration: "none",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    background: "#2563eb",
-    border: "1px solid #2563eb",
-    fontWeight: 700,
-  },
-  nav: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-    padding: "14px 20px",
-    borderBottom: "1px solid #1f2a44",
-    background: "#0d1325",
-    alignItems: "center",
-  },
-  navLink: {
-    color: "#c7d2fe",
-    textDecoration: "none",
-    padding: "9px 12px",
-    borderRadius: "10px",
-    background: "#11192d",
-    border: "1px solid #23314f",
-    fontSize: "0.92rem",
-    fontWeight: 600,
-  },
-  navLinkActive: {
-    background: "#2563eb",
-    color: "#ffffff",
-    border: "1px solid #2563eb",
-  },
-  lockedNavLink: {
-    color: "#94a3b8",
-    padding: "9px 12px",
-    borderRadius: "10px",
-    background: "#11192d",
-    border: "1px dashed #334155",
-    fontSize: "0.92rem",
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  navHint: {
-    color: "#94a3b8",
-    fontSize: "0.9rem",
-    marginLeft: "6px",
-  },
-  main: {
-    padding: "0",
-  },
-};
