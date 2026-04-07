@@ -19,9 +19,7 @@ export default function StatCard({
       <div className="vs-stat-label">{label}</div>
       <div className="vs-stat-value">{value}</div>
       {delta ? <div className={`vs-stat-delta ${toneClass}`}>{delta}</div> : null}
-      {subtext ? (
-        <div className="vs-stat-delta vs-tone-neutral">{subtext}</div>
-      ) : null}
+      {subtext ? <div className="vs-stat-delta vs-tone-neutral">{subtext}</div> : null}
     </div>
   );
 }
