@@ -22,7 +22,7 @@ function navClass({ isActive }) {
     : "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-[#0176d3] hover:text-[#0176d3]";
 }
 
-export default function AppShell() {
+export default function AppShell({ children }) {
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -71,7 +71,7 @@ export default function AppShell() {
       </header>
 
       <main>
-        <Outlet />
+        {children ? children : <Outlet />}
       </main>
     </div>
   );
