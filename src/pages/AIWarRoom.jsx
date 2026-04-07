@@ -5,6 +5,7 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
 import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 
@@ -72,120 +73,49 @@ function severityTone(value) {
   return "default";
 }
 
-function toneClass(value) {
-  return String(value || "").startsWith("-") ? "vs-tone-down" : "vs-tone-up";
-}
-
 function ThreatRow({ item }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "120px auto",
-          alignItems: "start"
-        }}
-      >
-        <div>
-          <Badge tone={severityTone(item.severity)}>{item.severity}</Badge>
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              display: "flex",
-              gap: "0.75rem",
-              flexWrap: "wrap",
-              fontSize: "0.85rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            <span>{item.source}</span>
-            <span className={toneClass(item.velocity)} style={{ fontWeight: 700 }}>
-              {item.velocity}
-            </span>
-          </div>
-          <div
-            style={{
-              marginTop: "0.75rem",
-              fontSize: "0.92rem",
-              lineHeight: 1.7,
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {item.recommendation}
-          </div>
-        </div>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={item.title}
+      subtitle={item.recommendation}
+      meta={[
+        { label: "Severity", value: item.severity },
+        { label: "Source", value: item.source },
+        { label: "Velocity", value: item.velocity }
+      ]}
+      right={<Badge tone={severityTone(item.severity)}>{item.severity}</Badge>}
+    />
   );
 }
 
 function QueueRow({ item }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "90px auto 100px",
-          alignItems: "start"
-        }}
-      >
-        <div>
-          <Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>
-            {item.priority}
-          </Badge>
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.item}</div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.85rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            Owner: {item.owner}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Badge tone="accent">{item.eta}</Badge>
-        </div>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={item.item}
+      subtitle={`Owner: ${item.owner}`}
+      meta={[
+        { label: "Priority", value: item.priority },
+        { label: "ETA", value: item.eta }
+      ]}
+      right={
+        <Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>
+          {item.priority}
+        </Badge>
+      }
+    />
   );
 }
 
 function SignalRow({ item }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "80px 150px auto",
-          alignItems: "start"
-        }}
-      >
-        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--vs-text-muted)" }}>
-          {item.time}
-        </div>
-
-        <div>
-          <Badge tone="accent">{item.channel}</Badge>
-        </div>
-
-        <div style={{ fontSize: "0.92rem", lineHeight: 1.7, color: "var(--vs-text)" }}>
-          {item.text}
-        </div>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={item.channel}
+      subtitle={item.text}
+      meta={[
+        { label: "Time", value: item.time }
+      ]}
+      right={<Badge tone="accent">{item.channel}</Badge>}
+    />
   );
 }
 
