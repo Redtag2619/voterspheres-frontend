@@ -1,189 +1,267 @@
-import { useEffect, useState } from "react";
-import { intelligenceApi } from "../services/api";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
-function MetricCard({ label, value, delta }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-white">{value}</div>
-      <div className="mt-2 text-sm text-emerald-300">{delta}</div>
-    </div>
-  );
+function formatMoney(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function LeaderboardRow({ row }) {
+function DonorRow({ item }) {
   return (
-    <div className="grid grid-cols-12 items-center gap-3 rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm">
-      <div className="col-span-1 text-slate-400">#{row.rank}</div>
-      <div className="col-span-4 font-medium text-white">{row.name}</div>
-      <div className="col-span-2 text-slate-300">{row.state || "N/A"}</div>
-      <div className="col-span-2 text-slate-300">{row.office || "N/A"}</div>
-      <div className="col-span-3 text-right text-emerald-300">
-        ${Number(row.receipts || 0).toLocaleString()}
-      </div>
-    </div>
-  );
-}
-
-function LiveFundraisingCard({ item }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
-      <div className="flex items-start justify-between gap-4">
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "1.5fr 1fr 1fr auto",
+          alignItems: "start"
+        }}
+      >
         <div>
-          <h3 className="text-lg font-semibold text-white">{item.name}</h3>
-          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-            {item.party || "Unknown Party"}
-          </p>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
+            {item.name}
+          </div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.85rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {item.location || item.state || "National donor"} • {item.type || "Individual"}
+          </div>
         </div>
-        <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs text-cyan-300">
-          {item.state || "Unknown State"}
-        </span>
-      </div>
 
-      <div className="mt-4 space-y-2 text-sm text-slate-300">
-        <p>
-          <span className="text-slate-500">Office:</span> {item.office || "N/A"}
-        </p>
-        <p>
-          <span className="text-slate-500">Receipts:</span> $
-          {Number(item?.totals?.receipts || 0).toLocaleString()}
-        </p>
-        <p>
-          <span className="text-slate-500">Cash on hand:</span> $
-          {Number(item?.totals?.cash_on_hand_end_period || 0).toLocaleString()}
-        </p>
-        <p>
-          <span className="text-slate-500">Disbursements:</span> $
-          {Number(item?.totals?.disbursements || 0).toLocaleString()}
-        </p>
+        <div>
+          <div className="vs-stat-label">Total Given</div>
+          <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>
+            {formatMoney(item.total || 0)}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Affinity</div>
+          <div style={{ marginTop: "0.35rem" }}>
+            <Badge tone="accent">{item.affinity || "High"}</Badge>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Badge tone={String(item.status || "").toLowerCase() === "active" ? "active" : "default"}>
+            {item.status || "tracked"}
+          </Badge>
+        </div>
       </div>
     </div>
   );
 }
+
+function ClusterCard({ item }) {
+  return (
+    <div className="vs-card-muted">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.name}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.9rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {item.description}
+          </div>
+        </div>
+
+        <Badge tone="accent">{item.members} members</Badge>
+      </div>
+
+      <div style={{ marginTop: "1rem" }}>
+        <div className="vs-stat-label">Combined Capacity</div>
+        <div style={{ marginTop: "0.35rem", fontSize: "1.2rem", fontWeight: 700 }}>
+          {formatMoney(item.capacity || 0)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const fallbackData = {
+  metrics: [
+    { label: "Tracked Donors", value: "184", delta: "+18 added", tone: "up" },
+    { label: "Active Donor Clusters", value: "6", delta: "Regional + national", tone: "up" },
+    { label: "Modeled Capacity", value: "$9.4M", delta: "Near-term reachable", tone: "up" },
+    { label: "High-Affinity Donors", value: "42", delta: "Priority outreach", tone: "up" }
+  ],
+  donors: [
+    {
+      id: 1,
+      name: "Patricia Monroe",
+      location: "Atlanta, GA",
+      type: "Individual",
+      total: 125000,
+      affinity: "High",
+      status: "active"
+    },
+    {
+      id: 2,
+      name: "Southern Growth PAC",
+      location: "Georgia",
+      type: "PAC",
+      total: 350000,
+      affinity: "High",
+      status: "active"
+    },
+    {
+      id: 3,
+      name: "Liberty Finance Circle",
+      location: "Pennsylvania",
+      type: "Donor Circle",
+      total: 210000,
+      affinity: "Medium",
+      status: "tracked"
+    }
+  ],
+  clusters: [
+    {
+      id: 1,
+      name: "Atlanta Executive Circle",
+      members: 14,
+      capacity: 1800000,
+      description: "High-capacity metro donors aligned with persuasion and growth messaging."
+    },
+    {
+      id: 2,
+      name: "Regional Business Network",
+      members: 22,
+      capacity: 2400000,
+      description: "Business-focused donor network with strong late-cycle activation potential."
+    }
+  ]
+};
 
 export default function DonorNetwork() {
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [liveRows, setLiveRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [networkData, setNetworkData] = useState(fallbackData);
+
+  const demoMode =
+    typeof window !== "undefined" &&
+    localStorage.getItem("vs_demo_mode") === "1";
 
   useEffect(() => {
     let active = true;
 
-    async function loadData() {
+    async function loadDonorNetwork() {
       try {
         setLoading(true);
         setError("");
 
-        const [leaderboardData, liveData] = await Promise.all([
-          intelligenceApi.fundraisingLeaderboard(),
-          intelligenceApi.liveFundraising()
-        ]);
+        const response = await api.get("/donors/network", {
+          timeout: 6000
+        });
 
         if (!active) return;
 
-        setLeaderboard(leaderboardData?.leaderboard || []);
-        setLiveRows(liveData?.results || []);
+        const payload = response?.data || fallbackData;
+
+        setNetworkData({
+          metrics: payload.metrics?.length ? payload.metrics : fallbackData.metrics,
+          donors: payload.donors?.length ? payload.donors : fallbackData.donors,
+          clusters: payload.clusters?.length ? payload.clusters : fallbackData.clusters
+        });
       } catch (err) {
         if (!active) return;
-        setError(err.message || "Failed to load donor network");
+        setError(
+          err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load donor network"
+        );
+        setNetworkData(fallbackData);
       } finally {
         if (active) setLoading(false);
       }
     }
 
-    loadData();
+    loadDonorNetwork();
 
     return () => {
       active = false;
     };
   }, []);
 
-  const totalReceipts = leaderboard.reduce(
-    (sum, row) => sum + Number(row.receipts || 0),
-    0
-  );
+  const donors = useMemo(() => networkData.donors || [], [networkData.donors]);
+  const clusters = useMemo(() => networkData.clusters || [], [networkData.clusters]);
 
   return (
-    <div className="min-h-screen bg-[#060b14] p-6 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
-          <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">
-            VoterSpheres Finance Intelligence
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold">Donor Network</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Live fundraising intelligence powered by FEC-backed campaign data.
-          </p>
+    <PageShell
+      eyebrow="Donor Network"
+      title="See the finance network behind the campaign."
+      description="Track donor relationships, cluster strength, and modeled fundraising capacity across your campaign finance network."
+      demo={demoMode}
+      demoText="Demo donor network mode is active. Donor relationships and fundraising clusters are preloaded for presentation."
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
+      ) : null}
 
-        {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-6 text-sm text-slate-400">
-            Loading donor network...
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
-            {error}
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-3">
-              <MetricCard
-                label="Tracked Finance Leaders"
-                value={leaderboard.length}
-                delta="FEC-backed candidates"
-              />
-              <MetricCard
-                label="Modeled Receipts"
-                value={`$${(totalReceipts / 1000000).toFixed(1)}M`}
-                delta="Live leaderboard total"
-              />
-              <MetricCard
-                label="Live Finance Rows"
-                value={liveRows.length}
-                delta="Current ingestion sample"
-              />
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
-              <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
-                <h2 className="mb-4 text-xl font-semibold">Fundraising Leaderboard</h2>
-                <div className="space-y-3">
-                  {leaderboard.length === 0 ? (
-                    <div className="text-sm text-slate-500">
-                      No fundraising leaderboard data available.
-                    </div>
-                  ) : (
-                    leaderboard.map((row) => (
-                      <LeaderboardRow key={`${row.rank}-${row.candidate_id}`} row={row} />
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-[#0b1220] p-6 shadow-2xl">
-                <h2 className="mb-4 text-xl font-semibold">Live FEC Snapshot</h2>
-                <div className="grid gap-4">
-                  {liveRows.length === 0 ? (
-                    <div className="text-sm text-slate-500">
-                      No live fundraising snapshot available.
-                    </div>
-                  ) : (
-                    liveRows.map((item) => (
-                      <LiveFundraisingCard
-                        key={item.candidate_id || item.name}
-                        item={item}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+      <div className="vs-grid-4">
+        {(networkData.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
       </div>
-    </div>
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Priority Donor Board"
+          subtitle="Highest-value donors and entities currently tracked."
+          right={<Badge tone="accent">{donors.length} tracked</Badge>}
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading donor board..." />
+            ) : !donors.length ? (
+              <EmptyState text="No donor network data available." />
+            ) : (
+              donors.map((item) => (
+                <DonorRow key={`${item.id}-${item.name}`} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Fundraising Clusters"
+          subtitle="Donor groups with shared reach and late-cycle capacity."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading donor clusters..." />
+            ) : !clusters.length ? (
+              <EmptyState text="No donor clusters available." />
+            ) : (
+              clusters.map((item) => (
+                <ClusterCard key={`${item.id}-${item.name}`} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
 }
