@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
-import TerminalPage from "../components/ui/TerminalPage";
-import Panel from "../components/ui/Panel";
-import LoadingState from "../components/ui/LoadingState";
-import ErrorState from "../components/ui/ErrorState";
-import { useApiResource } from "../hooks/useApiResource";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
+import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 
 const fallbackData = {
@@ -31,6 +32,12 @@ const fallbackData = {
       owner: "MailOps",
       due: "45 min",
       detail: "Coordinate with vendor and USPS contact to protect weekend delivery."
+    },
+    {
+      title: "Refresh surrogate briefing memo",
+      owner: "Comms",
+      due: "2 hrs",
+      detail: "Update talking points around education and cost-of-living."
     }
   ],
   feed: [
@@ -49,19 +56,27 @@ const fallbackData = {
       source: "Mail Intelligence",
       severity: "High",
       type: "mail.delay_detected"
+    },
+    {
+      id: 3,
+      time: "09:05",
+      title: "Forecast updated for GA Senate",
+      source: "Forecast Engine",
+      severity: "Medium",
+      type: "forecast.updated"
     }
   ]
 };
 
-function toneClass(value) {
-  return String(value).startsWith("-") ? "down" : "up";
+function badgeToneFromSeverity(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "high") return "danger";
+  if (v === "medium") return "demo";
+  return "default";
 }
 
-function severityTone(value) {
-  const v = String(value || "").toLowerCase();
-  if (v === "high") return "high";
-  if (v === "medium") return "medium";
-  return "low";
+function toneClass(value) {
+  return String(value || "").startsWith("-") ? "vs-tone-down" : "vs-tone-up";
 }
 
 function dedupeFeed(items) {
@@ -74,11 +89,143 @@ function dedupeFeed(items) {
   });
 }
 
-const CommandCenter = () => {
+function BattlegroundRow({ row }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto",
+          alignItems: "start"
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{row.race}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.82rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            Priority race requiring executive visibility
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Win Prob.</div>
+          <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>{row.probability}</div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Momentum</div>
+          <div className={toneClass(row.momentum)} style={{ marginTop: "0.35rem", fontWeight: 700 }}>
+            {row.momentum}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Risk</div>
+          <div style={{ marginTop: "0.35rem" }}>
+            <Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>
+              {row.risk}
+            </Badge>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Badge tone="accent">{row.priority}</Badge>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedRow({ item }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "70px auto 120px",
+          alignItems: "start"
+        }}
+      >
+        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--vs-text-muted)" }}>
+          {item.time}
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.85rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {item.source}
+            {item.type ? ` • ${item.type}` : ""}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionRow({ item }) {
+  return (
+    <div className="vs-card-muted">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "1rem",
+          alignItems: "flex-start"
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              fontSize: "0.85rem",
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            Owner: {item.owner}
+          </div>
+          <div
+            style={{
+              marginTop: "0.7rem",
+              fontSize: "0.92rem",
+              lineHeight: 1.65,
+              color: "var(--vs-text-muted)"
+            }}
+          >
+            {item.detail}
+          </div>
+        </div>
+
+        <Badge tone="accent">{item.due}</Badge>
+      </div>
+    </div>
+  );
+}
+
+export default function CommandCenter() {
   const fetcher = useCallback(() => api.commandCenter(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
   const [liveBanner, setLiveBanner] = useState("");
-  const demoMode = localStorage.getItem("vs_demo_mode") === "1";
+  const demoMode =
+    typeof window !== "undefined" &&
+    localStorage.getItem("vs_demo_mode") === "1";
 
   useLiveChannel("intelligence:command-center", (event) => {
     if (!event?.type) return;
@@ -134,112 +281,98 @@ const CommandCenter = () => {
     return () => clearTimeout(timer);
   }, [liveBanner]);
 
+  const battlegrounds = useMemo(() => data?.battlegrounds || [], [data]);
+  const feed = useMemo(() => data?.feed || [], [data]);
+  const actions = useMemo(() => data?.actions || [], [data]);
+
   return (
-    <TerminalPage
-      eyebrow="Executive Terminal"
+    <PageShell
+      eyebrow="Executive Command Center"
       title="The operating system for campaign control, race velocity, and strategic response."
-      description="Monitor battleground pressure, fundraising flow, narrative threats, and the next-best actions across the national map from one executive view."
-      metrics={data?.metrics || []}
+      description="Monitor battleground pressure, fundraising flow, narrative threats, and next-best actions across the national map from one executive view."
+      demo={demoMode}
+      demoText="Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation."
     >
-      {demoMode ? (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation.
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+        >
+          {error}
         </div>
       ) : null}
 
       {liveBanner ? (
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <div className="vs-banner" style={{ borderColor: "var(--vs-border)", background: "var(--vs-surface)", color: "var(--vs-text)" }}>
           {liveBanner}
         </div>
       ) : null}
 
-      <Panel
+      <div className="vs-grid-4">
+        {(data?.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
+      </div>
+
+      <SectionCard
         title="Priority Battleground Board"
-        subtitle="Top races requiring executive monitoring and rapid adjustments"
-        action="Open full map"
+        subtitle="Top races requiring executive monitoring and rapid adjustments."
+        right={<Badge tone="accent">{battlegrounds.length} tracked</Badge>}
       >
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <div className="vs-table">
-            <div className="vs-table-head">
-              <span>Race</span>
-              <span>Win Prob.</span>
-              <span>Momentum</span>
-              <span>Risk</span>
-              <span>Priority</span>
-            </div>
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading battleground board..." />
+          ) : !battlegrounds.length ? (
+            <EmptyState text="No battleground data available." />
+          ) : (
+            battlegrounds.map((row) => (
+              <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} />
+            ))
+          )}
+        </div>
+      </SectionCard>
 
-            {(data?.battlegrounds || []).map((row) => (
-              <div key={`${row.race}-${row.priority}`} className="vs-table-row vs-table-row-five">
-                <span>{row.race}</span>
-                <span>{row.probability}</span>
-                <span className={toneClass(row.momentum)}>{row.momentum}</span>
-                <span>{row.risk}</span>
-                <span>{row.priority}</span>
-              </div>
-            ))}
+      <div className="vs-grid-2">
+        <SectionCard
+          title="War Room Feed"
+          subtitle="Live risk, logistics, and forecast signals entering the executive terminal."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading command feed..." />
+            ) : !feed.length ? (
+              <EmptyState text="No live command feed items." />
+            ) : (
+              feed.map((item) => (
+                <FeedRow key={item.id || `${item.time}-${item.title}`} item={item} />
+              ))
+            )}
           </div>
-        )}
-      </Panel>
+        </SectionCard>
 
-      <Panel
-        title="War Room Feed"
-        subtitle="Live risk, logistics, and forecast signals entering the executive terminal"
-      >
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <div className="vs-warfeed">
-            {(data?.feed || []).map((item) => (
-              <div key={item.id || `${item.time}-${item.title}`} className="vs-warfeed-item">
-                <div className="vs-warfeed-time">{item.time}</div>
-                <div className={`vs-warfeed-severity ${severityTone(item.severity)}`}>
-                  {item.severity}
-                </div>
-                <div className="vs-warfeed-content">
-                  <div className="vs-warfeed-title">{item.title}</div>
-                  <div className="vs-warfeed-source">
-                    {item.source}
-                    {item.type ? ` • ${item.type}` : ""}
-                  </div>
-                </div>
-              </div>
-            ))}
+        <SectionCard
+          title="Executive Action Queue"
+          subtitle="Highest-leverage next steps across live intelligence inputs."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading action queue..." />
+            ) : !actions.length ? (
+              <EmptyState text="No executive actions available." />
+            ) : (
+              actions.map((item, index) => (
+                <ActionRow key={`${item.title}-${index}`} item={item} />
+              ))
+            )}
           </div>
-        )}
-      </Panel>
-
-      <Panel
-        title="Executive Action Queue"
-        subtitle="Highest-leverage next steps across live intelligence inputs"
-        large
-      >
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <div className="vs-action-list">
-            {(data?.actions || []).map((item, index) => (
-              <div key={`${item.title}-${index}`} className="vs-action-item">
-                <div className="vs-action-topline">
-                  <div className="vs-action-title">{item.title}</div>
-                  <div className="vs-action-due">{item.due}</div>
-                </div>
-                <div className="vs-action-owner">Owner: {item.owner}</div>
-                <div className="vs-action-detail">{item.detail}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-    </TerminalPage>
+        </SectionCard>
+      </div>
+    </PageShell>
   );
-};
-
-export default CommandCenter;
+}
