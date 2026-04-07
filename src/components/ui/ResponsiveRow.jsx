@@ -4,18 +4,23 @@ export default function ResponsiveRow({
   title,
   subtitle,
   meta = [],
-  right = null
+  right = null,
+  alert = null
 }) {
   return (
     <div className="vs-card-muted">
       <div className="vs-responsive-row">
         <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{title}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            {alert ? <span className={alert} /> : null}
+            <div style={{ fontWeight: 800, color: "var(--vs-text)" }}>{title}</div>
+          </div>
+
           {subtitle ? (
             <div
               style={{
-                marginTop: "0.35rem",
-                fontSize: "0.92rem",
+                marginTop: "6px",
+                fontSize: "13px",
                 lineHeight: 1.65,
                 color: "var(--vs-text-muted)"
               }}
@@ -25,7 +30,7 @@ export default function ResponsiveRow({
           ) : null}
         </div>
 
-        <div style={{ display: "grid", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gap: "10px" }}>
           {meta.length ? (
             <div className="vs-responsive-meta">
               {meta.map((item, index) => (
@@ -33,9 +38,9 @@ export default function ResponsiveRow({
                   <div className="vs-stat-label">{item.label}</div>
                   <div
                     style={{
-                      marginTop: "0.35rem",
-                      fontSize: "0.9rem",
-                      fontWeight: 700,
+                      marginTop: "5px",
+                      fontSize: "13px",
+                      fontWeight: 800,
                       color: "var(--vs-text)"
                     }}
                   >
