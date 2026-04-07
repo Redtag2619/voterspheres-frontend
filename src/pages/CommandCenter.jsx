@@ -97,6 +97,11 @@ function BattlegroundRow({ row }) {
         { label: "Risk", value: row.risk },
         { label: "Priority", value: row.priority }
       ]}
+      alert={
+        String(row.risk || "").toLowerCase() === "elevated"
+          ? "vs-live-dot"
+          : "vs-live-dot-warning"
+      }
       right={
         <Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>
           {row.risk}
@@ -115,6 +120,11 @@ function FeedRow({ item }) {
         { label: "Time", value: item.time || "Now" },
         { label: "Severity", value: item.severity || "Info" }
       ]}
+      alert={
+        String(item.severity || "").toLowerCase() === "high"
+          ? "vs-live-dot"
+          : "vs-live-dot-warning"
+      }
       right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
     />
   );
@@ -129,6 +139,7 @@ function ActionRow({ item }) {
         { label: "Owner", value: item.owner },
         { label: "Due", value: item.due }
       ]}
+      alert="vs-live-dot-success"
       right={<Badge tone="accent">{item.due}</Badge>}
     />
   );
@@ -138,6 +149,7 @@ export default function CommandCenter() {
   const fetcher = useCallback(() => api.commandCenter(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
   const [liveBanner, setLiveBanner] = useState("");
+
   const demoMode =
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
@@ -147,9 +159,14 @@ export default function CommandCenter() {
 
     if (event.type === "warroom.threat_detected") {
       const threat = event.payload || {};
-      const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const now = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
 
-      setLiveBanner(`Live threat fused into Command Center: ${threat.title || "Threat detected"}`);
+      setLiveBanner(
+        `Live threat fused into Command Center: ${threat.title || "Threat detected"}`
+      );
 
       setData((prev) => ({
         ...(prev || fallbackData),
@@ -169,9 +186,14 @@ export default function CommandCenter() {
 
     if (event.type === "warroom.signal_detected") {
       const signal = event.payload || {};
-      const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const now = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
 
-      setLiveBanner(`Live signal fused into Command Center: ${signal.channel || "Signal detected"}`);
+      setLiveBanner(
+        `Live signal fused into Command Center: ${signal.channel || "Signal detected"}`
+      );
 
       setData((prev) => ({
         ...(prev || fallbackData),
@@ -200,6 +222,10 @@ export default function CommandCenter() {
   const feed = useMemo(() => data?.feed || [], [data]);
   const actions = useMemo(() => data?.actions || [], [data]);
 
+  const highSeverityCount = feed.filter(
+    (item) => String(item.severity || "").toLowerCase() === "high"
+  ).length;
+
   return (
     <PageShell
       eyebrow="Executive Command Center"
@@ -207,21 +233,27 @@ export default function CommandCenter() {
       description="Monitor battleground pressure, fundraising flow, narrative threats, and next-best actions across the national map from one executive view."
       demo={demoMode}
       demoText="Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation."
+      tickerItems={[
+        {
+          label: "Threats",
+          value: `${highSeverityCount} high`,
+          dotClass: "vs-live-dot"
+        },
+        {
+          label: "Battlegrounds",
+          value: `${battlegrounds.length} tracked`,
+          dotClass: "vs-live-dot-warning"
+        },
+        {
+          label: "Actions",
+          value: `${actions.length} queued`,
+          dotClass: "vs-live-dot-success"
+        }
+      ]}
     >
-      {error ? (
-        <div
-          className="vs-banner"
-          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
-        >
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
-      {liveBanner ? (
-        <div className="vs-banner" style={{ borderColor: "var(--vs-border)", background: "var(--vs-surface)", color: "var(--vs-text)" }}>
-          {liveBanner}
-        </div>
-      ) : null}
+      {liveBanner ? <div className="vs-banner">{liveBanner}</div> : null}
 
       <div className="vs-grid-4">
         {(data?.metrics || []).map((metric, index) => (
