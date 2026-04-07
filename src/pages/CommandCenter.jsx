@@ -5,6 +5,7 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
 import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 
@@ -75,10 +76,6 @@ function badgeToneFromSeverity(value) {
   return "default";
 }
 
-function toneClass(value) {
-  return String(value || "").startsWith("-") ? "vs-tone-down" : "vs-tone-up";
-}
-
 function dedupeFeed(items) {
   const seen = new Set();
   return items.filter((item) => {
@@ -91,131 +88,49 @@ function dedupeFeed(items) {
 
 function BattlegroundRow({ row }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto",
-          alignItems: "start"
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{row.race}</div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.82rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            Priority race requiring executive visibility
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Win Prob.</div>
-          <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>{row.probability}</div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Momentum</div>
-          <div className={toneClass(row.momentum)} style={{ marginTop: "0.35rem", fontWeight: 700 }}>
-            {row.momentum}
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Risk</div>
-          <div style={{ marginTop: "0.35rem" }}>
-            <Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>
-              {row.risk}
-            </Badge>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Badge tone="accent">{row.priority}</Badge>
-        </div>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={row.race}
+      subtitle="Priority race requiring executive visibility."
+      meta={[
+        { label: "Win Prob.", value: row.probability },
+        { label: "Momentum", value: row.momentum },
+        { label: "Risk", value: row.risk },
+        { label: "Priority", value: row.priority }
+      ]}
+      right={
+        <Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>
+          {row.risk}
+        </Badge>
+      }
+    />
   );
 }
 
 function FeedRow({ item }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "70px auto 120px",
-          alignItems: "start"
-        }}
-      >
-        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--vs-text-muted)" }}>
-          {item.time}
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.85rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {item.source}
-            {item.type ? ` • ${item.type}` : ""}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>
-        </div>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={item.title}
+      subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+      meta={[
+        { label: "Time", value: item.time || "Now" },
+        { label: "Severity", value: item.severity || "Info" }
+      ]}
+      right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
+    />
   );
 }
 
 function ActionRow({ item }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "1rem",
-          alignItems: "flex-start"
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.title}</div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.85rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            Owner: {item.owner}
-          </div>
-          <div
-            style={{
-              marginTop: "0.7rem",
-              fontSize: "0.92rem",
-              lineHeight: 1.65,
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {item.detail}
-          </div>
-        </div>
-
-        <Badge tone="accent">{item.due}</Badge>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={item.title}
+      subtitle={item.detail}
+      meta={[
+        { label: "Owner", value: item.owner },
+        { label: "Due", value: item.due }
+      ]}
+      right={<Badge tone="accent">{item.due}</Badge>}
+    />
   );
 }
 
