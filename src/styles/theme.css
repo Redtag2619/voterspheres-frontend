@@ -14,30 +14,65 @@
   --vs-danger: #dc2626;
   --vs-danger-soft: #fef2f2;
   --vs-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --vs-shadow-soft: 0 6px 18px rgba(15, 23, 42, 0.04);
   --vs-radius-xl: 1rem;
   --vs-radius-2xl: 1.5rem;
   --vs-radius-3xl: 1.75rem;
+  --vs-max-width: 80rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--vs-bg);
+  color: var(--vs-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 .vs-page {
   min-height: 100vh;
   background: var(--vs-bg);
-  padding: 1.5rem;
+  padding: 1.25rem;
   color: var(--vs-text);
 }
 
 .vs-page-inner {
-  max-width: 80rem;
+  max-width: var(--vs-max-width);
   margin: 0 auto;
   display: grid;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .vs-hero {
   border: 1px solid var(--vs-border);
   background: var(--vs-surface);
   border-radius: var(--vs-radius-3xl);
-  padding: 2rem;
+  padding: 1.5rem;
   box-shadow: var(--vs-shadow);
 }
 
@@ -51,7 +86,7 @@
 
 .vs-title {
   margin-top: 0.75rem;
-  font-size: 1.9rem;
+  font-size: 1.7rem;
   line-height: 1.15;
   font-weight: 700;
   color: var(--vs-text);
@@ -62,14 +97,15 @@
   max-width: 48rem;
   color: var(--vs-text-muted);
   font-size: 0.95rem;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .vs-banner {
-  margin-top: 1.25rem;
+  margin-top: 1rem;
   border-radius: var(--vs-radius-2xl);
   padding: 0.9rem 1rem;
   font-size: 0.9rem;
+  line-height: 1.55;
   border: 1px solid var(--vs-border);
 }
 
@@ -79,21 +115,11 @@
   color: #92400e;
 }
 
-.vs-grid-4 {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-}
-
-.vs-grid-3 {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-}
-
+.vs-grid-4,
+.vs-grid-3,
 .vs-grid-2 {
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
   grid-template-columns: repeat(1, minmax(0, 1fr));
 }
 
@@ -101,8 +127,9 @@
   border: 1px solid var(--vs-border);
   background: var(--vs-surface);
   border-radius: var(--vs-radius-3xl);
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: var(--vs-shadow);
+  min-width: 0;
 }
 
 .vs-card-muted {
@@ -110,17 +137,21 @@
   background: var(--vs-surface-muted);
   border-radius: var(--vs-radius-2xl);
   padding: 1rem;
+  box-shadow: var(--vs-shadow-soft);
+  min-width: 0;
 }
 
 .vs-section-title {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--vs-text);
+  line-height: 1.25;
 }
 
 .vs-section-subtitle {
   margin-top: 0.25rem;
   font-size: 0.9rem;
+  line-height: 1.55;
   color: var(--vs-text-muted);
 }
 
@@ -132,8 +163,9 @@
 }
 
 .vs-stat-value {
-  margin-top: 0.75rem;
-  font-size: 1.9rem;
+  margin-top: 0.7rem;
+  font-size: 1.7rem;
+  line-height: 1.1;
   font-weight: 700;
   color: var(--vs-text);
 }
@@ -141,6 +173,7 @@
 .vs-stat-delta {
   margin-top: 0.5rem;
   font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .vs-tone-up {
@@ -158,13 +191,17 @@
 .vs-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   border-radius: 9999px;
   border: 1px solid var(--vs-border);
   padding: 0.35rem 0.7rem;
   font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.2;
   background: var(--vs-surface-muted);
   color: var(--vs-text-muted);
+  white-space: nowrap;
 }
 
 .vs-badge-demo {
@@ -202,12 +239,19 @@
   font-size: 0.95rem;
   color: var(--vs-text);
   outline: none;
+  min-width: 0;
+}
+
+.vs-input::placeholder,
+.vs-textarea::placeholder {
+  color: #94a3b8;
 }
 
 .vs-input:focus,
 .vs-select:focus,
 .vs-textarea:focus {
   border-color: var(--vs-accent);
+  box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.08);
 }
 
 .vs-button {
@@ -218,6 +262,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: 0.18s ease;
+  min-height: 44px;
 }
 
 .vs-button:disabled {
@@ -247,17 +292,82 @@
 
 .vs-stack {
   display: grid;
-  gap: 1rem;
+  gap: 0.9rem;
+  min-width: 0;
 }
 
 .vs-empty {
   border: 1px solid var(--vs-border);
   background: var(--vs-surface);
   border-radius: var(--vs-radius-2xl);
-  padding: 1.25rem;
+  padding: 1.1rem 1.15rem;
   color: var(--vs-text-muted);
   font-size: 0.9rem;
-  box-shadow: var(--vs-shadow);
+  line-height: 1.55;
+  box-shadow: var(--vs-shadow-soft);
+}
+
+.vs-inline-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vs-chip-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.vs-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vs-responsive-row {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.vs-responsive-meta {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vs-divider {
+  height: 1px;
+  background: var(--vs-border);
+  margin: 0.25rem 0;
+}
+
+.vs-table-like {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .vs-page {
+    padding: 1.5rem;
+  }
+
+  .vs-hero {
+    padding: 1.75rem;
+  }
+
+  .vs-title {
+    font-size: 1.9rem;
+  }
+
+  .vs-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vs-responsive-meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 768px) {
@@ -269,8 +379,19 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .vs-grid-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .vs-card {
+    padding: 1.5rem;
+  }
+
+  .vs-title {
+    font-size: 2.1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vs-responsive-row {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 1rem;
   }
 }
 
@@ -281,5 +402,29 @@
 
   .vs-grid-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .vs-title {
+    font-size: 1.55rem;
+  }
+
+  .vs-description {
+    font-size: 0.92rem;
+  }
+
+  .vs-stat-value {
+    font-size: 1.45rem;
+  }
+
+  .vs-card,
+  .vs-card-muted,
+  .vs-empty {
+    border-radius: 1.1rem;
+  }
+
+  .vs-badge {
+    white-space: normal;
   }
 }
