@@ -16,57 +16,128 @@ const navItems = [
   { to: "/billing", label: "Billing" }
 ];
 
-function navClass({ isActive }) {
-  return isActive
-    ? "inline-flex items-center rounded-full border border-[rgba(1,118,211,0.18)] bg-[rgba(1,118,211,0.08)] px-3 py-2 text-sm font-semibold text-[#0176d3]"
-    : "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-[#0176d3] hover:text-[#0176d3]";
+function navStyle(isActive) {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px 12px",
+    borderRadius: "9999px",
+    textDecoration: "none",
+    fontSize: "13px",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    border: isActive ? "1px solid #f59e0b" : "1px solid #334155",
+    background: isActive ? "rgba(245, 158, 11, 0.14)" : "#111827",
+    color: isActive ? "#f59e0b" : "#e5e7eb",
+    transition: "all 0.18s ease"
+  };
 }
 
 export default function AppShell({ children }) {
   return (
-    <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              to="/dashboard"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0176d3] text-sm font-bold text-white shadow-sm"
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0b0f14",
+        color: "#f8fafc"
+      }}
+    >
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+          borderBottom: "1px solid #1f2937",
+          background: "rgba(10, 14, 20, 0.96)",
+          backdropFilter: "blur(10px)"
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "16px 16px 14px",
+            display: "grid",
+            gap: "14px"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                minWidth: 0
+              }}
             >
-              VS
-            </Link>
+              <Link
+                to="/dashboard"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "14px",
+                  background: "#f59e0b",
+                  color: "#0b0f14",
+                  textDecoration: "none",
+                  fontWeight: 800,
+                  fontSize: "14px",
+                  boxShadow: "0 8px 20px rgba(245,158,11,0.25)"
+                }}
+              >
+                VS
+              </Link>
 
-            <div className="min-w-0">
-              <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#0176d3]">
-                VoterSpheres
-              </div>
-              <div className="truncate text-sm text-slate-500">
-                Campaign intelligence operating system
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.24em",
+                    color: "#f59e0b",
+                    fontWeight: 800
+                  }}
+                >
+                  VoterSpheres
+                </div>
+                <div
+                  style={{
+                    marginTop: "2px",
+                    fontSize: "14px",
+                    color: "#94a3b8"
+                  }}
+                >
+                  Campaign intelligence operating system
+                </div>
               </div>
             </div>
           </div>
 
-          <nav className="hidden flex-wrap items-center gap-2 lg:flex">
+          <nav
+            style={{
+              display: "flex",
+              gap: "8px",
+              overflowX: "auto",
+              paddingBottom: "2px"
+            }}
+          >
             {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navClass}>
+              <NavLink key={item.to} to={item.to} style={({ isActive }) => navStyle(isActive)}>
                 {item.label}
               </NavLink>
             ))}
           </nav>
-        </div>
-
-        <div className="border-t border-slate-100 bg-[#f8fafc] lg:hidden">
-          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={navClass}
-                style={{ whiteSpace: "nowrap" }}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
         </div>
       </header>
 
