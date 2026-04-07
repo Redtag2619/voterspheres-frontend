@@ -24,32 +24,28 @@ function navStyle(isActive) {
     padding: "8px 12px",
     borderRadius: "9999px",
     textDecoration: "none",
-    fontSize: "13px",
-    fontWeight: 600,
+    fontSize: "12px",
+    fontWeight: 800,
     whiteSpace: "nowrap",
-    border: isActive ? "1px solid #f59e0b" : "1px solid #334155",
-    background: isActive ? "rgba(245, 158, 11, 0.14)" : "#111827",
-    color: isActive ? "#f59e0b" : "#e5e7eb",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    border: isActive ? "1px solid rgba(245,158,11,0.35)" : "1px solid #232b36",
+    background: isActive ? "rgba(245,158,11,0.12)" : "#11161d",
+    color: isActive ? "#fbbf24" : "#cbd5e1",
     transition: "all 0.18s ease"
   };
 }
 
 export default function AppShell({ children }) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0b0f14",
-        color: "#f8fafc"
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "#0a0d12", color: "#f3f4f6" }}>
       <header
         style={{
           position: "sticky",
           top: 0,
           zIndex: 40,
-          borderBottom: "1px solid #1f2937",
-          background: "rgba(10, 14, 20, 0.96)",
+          borderBottom: "1px solid #232b36",
+          background: "rgba(10, 13, 18, 0.96)",
           backdropFilter: "blur(10px)"
         }}
       >
@@ -57,41 +53,26 @@ export default function AppShell({ children }) {
           style={{
             maxWidth: "1280px",
             margin: "0 auto",
-            padding: "16px 16px 14px",
+            padding: "14px 16px 12px",
             display: "grid",
-            gap: "14px"
+            gap: "12px"
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                minWidth: 0
-              }}
-            >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
               <Link
                 to="/dashboard"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: "44px",
-                  height: "44px",
-                  borderRadius: "14px",
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "12px",
                   background: "#f59e0b",
-                  color: "#0b0f14",
+                  color: "#0a0d12",
                   textDecoration: "none",
-                  fontWeight: 800,
+                  fontWeight: 900,
                   fontSize: "14px",
                   boxShadow: "0 8px 20px rgba(245,158,11,0.25)"
                 }}
@@ -100,38 +81,23 @@ export default function AppShell({ children }) {
               </Link>
 
               <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.24em",
-                    color: "#f59e0b",
-                    fontWeight: 800
-                  }}
-                >
+                <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.24em", color: "#f59e0b", fontWeight: 900 }}>
                   VoterSpheres
                 </div>
-                <div
-                  style={{
-                    marginTop: "2px",
-                    fontSize: "14px",
-                    color: "#94a3b8"
-                  }}
-                >
+                <div style={{ marginTop: "2px", fontSize: "13px", color: "#94a3b8" }}>
                   Campaign intelligence operating system
                 </div>
               </div>
             </div>
+
+            <div className="vs-terminal-ticker">
+              <span className="vs-live-dot" />
+              <strong>LIVE</strong>
+              <span>Intelligence mode active</span>
+            </div>
           </div>
 
-          <nav
-            style={{
-              display: "flex",
-              gap: "8px",
-              overflowX: "auto",
-              paddingBottom: "2px"
-            }}
-          >
+          <nav style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "2px" }}>
             {navItems.map((item) => (
               <NavLink key={item.to} to={item.to} style={({ isActive }) => navStyle(isActive)}>
                 {item.label}
@@ -141,9 +107,7 @@ export default function AppShell({ children }) {
         </div>
       </header>
 
-      <main>
-        {children ? children : <Outlet />}
-      </main>
+      <main>{children ? children : <Outlet />}</main>
     </div>
   );
 }
