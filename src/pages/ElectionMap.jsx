@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ComposableMap,
-  Geographies,
-  Geography
-} from "react-simple-maps";
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -11,70 +7,38 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
-const GEO_URL =
-  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+const GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const stateNameToCode = {
-  Alabama: "AL",
-  Alaska: "AK",
-  Arizona: "AZ",
-  Arkansas: "AR",
-  California: "CA",
-  Colorado: "CO",
-  Connecticut: "CT",
-  Delaware: "DE",
-  Florida: "FL",
-  Georgia: "GA",
-  Hawaii: "HI",
-  Idaho: "ID",
-  Illinois: "IL",
-  Indiana: "IN",
-  Iowa: "IA",
-  Kansas: "KS",
-  Kentucky: "KY",
-  Louisiana: "LA",
-  Maine: "ME",
-  Maryland: "MD",
-  Massachusetts: "MA",
-  Michigan: "MI",
-  Minnesota: "MN",
-  Mississippi: "MS",
-  Missouri: "MO",
-  Montana: "MT",
-  Nebraska: "NE",
-  Nevada: "NV",
-  "New Hampshire": "NH",
-  "New Jersey": "NJ",
-  "New Mexico": "NM",
-  "New York": "NY",
-  "North Carolina": "NC",
-  "North Dakota": "ND",
-  Ohio: "OH",
-  Oklahoma: "OK",
-  Oregon: "OR",
-  Pennsylvania: "PA",
-  "Rhode Island": "RI",
-  "South Carolina": "SC",
-  "South Dakota": "SD",
-  Tennessee: "TN",
-  Texas: "TX",
-  Utah: "UT",
-  Vermont: "VT",
-  Virginia: "VA",
-  Washington: "WA",
-  "West Virginia": "WV",
-  Wisconsin: "WI",
-  Wyoming: "WY"
+  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
+  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
+  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS",
+  Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA",
+  Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO", Montana: "MT",
+  Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
+  "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK",
+  Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC",
+  "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT",
+  Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY"
 };
 
 function colorForTier(tier, selected) {
   const t = String(tier || "").toLowerCase();
   if (selected) return "#fbbf24";
-  if (t === "critical") return "#ef4444";
+  if (t === "critical" || t === "elevated") return "#ef4444";
   if (t === "watch") return "#f59e0b";
-  if (t === "priority") return "#38bdf8";
+  if (t === "priority" || t === "monitor") return "#38bdf8";
   return "#334155";
+}
+
+function matchesFilters(item, filters) {
+  if (!item) return false;
+  if (filters.state && item.state !== filters.state) return false;
+  if (filters.office && item.office !== filters.office) return false;
+  if (filters.risk && item.overlayTier !== filters.risk && item.risk !== filters.risk) return false;
+  return true;
 }
 
 function BattlegroundRow({ item, onSelect, selected }) {
@@ -88,7 +52,7 @@ function BattlegroundRow({ item, onSelect, selected }) {
           { label: "Tier", value: item.overlayTier }
         ]}
         alert={
-          String(item.overlayTier || "").toLowerCase() === "critical"
+          String(item.overlayTier || "").toLowerCase() === "critical" || String(item.overlayTier || "").toLowerCase() === "elevated"
             ? "vs-live-dot"
             : String(item.overlayTier || "").toLowerCase() === "watch"
             ? "vs-live-dot-warning"
@@ -99,7 +63,7 @@ function BattlegroundRow({ item, onSelect, selected }) {
             tone={
               selected
                 ? "accent"
-                : String(item.overlayTier || "").toLowerCase() === "critical"
+                : String(item.overlayTier || "").toLowerCase() === "critical" || String(item.overlayTier || "").toLowerCase() === "elevated"
                 ? "danger"
                 : String(item.overlayTier || "").toLowerCase() === "watch"
                 ? "demo"
@@ -120,30 +84,10 @@ const fallbackData = {
     overlays: 8
   },
   battlegrounds: [
-    {
-      state: "Georgia",
-      office: "Senate",
-      overlayScore: 82,
-      overlayTier: "critical"
-    },
-    {
-      state: "Pennsylvania",
-      office: "Governor",
-      overlayScore: 74,
-      overlayTier: "watch"
-    },
-    {
-      state: "Arizona",
-      office: "Senate",
-      overlayScore: 71,
-      overlayTier: "watch"
-    },
-    {
-      state: "Michigan",
-      office: "House",
-      overlayScore: 66,
-      overlayTier: "priority"
-    }
+    { state: "Georgia", office: "Senate", overlayScore: 82, overlayTier: "Elevated" },
+    { state: "Pennsylvania", office: "Governor", overlayScore: 74, overlayTier: "Watch" },
+    { state: "Arizona", office: "Senate", overlayScore: 71, overlayTier: "Watch" },
+    { state: "Michigan", office: "House", overlayScore: 66, overlayTier: "Monitor" }
   ]
 };
 
@@ -153,6 +97,7 @@ export default function ElectionMap() {
   const [mapData, setMapData] = useState(fallbackData);
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
+  const { filters } = useExecutiveFilters();
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -176,17 +121,11 @@ export default function ElectionMap() {
 
         setMapData({
           summary: payload.summary || fallbackData.summary,
-          battlegrounds: payload.battlegrounds?.length
-            ? payload.battlegrounds
-            : fallbackData.battlegrounds
+          battlegrounds: payload.battlegrounds?.length ? payload.battlegrounds : fallbackData.battlegrounds
         });
       } catch (err) {
         if (!active) return;
-        setError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load election map"
-        );
+        setError(err?.response?.data?.error || err?.message || "Failed to load election map");
         setMapData(fallbackData);
       } finally {
         if (active) setLoading(false);
@@ -201,8 +140,8 @@ export default function ElectionMap() {
   }, []);
 
   const battlegrounds = useMemo(
-    () => mapData.battlegrounds || [],
-    [mapData.battlegrounds]
+    () => (mapData.battlegrounds || []).filter((item) => matchesFilters(item, filters)),
+    [mapData.battlegrounds, filters]
   );
 
   const battlegroundByCode = useMemo(() => {
@@ -214,8 +153,7 @@ export default function ElectionMap() {
     return map;
   }, [battlegrounds]);
 
-  const selectedState =
-    selected || hovered || battlegrounds[0] || null;
+  const selectedState = selected || hovered || battlegrounds[0] || null;
 
   return (
     <PageShell
@@ -225,58 +163,34 @@ export default function ElectionMap() {
       demo={demoMode}
       demoText="Demo map mode is active. Battleground overlays and state pressure are preloaded for presentation."
       tickerItems={[
-        { label: "Tracked States", value: `${mapData.summary?.trackedStates || 0}`, dotClass: "vs-live-dot-success" },
-        { label: "Critical", value: `${battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "critical").length}`, dotClass: "vs-live-dot" },
-        { label: "Watch", value: `${battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "watch").length}`, dotClass: "vs-live-dot-warning" }
+        { label: "Tracked States", value: `${battlegrounds.length}`, dotClass: "vs-live-dot-success" },
+        { label: "Critical", value: `${battlegrounds.filter((b) => ["critical", "elevated"].includes(String(b.overlayTier || "").toLowerCase())).length}`, dotClass: "vs-live-dot" },
+        { label: "Watch", value: `${battlegrounds.filter((b) => String(b.overlayTier || "").toLowerCase() === "watch").length}`, dotClass: "vs-live-dot-warning" }
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
-        <StatCard
-          label="Tracked States"
-          value={mapData.summary?.trackedStates || 0}
-          subtext="States in the overlay layer"
-        />
-        <StatCard
-          label="Overlay Zones"
-          value={mapData.summary?.overlays || 0}
-          subtext="Priority map signals"
-        />
-        <StatCard
-          label="Critical Battlegrounds"
-          value={battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "critical").length}
-          subtext="Highest-pressure states"
-        />
-        <StatCard
-          label="Watch States"
-          value={battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "watch").length}
-          subtext="Emerging movement"
-        />
+        <StatCard label="Tracked States" value={battlegrounds.length} subtext="States matching executive filters" />
+        <StatCard label="Overlay Zones" value={mapData.summary?.overlays || 0} subtext="Priority map signals" />
+        <StatCard label="Critical Battlegrounds" value={battlegrounds.filter((b) => ["critical", "elevated"].includes(String(b.overlayTier || "").toLowerCase())).length} subtext="Highest-pressure states" />
+        <StatCard label="Watch States" value={battlegrounds.filter((b) => String(b.overlayTier || "").toLowerCase() === "watch").length} subtext="Emerging movement" />
       </div>
 
       <div className="vs-grid-2">
-        <SectionCard
-          title="Interactive United States Map"
-          subtitle="Hover a state to inspect it. Click a battleground to pin its details."
-          right={<Badge tone="info">Interactive</Badge>}
-        >
+        <SectionCard title="Interactive United States Map" subtitle="This map is now driven by your executive filters." right={<Badge tone="info">Interactive</Badge>}>
           {loading ? (
             <EmptyState text="Loading map overlays..." />
           ) : (
             <div className="vs-card-muted" style={{ padding: "12px" }}>
-              <ComposableMap
-                projection="geoAlbersUsa"
-                style={{ width: "100%", height: "auto" }}
-              >
+              <ComposableMap projection="geoAlbersUsa" style={{ width: "100%", height: "auto" }}>
                 <Geographies geography={GEO_URL}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
                       const stateName = geo.properties.name;
                       const code = stateNameToCode[stateName];
                       const item = battlegroundByCode[code];
-                      const isSelected =
-                        selectedState && selectedState.state === stateName;
+                      const isSelected = selectedState && selectedState.state === stateName;
 
                       return (
                         <Geography
@@ -320,13 +234,13 @@ export default function ElectionMap() {
                 {selectedState ? (
                   <ResponsiveRow
                     title={`${selectedState.state} • ${selectedState.office}`}
-                    subtitle="Live selected state from the national map."
+                    subtitle="Live selected state from the filtered national map."
                     meta={[
                       { label: "Overlay Score", value: selectedState.overlayScore },
                       { label: "Tier", value: selectedState.overlayTier }
                     ]}
                     alert={
-                      String(selectedState.overlayTier || "").toLowerCase() === "critical"
+                      ["critical", "elevated"].includes(String(selectedState.overlayTier || "").toLowerCase())
                         ? "vs-live-dot"
                         : String(selectedState.overlayTier || "").toLowerCase() === "watch"
                         ? "vs-live-dot-warning"
@@ -335,33 +249,16 @@ export default function ElectionMap() {
                     right={<Badge tone="accent">Selected</Badge>}
                   />
                 ) : (
-                  <EmptyState text="Hover or click a battleground state on the map." />
+                  <EmptyState text="No states match the active executive filters." />
                 )}
               </div>
             </div>
           )}
         </SectionCard>
 
-        <SectionCard
-          title="Battleground State Board"
-          subtitle="States and races requiring immediate strategic visibility."
-          right={<Badge tone="accent">{battlegrounds.length} active</Badge>}
-        >
+        <SectionCard title="Battleground State Board" subtitle="These entries now stay synchronized with dashboard filters." right={<Badge tone="accent">{battlegrounds.length} active</Badge>}>
           <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading battleground states..." />
-            ) : !battlegrounds.length ? (
-              <EmptyState text="No battleground states available." />
-            ) : (
-              battlegrounds.map((item) => (
-                <BattlegroundRow
-                  key={`${item.state}-${item.office}`}
-                  item={item}
-                  onSelect={setSelected}
-                  selected={selected?.state === item.state}
-                />
-              ))
-            )}
+            {loading ? <EmptyState text="Loading battleground states..." /> : !battlegrounds.length ? <EmptyState text="No battleground states available for the current filters." /> : battlegrounds.map((item) => <BattlegroundRow key={`${item.state}-${item.office}`} item={item} onSelect={setSelected} selected={selected?.state === item.state} />)}
           </div>
         </SectionCard>
       </div>
