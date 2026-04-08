@@ -1,35 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
-  clearStoredAuth, 
+  clearStoredAuth,
   getStoredToken,
   getStoredUser,
   setStoredAuth,
 } from "../lib/auth";
 import { hasPlanAccess, normalizePlan } from "../lib/plan";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:10000";
+import { authApi } from "../services/api";
 
 const AuthContext = createContext(null);
-
-async function authRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-
-  return data;
-}
 
 function normalizeUser(user) {
   if (!user) return null;
@@ -59,46 +38,62 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function bootstrap() {
       try {
         const existingToken = getStoredToken();
 
         if (!existingToken) {
-          setLoading(false);
+          if (active) setLoading(false);
           return;
         }
 
-        const data = await authRequest("/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${existingToken}`,
-          },
-        });
+        const data = await authApi.me();
+        const normalizedUser = normalizeUser(data?.user || data);
 
-        const normalizedUser = normalizeUser(data.user);
+        if (!normalizedUser) {
+          throw new Error("Unable to load authenticated user");
+        }
 
         setStoredAuth(existingToken, normalizedUser);
+
+        if (!active) return;
+
         setToken(existingToken);
         setUser(normalizedUser);
       } catch (error) {
         console.error("Auth bootstrap failed:", error);
         clearStoredAuth();
+
+        if (!active) return;
+
         setToken("");
         setUser(null);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
     bootstrap();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  async function login(email, password) {
-    const data = await authRequest("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+  async function login(emailOrPayload, passwordArg) {
+    const payload =
+      typeof emailOrPayload === "object" && emailOrPayload !== null
+        ? emailOrPayload
+        : { email: emailOrPayload, password: passwordArg };
 
-    const normalizedUser = normalizeUser(data.user);
+    const data = await authApi.login(payload);
+    const normalizedUser = normalizeUser(data?.user);
+
+    if (!data?.token) {
+      throw new Error("Login response did not include a token");
+    }
 
     setStoredAuth(data.token, normalizedUser);
     setToken(data.token);
@@ -108,12 +103,12 @@ export function AuthProvider({ children }) {
   }
 
   async function signup(payload) {
-    const data = await authRequest("/api/auth/signup", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const data = await authApi.signup(payload);
+    const normalizedUser = normalizeUser(data?.user);
 
-    const normalizedUser = normalizeUser(data.user);
+    if (!data?.token) {
+      throw new Error("Signup response did not include a token");
+    }
 
     setStoredAuth(data.token, normalizedUser);
     setToken(data.token);
@@ -123,17 +118,15 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshMe() {
-    if (!token) return null;
+    const existingToken = getStoredToken();
 
-    const data = await authRequest("/api/auth/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    if (!existingToken) return null;
 
-    const normalizedUser = normalizeUser(data.user);
+    const data = await authApi.me();
+    const normalizedUser = normalizeUser(data?.user || data);
 
-    setStoredAuth(token, normalizedUser);
+    setStoredAuth(existingToken, normalizedUser);
+    setToken(existingToken);
     setUser(normalizedUser);
 
     return normalizedUser;
