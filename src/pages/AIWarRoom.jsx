@@ -83,6 +83,7 @@ function ThreatRow({ item }) {
         { label: "Source", value: item.source },
         { label: "Velocity", value: item.velocity }
       ]}
+      alert={String(item.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
       right={<Badge tone={severityTone(item.severity)}>{item.severity}</Badge>}
     />
   );
@@ -97,6 +98,7 @@ function QueueRow({ item }) {
         { label: "Priority", value: item.priority },
         { label: "ETA", value: item.eta }
       ]}
+      alert={String(item.priority || "").toLowerCase() === "p1" ? "vs-live-dot" : "vs-live-dot-warning"}
       right={
         <Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>
           {item.priority}
@@ -111,10 +113,9 @@ function SignalRow({ item }) {
     <ResponsiveRow
       title={item.channel}
       subtitle={item.text}
-      meta={[
-        { label: "Time", value: item.time }
-      ]}
-      right={<Badge tone="accent">{item.channel}</Badge>}
+      meta={[{ label: "Time", value: item.time }]}
+      alert="vs-live-dot-success"
+      right={<Badge tone="info">{item.channel}</Badge>}
     />
   );
 }
@@ -123,6 +124,7 @@ export default function AIWarRoom() {
   const fetcher = useCallback(() => api.warRoom(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
   const [liveBanner, setLiveBanner] = useState("");
+
   const demoMode =
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
@@ -132,35 +134,21 @@ export default function AIWarRoom() {
 
     if (event.type === "warroom.threat_detected") {
       const threat = event.payload || {};
-
       setLiveBanner(`Live threat detected: ${threat.title || "New war room threat"}`);
 
       setData((prev) => ({
         ...(prev || fallbackData),
-        threats: [
-          {
-            id: `live-threat-${Date.now()}`,
-            ...threat
-          },
-          ...(prev?.threats || [])
-        ].slice(0, 8)
+        threats: [{ id: `live-threat-${Date.now()}`, ...threat }, ...(prev?.threats || [])].slice(0, 8)
       }));
     }
 
     if (event.type === "warroom.signal_detected") {
       const signal = event.payload || {};
-
       setLiveBanner(`Live signal detected: ${signal.channel || "New signal"}`);
 
       setData((prev) => ({
         ...(prev || fallbackData),
-        signals: [
-          {
-            id: `live-signal-${Date.now()}`,
-            ...signal
-          },
-          ...(prev?.signals || [])
-        ].slice(0, 8)
+        signals: [{ id: `live-signal-${Date.now()}`, ...signal }, ...(prev?.signals || [])].slice(0, 8)
       }));
     }
   });
@@ -175,6 +163,10 @@ export default function AIWarRoom() {
   const queue = useMemo(() => data?.queue || [], [data]);
   const signals = useMemo(() => data?.signals || [], [data]);
 
+  const highThreats = threats.filter(
+    (item) => String(item.severity || "").toLowerCase() === "high"
+  ).length;
+
   return (
     <PageShell
       eyebrow="AI War Room"
@@ -182,21 +174,14 @@ export default function AIWarRoom() {
       description="AI War Room watches message velocity, media framing, donor sentiment, and emerging attack patterns so your campaign can respond with speed and precision."
       demo={demoMode}
       demoText="Demo campaign is live: threat feed, response queue, and signal stream are simulated for presentation."
+      tickerItems={[
+        { label: "High Threats", value: `${highThreats}`, dotClass: "vs-live-dot" },
+        { label: "Response Queue", value: `${queue.length} live`, dotClass: "vs-live-dot-warning" },
+        { label: "Signal Stream", value: `${signals.length} active`, dotClass: "vs-live-dot-success" }
+      ]}
     >
-      {error ? (
-        <div
-          className="vs-banner"
-          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
-        >
-          {error}
-        </div>
-      ) : null}
-
-      {liveBanner ? (
-        <div className="vs-banner" style={{ borderColor: "var(--vs-border)", background: "var(--vs-surface)", color: "var(--vs-text)" }}>
-          {liveBanner}
-        </div>
-      ) : null}
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+      {liveBanner ? <div className="vs-banner">{liveBanner}</div> : null}
 
       <div className="vs-grid-4">
         {(data?.metrics || []).map((metric, index) => (
@@ -221,35 +206,25 @@ export default function AIWarRoom() {
           ) : !threats.length ? (
             <EmptyState text="No active threats available." />
           ) : (
-            threats.map((item) => (
-              <ThreatRow key={item.id || item.title} item={item} />
-            ))
+            threats.map((item) => <ThreatRow key={item.id || item.title} item={item} />)
           )}
         </div>
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard
-          title="Response Queue"
-          subtitle="Immediate tactical moves for the next cycle."
-        >
+        <SectionCard title="Response Queue" subtitle="Immediate tactical moves for the next cycle.">
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading response queue..." />
             ) : !queue.length ? (
               <EmptyState text="No response queue items available." />
             ) : (
-              queue.map((item) => (
-                <QueueRow key={item.id || item.item} item={item} />
-              ))
+              queue.map((item) => <QueueRow key={item.id || item.item} item={item} />)
             )}
           </div>
         </SectionCard>
 
-        <SectionCard
-          title="Signal Stream"
-          subtitle="Cross-channel intelligence entering the terminal."
-        >
+        <SectionCard title="Signal Stream" subtitle="Cross-channel intelligence entering the terminal.">
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading signal stream..." />
