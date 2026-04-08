@@ -8,8 +8,8 @@ export default function SectionCard({ title, subtitle, right, children }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          gap: "1rem",
-          marginBottom: "1.1rem",
+          gap: "12px",
+          marginBottom: "12px",
           flexWrap: "wrap"
         }}
       >
