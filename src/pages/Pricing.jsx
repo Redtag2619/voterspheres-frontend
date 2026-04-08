@@ -2,14 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getBillingConfig,
-  createCheckoutSession,
-  createPortalSession
+  createCheckoutSession
 } from "../api/billing";
-import { useAuth } from "../context/AuthContext";
-import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
-import Badge from "../components/ui/Badge";
-import EmptyState from "../components/ui/EmptyState";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const PLAN_META = {
   starter: {
@@ -17,13 +12,12 @@ const PLAN_META = {
     name: "Starter",
     price: "$99",
     period: "/mo",
-    description:
-      "Professional entry point for campaigns and firms that need a modern operating workspace.",
+    description: "Professional entry point for campaign operators who need a clean command workspace.",
     features: [
-      "Core campaign workspace",
-      "Candidate and vendor tracking",
-      "Basic dashboard intelligence",
-      "Campaign operations foundation"
+      "Executive dashboard access",
+      "Candidate and vendor management",
+      "Map and forecast visibility",
+      "Core campaign workspace"
     ]
   },
   pro: {
@@ -31,13 +25,12 @@ const PLAN_META = {
     name: "Pro",
     price: "$149",
     period: "/mo",
-    description:
-      "For active campaigns that need stronger execution visibility, intelligence, and planning tools.",
+    description: "For active firms and campaigns that need stronger intelligence, finance, and operations visibility.",
     features: [
       "Everything in Starter",
-      "Forecast access",
-      "Expanded intelligence views",
-      "Enhanced campaign operations"
+      "Fundraising and rankings access",
+      "Expanded intelligence workflows",
+      "Deeper operational monitoring"
     ]
   },
   enterprise: {
@@ -45,85 +38,103 @@ const PLAN_META = {
     name: "Enterprise",
     price: "$499",
     period: "/mo",
-    description:
-      "Full operating system for live campaign command, intelligence fusion, and executive control.",
+    description: "Full operating system for command center execution, war room intelligence, and client-grade demos.",
     features: [
       "Everything in Pro",
       "AI War Room",
       "Command Center",
-      "Live demo and executive workflows",
-      "Enterprise-scale operating access"
+      "Billing and enterprise workflows",
+      "Premium demo environment"
     ]
   }
 };
 
-function PlanCard({
-  plan,
-  currentPlan,
-  billingTestMode,
-  loadingKey,
-  onChoose
-}) {
+function PlanCard({ plan, currentPlan, billingTestMode, loadingKey, onChoose }) {
   const isCurrent = String(currentPlan || "").toLowerCase() === plan.key;
 
   return (
-    <div className="vs-card">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "1rem",
-          alignItems: "flex-start"
-        }}
-      >
+    <div
+      style={{
+        border: "1px solid #273142",
+        background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
+        borderRadius: "22px",
+        padding: "22px",
+        boxShadow: "0 18px 40px rgba(0,0,0,0.34)",
+        display: "grid",
+        alignContent: "start"
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start" }}>
         <div>
-          <div className="vs-eyebrow" style={{ marginTop: 0 }}>{plan.name}</div>
-          <div className="vs-title" style={{ marginTop: "0.75rem", fontSize: "2.5rem" }}>
+          <div
+            style={{
+              fontSize: "11px",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              color: "#f59e0b",
+              fontWeight: 900
+            }}
+          >
+            {plan.name}
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              fontSize: "42px",
+              lineHeight: 1,
+              fontWeight: 900,
+              letterSpacing: "-0.03em"
+            }}
+          >
             {plan.price}
-            <span
-              style={{
-                marginLeft: "0.35rem",
-                fontSize: "1rem",
-                fontWeight: 500,
-                color: "var(--vs-text-muted)"
-              }}
-            >
+            <span style={{ marginLeft: "6px", fontSize: "16px", color: "#95a2b3", fontWeight: 600 }}>
               {plan.period}
             </span>
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: "0.5rem", justifyItems: "end" }}>
-          {billingTestMode ? <Badge tone="demo">Demo checkout</Badge> : null}
-          {isCurrent ? <Badge tone="active">Current plan</Badge> : null}
+        <div className="vs-chip-row">
+          {billingTestMode ? <span className="vs-badge vs-badge-demo">Demo checkout</span> : null}
+          {isCurrent ? <span className="vs-badge vs-badge-active">Current</span> : null}
         </div>
       </div>
 
-      <p className="vs-description" style={{ maxWidth: "100%", marginTop: "1rem" }}>
+      <p style={{ marginTop: "16px", fontSize: "14px", lineHeight: 1.7, color: "#95a2b3" }}>
         {plan.description}
       </p>
 
-      <div className="vs-stack" style={{ marginTop: "1.5rem" }}>
+      <div style={{ marginTop: "18px", display: "grid", gap: "10px" }}>
         {plan.features.map((feature) => (
-          <div key={feature} style={{ fontSize: "0.92rem", color: "var(--vs-text)" }}>
-            • {feature}
+          <div
+            key={feature}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontSize: "14px",
+              color: "#dbe3ec"
+            }}
+          >
+            <span className="vs-live-dot-success" />
+            <span>{feature}</span>
           </div>
         ))}
       </div>
 
       <button
         type="button"
+        className="vs-button vs-button-primary"
+        style={{ marginTop: "22px", width: "100%" }}
         onClick={() => onChoose(plan)}
         disabled={loadingKey === plan.key}
-        className="vs-button vs-button-primary"
-        style={{ width: "100%", marginTop: "2rem" }}
       >
         {loadingKey === plan.key
           ? billingTestMode
             ? "Starting demo..."
             : "Redirecting..."
           : isCurrent
-          ? "Manage Current Plan"
+          ? "Current Plan"
           : billingTestMode
           ? `Start ${plan.name} Demo`
           : `Choose ${plan.name}`}
@@ -141,8 +152,7 @@ export default function Pricing() {
   const [loadingKey, setLoadingKey] = useState("");
   const [error, setError] = useState("");
 
-  const currentPlan =
-    user?.plan_tier || user?.planTier || "starter";
+  const currentPlan = user?.plan_tier || user?.planTier || "starter";
 
   useEffect(() => {
     let active = true;
@@ -151,9 +161,7 @@ export default function Pricing() {
       try {
         setLoadingConfig(true);
         setError("");
-
         const data = await getBillingConfig();
-
         if (!active) return;
         setConfig(data);
       } catch (err) {
@@ -187,18 +195,6 @@ export default function Pricing() {
       setLoadingKey(plan.key);
       setError("");
 
-      if (String(currentPlan || "").toLowerCase() === plan.key) {
-        const portal = await createPortalSession();
-
-        if (portal?.url) {
-          window.location.href = portal.url;
-          return;
-        }
-
-        navigate("/billing");
-        return;
-      }
-
       const checkout = await createCheckoutSession({
         priceId: plan.priceId
       });
@@ -208,7 +204,7 @@ export default function Pricing() {
         return;
       }
 
-      throw new Error("Checkout session did not return a URL");
+      navigate("/billing");
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -223,28 +219,103 @@ export default function Pricing() {
   const billingTestMode = Boolean(config?.billing_test_mode);
 
   return (
-    <PageShell
-      eyebrow="VoterSpheres Pricing"
-      title="Choose the operating mode that fits your campaign."
-      description="Upgrade access to unlock deeper intelligence, executive workflows, and the full VoterSpheres operating system."
-      demo={billingTestMode}
-      demoText="Demo checkout is active. Plan selection will simulate checkout locally and route you through the billing success flow without using Stripe."
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top right, rgba(245,158,11,0.08), transparent 22%), linear-gradient(180deg, #0b0f14 0%, #0e131a 100%)",
+        color: "#eef2f7",
+        padding: "24px"
+      }}
     >
-      {error ? (
-        <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
-          {error}
-        </div>
-      ) : null}
+      <div style={{ maxWidth: "1320px", margin: "0 auto", display: "grid", gap: "18px" }}>
+        <section
+          style={{
+            border: "1px solid #273142",
+            background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
+            borderRadius: "24px",
+            padding: "28px",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.34)"
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              textTransform: "uppercase",
+              letterSpacing: "0.22em",
+              color: "#f59e0b",
+              fontWeight: 900
+            }}
+          >
+            VoterSpheres Pricing
+          </div>
 
-      <SectionCard
-        title="Subscription Plans"
-        subtitle="Professional pricing aligned with your Stripe plans."
-        right={<Badge tone="active">Current plan: {currentPlan}</Badge>}
-      >
+          <h1
+            style={{
+              marginTop: "14px",
+              fontSize: "44px",
+              lineHeight: 1.02,
+              fontWeight: 900,
+              letterSpacing: "-0.03em",
+              maxWidth: "780px"
+            }}
+          >
+            Premium campaign intelligence plans built for serious operators.
+          </h1>
+
+          <p
+            style={{
+              marginTop: "14px",
+              maxWidth: "820px",
+              fontSize: "15px",
+              lineHeight: 1.75,
+              color: "#95a2b3"
+            }}
+          >
+            Choose the operating tier that fits your campaign or consulting firm. From polished
+            command visibility to enterprise-grade intelligence workflows, every plan is built to
+            look client-ready and perform like a real operating system.
+          </p>
+
+          <div className="vs-terminal-strip">
+            <div className="vs-terminal-ticker">
+              <span className="vs-live-dot-success" />
+              <strong>Starter</strong>
+              <span>$99</span>
+            </div>
+            <div className="vs-terminal-ticker">
+              <span className="vs-live-dot-warning" />
+              <strong>Pro</strong>
+              <span>$149</span>
+            </div>
+            <div className="vs-terminal-ticker">
+              <span className="vs-live-dot" />
+              <strong>Enterprise</strong>
+              <span>$499</span>
+            </div>
+          </div>
+
+          {billingTestMode ? (
+            <div className="vs-banner" style={{ color: "#fbbf24" }}>
+              Demo checkout is active. Plan selection can simulate checkout without hitting Stripe.
+            </div>
+          ) : null}
+
+          {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+        </section>
+
         {loadingConfig ? (
-          <EmptyState text="Loading pricing plans..." />
+          <div className="vs-loading-screen" style={{ minHeight: "220px" }}>
+            <div className="vs-loading-card">Loading plans...</div>
+          </div>
         ) : (
-          <div className="vs-grid-3">
+          <section
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: "18px"
+            }}
+          >
             {plans.map((plan) => (
               <PlanCard
                 key={plan.key}
@@ -255,9 +326,53 @@ export default function Pricing() {
                 onChoose={handleChoosePlan}
               />
             ))}
-          </div>
+          </section>
         )}
-      </SectionCard>
-    </PageShell>
+
+        <section
+          style={{
+            border: "1px solid #273142",
+            background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
+            borderRadius: "24px",
+            padding: "22px",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.34)"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "14px",
+              flexWrap: "wrap",
+              alignItems: "center"
+            }}
+          >
+            <div>
+              <div className="vs-section-title">Need access now?</div>
+              <div className="vs-section-subtitle">
+                Create your account and return here anytime to upgrade or manage billing.
+              </div>
+            </div>
+
+            <div className="vs-inline-actions">
+              <button
+                type="button"
+                className="vs-button vs-button-secondary"
+                onClick={() => navigate("/login")}
+              >
+                Go to Login
+              </button>
+              <button
+                type="button"
+                className="vs-button vs-button-primary"
+                onClick={() => navigate("/signup")}
+              >
+                Create Account
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
