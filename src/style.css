@@ -4,28 +4,21 @@
 
 :root {
   color-scheme: dark;
-  --vs-bg: #0a0d12;
-  --vs-surface: #11161d;
-  --vs-surface-2: #161c24;
-  --vs-surface-3: #0f141b;
-  --vs-border: #232b36;
-  --vs-text: #f3f4f6;
-  --vs-text-muted: #98a2b3;
+  --vs-bg: #0b0f14;
+  --vs-surface: #121821;
+  --vs-surface-2: #161d27;
+  --vs-surface-3: #10161d;
+  --vs-border: #273142;
+  --vs-text: #eef2f7;
+  --vs-text-muted: #95a2b3;
   --vs-accent: #f59e0b;
   --vs-accent-soft: rgba(245, 158, 11, 0.12);
   --vs-success: #22c55e;
-  --vs-success-soft: rgba(34, 197, 94, 0.12);
-  --vs-warning: #f59e0b;
-  --vs-warning-soft: rgba(245, 158, 11, 0.12);
   --vs-danger: #ef4444;
-  --vs-danger-soft: rgba(239, 68, 68, 0.12);
+  --vs-warning: #f59e0b;
   --vs-info: #38bdf8;
-  --vs-info-soft: rgba(56, 189, 248, 0.12);
   --vs-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
-  --vs-shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.22);
-  --vs-radius-xl: 14px;
-  --vs-radius-2xl: 18px;
-  --vs-radius-3xl: 22px;
+  --vs-shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
 html,
@@ -63,80 +56,209 @@ textarea {
   font: inherit;
 }
 
-.vs-page {
+.vs-shell {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.06), transparent 22%),
-    linear-gradient(180deg, #0a0d12 0%, #0d1117 100%);
-  padding: 20px;
-  color: var(--vs-text);
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.05), transparent 22%),
+    linear-gradient(180deg, #0b0f14 0%, #0e131a 100%);
+}
+
+.vs-shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--vs-border);
+  background: rgba(11, 15, 20, 0.94);
+  backdrop-filter: blur(12px);
+}
+
+.vs-shell-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 14px 18px 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.vs-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vs-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vs-accent);
+  color: #0b0f14;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.28);
+}
+
+.vs-brand-copy {
+  min-width: 0;
+}
+
+.vs-brand-name {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: var(--vs-accent);
+  font-weight: 900;
+}
+
+.vs-brand-tagline {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--vs-text-muted);
+}
+
+.vs-brand-live {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--vs-border);
+  background: #11161d;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vs-text-muted);
+  font-weight: 800;
+}
+
+.vs-shell-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.vs-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--vs-border);
+  background: #121821;
+  color: #cfd7e3;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vs-nav-pill-active {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: var(--vs-accent-soft);
+  color: #fbbf24;
+}
+
+.vs-shell-main {
+  padding: 18px;
+}
+
+.vs-page {
+  min-height: auto;
+  padding: 0;
 }
 
 .vs-page-inner {
-  max-width: 1280px;
+  max-width: 1320px;
   margin: 0 auto;
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .vs-hero {
   border: 1px solid var(--vs-border);
-  background: linear-gradient(180deg, #11161d 0%, #0f141b 100%);
-  border-radius: var(--vs-radius-3xl);
+  background: linear-gradient(180deg, #121821 0%, #10161d 100%);
+  border-radius: 22px;
   padding: 20px;
   box-shadow: var(--vs-shadow);
 }
 
 .vs-eyebrow {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
   color: var(--vs-accent);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .vs-title {
   margin-top: 10px;
-  font-size: 30px;
-  line-height: 1.08;
-  font-weight: 800;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.06;
+  font-weight: 850;
+  letter-spacing: -0.03em;
   color: var(--vs-text);
+  max-width: 900px;
 }
 
 .vs-description {
   margin-top: 10px;
   max-width: 860px;
-  color: var(--vs-text-muted);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.7;
+  color: var(--vs-text-muted);
 }
 
 .vs-terminal-strip {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 10px 0 2px;
+  padding-top: 12px;
+}
+
+.vs-terminal-ticker {
+  border: 1px solid var(--vs-border);
+  background: #0f141b;
+  border-radius: 999px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--vs-text-muted);
+}
+
+.vs-terminal-ticker strong {
+  color: var(--vs-text);
+  font-weight: 800;
 }
 
 .vs-banner {
-  margin-top: 14px;
-  border-radius: var(--vs-radius-2xl);
+  margin-top: 12px;
+  border-radius: 16px;
   padding: 12px 14px;
   font-size: 13px;
   line-height: 1.55;
   border: 1px solid var(--vs-border);
-  background: var(--vs-surface-2);
+  background: #131a22;
 }
 
 .vs-banner-demo {
-  border-color: rgba(245, 158, 11, 0.32);
-  background: rgba(245, 158, 11, 0.09);
+  border-color: rgba(245, 158, 11, 0.34);
+  background: rgba(245, 158, 11, 0.08);
   color: #fbbf24;
 }
 
 .vs-banner-danger {
   border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.09);
+  background: rgba(239, 68, 68, 0.08);
   color: #fca5a5;
 }
 
@@ -150,17 +272,17 @@ textarea {
 
 .vs-card {
   border: 1px solid var(--vs-border);
-  background: linear-gradient(180deg, var(--vs-surface) 0%, var(--vs-surface-3) 100%);
-  border-radius: var(--vs-radius-3xl);
-  padding: 18px;
+  background: linear-gradient(180deg, var(--vs-surface) 0%, #111720 100%);
+  border-radius: 20px;
+  padding: 16px;
   box-shadow: var(--vs-shadow);
   min-width: 0;
 }
 
 .vs-card-muted {
   border: 1px solid var(--vs-border);
-  background: linear-gradient(180deg, var(--vs-surface-2) 0%, var(--vs-surface-3) 100%);
-  border-radius: var(--vs-radius-2xl);
+  background: linear-gradient(180deg, var(--vs-surface-2) 0%, #121922 100%);
+  border-radius: 16px;
   padding: 14px;
   box-shadow: var(--vs-shadow-soft);
   min-width: 0;
@@ -169,9 +291,9 @@ textarea {
 .vs-section-title {
   font-size: 15px;
   font-weight: 800;
-  color: var(--vs-text);
   line-height: 1.25;
-  letter-spacing: 0.02em;
+  color: var(--vs-text);
+  letter-spacing: 0.01em;
 }
 
 .vs-section-subtitle {
@@ -179,25 +301,28 @@ textarea {
   font-size: 13px;
   line-height: 1.55;
   color: var(--vs-text-muted);
+  max-width: 720px;
 }
 
 .vs-stat-label {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   color: var(--vs-text-muted);
+  font-weight: 800;
 }
 
 .vs-stat-value {
   margin-top: 8px;
-  font-size: 29px;
+  font-size: clamp(22px, 2vw, 28px);
   line-height: 1.05;
-  font-weight: 800;
+  font-weight: 850;
   color: var(--vs-text);
+  letter-spacing: -0.02em;
 }
 
 .vs-stat-delta {
-  margin-top: 7px;
+  margin-top: 6px;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -218,48 +343,46 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
   gap: 6px;
-  border-radius: 9999px;
+  white-space: nowrap;
+  border-radius: 999px;
   border: 1px solid var(--vs-border);
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  line-height: 1.1;
-  background: var(--vs-surface-2);
-  color: var(--vs-text-muted);
-  white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  background: #121821;
+  color: var(--vs-text-muted);
 }
 
 .vs-badge-demo {
   border-color: rgba(245, 158, 11, 0.34);
-  background: var(--vs-warning-soft);
+  background: rgba(245, 158, 11, 0.1);
   color: #fbbf24;
 }
 
 .vs-badge-active {
   border-color: rgba(34, 197, 94, 0.34);
-  background: var(--vs-success-soft);
+  background: rgba(34, 197, 94, 0.1);
   color: #4ade80;
 }
 
 .vs-badge-accent {
   border-color: rgba(245, 158, 11, 0.34);
-  background: var(--vs-accent-soft);
+  background: rgba(245, 158, 11, 0.1);
   color: #fbbf24;
 }
 
 .vs-badge-danger {
   border-color: rgba(239, 68, 68, 0.34);
-  background: var(--vs-danger-soft);
+  background: rgba(239, 68, 68, 0.1);
   color: #fca5a5;
 }
 
 .vs-badge-info {
   border-color: rgba(56, 189, 248, 0.34);
-  background: var(--vs-info-soft);
+  background: rgba(56, 189, 248, 0.1);
   color: #7dd3fc;
 }
 
@@ -267,89 +390,65 @@ textarea {
 .vs-select,
 .vs-textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--vs-border);
-  background: #0d1218;
+  background: #0f141b;
   border-radius: 14px;
   padding: 12px 14px;
   font-size: 14px;
   color: var(--vs-text);
   outline: none;
-  min-width: 0;
 }
 
 .vs-input::placeholder,
 .vs-textarea::placeholder {
-  color: #6b7280;
+  color: #708090;
 }
 
 .vs-input:focus,
 .vs-select:focus,
 .vs-textarea:focus {
-  border-color: rgba(245, 158, 11, 0.6);
+  border-color: rgba(245, 158, 11, 0.5);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.08);
 }
 
 .vs-button {
-  border: 1px solid transparent;
   border-radius: 14px;
   padding: 11px 14px;
+  min-height: 42px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: 0.18s ease;
-  min-height: 42px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.vs-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  border: 1px solid transparent;
 }
 
 .vs-button-primary {
   background: var(--vs-accent);
-  color: #0a0d12;
-}
-
-.vs-button-primary:hover {
-  filter: brightness(1.04);
+  color: #0b0f14;
 }
 
 .vs-button-secondary {
-  background: #11161d;
+  background: #121821;
   border-color: var(--vs-border);
   color: var(--vs-text);
-}
-
-.vs-button-secondary:hover {
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
 }
 
 .vs-stack {
   display: grid;
   gap: 12px;
-  min-width: 0;
 }
 
 .vs-empty {
   border: 1px solid var(--vs-border);
-  background: linear-gradient(180deg, #11161d 0%, #0f141b 100%);
-  border-radius: var(--vs-radius-2xl);
+  background: #121821;
+  border-radius: 16px;
   padding: 16px;
   color: var(--vs-text-muted);
   font-size: 13px;
   line-height: 1.55;
-  box-shadow: var(--vs-shadow-soft);
 }
 
-.vs-inline-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
+.vs-inline-actions,
 .vs-chip-row {
   display: flex;
   gap: 8px;
@@ -369,10 +468,16 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.vs-live-dot {
+.vs-live-dot,
+.vs-live-dot-warning,
+.vs-live-dot-success {
   width: 8px;
   height: 8px;
-  border-radius: 9999px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.vs-live-dot {
   background: var(--vs-danger);
   box-shadow: 0 0 0 rgba(239, 68, 68, 0.7);
   animation: vs-pulse 1.5s infinite;
@@ -390,20 +495,22 @@ textarea {
   animation: vs-pulse-success 1.5s infinite;
 }
 
-.vs-terminal-ticker {
-  border: 1px solid var(--vs-border);
-  background: #0d1218;
-  border-radius: 9999px;
-  padding: 8px 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--vs-text-muted);
+.vs-loading-screen {
+  min-height: 100vh;
+  background: var(--vs-bg);
+  display: grid;
+  place-items: center;
+  padding: 20px;
 }
 
-.vs-terminal-ticker strong {
+.vs-loading-card {
+  border: 1px solid var(--vs-border);
+  background: var(--vs-surface);
+  border-radius: 20px;
+  padding: 18px 22px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--vs-text);
 }
 
@@ -443,10 +550,6 @@ textarea {
   .vs-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .vs-title {
-    font-size: 34px;
-  }
 }
 
 @media (min-width: 1024px) {
@@ -466,19 +569,29 @@ textarea {
 }
 
 @media (max-width: 767px) {
-  .vs-page {
+  .vs-shell-main {
     padding: 14px;
+  }
+
+  .vs-shell-inner {
+    padding: 12px 14px 10px;
+  }
+
+  .vs-hero,
+  .vs-card,
+  .vs-card-muted {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   .vs-title {
     font-size: 26px;
   }
 
-  .vs-stat-value {
-    font-size: 24px;
-  }
-
-  .vs-badge {
-    white-space: normal;
+  .vs-description,
+  .vs-section-subtitle,
+  .vs-stat-delta,
+  .vs-empty {
+    font-size: 13px;
   }
 }
