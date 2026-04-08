@@ -118,9 +118,15 @@ http.interceptors.response.use(
       });
     }
 
-    if (status === 401) {
-      clearStoredAuth?.();
-    }
+    const requestUrl = error?.config?.url || "";
+const isAuthEndpoint =
+  requestUrl.includes("/auth/login") ||
+  requestUrl.includes("/auth/signup") ||
+  requestUrl.includes("/auth/me");
+
+if (status === 401 && isAuthEndpoint) {
+  clearStoredAuth?.();
+}
 
     return Promise.reject(error);
   }
