@@ -1,168 +1,115 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  ComposableMap,
+  Geographies,
+  Geography
+} from "react-simple-maps";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-function toneFromTier(value) {
-  const v = String(value || "").toLowerCase();
-  if (v === "critical") return "danger";
-  if (v === "watch") return "demo";
-  return "accent";
+const GEO_URL =
+  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
+const stateNameToCode = {
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  Florida: "FL",
+  Georgia: "GA",
+  Hawaii: "HI",
+  Idaho: "ID",
+  Illinois: "IL",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Michigan: "MI",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Montana: "MT",
+  Nebraska: "NE",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY"
+};
+
+function colorForTier(tier, selected) {
+  const t = String(tier || "").toLowerCase();
+  if (selected) return "#fbbf24";
+  if (t === "critical") return "#ef4444";
+  if (t === "watch") return "#f59e0b";
+  if (t === "priority") return "#38bdf8";
+  return "#334155";
 }
 
-function BattlegroundRow({ item }) {
+function BattlegroundRow({ item, onSelect, selected }) {
   return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "1.5fr 1fr 1fr auto",
-          alignItems: "start"
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
-            {item.state} • {item.office}
-          </div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.85rem",
-              color: "var(--vs-text-muted)"
-            }}
+    <div onClick={() => onSelect(item)} style={{ cursor: "pointer" }}>
+      <ResponsiveRow
+        title={`${item.state} • ${item.office}`}
+        subtitle="Overlay score and intelligence priority for this battleground."
+        meta={[
+          { label: "Overlay Score", value: item.overlayScore },
+          { label: "Tier", value: item.overlayTier }
+        ]}
+        alert={
+          String(item.overlayTier || "").toLowerCase() === "critical"
+            ? "vs-live-dot"
+            : String(item.overlayTier || "").toLowerCase() === "watch"
+            ? "vs-live-dot-warning"
+            : "vs-live-dot-success"
+        }
+        right={
+          <Badge
+            tone={
+              selected
+                ? "accent"
+                : String(item.overlayTier || "").toLowerCase() === "critical"
+                ? "danger"
+                : String(item.overlayTier || "").toLowerCase() === "watch"
+                ? "demo"
+                : "info"
+            }
           >
-            Overlay score and intelligence priority for this battleground.
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Overlay Score</div>
-          <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>
-            {item.overlayScore}
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Tier</div>
-          <div style={{ marginTop: "0.35rem" }}>
-            <Badge tone={toneFromTier(item.overlayTier)}>{item.overlayTier}</Badge>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <div
-            style={{
-              width: "90px",
-              height: "10px",
-              borderRadius: "9999px",
-              background: "#e5e7eb",
-              overflow: "hidden",
-              marginTop: "0.4rem"
-            }}
-          >
-            <div
-              style={{
-                width: `${Math.min(Number(item.overlayScore || 0), 100)}%`,
-                height: "100%",
-                borderRadius: "9999px",
-                background: "var(--vs-accent)"
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MapPanel({ items }) {
-  return (
-    <div
-      className="vs-card-muted"
-      style={{
-        minHeight: "420px",
-        display: "grid",
-        placeItems: "center",
-        position: "relative"
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: "620px" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "0.85rem"
-          }}
-        >
-          {[
-            "WA","OR","CA","NV",
-            "AZ","UT","CO","NM",
-            "TX","OK","KS","NE",
-            "SD","ND","MN","IA",
-            "MO","AR","LA","WI",
-            "IL","MI","IN","OH",
-            "KY","TN","MS","AL",
-            "GA","FL","SC","NC",
-            "VA","WV","PA","NY"
-          ].map((stateCode, index) => {
-            const live = (items || []).find((x) =>
-              String(x.state || "").toLowerCase().startsWith(stateCode.toLowerCase())
-            );
-
-            const tone =
-              String(live?.overlayTier || "").toLowerCase() === "critical"
-                ? "#dc2626"
-                : String(live?.overlayTier || "").toLowerCase() === "watch"
-                ? "#d97706"
-                : live
-                ? "#0176d3"
-                : "#cbd5e1";
-
-            return (
-              <div
-                key={`${stateCode}-${index}`}
-                style={{
-                  border: "1px solid var(--vs-border)",
-                  borderRadius: "1rem",
-                  background: "white",
-                  padding: "0.75rem",
-                  minHeight: "64px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  boxShadow: "var(--vs-shadow)"
-                }}
-              >
-                <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--vs-text)" }}>
-                  {stateCode}
-                </div>
-                <div
-                  style={{
-                    marginTop: "0.4rem",
-                    height: "8px",
-                    borderRadius: "9999px",
-                    background: "#e5e7eb",
-                    overflow: "hidden"
-                  }}
-                >
-                  <div
-                    style={{
-                      width: live ? `${Math.min(Number(live.overlayScore || 0), 100)}%` : "18%",
-                      height: "100%",
-                      borderRadius: "9999px",
-                      background: tone
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+            {selected ? "Selected" : item.overlayTier}
+          </Badge>
+        }
+      />
     </div>
   );
 }
@@ -204,6 +151,8 @@ export default function ElectionMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mapData, setMapData] = useState(fallbackData);
+  const [hovered, setHovered] = useState(null);
+  const [selected, setSelected] = useState(null);
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -256,6 +205,18 @@ export default function ElectionMap() {
     [mapData.battlegrounds]
   );
 
+  const battlegroundByCode = useMemo(() => {
+    const map = {};
+    battlegrounds.forEach((item) => {
+      const code = stateNameToCode[item.state];
+      if (code) map[code] = item;
+    });
+    return map;
+  }, [battlegrounds]);
+
+  const selectedState =
+    selected || hovered || battlegrounds[0] || null;
+
   return (
     <PageShell
       eyebrow="Election Map"
@@ -263,15 +224,13 @@ export default function ElectionMap() {
       description="Visualize battleground states, overlay pressure, and race intensity across the modeled campaign landscape."
       demo={demoMode}
       demoText="Demo map mode is active. Battleground overlays and state pressure are preloaded for presentation."
+      tickerItems={[
+        { label: "Tracked States", value: `${mapData.summary?.trackedStates || 0}`, dotClass: "vs-live-dot-success" },
+        { label: "Critical", value: `${battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "critical").length}`, dotClass: "vs-live-dot" },
+        { label: "Watch", value: `${battlegrounds.filter((b) => String(b.overlayTier).toLowerCase() === "watch").length}`, dotClass: "vs-live-dot-warning" }
+      ]}
     >
-      {error ? (
-        <div
-          className="vs-banner"
-          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
-        >
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
         <StatCard
@@ -298,13 +257,88 @@ export default function ElectionMap() {
 
       <div className="vs-grid-2">
         <SectionCard
-          title="National Overlay Grid"
-          subtitle="Visual pressure map for battleground monitoring."
+          title="Interactive United States Map"
+          subtitle="Hover a state to inspect it. Click a battleground to pin its details."
+          right={<Badge tone="info">Interactive</Badge>}
         >
           {loading ? (
             <EmptyState text="Loading map overlays..." />
           ) : (
-            <MapPanel items={battlegrounds} />
+            <div className="vs-card-muted" style={{ padding: "12px" }}>
+              <ComposableMap
+                projection="geoAlbersUsa"
+                style={{ width: "100%", height: "auto" }}
+              >
+                <Geographies geography={GEO_URL}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      const stateName = geo.properties.name;
+                      const code = stateNameToCode[stateName];
+                      const item = battlegroundByCode[code];
+                      const isSelected =
+                        selectedState && selectedState.state === stateName;
+
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          onMouseEnter={() => {
+                            if (item) setHovered(item);
+                          }}
+                          onMouseLeave={() => setHovered(null)}
+                          onClick={() => {
+                            if (item) setSelected(item);
+                          }}
+                          style={{
+                            default: {
+                              fill: colorForTier(item?.overlayTier, isSelected),
+                              outline: "none",
+                              stroke: "#0a0d12",
+                              strokeWidth: 0.8
+                            },
+                            hover: {
+                              fill: "#fbbf24",
+                              outline: "none",
+                              stroke: "#0a0d12",
+                              strokeWidth: 0.8
+                            },
+                            pressed: {
+                              fill: "#f59e0b",
+                              outline: "none",
+                              stroke: "#0a0d12",
+                              strokeWidth: 0.8
+                            }
+                          }}
+                        />
+                      );
+                    })
+                  }
+                </Geographies>
+              </ComposableMap>
+
+              <div style={{ marginTop: "12px" }}>
+                {selectedState ? (
+                  <ResponsiveRow
+                    title={`${selectedState.state} • ${selectedState.office}`}
+                    subtitle="Live selected state from the national map."
+                    meta={[
+                      { label: "Overlay Score", value: selectedState.overlayScore },
+                      { label: "Tier", value: selectedState.overlayTier }
+                    ]}
+                    alert={
+                      String(selectedState.overlayTier || "").toLowerCase() === "critical"
+                        ? "vs-live-dot"
+                        : String(selectedState.overlayTier || "").toLowerCase() === "watch"
+                        ? "vs-live-dot-warning"
+                        : "vs-live-dot-success"
+                    }
+                    right={<Badge tone="accent">Selected</Badge>}
+                  />
+                ) : (
+                  <EmptyState text="Hover or click a battleground state on the map." />
+                )}
+              </div>
+            </div>
           )}
         </SectionCard>
 
@@ -323,6 +357,8 @@ export default function ElectionMap() {
                 <BattlegroundRow
                   key={`${item.state}-${item.office}`}
                   item={item}
+                  onSelect={setSelected}
+                  selected={selected?.state === item.state}
                 />
               ))
             )}
