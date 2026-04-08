@@ -166,32 +166,106 @@ function VendorRow({ vendor }) {
   );
 }
 
-function CommandPill({ label, value, tone = "accent" }) {
+function HeroFlagshipCard({ headline, value, delta, subline, tone = "up" }) {
+  const toneColor =
+    tone === "down"
+      ? "#f87171"
+      : tone === "up"
+      ? "#4ade80"
+      : "#95a2b3";
+
   return (
     <div
-      className="vs-card-muted"
+      className="vs-card"
       style={{
-        padding: "12px 14px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "10px"
+        minHeight: "220px",
+        display: "grid",
+        alignContent: "space-between",
+        background: "linear-gradient(180deg, #151d27 0%, #10161d 100%)"
       }}
     >
       <div>
-        <div className="vs-stat-label">{label}</div>
+        <div className="vs-stat-label">{headline}</div>
         <div
           style={{
-            marginTop: "4px",
-            fontSize: "14px",
-            fontWeight: 800,
+            marginTop: "12px",
+            fontSize: "clamp(44px, 7vw, 72px)",
+            lineHeight: 0.95,
+            fontWeight: 900,
+            letterSpacing: "-0.05em",
             color: "var(--vs-text)"
           }}
         >
           {value}
         </div>
+        <div
+          style={{
+            marginTop: "12px",
+            fontSize: "15px",
+            fontWeight: 800,
+            color: toneColor
+          }}
+        >
+          {delta}
+        </div>
       </div>
-      <Badge tone={tone}>{label}</Badge>
+
+      <div
+        style={{
+          marginTop: "18px",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          color: "var(--vs-text-muted)",
+          maxWidth: "720px"
+        }}
+      >
+        {subline}
+      </div>
+    </div>
+  );
+}
+
+function SecondaryRailCard({ label, value, subtext, badge, badgeTone = "accent", dotClass = "vs-live-dot-warning" }) {
+  return (
+    <div
+      className="vs-card"
+      style={{
+        minHeight: "102px",
+        display: "grid",
+        gap: "10px",
+        alignContent: "space-between"
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span className={dotClass} />
+          <div className="vs-stat-label">{label}</div>
+        </div>
+        <Badge tone={badgeTone}>{badge}</Badge>
+      </div>
+
+      <div>
+        <div
+          style={{
+            fontSize: "28px",
+            lineHeight: 1.05,
+            fontWeight: 850,
+            letterSpacing: "-0.03em"
+          }}
+        >
+          {value}
+        </div>
+        <div
+          style={{
+            marginTop: "8px",
+            fontSize: "13px",
+            lineHeight: 1.6,
+            color: "var(--vs-text-muted)"
+          }}
+        >
+          {subtext}
+        </div>
+      </div>
     </div>
   );
 }
@@ -277,6 +351,11 @@ export default function Dashboard() {
   const topBattleground = (dashboardData.battlegrounds || [])[0] || null;
   const topLeader = (dashboardData.leaderboard || [])[0] || null;
 
+  const flagshipValue = topBattleground?.probability || dashboardData.metrics?.[0]?.value || "61.8";
+  const flagshipDelta = topBattleground
+    ? `${topBattleground.momentum} momentum • ${topBattleground.priority}`
+    : dashboardData.metrics?.[0]?.delta || "+3.1 vs last cycle";
+
   return (
     <PageShell
       eyebrow="Executive Dashboard"
@@ -291,6 +370,52 @@ export default function Dashboard() {
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+
+      <div
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "minmax(0, 1.45fr) minmax(320px, 0.75fr)"
+        }}
+      >
+        <HeroFlagshipCard
+          headline="Flagship KPI • Top Battleground Probability"
+          value={flagshipValue}
+          delta={flagshipDelta}
+          tone="up"
+          subline={
+            topBattleground
+              ? `${topBattleground.race} is currently the top executive race signal on the board, carrying ${topBattleground.risk.toLowerCase()} pressure and ${topBattleground.priority.toLowerCase()} priority.`
+              : "The top modeled campaign probability is the flagship executive metric for this dashboard."
+          }
+        />
+
+        <div style={{ display: "grid", gap: "16px" }}>
+          <SecondaryRailCard
+            label="Threat Pressure"
+            value={highSeverityCount ? `${highSeverityCount} High` : "Contained"}
+            subtext="Current threat environment across the live executive feed."
+            badge={highSeverityCount ? "Escalated" : "Stable"}
+            badgeTone={highSeverityCount ? "danger" : "active"}
+            dotClass={highSeverityCount ? "vs-live-dot" : "vs-live-dot-success"}
+          />
+
+          <SecondaryRailCard
+            label="Lead Fundraiser"
+            value={topLeader ? topLeader.name : "No leader"}
+            subtext={
+              topLeader
+                ? `${formatMoney(topLeader.receipts || 0)} receipts • ${formatMoney(
+                    topLeader.cash_on_hand || 0
+                  )} cash on hand`
+                : "No fundraising leader available."
+            }
+            badge={topLeader ? `#${topLeader.rank}` : "N/A"}
+            badgeTone="accent"
+            dotClass="vs-live-dot-success"
+          />
+        </div>
+      </div>
 
       <div className="vs-grid-4">
         {(dashboardData.metrics || []).map((metric, index) => (
@@ -329,31 +454,17 @@ export default function Dashboard() {
           </div>
         </SectionCard>
 
-        <SectionCard
-          title="Command Rail"
-          subtitle="Fast executive reads."
-        >
+        <SectionCard title="Top Battlegrounds" subtitle="Highest-pressure races right now.">
           <div className="vs-stack">
-            <CommandPill
-              label="Top Race"
-              value={topBattleground ? topBattleground.race : "No battleground"}
-              tone="accent"
-            />
-            <CommandPill
-              label="Lead Finance"
-              value={topLeader ? topLeader.name : "No leader"}
-              tone="active"
-            />
-            <CommandPill
-              label="Vendor Status"
-              value={topVendors.length ? "Operational" : "No active vendors"}
-              tone="info"
-            />
-            <CommandPill
-              label="Threat Pressure"
-              value={highSeverityCount ? `${highSeverityCount} high severity` : "Contained"}
-              tone={highSeverityCount ? "danger" : "active"}
-            />
+            {loading ? (
+              <EmptyState text="Loading battlegrounds..." />
+            ) : !(dashboardData.battlegrounds || []).length ? (
+              <EmptyState text="No battleground data available." />
+            ) : (
+              (dashboardData.battlegrounds || []).slice(0, 3).map((row) => (
+                <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} />
+              ))
+            )}
           </div>
         </SectionCard>
       </div>
@@ -365,24 +476,6 @@ export default function Dashboard() {
           gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)"
         }}
       >
-        <SectionCard
-          title="Battleground Board"
-          subtitle="Critical races and pressure points."
-          right={<Badge tone="accent">{(dashboardData.battlegrounds || []).length} races</Badge>}
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading battlegrounds..." />
-            ) : !(dashboardData.battlegrounds || []).length ? (
-              <EmptyState text="No battleground data available." />
-            ) : (
-              (dashboardData.battlegrounds || []).map((row) => (
-                <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} />
-              ))
-            )}
-          </div>
-        </SectionCard>
-
         <SectionCard
           title="Fundraising Leaders"
           subtitle="Top candidates by receipts and reserve strength."
@@ -400,25 +493,25 @@ export default function Dashboard() {
             )}
           </div>
         </SectionCard>
-      </div>
 
-      <SectionCard
-        title="Operational Vendors"
-        subtitle="Current campaign partners and readiness."
-        right={<Badge tone="active">{topVendors.length} active</Badge>}
-      >
-        <div className="vs-stack">
-          {loading ? (
-            <EmptyState text="Loading vendors..." />
-          ) : !topVendors.length ? (
-            <EmptyState text="No vendors available." />
-          ) : (
-            topVendors.map((vendor) => (
-              <VendorRow key={`${vendor.id}-${vendor.vendor_name}`} vendor={vendor} />
-            ))
-          )}
-        </div>
-      </SectionCard>
+        <SectionCard
+          title="Operational Vendors"
+          subtitle="Current campaign partners and readiness."
+          right={<Badge tone="active">{topVendors.length} active</Badge>}
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading vendors..." />
+            ) : !topVendors.length ? (
+              <EmptyState text="No vendors available." />
+            ) : (
+              topVendors.map((vendor) => (
+                <VendorRow key={`${vendor.id}-${vendor.vendor_name}`} vendor={vendor} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
     </PageShell>
   );
 }
