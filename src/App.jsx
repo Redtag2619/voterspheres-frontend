@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
+import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
 
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
@@ -37,17 +38,23 @@ function NotFound() {
   );
 }
 
+function ShellLayout() {
+  return (
+    <ExecutiveFiltersProvider>
+      <AppShell />
+    </ExecutiveFiltersProvider>
+  );
+}
+
 function AppRoutes() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
-        {/* Public pages */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pricing" element={<Pricing />} />
 
-        {/* Shell pages */}
-        <Route element={<AppShell />}>
+        <Route element={<ShellLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/candidates" element={<Candidates />} />
@@ -65,7 +72,6 @@ function AppRoutes() {
           <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
           <Route path="/billing" element={<Billing />} />
 
-          {/* Backward-compatible aliases */}
           <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
           <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
           <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
