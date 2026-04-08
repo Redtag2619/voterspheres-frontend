@@ -10,10 +10,20 @@ export default function ResponsiveRow({
   return (
     <div className="vs-card-muted">
       <div className="vs-responsive-row">
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", minWidth: 0 }}>
             {alert ? <span className={alert} /> : null}
-            <div style={{ fontWeight: 800, color: "var(--vs-text)" }}>{title}</div>
+            <div
+              style={{
+                fontWeight: 800,
+                color: "var(--vs-text)",
+                fontSize: "14px",
+                lineHeight: 1.35,
+                minWidth: 0
+              }}
+            >
+              {title}
+            </div>
           </div>
 
           {subtitle ? (
@@ -30,18 +40,20 @@ export default function ResponsiveRow({
           ) : null}
         </div>
 
-        <div style={{ display: "grid", gap: "10px" }}>
+        <div style={{ display: "grid", gap: "10px", minWidth: 0 }}>
           {meta.length ? (
             <div className="vs-responsive-meta">
               {meta.map((item, index) => (
-                <div key={`${item.label}-${index}`}>
+                <div key={`${item.label}-${index}`} style={{ minWidth: 0 }}>
                   <div className="vs-stat-label">{item.label}</div>
                   <div
                     style={{
                       marginTop: "5px",
                       fontSize: "13px",
+                      lineHeight: 1.45,
                       fontWeight: 800,
-                      color: "var(--vs-text)"
+                      color: "var(--vs-text)",
+                      wordBreak: "break-word"
                     }}
                   >
                     {item.value}
