@@ -8,6 +8,7 @@ import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 const fallbackData = {
   metrics: [
@@ -17,52 +18,16 @@ const fallbackData = {
     { label: "Signal Confidence", value: "92%", delta: "+ live fusion", tone: "up" }
   ],
   threats: [
-    {
-      id: 1,
-      title: "Cost-of-living attack cluster accelerating in Atlanta media buy",
-      severity: "High",
-      source: "Ad monitoring",
-      velocity: "+44%",
-      recommendation: "Push affordability rebuttal package immediately."
-    },
-    {
-      id: 2,
-      title: "Education narrative gaining traction in local press",
-      severity: "Medium",
-      source: "Media monitoring",
-      velocity: "+21%",
-      recommendation: "Deploy validator-driven education contrast."
-    }
+    { id: 1, title: "Cost-of-living attack cluster accelerating in Atlanta media buy", severity: "High", source: "Ad monitoring", velocity: "+44%", recommendation: "Push affordability rebuttal package immediately.", state: "Georgia", office: "Senate", risk: "Elevated" },
+    { id: 2, title: "Education narrative gaining traction in local press", severity: "Medium", source: "Media monitoring", velocity: "+21%", recommendation: "Deploy validator-driven education contrast.", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ],
   queue: [
-    {
-      id: 1,
-      priority: "P1",
-      owner: "Rapid Response",
-      item: "Draft affordability contrast memo",
-      eta: "30 min"
-    },
-    {
-      id: 2,
-      priority: "P2",
-      owner: "Comms",
-      item: "Refresh surrogate talking points",
-      eta: "2 hrs"
-    }
+    { id: 1, priority: "P1", owner: "Rapid Response", item: "Draft affordability contrast memo", eta: "30 min", state: "Georgia", office: "Senate", risk: "Elevated" },
+    { id: 2, priority: "P2", owner: "Comms", item: "Refresh surrogate talking points", eta: "2 hrs", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ],
   signals: [
-    {
-      id: 1,
-      time: "09:14",
-      channel: "Local TV",
-      text: "Opposition narrative crossed persuadable voter threshold."
-    },
-    {
-      id: 2,
-      time: "09:26",
-      channel: "Digital Monitoring",
-      text: "Education attack language repeating across paid and organic channels."
-    }
+    { id: 1, time: "09:14", channel: "Local TV", text: "Opposition narrative crossed persuadable voter threshold.", state: "Georgia", office: "Senate", risk: "Elevated" },
+    { id: 2, time: "09:26", channel: "Digital Monitoring", text: "Education attack language repeating across paid and organic channels.", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ]
 };
 
@@ -71,6 +36,14 @@ function severityTone(value) {
   if (v === "high") return "danger";
   if (v === "medium") return "demo";
   return "default";
+}
+
+function matchesFilters(item, filters) {
+  if (!item) return false;
+  if (filters.state && item.state !== filters.state) return false;
+  if (filters.office && item.office !== filters.office) return false;
+  if (filters.risk && item.risk !== filters.risk) return false;
+  return true;
 }
 
 function ThreatRow({ item }) {
@@ -99,11 +72,7 @@ function QueueRow({ item }) {
         { label: "ETA", value: item.eta }
       ]}
       alert={String(item.priority || "").toLowerCase() === "p1" ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={
-        <Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>
-          {item.priority}
-        </Badge>
-      }
+      right={<Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>{item.priority}</Badge>}
     />
   );
 }
@@ -124,6 +93,7 @@ export default function AIWarRoom() {
   const fetcher = useCallback(() => api.warRoom(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
   const [liveBanner, setLiveBanner] = useState("");
+  const { filters } = useExecutiveFilters();
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -138,7 +108,16 @@ export default function AIWarRoom() {
 
       setData((prev) => ({
         ...(prev || fallbackData),
-        threats: [{ id: `live-threat-${Date.now()}`, ...threat }, ...(prev?.threats || [])].slice(0, 8)
+        threats: [
+          {
+            id: `live-threat-${Date.now()}`,
+            state: threat.state || "Georgia",
+            office: threat.office || "Senate",
+            risk: threat.risk || "Elevated",
+            ...threat
+          },
+          ...(prev?.threats || [])
+        ].slice(0, 8)
       }));
     }
 
@@ -148,7 +127,16 @@ export default function AIWarRoom() {
 
       setData((prev) => ({
         ...(prev || fallbackData),
-        signals: [{ id: `live-signal-${Date.now()}`, ...signal }, ...(prev?.signals || [])].slice(0, 8)
+        signals: [
+          {
+            id: `live-signal-${Date.now()}`,
+            state: signal.state || "Georgia",
+            office: signal.office || "Senate",
+            risk: signal.risk || "Elevated",
+            ...signal
+          },
+          ...(prev?.signals || [])
+        ].slice(0, 8)
       }));
     }
   });
@@ -159,9 +147,9 @@ export default function AIWarRoom() {
     return () => clearTimeout(timer);
   }, [liveBanner]);
 
-  const threats = useMemo(() => data?.threats || [], [data]);
-  const queue = useMemo(() => data?.queue || [], [data]);
-  const signals = useMemo(() => data?.signals || [], [data]);
+  const threats = useMemo(() => (data?.threats || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
+  const queue = useMemo(() => (data?.queue || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
+  const signals = useMemo(() => (data?.signals || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
 
   const highThreats = threats.filter(
     (item) => String(item.severity || "").toLowerCase() === "high"
@@ -185,56 +173,26 @@ export default function AIWarRoom() {
 
       <div className="vs-grid-4">
         {(data?.metrics || []).map((metric, index) => (
-          <StatCard
-            key={`${metric.label}-${index}`}
-            label={metric.label}
-            value={metric.value}
-            delta={metric.delta}
-            tone={metric.tone}
-          />
+          <StatCard key={`${metric.label}-${index}`} label={metric.label} value={metric.value} delta={metric.delta} tone={metric.tone} />
         ))}
       </div>
 
-      <SectionCard
-        title="Live Threat Board"
-        subtitle="Highest-priority attacks and adverse narrative acceleration."
-        right={<Badge tone="danger">{threats.length} threats</Badge>}
-      >
+      <SectionCard title="Live Threat Board" subtitle="Highest-priority attacks and adverse narrative acceleration." right={<Badge tone="danger">{threats.length} threats</Badge>}>
         <div className="vs-stack">
-          {loading ? (
-            <EmptyState text="Loading threat board..." />
-          ) : !threats.length ? (
-            <EmptyState text="No active threats available." />
-          ) : (
-            threats.map((item) => <ThreatRow key={item.id || item.title} item={item} />)
-          )}
+          {loading ? <EmptyState text="Loading threat board..." /> : !threats.length ? <EmptyState text="No active threats available for the current filters." /> : threats.map((item) => <ThreatRow key={item.id || item.title} item={item} />)}
         </div>
       </SectionCard>
 
       <div className="vs-grid-2">
         <SectionCard title="Response Queue" subtitle="Immediate tactical moves for the next cycle.">
           <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading response queue..." />
-            ) : !queue.length ? (
-              <EmptyState text="No response queue items available." />
-            ) : (
-              queue.map((item) => <QueueRow key={item.id || item.item} item={item} />)
-            )}
+            {loading ? <EmptyState text="Loading response queue..." /> : !queue.length ? <EmptyState text="No response queue items available for the current filters." /> : queue.map((item) => <QueueRow key={item.id || item.item} item={item} />)}
           </div>
         </SectionCard>
 
         <SectionCard title="Signal Stream" subtitle="Cross-channel intelligence entering the terminal.">
           <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading signal stream..." />
-            ) : !signals.length ? (
-              <EmptyState text="No live signals available." />
-            ) : (
-              signals.map((item) => (
-                <SignalRow key={item.id || `${item.time}-${item.channel}`} item={item} />
-              ))
-            )}
+            {loading ? <EmptyState text="Loading signal stream..." /> : !signals.length ? <EmptyState text="No live signals available for the current filters." /> : signals.map((item) => <SignalRow key={item.id || `${item.time}-${item.channel}`} item={item} />)}
           </div>
         </SectionCard>
       </div>
