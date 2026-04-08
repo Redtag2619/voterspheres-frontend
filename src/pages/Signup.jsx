@@ -1,17 +1,9 @@
-import { useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import {
-  clearTrialIntent,
-  getTrialIntent,
-  saveTrialIntent,
-} from "../lib/trialIntent";
-import { getPriceIdForPlan } from "../lib/stripePlans";
-import { createCheckoutSession } from "../api/billing";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { signup } = useAuth();
 
   const [form, setForm] = useState({
@@ -20,331 +12,317 @@ export default function Signup() {
     firm_name: "",
     email: "",
     password: "",
-    role: "admin",
+    role: "admin"
   });
 
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const incomingIntent = useMemo(() => {
-    const stateIntent = location.state || {};
-    const storedIntent = getTrialIntent();
-
-    return {
-      selectedPlan:
-        stateIntent.selectedPlan || storedIntent?.selectedPlan || "",
-      trialDays:
-        Number(stateIntent.trialDays || storedIntent?.trialDays || 7) || 7,
-      source: stateIntent.source || storedIntent?.source || "pricing",
-    };
-  }, [location.state]);
-
-  function updateField(event) {
-    const { name, value } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  }
-
-  async function redirectToCheckout(intent) {
-    const priceId = getPriceIdForPlan(intent.selectedPlan);
-
-    if (!priceId) {
-      throw new Error("Missing Stripe price for selected plan");
-    }
-
-    const frontendBase = window.location.origin;
-    const successUrl = `${frontendBase}/billing?success=1&plan=${intent.selectedPlan}`;
-    const cancelUrl = `${frontendBase}/pricing?canceled=1`;
-
-    const data = await createCheckoutSession({
-      priceId,
-      successUrl,
-      cancelUrl,
-      trialDays: intent.trialDays,
-    });
-
-    if (!data?.url) {
-      throw new Error("Checkout URL not returned");
-    }
-
-    clearTrialIntent();
-    window.location.href = data.url;
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setSubmitting(true);
+  async function handleSubmit(e) {
+    e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
-      if (incomingIntent.selectedPlan) {
-        saveTrialIntent(incomingIntent);
-      }
+      await signup({
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        firm_name: form.firm_name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        role: form.role
+      });
 
-      await signup(form);
-
-      if (incomingIntent.selectedPlan) {
-        await redirectToCheckout(incomingIntent);
-        return;
-      }
-
-      clearTrialIntent();
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Unable to create your account right now."
+          "Signup failed. Please review your details and try again."
       );
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.brand}>VoterSpheres</div>
-        <h1 style={styles.title}>Create your account</h1>
-        <p style={styles.subtitle}>
-          Get set up fast and continue directly into your selected trial.
-        </p>
-
-        {incomingIntent.selectedPlan ? (
-          <div style={styles.intentBox}>
-            <div style={styles.intentBadge}>Selected Trial</div>
-            <div style={styles.intentText}>
-              After signup, you’ll be sent directly to Stripe for your{" "}
-              <strong>{String(incomingIntent.selectedPlan).toUpperCase()}</strong>{" "}
-              plan with a <strong>{incomingIntent.trialDays}-day trial</strong>.
-            </div>
-          </div>
-        ) : null}
-
-        {error ? <div style={styles.error}>{error}</div> : null}
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.grid}>
-            <div style={styles.field}>
-              <label style={styles.label}>First Name</label>
-              <input
-                name="first_name"
-                value={form.first_name}
-                onChange={updateField}
-                style={styles.input}
-                required
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>Last Name</label>
-              <input
-                name="last_name"
-                value={form.last_name}
-                onChange={updateField}
-                style={styles.input}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Firm Name</label>
-            <input
-              name="firm_name"
-              value={form.firm_name}
-              onChange={updateField}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Email</label>
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={updateField}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={updateField}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Role</label>
-            <select
-              name="role"
-              value={form.role}
-              onChange={updateField}
-              style={styles.input}
-            >
-              <option value="admin">Admin</option>
-              <option value="member">Member</option>
-            </select>
-          </div>
-
-          <button type="submit" disabled={submitting} style={styles.primaryButton}>
-            {submitting
-              ? incomingIntent.selectedPlan
-                ? "Creating account and redirecting..."
-                : "Creating account..."
-              : incomingIntent.selectedPlan
-              ? `Create Account & Start ${String(
-                  incomingIntent.selectedPlan
-                ).toUpperCase()} Trial`
-              : "Create Account"}
-          </button>
-        </form>
-
-        <div style={styles.footer}>
-          Already have an account?{" "}
-          <Link
-            to="/login"
-            state={
-              incomingIntent.selectedPlan
-                ? {
-                    selectedPlan: incomingIntent.selectedPlan,
-                    trialDays: incomingIntent.trialDays,
-                    source: incomingIntent.source,
-                  }
-                : undefined
-            }
-            style={styles.link}
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top right, rgba(245,158,11,0.08), transparent 22%), linear-gradient(180deg, #0b0f14 0%, #0e131a 100%)",
+        color: "#eef2f7",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px"
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "1180px",
+          display: "grid",
+          gridTemplateColumns: "1.05fr 0.95fr",
+          gap: "20px"
+        }}
+      >
+        <section
+          style={{
+            border: "1px solid #273142",
+            background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
+            borderRadius: "24px",
+            padding: "28px",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.34)",
+            minHeight: "680px"
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              border: "1px solid rgba(245,158,11,0.24)",
+              background: "rgba(245,158,11,0.08)",
+              borderRadius: "999px",
+              padding: "8px 12px",
+              fontSize: "11px",
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              color: "#fbbf24",
+              fontWeight: 800
+            }}
           >
-            Log in
-          </Link>
-        </div>
+            <span className="vs-live-dot-success" />
+            Platform access
+          </div>
+
+          <h1
+            style={{
+              marginTop: "24px",
+              fontSize: "42px",
+              lineHeight: 1.02,
+              fontWeight: 900,
+              letterSpacing: "-0.03em",
+              maxWidth: "580px"
+            }}
+          >
+            Launch your campaign intelligence workspace.
+          </h1>
+
+          <p
+            style={{
+              marginTop: "16px",
+              maxWidth: "560px",
+              fontSize: "15px",
+              lineHeight: 1.75,
+              color: "#95a2b3"
+            }}
+          >
+            Create your firm account and unlock access to command center visibility, donor and
+            vendor intelligence, forecasting, and AI war room operations.
+          </p>
+
+          <div className="vs-grid-2" style={{ marginTop: "24px" }}>
+            {[
+              {
+                title: "Executive oversight",
+                text: "Premium dashboarding for battlegrounds, finance, and logistics."
+              },
+              {
+                title: "Live operations",
+                text: "Vendor, mail, and war room signals in one operating system."
+              },
+              {
+                title: "Client-ready demos",
+                text: "Presentation-quality screens for firms and campaign leadership."
+              },
+              {
+                title: "Scalable workspace",
+                text: "Built to grow across campaigns, teams, and market coverage."
+              }
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="vs-card-muted"
+                style={{ padding: "16px" }}
+              >
+                <div style={{ fontWeight: 800, fontSize: "15px" }}>{item.title}</div>
+                <div style={{ marginTop: "8px", color: "#95a2b3", fontSize: "14px", lineHeight: 1.65 }}>
+                  {item.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="vs-terminal-strip" style={{ marginTop: "24px" }}>
+            <div className="vs-terminal-ticker">
+              <span className="vs-live-dot-success" />
+              <strong>Setup</strong>
+              <span>Firm account ready</span>
+            </div>
+            <div className="vs-terminal-ticker">
+              <span className="vs-live-dot-warning" />
+              <strong>Access</strong>
+              <span>Command + billing enabled</span>
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            border: "1px solid #273142",
+            background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
+            borderRadius: "24px",
+            padding: "28px",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.34)",
+            display: "grid",
+            alignContent: "center"
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              color: "#f59e0b",
+              fontWeight: 900
+            }}
+          >
+            Create Account
+          </div>
+
+          <h2
+            style={{
+              marginTop: "12px",
+              fontSize: "32px",
+              lineHeight: 1.08,
+              fontWeight: 850
+            }}
+          >
+            Start your workspace.
+          </h2>
+
+          <p style={{ marginTop: "10px", color: "#95a2b3", fontSize: "14px", lineHeight: 1.7 }}>
+            Enter your firm and user details to begin using VoterSpheres.
+          </p>
+
+          {error ? (
+            <div className="vs-banner vs-banner-danger">{error}</div>
+          ) : null}
+
+          <form onSubmit={handleSubmit} style={{ marginTop: "22px", display: "grid", gap: "14px" }}>
+            <div className="vs-grid-2">
+              <div>
+                <div className="vs-stat-label" style={{ marginBottom: "8px" }}>First Name</div>
+                <input
+                  className="vs-input"
+                  value={form.first_name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, first_name: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="vs-stat-label" style={{ marginBottom: "8px" }}>Last Name</div>
+                <input
+                  className="vs-input"
+                  value={form.last_name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, last_name: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="vs-stat-label" style={{ marginBottom: "8px" }}>Firm Name</div>
+              <input
+                className="vs-input"
+                value={form.firm_name}
+                onChange={(e) => setForm((prev) => ({ ...prev, firm_name: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <div className="vs-stat-label" style={{ marginBottom: "8px" }}>Email</div>
+              <input
+                className="vs-input"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <div className="vs-stat-label" style={{ marginBottom: "8px" }}>Password</div>
+              <input
+                className="vs-input"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <div className="vs-stat-label" style={{ marginBottom: "8px" }}>Role</div>
+              <select
+                className="vs-select"
+                value={form.role}
+                onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+              >
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              className="vs-button vs-button-primary"
+              style={{ marginTop: "6px", width: "100%" }}
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+
+          <div
+            style={{
+              marginTop: "18px",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              fontSize: "14px",
+              color: "#95a2b3"
+            }}
+          >
+            <span>Already have an account?</span>
+            <Link to="/login" style={{ color: "#fbbf24", textDecoration: "none", fontWeight: 700 }}>
+              Sign in
+            </Link>
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              fontSize: "14px",
+              color: "#95a2b3"
+            }}
+          >
+            <span>Need plan details?</span>
+            <Link to="/pricing" style={{ color: "#fbbf24", textDecoration: "none", fontWeight: 700 }}>
+              View pricing
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "24px",
-    background:
-      "radial-gradient(circle at top, rgba(37,99,235,0.14) 0%, rgba(11,16,32,1) 35%, rgba(15,23,42,1) 100%)",
-  },
-  card: {
-    width: "100%",
-    maxWidth: "620px",
-    background: "#0f172a",
-    border: "1px solid #334155",
-    borderRadius: "22px",
-    padding: "28px",
-    color: "#fff",
-    boxShadow: "0 24px 80px rgba(0,0,0,0.35)",
-  },
-  brand: {
-    fontWeight: 800,
-    color: "#60a5fa",
-    marginBottom: "10px",
-  },
-  title: {
-    margin: 0,
-    fontSize: "2rem",
-    fontWeight: 900,
-  },
-  subtitle: {
-    marginTop: "10px",
-    color: "#cbd5e1",
-    lineHeight: 1.7,
-  },
-  intentBox: {
-    marginTop: "18px",
-    padding: "16px",
-    borderRadius: "14px",
-    background: "#111827",
-    border: "1px solid #2563eb",
-  },
-  intentBadge: {
-    display: "inline-block",
-    padding: "5px 9px",
-    borderRadius: "999px",
-    background: "#2563eb",
-    fontSize: "0.76rem",
-    fontWeight: 700,
-    marginBottom: "10px",
-  },
-  intentText: {
-    color: "#dbeafe",
-    lineHeight: 1.6,
-  },
-  error: {
-    marginTop: "16px",
-    padding: "12px 14px",
-    borderRadius: "12px",
-    background: "#34181b",
-    border: "1px solid #7f1d1d",
-    color: "#fecaca",
-  },
-  form: {
-    marginTop: "20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "14px",
-  },
-  field: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  label: {
-    fontSize: "0.92rem",
-    color: "#cbd5e1",
-    fontWeight: 600,
-  },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: "12px",
-    border: "1px solid #334155",
-    background: "#111827",
-    color: "#fff",
-    outline: "none",
-    boxSizing: "border-box",
-  },
-  primaryButton: {
-    marginTop: "6px",
-    padding: "13px 18px",
-    borderRadius: "12px",
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  footer: {
-    marginTop: "18px",
-    color: "#94a3b8",
-  },
-  link: {
-    color: "#60a5fa",
-    textDecoration: "none",
-    fontWeight: 700,
-  },
-};
