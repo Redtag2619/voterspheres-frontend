@@ -98,7 +98,7 @@ function severityTone(value) {
   return "default";
 }
 
-function FeedRow({ item }) {
+function ExecutiveFeedRow({ item }) {
   return (
     <ResponsiveRow
       title={item.title}
@@ -125,7 +125,11 @@ function BattlegroundRow({ row }) {
         { label: "Priority", value: row.priority }
       ]}
       alert={String(row.risk || "").toLowerCase() === "elevated" ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={<Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>{row.risk}</Badge>}
+      right={
+        <Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>
+          {row.risk}
+        </Badge>
+      }
     />
   );
 }
@@ -159,6 +163,36 @@ function VendorRow({ vendor }) {
       alert="vs-live-dot-success"
       right={<Badge tone="active">{vendor.status || "active"}</Badge>}
     />
+  );
+}
+
+function CommandPill({ label, value, tone = "accent" }) {
+  return (
+    <div
+      className="vs-card-muted"
+      style={{
+        padding: "12px 14px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "10px"
+      }}
+    >
+      <div>
+        <div className="vs-stat-label">{label}</div>
+        <div
+          style={{
+            marginTop: "4px",
+            fontSize: "14px",
+            fontWeight: 800,
+            color: "var(--vs-text)"
+          }}
+        >
+          {value}
+        </div>
+      </div>
+      <Badge tone={tone}>{label}</Badge>
+    </div>
   );
 }
 
@@ -240,11 +274,14 @@ export default function Dashboard() {
     [dashboardData.vendors]
   );
 
+  const topBattleground = (dashboardData.battlegrounds || [])[0] || null;
+  const topLeader = (dashboardData.leaderboard || [])[0] || null;
+
   return (
     <PageShell
       eyebrow="Executive Dashboard"
       title="Campaign command at a glance."
-      description="Track fundraising momentum, executive alerts, battleground pressure, and operational readiness from one view."
+      description="A premium control center for leadership visibility across threats, battlegrounds, fundraising, and operations."
       demo={demoMode}
       demoText="Demo campaign is live. Fundraising, alert activity, battleground movement, and vendors are preloaded for presentation."
       tickerItems={[
@@ -267,8 +304,18 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="vs-grid-2">
-        <SectionCard title="Executive Feed" subtitle="Highest-priority developments entering the system.">
+      <div
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 0.65fr)"
+        }}
+      >
+        <SectionCard
+          title="Executive Feed"
+          subtitle="Top developments leadership should see first."
+          right={<Badge tone="danger">{highSeverityCount} high priority</Badge>}
+        >
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading executive feed..." />
@@ -276,13 +323,53 @@ export default function Dashboard() {
               <EmptyState text="No active executive feed items." />
             ) : (
               (dashboardData.feed || []).map((item) => (
-                <FeedRow key={item.id || `${item.time}-${item.title}`} item={item} />
+                <ExecutiveFeedRow key={item.id || `${item.time}-${item.title}`} item={item} />
               ))
             )}
           </div>
         </SectionCard>
 
-        <SectionCard title="Battleground Snapshot" subtitle="Top contested races requiring executive awareness.">
+        <SectionCard
+          title="Command Rail"
+          subtitle="Fast executive reads."
+        >
+          <div className="vs-stack">
+            <CommandPill
+              label="Top Race"
+              value={topBattleground ? topBattleground.race : "No battleground"}
+              tone="accent"
+            />
+            <CommandPill
+              label="Lead Finance"
+              value={topLeader ? topLeader.name : "No leader"}
+              tone="active"
+            />
+            <CommandPill
+              label="Vendor Status"
+              value={topVendors.length ? "Operational" : "No active vendors"}
+              tone="info"
+            />
+            <CommandPill
+              label="Threat Pressure"
+              value={highSeverityCount ? `${highSeverityCount} high severity` : "Contained"}
+              tone={highSeverityCount ? "danger" : "active"}
+            />
+          </div>
+        </SectionCard>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)"
+        }}
+      >
+        <SectionCard
+          title="Battleground Board"
+          subtitle="Critical races and pressure points."
+          right={<Badge tone="accent">{(dashboardData.battlegrounds || []).length} races</Badge>}
+        >
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading battlegrounds..." />
@@ -295,10 +382,12 @@ export default function Dashboard() {
             )}
           </div>
         </SectionCard>
-      </div>
 
-      <div className="vs-grid-2">
-        <SectionCard title="Fundraising Leaders" subtitle="Top candidates by receipts and reserve strength.">
+        <SectionCard
+          title="Fundraising Leaders"
+          subtitle="Top candidates by receipts and reserve strength."
+          right={<Badge tone="info">{(dashboardData.leaderboard || []).length} tracked</Badge>}
+        >
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading fundraising leaderboard..." />
@@ -311,21 +400,25 @@ export default function Dashboard() {
             )}
           </div>
         </SectionCard>
-
-        <SectionCard title="Priority Vendors" subtitle="Operational partners supporting the campaign right now.">
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading vendors..." />
-            ) : !topVendors.length ? (
-              <EmptyState text="No vendors available." />
-            ) : (
-              topVendors.map((vendor) => (
-                <VendorRow key={`${vendor.id}-${vendor.vendor_name}`} vendor={vendor} />
-              ))
-            )}
-          </div>
-        </SectionCard>
       </div>
+
+      <SectionCard
+        title="Operational Vendors"
+        subtitle="Current campaign partners and readiness."
+        right={<Badge tone="active">{topVendors.length} active</Badge>}
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading vendors..." />
+          ) : !topVendors.length ? (
+            <EmptyState text="No vendors available." />
+          ) : (
+            topVendors.map((vendor) => (
+              <VendorRow key={`${vendor.id}-${vendor.vendor_name}`} vendor={vendor} />
+            ))
+          )}
+        </div>
+      </SectionCard>
     </PageShell>
   );
 }
