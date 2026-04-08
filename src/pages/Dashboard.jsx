@@ -5,6 +5,7 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
@@ -18,39 +19,9 @@ const fallbackData = {
     { label: "Priority Vendors", value: "2", delta: "All active", tone: "up" }
   ],
   feed: [
-    {
-      id: 1,
-      time: "08:12",
-      title: "Opposition affordability attack accelerating",
-      source: "War Room",
-      severity: "High",
-      type: "warroom.threat_detected",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated"
-    },
-    {
-      id: 2,
-      time: "08:41",
-      title: "Mail delay detected at Atlanta NDC",
-      source: "Mail Intelligence",
-      severity: "High",
-      type: "mail.delay_detected",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated"
-    },
-    {
-      id: 3,
-      time: "09:05",
-      title: "Forecast updated for PA Senate",
-      source: "Forecast Engine",
-      severity: "Medium",
-      type: "forecast.updated",
-      state: "Pennsylvania",
-      office: "Senate",
-      risk: "Watch"
-    }
+    { id: 1, time: "08:12", title: "Opposition affordability attack accelerating", source: "War Room", severity: "High", type: "warroom.threat_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
+    { id: 2, time: "08:41", title: "Mail delay detected at Atlanta NDC", source: "Mail Intelligence", severity: "High", type: "mail.delay_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
+    { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ],
   battlegrounds: [
     { race: "GA Senate", state: "Georgia", office: "Senate", probability: "57%", momentum: "+2.4", risk: "Elevated", priority: "Tier 1" },
@@ -59,71 +30,14 @@ const fallbackData = {
     { race: "MI House", state: "Michigan", office: "House", probability: "49%", momentum: "-0.6", risk: "Monitor", priority: "Tier 2" }
   ],
   leaderboard: [
-    {
-      rank: 1,
-      candidate_id: 1,
-      name: "Mark Stephens",
-      state: "Georgia",
-      office: "Senate",
-      party: "Democratic",
-      receipts: 12850000,
-      cash_on_hand: 6100000,
-      risk: "Elevated"
-    },
-    {
-      rank: 2,
-      candidate_id: 2,
-      name: "Jane Thompson",
-      state: "Pennsylvania",
-      office: "Senate",
-      party: "Democratic",
-      receipts: 11120000,
-      cash_on_hand: 5400000,
-      risk: "Watch"
-    },
-    {
-      rank: 3,
-      candidate_id: 3,
-      name: "Daniel Brooks",
-      state: "Michigan",
-      office: "House",
-      party: "Republican",
-      receipts: 7600000,
-      cash_on_hand: 3200000,
-      risk: "Monitor"
-    }
+    { rank: 1, candidate_id: 1, name: "Mark Stephens", state: "Georgia", office: "Senate", party: "Democratic", receipts: 12850000, cash_on_hand: 6100000, risk: "Elevated" },
+    { rank: 2, candidate_id: 2, name: "Jane Thompson", state: "Pennsylvania", office: "Senate", party: "Democratic", receipts: 11120000, cash_on_hand: 5400000, risk: "Watch" },
+    { rank: 3, candidate_id: 3, name: "Daniel Brooks", state: "Michigan", office: "House", party: "Republican", receipts: 7600000, cash_on_hand: 3200000, risk: "Monitor" }
   ],
   vendors: [
-    {
-      id: 1,
-      vendor_name: "Precision Mail Group",
-      category: "Direct Mail",
-      status: "active",
-      state: "Georgia",
-      office: "Senate",
-      contract_value: 85000,
-      risk: "Elevated"
-    },
-    {
-      id: 2,
-      vendor_name: "Capitol Digital Media",
-      category: "Digital",
-      status: "active",
-      state: "Georgia",
-      office: "Senate",
-      contract_value: 120000,
-      risk: "Elevated"
-    },
-    {
-      id: 3,
-      vendor_name: "Lakeside Media Partners",
-      category: "Broadcast",
-      status: "active",
-      state: "Michigan",
-      office: "House",
-      contract_value: 68000,
-      risk: "Monitor"
-    }
+    { id: 1, vendor_name: "Precision Mail Group", category: "Direct Mail", status: "active", state: "Georgia", office: "Senate", contract_value: 85000, risk: "Elevated" },
+    { id: 2, vendor_name: "Capitol Digital Media", category: "Digital", status: "active", state: "Georgia", office: "Senate", contract_value: 120000, risk: "Elevated" },
+    { id: 3, vendor_name: "Lakeside Media Partners", category: "Broadcast", status: "active", state: "Michigan", office: "House", contract_value: 68000, risk: "Monitor" }
   ]
 };
 
@@ -145,75 +59,29 @@ function riskTone(value) {
 function DashboardRow({ title, subtitle, meta = [], badgeText, badgeTone = "default", alertClass = "" }) {
   return (
     <div className="vs-card-muted">
-      <div
-        className="vs-responsive-row"
-        style={{
-          gap: "10px"
-        }}
-      >
+      <div className="vs-responsive-row" style={{ gap: "10px" }}>
         <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              flexWrap: "wrap"
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
             {alertClass ? <span className={alertClass} /> : null}
-            <div
-              style={{
-                fontWeight: 800,
-                color: "var(--vs-text)",
-                fontSize: "13px",
-                lineHeight: 1.3
-              }}
-            >
+            <div style={{ fontWeight: 800, color: "var(--vs-text)", fontSize: "13px", lineHeight: 1.3 }}>
               {title}
             </div>
           </div>
 
           {subtitle ? (
-            <div
-              style={{
-                marginTop: "5px",
-                fontSize: "12px",
-                lineHeight: 1.55,
-                color: "var(--vs-text-muted)"
-              }}
-            >
+            <div style={{ marginTop: "5px", fontSize: "12px", lineHeight: 1.55, color: "var(--vs-text-muted)" }}>
               {subtitle}
             </div>
           ) : null}
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: "8px",
-            minWidth: 0
-          }}
-        >
+        <div style={{ display: "grid", gap: "8px", minWidth: 0 }}>
           {meta.length ? (
-            <div
-              className="vs-responsive-meta"
-              style={{
-                gap: "8px"
-              }}
-            >
+            <div className="vs-responsive-meta" style={{ gap: "8px" }}>
               {meta.map((item, index) => (
                 <div key={`${item.label}-${index}`} style={{ minWidth: 0 }}>
                   <div className="vs-stat-label">{item.label}</div>
-                  <div
-                    style={{
-                      marginTop: "4px",
-                      fontSize: "12px",
-                      lineHeight: 1.4,
-                      fontWeight: 800,
-                      color: "var(--vs-text)",
-                      wordBreak: "break-word"
-                    }}
-                  >
+                  <div style={{ marginTop: "4px", fontSize: "12px", lineHeight: 1.4, fontWeight: 800, color: "var(--vs-text)", wordBreak: "break-word" }}>
                     {item.value}
                   </div>
                 </div>
@@ -234,11 +102,9 @@ function DashboardRow({ title, subtitle, meta = [], badgeText, badgeTone = "defa
 
 function HeroFlagshipCard({ headline, value, delta, subline, tone = "up" }) {
   const toneColor =
-    tone === "down"
-      ? "#f87171"
-      : tone === "up"
-      ? "#4ade80"
-      : "#95a2b3";
+    tone === "down" ? "#f87171" :
+    tone === "up" ? "#4ade80" :
+    "#95a2b3";
 
   return (
     <div
@@ -252,39 +118,15 @@ function HeroFlagshipCard({ headline, value, delta, subline, tone = "up" }) {
     >
       <div>
         <div className="vs-stat-label">{headline}</div>
-        <div
-          style={{
-            marginTop: "12px",
-            fontSize: "clamp(42px, 6vw, 68px)",
-            lineHeight: 0.95,
-            fontWeight: 900,
-            letterSpacing: "-0.05em",
-            color: "var(--vs-text)"
-          }}
-        >
+        <div style={{ marginTop: "12px", fontSize: "clamp(42px, 6vw, 68px)", lineHeight: 0.95, fontWeight: 900, letterSpacing: "-0.05em", color: "var(--vs-text)" }}>
           {value}
         </div>
-        <div
-          style={{
-            marginTop: "12px",
-            fontSize: "14px",
-            fontWeight: 800,
-            color: toneColor
-          }}
-        >
+        <div style={{ marginTop: "12px", fontSize: "14px", fontWeight: 800, color: toneColor }}>
           {delta}
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: "18px",
-          fontSize: "13px",
-          lineHeight: 1.65,
-          color: "var(--vs-text-muted)",
-          maxWidth: "720px"
-        }}
-      >
+      <div style={{ marginTop: "18px", fontSize: "13px", lineHeight: 1.65, color: "var(--vs-text-muted)", maxWidth: "720px" }}>
         {subline}
       </div>
     </div>
@@ -293,15 +135,7 @@ function HeroFlagshipCard({ headline, value, delta, subline, tone = "up" }) {
 
 function SecondaryRailCard({ label, value, subtext, badge, badgeTone = "accent", dotClass = "vs-live-dot-warning" }) {
   return (
-    <div
-      className="vs-card"
-      style={{
-        minHeight: "102px",
-        display: "grid",
-        gap: "10px",
-        alignContent: "space-between"
-      }}
-    >
+    <div className="vs-card" style={{ minHeight: "102px", display: "grid", gap: "10px", alignContent: "space-between" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span className={dotClass} />
@@ -311,24 +145,10 @@ function SecondaryRailCard({ label, value, subtext, badge, badgeTone = "accent",
       </div>
 
       <div>
-        <div
-          style={{
-            fontSize: "24px",
-            lineHeight: 1.05,
-            fontWeight: 850,
-            letterSpacing: "-0.03em"
-          }}
-        >
+        <div style={{ fontSize: "24px", lineHeight: 1.05, fontWeight: 850, letterSpacing: "-0.03em" }}>
           {value}
         </div>
-        <div
-          style={{
-            marginTop: "8px",
-            fontSize: "12px",
-            lineHeight: 1.55,
-            color: "var(--vs-text-muted)"
-          }}
-        >
+        <div style={{ marginTop: "8px", fontSize: "12px", lineHeight: 1.55, color: "var(--vs-text-muted)" }}>
           {subtext}
         </div>
       </div>
@@ -340,12 +160,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboardData, setDashboardData] = useState(fallbackData);
-
-  const [filters, setFilters] = useState({
-    state: "",
-    office: "",
-    risk: ""
-  });
+  const { filters, setFilters, clearFilters } = useExecutiveFilters();
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -367,32 +182,19 @@ export default function Dashboard() {
 
         if (!active) return;
 
-        const dashboardPayload =
-          dashboardRes.status === "fulfilled" ? dashboardRes.value?.data : null;
+        const dashboardPayload = dashboardRes.status === "fulfilled" ? dashboardRes.value?.data : null;
+        const fundraisingPayload = fundraisingRes.status === "fulfilled" ? fundraisingRes.value?.data : null;
+        const vendorsPayload = vendorsRes.status === "fulfilled" ? vendorsRes.value?.data : null;
 
-        const fundraisingPayload =
-          fundraisingRes.status === "fulfilled" ? fundraisingRes.value?.data : null;
-
-        const vendorsPayload =
-          vendorsRes.status === "fulfilled" ? vendorsRes.value?.data : null;
-
-        const leaderboard = fundraisingPayload?.leaderboard?.length
-          ? fundraisingPayload.leaderboard
-          : fallbackData.leaderboard;
-
-        const vendors = vendorsPayload?.results?.length
-          ? vendorsPayload.results
-          : fallbackData.vendors;
-
-        const metrics = dashboardPayload?.metrics?.length
-          ? dashboardPayload.metrics
-          : fallbackData.metrics;
+        const leaderboard = fundraisingPayload?.leaderboard?.length ? fundraisingPayload.leaderboard : fallbackData.leaderboard;
+        const vendors = vendorsPayload?.results?.length ? vendorsPayload.results : fallbackData.vendors;
+        const metrics = dashboardPayload?.metrics?.length ? dashboardPayload.metrics : fallbackData.metrics;
 
         setDashboardData({
           metrics,
           feed: fallbackData.feed,
-          leaderboard,
           battlegrounds: fallbackData.battlegrounds,
+          leaderboard,
           vendors
         });
       } catch (err) {
@@ -411,68 +213,40 @@ export default function Dashboard() {
     };
   }, []);
 
+  const allRecords = useMemo(
+    () => [
+      ...(dashboardData.feed || []),
+      ...(dashboardData.battlegrounds || []),
+      ...(dashboardData.leaderboard || []),
+      ...(dashboardData.vendors || [])
+    ],
+    [dashboardData]
+  );
+
   const stateOptions = useMemo(() => {
-    const values = new Set();
-
-    [...(dashboardData.battlegrounds || []), ...(dashboardData.leaderboard || []), ...(dashboardData.vendors || []), ...(dashboardData.feed || [])]
-      .forEach((item) => {
-        if (item?.state) values.add(item.state);
-      });
-
-    return Array.from(values).sort();
-  }, [dashboardData]);
+    return Array.from(new Set(allRecords.map((item) => item?.state).filter(Boolean))).sort();
+  }, [allRecords]);
 
   const officeOptions = useMemo(() => {
-    const values = new Set();
-
-    [...(dashboardData.battlegrounds || []), ...(dashboardData.leaderboard || []), ...(dashboardData.vendors || []), ...(dashboardData.feed || [])]
-      .forEach((item) => {
-        if (item?.office) values.add(item.office);
-      });
-
-    return Array.from(values).sort();
-  }, [dashboardData]);
+    return Array.from(new Set(allRecords.map((item) => item?.office).filter(Boolean))).sort();
+  }, [allRecords]);
 
   const riskOptions = useMemo(() => {
-    const values = new Set();
-
-    [...(dashboardData.battlegrounds || []), ...(dashboardData.leaderboard || []), ...(dashboardData.vendors || []), ...(dashboardData.feed || [])]
-      .forEach((item) => {
-        if (item?.risk) values.add(item.risk);
-      });
-
-    return Array.from(values).sort();
-  }, [dashboardData]);
+    return Array.from(new Set(allRecords.map((item) => item?.risk).filter(Boolean))).sort();
+  }, [allRecords]);
 
   const matchesFilters = (item) => {
     if (!item) return false;
-
-    const stateMatch = !filters.state || item.state === filters.state;
-    const officeMatch = !filters.office || item.office === filters.office;
-    const riskMatch = !filters.risk || item.risk === filters.risk;
-
-    return stateMatch && officeMatch && riskMatch;
+    if (filters.state && item.state !== filters.state) return false;
+    if (filters.office && item.office !== filters.office) return false;
+    if (filters.risk && item.risk !== filters.risk) return false;
+    return true;
   };
 
-  const filteredFeed = useMemo(
-    () => (dashboardData.feed || []).filter(matchesFilters),
-    [dashboardData.feed, filters]
-  );
-
-  const filteredBattlegrounds = useMemo(
-    () => (dashboardData.battlegrounds || []).filter(matchesFilters),
-    [dashboardData.battlegrounds, filters]
-  );
-
-  const filteredLeaderboard = useMemo(
-    () => (dashboardData.leaderboard || []).filter(matchesFilters),
-    [dashboardData.leaderboard, filters]
-  );
-
-  const filteredVendors = useMemo(
-    () => (dashboardData.vendors || []).filter(matchesFilters),
-    [dashboardData.vendors, filters]
-  );
+  const filteredFeed = useMemo(() => (dashboardData.feed || []).filter(matchesFilters), [dashboardData.feed, filters]);
+  const filteredBattlegrounds = useMemo(() => (dashboardData.battlegrounds || []).filter(matchesFilters), [dashboardData.battlegrounds, filters]);
+  const filteredLeaderboard = useMemo(() => (dashboardData.leaderboard || []).filter(matchesFilters), [dashboardData.leaderboard, filters]);
+  const filteredVendors = useMemo(() => (dashboardData.vendors || []).filter(matchesFilters), [dashboardData.vendors, filters]);
 
   const highSeverityCount = filteredFeed.filter(
     (item) => String(item.severity || "").toLowerCase() === "high"
@@ -504,19 +278,9 @@ export default function Dashboard() {
 
       <SectionCard
         title="Executive Filters"
-        subtitle="Refine the command surface by state, office, and risk tier."
+        subtitle="These filters now drive the dashboard, map, command center, and war room."
         right={
-          <button
-            type="button"
-            className="vs-button vs-button-secondary"
-            onClick={() =>
-              setFilters({
-                state: "",
-                office: "",
-                risk: ""
-              })
-            }
-          >
+          <button type="button" className="vs-button vs-button-secondary" onClick={clearFilters}>
             Clear Filters
           </button>
         }
@@ -525,57 +289,39 @@ export default function Dashboard() {
           <select
             className="vs-select"
             value={filters.state}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, state: e.target.value }))
-            }
+            onChange={(e) => setFilters({ state: e.target.value })}
           >
             <option value="">All states</option>
             {stateOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+              <option key={value} value={value}>{value}</option>
             ))}
           </select>
 
           <select
             className="vs-select"
             value={filters.office}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, office: e.target.value }))
-            }
+            onChange={(e) => setFilters({ office: e.target.value })}
           >
             <option value="">All offices</option>
             {officeOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+              <option key={value} value={value}>{value}</option>
             ))}
           </select>
 
           <select
             className="vs-select"
             value={filters.risk}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, risk: e.target.value }))
-            }
+            onChange={(e) => setFilters({ risk: e.target.value })}
           >
             <option value="">All risk tiers</option>
             {riskOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+              <option key={value} value={value}>{value}</option>
             ))}
           </select>
         </div>
       </SectionCard>
 
-      <div
-        style={{
-          display: "grid",
-          gap: "16px",
-          gridTemplateColumns: "minmax(0, 1.45fr) minmax(320px, 0.75fr)"
-        }}
-      >
+      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.45fr) minmax(320px, 0.75fr)" }}>
         <HeroFlagshipCard
           headline="Flagship KPI • Top Battleground Probability"
           value={flagshipValue}
@@ -583,9 +329,7 @@ export default function Dashboard() {
           tone="up"
           subline={
             topBattleground
-              ? `${topBattleground.race} is currently the top executive race signal on the board, carrying ${String(
-                  topBattleground.risk || ""
-                ).toLowerCase()} pressure and ${String(topBattleground.priority || "").toLowerCase()} priority.`
+              ? `${topBattleground.race} is currently the top executive race signal on the board, carrying ${String(topBattleground.risk || "").toLowerCase()} pressure and ${String(topBattleground.priority || "").toLowerCase()} priority.`
               : "No battleground matches the current executive filter set."
           }
         />
@@ -605,9 +349,7 @@ export default function Dashboard() {
             value={topLeader ? topLeader.name : "No leader"}
             subtext={
               topLeader
-                ? `${formatMoney(topLeader.receipts || 0)} receipts • ${formatMoney(
-                    topLeader.cash_on_hand || 0
-                  )} cash on hand`
+                ? `${formatMoney(topLeader.receipts || 0)} receipts • ${formatMoney(topLeader.cash_on_hand || 0)} cash on hand`
                 : "No fundraising leader matches the current filters."
             }
             badge={topLeader ? `#${topLeader.rank}` : "N/A"}
@@ -629,13 +371,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gap: "16px",
-          gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 0.65fr)"
-        }}
-      >
+      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 0.65fr)" }}>
         <SectionCard
           title="Executive Feed"
           subtitle="Top developments leadership should see first."
@@ -658,11 +394,7 @@ export default function Dashboard() {
                   ]}
                   badgeText={item.severity}
                   badgeTone={severityTone(item.severity)}
-                  alertClass={
-                    String(item.severity || "").toLowerCase() === "high"
-                      ? "vs-live-dot"
-                      : "vs-live-dot-warning"
-                  }
+                  alertClass={String(item.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
                 />
               ))
             )}
@@ -689,11 +421,7 @@ export default function Dashboard() {
                   ]}
                   badgeText={row.risk}
                   badgeTone={riskTone(row.risk)}
-                  alertClass={
-                    String(row.risk || "").toLowerCase() === "elevated"
-                      ? "vs-live-dot"
-                      : "vs-live-dot-warning"
-                  }
+                  alertClass={String(row.risk || "").toLowerCase() === "elevated" ? "vs-live-dot" : "vs-live-dot-warning"}
                 />
               ))
             )}
@@ -701,13 +429,7 @@ export default function Dashboard() {
         </SectionCard>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gap: "16px",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)"
-        }}
-      >
+      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
         <SectionCard
           title="Fundraising Leaders"
           subtitle="Top candidates by receipts and reserve strength."
