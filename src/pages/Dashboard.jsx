@@ -13,7 +13,7 @@ function formatMoney(value) {
 
 const fallbackData = {
   metrics: [
-    { label: "National Win Index", value: "61.8", delta: "+3.1 vs last cycle", tone: "up" },
+    { label: "Win Index", value: "61.8", delta: "+3.1 vs last cycle", tone: "up" },
     { label: "Fundraising Pulse", value: "$12.8M", delta: "+9.4% this period", tone: "up" },
     { label: "Active Threats", value: "4", delta: "2 require action", tone: "down" },
     { label: "Priority Vendors", value: "2", delta: "All active", tone: "up" }
@@ -44,6 +44,11 @@ const fallbackData = {
       type: "forecast.updated"
     }
   ],
+  battlegrounds: [
+    { race: "GA Senate", probability: "57%", momentum: "+2.4", risk: "Elevated", priority: "Tier 1" },
+    { race: "PA Senate", probability: "54%", momentum: "+1.8", risk: "Watch", priority: "Tier 1" },
+    { race: "AZ Senate", probability: "51%", momentum: "+1.1", risk: "Watch", priority: "Tier 2" }
+  ],
   leaderboard: [
     {
       rank: 1,
@@ -66,11 +71,6 @@ const fallbackData = {
       cash_on_hand: 5400000
     }
   ],
-  battlegrounds: [
-    { race: "GA Senate", probability: "57%", momentum: "+2.4", risk: "Elevated", priority: "Tier 1" },
-    { race: "PA Senate", probability: "54%", momentum: "+1.8", risk: "Watch", priority: "Tier 1" },
-    { race: "AZ Senate", probability: "51%", momentum: "+1.1", risk: "Watch", priority: "Tier 2" }
-  ],
   vendors: [
     {
       id: 1,
@@ -91,7 +91,7 @@ const fallbackData = {
   ]
 };
 
-function toneForSeverity(value) {
+function severityTone(value) {
   const v = String(value || "").toLowerCase();
   if (v === "high") return "danger";
   if (v === "medium") return "demo";
@@ -108,7 +108,7 @@ function FeedRow({ item }) {
         { label: "Severity", value: item.severity || "Info" }
       ]}
       alert={String(item.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={<Badge tone={toneForSeverity(item.severity)}>{item.severity}</Badge>}
+      right={<Badge tone={severityTone(item.severity)}>{item.severity}</Badge>}
     />
   );
 }
@@ -206,34 +206,7 @@ export default function Dashboard() {
 
         const metrics = dashboardPayload?.metrics?.length
           ? dashboardPayload.metrics
-          : [
-              {
-                label: "Fundraising Leaders",
-                value: String(leaderboard.length || 0),
-                delta: "Live finance layer",
-                tone: "up"
-              },
-              {
-                label: "Receipts Modeled",
-                value: formatMoney(
-                  leaderboard.reduce((sum, row) => sum + Number(row.receipts || 0), 0)
-                ),
-                delta: "Tracked candidates",
-                tone: "up"
-              },
-              {
-                label: "Active Threats",
-                value: "4",
-                delta: "Demo threat layer",
-                tone: "down"
-              },
-              {
-                label: "Priority Vendors",
-                value: String(vendors.length || 0),
-                delta: "Operational partners",
-                tone: "up"
-              }
-            ];
+          : fallbackData.metrics;
 
         setDashboardData({
           metrics,
@@ -258,18 +231,18 @@ export default function Dashboard() {
     };
   }, []);
 
+  const highSeverityCount = (dashboardData.feed || []).filter(
+    (item) => String(item.severity || "").toLowerCase() === "high"
+  ).length;
+
   const topVendors = useMemo(
     () => (dashboardData.vendors || []).slice(0, 3),
     [dashboardData.vendors]
   );
 
-  const highSeverityCount = (dashboardData.feed || []).filter(
-    (item) => String(item.severity || "").toLowerCase() === "high"
-  ).length;
-
   return (
     <PageShell
-      eyebrow="VoterSpheres Executive Dashboard"
+      eyebrow="Executive Dashboard"
       title="Campaign command at a glance."
       description="Track fundraising momentum, executive alerts, battleground pressure, and operational readiness from one view."
       demo={demoMode}
@@ -295,7 +268,7 @@ export default function Dashboard() {
       </div>
 
       <div className="vs-grid-2">
-        <SectionCard title="Executive Feed" subtitle="Highest-priority campaign developments entering the system.">
+        <SectionCard title="Executive Feed" subtitle="Highest-priority developments entering the system.">
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading executive feed..." />
@@ -325,7 +298,7 @@ export default function Dashboard() {
       </div>
 
       <div className="vs-grid-2">
-        <SectionCard title="Fundraising Leaderboard" subtitle="Top candidates by receipts and reserve strength.">
+        <SectionCard title="Fundraising Leaders" subtitle="Top candidates by receipts and reserve strength.">
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading fundraising leaderboard..." />
