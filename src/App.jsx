@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
@@ -46,14 +47,24 @@ function ShellLayout() {
   );
 }
 
+/* 🔥 NEW: Auth Gate */
 function AppRoutes() {
+  const { loading } = useAuth();
+
+  // 🚫 STOP everything until auth finishes
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
+        {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pricing" element={<Pricing />} />
 
+        {/* App */}
         <Route element={<ShellLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -72,6 +83,7 @@ function AppRoutes() {
           <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
           <Route path="/billing" element={<Billing />} />
 
+          {/* Aliases */}
           <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
           <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
           <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
