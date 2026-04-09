@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getStoredToken, clearStoredAuth } from "../lib/auth"; 
+import { getStoredToken, clearStoredAuth } from "../lib/auth";
 import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
 const RAW_BASE =
@@ -17,8 +17,140 @@ const http = axios.create({
   timeout: 30000,
 });
 
+const DEMO_MODE_ENABLED = true;
+
+const demoFallbacks = {
+  "/donors/network": {
+    results: [
+      {
+        id: 1,
+        donor_name: "Atlantic Leadership Fund",
+        donor_type: "PAC",
+        state: "Georgia",
+        amount: 250000,
+        relationship_strength: "High",
+      },
+      {
+        id: 2,
+        donor_name: "Keystone Civic Network",
+        donor_type: "Individual Network",
+        state: "Pennsylvania",
+        amount: 175000,
+        relationship_strength: "Medium",
+      },
+      {
+        id: 3,
+        donor_name: "Great Lakes Action Council",
+        donor_type: "PAC",
+        state: "Michigan",
+        amount: 120000,
+        relationship_strength: "Growing",
+      },
+    ],
+    summary: {
+      total_donors: 3,
+      total_amount: 545000,
+      top_state: "Georgia",
+    },
+    _demo: true,
+  },
+
+  "/consultants": {
+    results: [
+      {
+        id: 1,
+        name: "Red Tag Strategies",
+        category: "General Consulting",
+        state: "Louisiana",
+        website: "https://example.com",
+        status: "active",
+      },
+      {
+        id: 2,
+        name: "Capitol Campaign Group",
+        category: "Media + Strategy",
+        state: "Georgia",
+        website: "https://example.com",
+        status: "active",
+      },
+      {
+        id: 3,
+        name: "Keystone Field Partners",
+        category: "Field Operations",
+        state: "Pennsylvania",
+        website: "https://example.com",
+        status: "active",
+      },
+    ],
+    _demo: true,
+  },
+
+  "/consultants/states": {
+    states: ["Georgia", "Louisiana", "Pennsylvania"],
+    _demo: true,
+  },
+
+  "/platform/consultants": {
+    results: [
+      {
+        id: 1,
+        name: "Red Tag Strategies",
+        category: "General Consulting",
+        state: "Louisiana",
+        website: "https://example.com",
+        status: "active",
+      },
+      {
+        id: 2,
+        name: "Capitol Campaign Group",
+        category: "Media + Strategy",
+        state: "Georgia",
+        website: "https://example.com",
+        status: "active",
+      },
+    ],
+    _demo: true,
+  },
+
+  "/platform/consultants/states": {
+    states: ["Georgia", "Louisiana"],
+    _demo: true,
+  },
+
+  "/marketplace/consultants": {
+    results: [
+      {
+        id: 1,
+        name: "Keystone Field Partners",
+        category: "Field Operations",
+        state: "Pennsylvania",
+        website: "https://example.com",
+        status: "active",
+      },
+    ],
+    _demo: true,
+  },
+
+  "/marketplace/consultants/states": {
+    states: ["Pennsylvania"],
+    _demo: true,
+  },
+};
+
 function isNotFound(error) {
   return error?.response?.status === 404;
+}
+
+function findDemoFallback(path) {
+  if (!path) return null;
+
+  const cleanPath = path.split("?")[0];
+
+  if (demoFallbacks[cleanPath]) {
+    return demoFallbacks[cleanPath];
+  }
+
+  return null;
 }
 
 async function unwrap(promise) {
@@ -34,6 +166,14 @@ async function tryGet(paths, config = {}) {
       return await unwrap(http.get(path, config));
     } catch (error) {
       lastError = error;
+
+      if (isNotFound(error) && DEMO_MODE_ENABLED) {
+        const fallback = findDemoFallback(path);
+        if (fallback) {
+          return fallback;
+        }
+      }
+
       if (!isNotFound(error)) break;
     }
   }
@@ -119,14 +259,14 @@ http.interceptors.response.use(
     }
 
     const requestUrl = error?.config?.url || "";
-const isAuthEndpoint =
-  requestUrl.includes("/auth/login") ||
-  requestUrl.includes("/auth/signup") ||
-  requestUrl.includes("/auth/me");
+    const isAuthEndpoint =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/signup") ||
+      requestUrl.includes("/auth/me");
 
-if (status === 401 && isAuthEndpoint) {
-  clearStoredAuth?.();
-}
+    if (status === 401 && isAuthEndpoint) {
+      clearStoredAuth?.();
+    }
 
     return Promise.reject(error);
   }
@@ -212,7 +352,7 @@ export const vendorsApi = {
     const data = await tryGet([
       "/vendors/states",
       "/platform/vendors/states",
-      "/crm/vendors/states"
+      "/crm/vendors/states",
     ]);
     return normalizeListResult(data, ["states"]);
   },
@@ -223,7 +363,17 @@ export const vendorsApi = {
       { params }
     );
     return Array.isArray(data) ? { results: data } : data;
-  }
+  },
+};
+
+export const donorsApi = {
+  network: async (params = {}) => {
+    const data = await tryGet(
+      ["/donors/network", "/platform/donors/network"],
+      { params }
+    );
+    return Array.isArray(data) ? { results: data } : data;
+  },
 };
 
 export const alertsApi = {
@@ -342,6 +492,8 @@ export const api = {
   vendorStates: vendorsApi.states,
   vendors: vendorsApi.list,
 
+  donorNetwork: donorsApi.network,
+
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
   resolveAlert: alertsApi.resolve,
@@ -355,5 +507,5 @@ export const api = {
   firmWorkspace: crmApi.firmWorkspace,
 };
 
-export { http };
+export { authApi, billingApi, intelligenceApi, platformApi, vendorsApi, donorsApi, http };
 export default http;
