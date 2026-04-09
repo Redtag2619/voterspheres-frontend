@@ -55,6 +55,33 @@ const demoFallbacks = {
     _demo: true,
   },
 
+  "/platform/donors/network": {
+    results: [
+      {
+        id: 1,
+        donor_name: "Atlantic Leadership Fund",
+        donor_type: "PAC",
+        state: "Georgia",
+        amount: 250000,
+        relationship_strength: "High",
+      },
+      {
+        id: 2,
+        donor_name: "Keystone Civic Network",
+        donor_type: "Individual Network",
+        state: "Pennsylvania",
+        amount: 175000,
+        relationship_strength: "Medium",
+      },
+    ],
+    summary: {
+      total_donors: 2,
+      total_amount: 425000,
+      top_state: "Georgia",
+    },
+    _demo: true,
+  },
+
   "/consultants": {
     results: [
       {
@@ -143,14 +170,8 @@ function isNotFound(error) {
 
 function findDemoFallback(path) {
   if (!path) return null;
-
   const cleanPath = path.split("?")[0];
-
-  if (demoFallbacks[cleanPath]) {
-    return demoFallbacks[cleanPath];
-  }
-
-  return null;
+  return demoFallbacks[cleanPath] || null;
 }
 
 async function unwrap(promise) {
@@ -169,9 +190,7 @@ async function tryGet(paths, config = {}) {
 
       if (isNotFound(error) && DEMO_MODE_ENABLED) {
         const fallback = findDemoFallback(path);
-        if (fallback) {
-          return fallback;
-        }
+        if (fallback) return fallback;
       }
 
       if (!isNotFound(error)) break;
