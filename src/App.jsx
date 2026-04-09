@@ -23,6 +23,7 @@ const Billing = lazy(() => import("./pages/Billing.jsx"));
 const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
+const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard.jsx"));
 
 function LoadingScreen() {
   return (
@@ -78,6 +79,7 @@ function AppRoutes() {
           <Route path="/ai-chat" element={<AIChat />} />
           <Route path="/war-room" element={<AIWarRoom />} />
           <Route path="/command-center" element={<CommandCenter />} />
+          <Route path="/mailops" element={<MailOpsDashboard />} />
           <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
           <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
           <Route path="/billing" element={<Billing />} />
@@ -87,6 +89,7 @@ function AppRoutes() {
           <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
           <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
           <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
+          <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
 
           <Route path="*" element={<NotFound />} />
         </Route>
