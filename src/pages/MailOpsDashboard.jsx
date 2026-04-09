@@ -1,417 +1,252 @@
-import { useCallback, useEffect, useState } from "react"; 
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
-import useLiveChannel from "../hooks/useLiveChannel";
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
+import DemoBanner from "../components/ui/DemoBanner";
+import { useDemoMode } from "../context/DemoModeContext.jsx";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
-function Card({ title, subtitle, children }) {
+function toneForStatus(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "elevated") return "danger";
+  if (v === "on track") return "active";
+  if (v === "watch") return "demo";
+  return "default";
+}
+
+function toneForSeverity(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "high") return "danger";
+  if (v === "medium") return "demo";
+  return "default";
+}
+
+function DropRow({ row }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5">
-        <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
-      </div>
-      {children}
-    </section>
+    <ResponsiveRow
+      title={row.campaign}
+      subtitle={`${row.location} • In-home ${row.in_home}`}
+      meta={[
+        { label: "Status", value: row.status },
+        { label: "Location", value: row.location }
+      ]}
+      alert={
+        String(row.status || "").toLowerCase() === "elevated"
+          ? "vs-live-dot"
+          : "vs-live-dot-success"
+      }
+      right={<Badge tone={toneForStatus(row.status)}>{row.status}</Badge>}
+    />
   );
 }
 
-function EmptyState({ text }) {
+function AlertRow({ row }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-      {text}
-    </div>
+    <ResponsiveRow
+      title={row.title}
+      subtitle={`${row.source} • ${row.detail}`}
+      meta={[
+        { label: "Severity", value: row.severity },
+        { label: "Source", value: row.source }
+      ]}
+      alert={
+        String(row.severity || "").toLowerCase() === "high"
+          ? "vs-live-dot"
+          : "vs-live-dot-warning"
+      }
+      right={<Badge tone={toneForSeverity(row.severity)}>{row.severity}</Badge>}
+    />
   );
 }
 
-function StatCard({ label, value, subtext }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</div>
-      <div className="mt-3 text-3xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-2 text-sm text-slate-500">{subtext}</div>
-    </div>
-  );
-}
-
-function formatCount(value) {
-  return Number(value || 0).toLocaleString();
-}
-
-function formatHours(value) {
-  return value === null || value === undefined || value === ""
-    ? "N/A"
-    : `${value}h`;
-}
+const fallbackData = {
+  metrics: [
+    { label: "Mail Drops", value: "18", delta: "4 active today", tone: "up" },
+    { label: "Delivery Risk", value: "3", delta: "2 elevated", tone: "down" },
+    { label: "Postal Alerts", value: "7", delta: "Live monitoring", tone: "up" },
+    { label: "On-Time Rate", value: "94%", delta: "+2.1%", tone: "up" }
+  ],
+  drops: [
+    {
+      id: 1,
+      campaign: "GA Senate Victory",
+      location: "Atlanta NDC",
+      status: "Elevated",
+      in_home: "2026-10-14",
+      note: "Watch weekend clearance volume"
+    },
+    {
+      id: 2,
+      campaign: "PA Governor Push",
+      location: "Philadelphia P&DC",
+      status: "On Track",
+      in_home: "2026-10-16",
+      note: "Vendor scan performance stable"
+    }
+  ],
+  alerts: [
+    {
+      id: 1,
+      title: "Atlanta NDC delay pressure increasing",
+      severity: "High",
+      source: "MailOps",
+      detail: "Projected slip risk on high-volume trays."
+    },
+    {
+      id: 2,
+      title: "Philadelphia scan recovery improving",
+      severity: "Medium",
+      source: "MailOps",
+      detail: "Recent tray movement indicates stabilization."
+    }
+  ],
+  _demo: true
+};
 
 export default function MailOpsDashboard() {
+  const { demoMode } = useDemoMode();
+  const { filters } = useExecutiveFilters();
+
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [liveNotice, setLiveNotice] = useState("");
-
-  const [dashboard, setDashboard] = useState({ metrics: [] });
-  const [timeline, setTimeline] = useState([]);
-  const [intelligence, setIntelligence] = useState({
-    metrics: [],
-    vendor_rankings: [],
-    campaign_rankings: [],
-    regional_heatmap: [],
-    recent_drop_stats: []
-  });
-
-  const loadAll = useCallback(async (background = false) => {
-    try {
-      if (background) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      setError("");
-
-      const [dashboardRes, timelineRes, intelligenceRes] = await Promise.all([
-        api.get("/mail/dashboard").then((r) => r.data),
-        api.get("/mail/timeline").then((r) => r.data),
-        api.get("/mail/intelligence/summary").then((r) => r.data)
-      ]);
-
-      setDashboard(
-        dashboardRes && typeof dashboardRes === "object"
-          ? dashboardRes
-          : { metrics: [] }
-      );
-
-      setTimeline(Array.isArray(timelineRes) ? timelineRes : []);
-
-      setIntelligence(
-        intelligenceRes && typeof intelligenceRes === "object"
-          ? {
-              metrics: Array.isArray(intelligenceRes.metrics) ? intelligenceRes.metrics : [],
-              vendor_rankings: Array.isArray(intelligenceRes.vendor_rankings) ? intelligenceRes.vendor_rankings : [],
-              campaign_rankings: Array.isArray(intelligenceRes.campaign_rankings) ? intelligenceRes.campaign_rankings : [],
-              regional_heatmap: Array.isArray(intelligenceRes.regional_heatmap) ? intelligenceRes.regional_heatmap : [],
-              recent_drop_stats: Array.isArray(intelligenceRes.recent_drop_stats) ? intelligenceRes.recent_drop_stats : []
-            }
-          : {
-              metrics: [],
-              vendor_rankings: [],
-              campaign_rankings: [],
-              regional_heatmap: [],
-              recent_drop_stats: []
-            }
-      );
-    } catch (err) {
-      setError(err?.message || "Failed to load MailOps intelligence");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const [data, setData] = useState(fallbackData);
+  const [isDemoData, setIsDemoData] = useState(Boolean(fallbackData._demo));
 
   useEffect(() => {
-    loadAll(false);
-  }, [loadAll]);
+    let active = true;
 
-  useLiveChannel("mailops:alerts", (event) => {
-    if (event?.type !== "mail.delay_detected") return;
+    async function loadMailOps() {
+      try {
+        setLoading(true);
+        setError("");
 
-    const payload = event.payload || {};
+        const response = await api.mailOpsDashboard();
 
-    setLiveNotice(
-      `Live mail delay detected for campaign #${payload.campaignId || "N/A"} at ${payload.location || "Unknown location"}`
-    );
+        if (!active) return;
 
-    setTimeline((prev) => [
-      {
-        id: `live-${Date.now()}`,
-        event_type: "delayed",
-        mail_drop_id: payload.mailDropId || null,
-        campaign_id: payload.campaignId || null,
-        location_name: payload.location || "Unknown location",
-        facility_type: "live_signal",
-        notes: payload.note || "Live delay signal",
-        source: "live_intelligence",
-        status: payload.status || "delayed",
-        created_at: new Date().toISOString()
-      },
-      ...prev
-    ]);
+        setData(response || fallbackData);
+        setIsDemoData(Boolean(response?._demo || response?.demo));
+      } catch (err) {
+        if (!active) return;
+        setError(
+          err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load MailOps dashboard"
+        );
+        setData(fallbackData);
+        setIsDemoData(true);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
 
-    setTimeout(() => {
-      loadAll(true);
-    }, 600);
-  });
+    loadMailOps();
 
-  const metricCards =
-    intelligence.metrics?.length > 0
-      ? intelligence.metrics
-      : dashboard.metrics?.length > 0
-      ? dashboard.metrics
-      : [];
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const drops = useMemo(() => data?.drops || [], [data]);
+  const alerts = useMemo(() => data?.alerts || [], [data]);
+
+  const elevatedDrops = drops.filter(
+    (row) => String(row.status || "").toLowerCase() === "elevated"
+  ).length;
+
+  const highAlerts = alerts.filter(
+    (row) => String(row.severity || "").toLowerCase() === "high"
+  ).length;
 
   return (
-    <div className="min-h-screen bg-[#f3f6f9] p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="text-xs uppercase tracking-[0.22em] text-[#0176D3]">
-                VoterSpheres Mail Intelligence
-              </div>
-              <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-                MailOps + Intelligence
-              </h1>
-              <p className="mt-2 text-sm text-slate-500">
-                Track delivery operations, evaluate vendors, surface delay risk, and benchmark campaign execution.
-              </p>
-            </div>
+    <PageShell
+      eyebrow="MailOps Dashboard"
+      title="Track mail execution, delivery risk, and postal disruption."
+      description="Monitor drop performance, scan stability, in-home timing, and operational alerts from one executive mail view."
+      demo={demoMode}
+      demoText="Global Demo Mode is active. This module can render fallback MailOps data when live endpoints are unavailable."
+      tickerItems={[
+        {
+          label: "Drops",
+          value: `${drops.length}`,
+          dotClass: "vs-live-dot-success"
+        },
+        {
+          label: "Elevated",
+          value: `${elevatedDrops}`,
+          dotClass: "vs-live-dot"
+        },
+        {
+          label: "Alerts",
+          value: `${highAlerts} high`,
+          dotClass: "vs-live-dot-warning"
+        }
+      ]}
+    >
+      <DemoBanner
+        active={isDemoData}
+        text="Demo MailOps data is active for this module."
+      />
 
-            <div className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-4 py-2 text-xs font-medium text-[#0176D3]">
-              {refreshing ? "Refreshing live data..." : "Live monitoring active"}
-            </div>
-          </div>
+      {filters.state || filters.office || filters.risk ? (
+        <div className="vs-banner">
+          Executive filters are active for this session:
+          {filters.state ? ` state: ${filters.state};` : ""}
+          {filters.office ? ` office: ${filters.office};` : ""}
+          {filters.risk ? ` risk: ${filters.risk};` : ""}
         </div>
+      ) : null}
 
-        {liveNotice ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {liveNotice}
-          </div>
-        ) : null}
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
+      <div className="vs-grid-4">
+        {(data?.metrics || []).map((metric, index) => (
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
+        ))}
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {metricCards.length > 0 ? (
-            metricCards.map((metric, index) => (
-              <StatCard
-                key={`${metric.label || "metric"}-${index}`}
-                label={metric.label || "Metric"}
-                value={metric.value ?? "N/A"}
-                subtext={metric.delta || metric.subtext || ""}
-              />
-            ))
-          ) : (
-            <>
-              <StatCard label="MailOps Status" value={loading ? "Loading" : "Ready"} subtext="Shared API connected" />
-              <StatCard label="Vendor Rankings" value={formatCount(intelligence.vendor_rankings?.length)} subtext="Tracked operators" />
-              <StatCard label="Campaign Rankings" value={formatCount(intelligence.campaign_rankings?.length)} subtext="Tracked campaigns" />
-              <StatCard label="Timeline Events" value={formatCount(timeline.length)} subtext="Recent tracking movement" />
-            </>
-          )}
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card title="Vendor Reliability" subtitle="Best-performing mail operators">
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading vendor intelligence..." />
-              ) : intelligence.vendor_rankings?.length ? (
-                intelligence.vendor_rankings.map((vendor, index) => (
-                  <div
-                    key={`${vendor.vendor_name || "vendor"}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {vendor.vendor_name || "Unknown Vendor"}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          {formatCount(vendor.drops_count)} drops • {vendor.delivered_rate ?? 0}% delivered
-                        </div>
-                      </div>
-                      <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-                        Score {vendor.reliability_score ?? "N/A"}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                      <div>Delayed: {vendor.delay_rate ?? 0}%</div>
-                      <div>Avg Transit: {formatHours(vendor.avg_transit_hours)}</div>
-                      <div>Median Transit: {formatHours(vendor.median_transit_hours)}</div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState text="No vendor intelligence yet." />
-              )}
-            </div>
-          </Card>
-
-          <Card title="Campaign Mail Performance" subtitle="Which campaigns are executing best">
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading campaign intelligence..." />
-              ) : intelligence.campaign_rankings?.length ? (
-                intelligence.campaign_rankings.map((campaign, index) => (
-                  <div
-                    key={`${campaign.campaign_id || "campaign"}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          Campaign #{campaign.campaign_id ?? "N/A"}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          {formatCount(campaign.drops_count)} drops • {formatCount(campaign.pieces_total)} pieces
-                        </div>
-                      </div>
-                      <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-                        Score {campaign.reliability_score ?? "N/A"}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                      <div>Delivered: {formatCount(campaign.delivered_count)}</div>
-                      <div>Delayed: {formatCount(campaign.delayed_count)}</div>
-                      <div>Avg Transit: {formatHours(campaign.avg_transit_hours)}</div>
-                    </div>
-
-                    {campaign.alerts?.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {campaign.alerts.map((alert, alertIndex) => (
-                          <span
-                            key={`${campaign.campaign_id || "campaign"}-alert-${alertIndex}`}
-                            className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700"
-                          >
-                            {alert}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ))
-              ) : (
-                <EmptyState text="No campaign intelligence yet." />
-              )}
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card title="Regional Heatmap" subtitle="Operational hotspots by facility and geography">
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading regional intelligence..." />
-              ) : intelligence.regional_heatmap?.length ? (
-                intelligence.regional_heatmap.map((region, index) => (
-                  <div
-                    key={`${region.region || "region"}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {region.region || "Unknown Region"}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          {formatCount(region.events)} total events
-                        </div>
-                      </div>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
-                        Delay {region.delay_rate ?? 0}%
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                      <div>Entered: {formatCount(region.entered_events)}</div>
-                      <div>Delivered: {formatCount(region.delivered_events)}</div>
-                      <div>Delayed: {formatCount(region.delayed_events)}</div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState text="No regional intelligence yet." />
-              )}
-            </div>
-          </Card>
-
-          <Card title="Recent Drop Intelligence" subtitle="Latest drop-level operational summaries">
-            <div className="space-y-3">
-              {loading ? (
-                <EmptyState text="Loading drop intelligence..." />
-              ) : intelligence.recent_drop_stats?.length ? (
-                intelligence.recent_drop_stats.map((drop, index) => (
-                  <div
-                    key={`${drop.mail_drop_id || "drop"}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          Drop #{drop.mail_drop_id ?? "N/A"}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          Campaign #{drop.campaign_id ?? "N/A"} • {formatCount(drop.quantity)} pieces
-                        </div>
-                      </div>
-                      <span className="rounded-full border border-[#0176D3]/20 bg-[#0176D3]/10 px-3 py-1 text-xs text-[#0176D3]">
-                        {drop.latest_status || "unknown"}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                      <div>Transit: {formatHours(drop.transit_hours)}</div>
-                      <div>Processing: {formatHours(drop.processing_hours)}</div>
-                      <div>Delayed Events: {formatCount(drop.delayed_count)}</div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState text="No drop intelligence yet." />
-              )}
-            </div>
-          </Card>
-        </div>
-
-        <Card title="Raw Tracking Timeline" subtitle="Recent mail movement events across the platform">
-          <div className="space-y-3">
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Active Mail Drops"
+          subtitle="Live campaigns and in-home delivery posture."
+          right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live Data"}</Badge>}
+        >
+          <div className="vs-stack">
             {loading ? (
-              <EmptyState text="Loading timeline..." />
-            ) : timeline.length ? (
-              timeline.map((event, index) => (
-                <div
-                  key={event.id || `${event.mail_drop_id || "event"}-${index}`}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-slate-900">
-                        {event.event_type || "event"}
-                      </div>
-                      <div className="mt-1 text-sm text-slate-500">
-                        Drop #{event.mail_drop_id ?? "N/A"} • Campaign #{event.campaign_id ?? "N/A"}
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
-                      {event.status || "pending"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-4">
-                    <div>Location: {event.location_name || "N/A"}</div>
-                    <div>Facility: {event.facility_type || "N/A"}</div>
-                    <div>Source: {event.source || "manual"}</div>
-                    <div>
-                      Time: {event.created_at ? new Date(event.created_at).toLocaleString() : "N/A"}
-                    </div>
-                  </div>
-
-                  {event.notes ? (
-                    <div className="mt-2 text-xs text-slate-500">Notes: {event.notes}</div>
-                  ) : null}
-                </div>
-              ))
+              <EmptyState text="Loading mail drops..." />
+            ) : !drops.length ? (
+              <EmptyState text="No active mail drops available." />
             ) : (
-              <EmptyState text="No tracking events yet." />
+              drops.map((row) => <DropRow key={row.id || row.campaign} row={row} />)
             )}
           </div>
-        </Card>
+        </SectionCard>
+
+        <SectionCard
+          title="Postal Alerts"
+          subtitle="Risk signals that may affect delivery or in-home timing."
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading postal alerts..." />
+            ) : !alerts.length ? (
+              <EmptyState text="No postal alerts available." />
+            ) : (
+              alerts.map((row) => <AlertRow key={row.id || row.title} row={row} />)
+            )}
+          </div>
+        </SectionCard>
       </div>
-    </div>
+    </PageShell>
   );
 }
