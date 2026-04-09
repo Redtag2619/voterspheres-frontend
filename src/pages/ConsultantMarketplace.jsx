@@ -5,364 +5,344 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
-
-function ConsultantCard({ consultant }) {
-  const specialties = Array.isArray(consultant.specialties)
-    ? consultant.specialties
-    : String(
-        consultant.specialties ||
-          consultant.services ||
-          consultant.focus_areas ||
-          ""
-      )
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-
-  return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "1rem",
-          alignItems: "flex-start"
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
-            {consultant.name || consultant.firm_name || "Consultant"}
-          </div>
-
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.9rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {consultant.location || consultant.state || "National"} •{" "}
-            {consultant.consultant_type ||
-              consultant.category ||
-              "Political Consulting"}
-          </div>
-        </div>
-
-        <Badge tone="accent">
-          {consultant.tier || consultant.plan_tier || "Verified"}
-        </Badge>
-      </div>
-
-      <div
-        style={{
-          marginTop: "1rem",
-          fontSize: "0.92rem",
-          lineHeight: 1.7,
-          color: "var(--vs-text-muted)"
-        }}
-      >
-        {consultant.description ||
-          consultant.summary ||
-          "Experienced campaign consulting support across strategy, communications, voter contact, and execution."}
-      </div>
-
-      <div
-        style={{
-          marginTop: "1rem",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "0.5rem"
-        }}
-      >
-        {specialties.length ? (
-          specialties.slice(0, 5).map((item) => (
-            <span
-              key={item}
-              className="vs-badge"
-            >
-              {item}
-            </span>
-          ))
-        ) : (
-          <span className="vs-badge">General Strategy</span>
-        )}
-      </div>
-
-      <div
-        style={{
-          marginTop: "1.25rem",
-          display: "grid",
-          gap: "0.75rem",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))"
-        }}
-      >
-        <div className="vs-card-muted" style={{ padding: "0.85rem" }}>
-          <div className="vs-stat-label">State Reach</div>
-          <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", fontWeight: 700 }}>
-            {consultant.state || consultant.region || "National"}
-          </div>
-        </div>
-
-        <div className="vs-card-muted" style={{ padding: "0.85rem" }}>
-          <div className="vs-stat-label">Focus</div>
-          <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", fontWeight: 700 }}>
-            {consultant.primary_focus ||
-              consultant.category ||
-              "Campaign Strategy"}
-          </div>
-        </div>
-
-        <div className="vs-card-muted" style={{ padding: "0.85rem" }}>
-          <div className="vs-stat-label">Contact</div>
-          <div
-            style={{
-              marginTop: "0.4rem",
-              fontSize: "0.9rem",
-              fontWeight: 700,
-              wordBreak: "break-word"
-            }}
-          >
-            {consultant.website ||
-              consultant.email ||
-              "Available on request"}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import ResponsiveRow from "../components/ui/ResponsiveRow";
+import DemoBanner from "../components/ui/DemoBanner";
+import { useDemoMode } from "../context/DemoModeContext.jsx";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 const fallbackData = {
   results: [
     {
       id: 1,
       name: "Red Tag Strategies",
-      location: "Georgia",
-      consultant_type: "General Consulting",
-      description:
-        "Full-service political consulting across direct mail, campaign operations, strategic communications, and execution oversight.",
-      specialties: ["Direct Mail", "Campaign Strategy", "Operations", "Messaging"],
-      state: "Georgia",
-      primary_focus: "Campaign Strategy",
-      website: "voterspheres.org",
-      tier: "Featured"
+      category: "General Consulting",
+      state: "Louisiana",
+      website: "https://example.com",
+      status: "active",
     },
     {
       id: 2,
-      name: "Capitol Victory Group",
-      location: "Pennsylvania",
-      consultant_type: "Media + Targeting",
-      description:
-        "Data-informed consulting support for persuasion programs, paid media coordination, and turnout architecture.",
-      specialties: ["Media", "Targeting", "Polling", "Turnout"],
-      state: "Pennsylvania",
-      primary_focus: "Paid Media",
-      website: "Available on request",
-      tier: "Verified"
+      name: "Capitol Campaign Group",
+      category: "Media + Strategy",
+      state: "Georgia",
+      website: "https://example.com",
+      status: "active",
     },
     {
       id: 3,
-      name: "Southern Field Advisors",
-      location: "Georgia",
-      consultant_type: "Field + GOTV",
-      description:
-        "Ground-game consulting for voter contact programs, turnout structure, and regional field execution.",
-      specialties: ["Field", "GOTV", "Volunteer Ops", "Regional Execution"],
-      state: "Georgia",
-      primary_focus: "Field Operations",
-      website: "Available on request",
-      tier: "Verified"
-    }
+      name: "Keystone Field Partners",
+      category: "Field Operations",
+      state: "Pennsylvania",
+      website: "https://example.com",
+      status: "active",
+    },
   ],
-  summary: {
-    total_consultants: 3,
-    featured_consultants: 1,
-    states_covered: 2,
-    specialties_tracked: 12
-  }
+  _demo: true,
 };
 
+function statusTone(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "active") return "active";
+  if (v === "featured") return "accent";
+  if (v === "watch") return "demo";
+  return "default";
+}
+
+function ConsultantRow({ consultant }) {
+  return (
+    <ResponsiveRow
+      title={consultant.name || "Unnamed Consultant"}
+      subtitle={`${consultant.state || "Unknown state"} • ${consultant.category || "Uncategorized"}`}
+      meta={[
+        { label: "Category", value: consultant.category || "N/A" },
+        { label: "State", value: consultant.state || "N/A" },
+        { label: "Website", value: consultant.website || "N/A" },
+      ]}
+      alert={
+        String(consultant.status || "").toLowerCase() === "active"
+          ? "vs-live-dot-success"
+          : "vs-live-dot-warning"
+      }
+      right={
+        <Badge tone={statusTone(consultant.status)}>
+          {consultant.status || "Unknown"}
+        </Badge>
+      }
+    />
+  );
+}
+
 export default function ConsultantMarketplace() {
+  const { demoMode } = useDemoMode();
+  const { filters } = useExecutiveFilters();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [marketplaceData, setMarketplaceData] = useState(fallbackData);
-
-  const [filters, setFilters] = useState({
+  const [consultantData, setConsultantData] = useState(fallbackData);
+  const [localFilters, setLocalFilters] = useState({
     search: "",
-    state: "",
-    specialty: ""
+    category: "",
+    status: "",
   });
-
-  const demoMode =
-    typeof window !== "undefined" &&
-    localStorage.getItem("vs_demo_mode") === "1";
+  const [isDemoData, setIsDemoData] = useState(Boolean(fallbackData._demo));
 
   useEffect(() => {
     let active = true;
 
-    async function loadMarketplace() {
+    async function loadConsultants() {
       try {
         setLoading(true);
         setError("");
 
-        const params = new URLSearchParams();
-        if (filters.search) params.set("q", filters.search);
-        if (filters.state) params.set("state", filters.state);
-        if (filters.specialty) params.set("specialty", filters.specialty);
+        const params = {};
+        if (filters.state) params.state = filters.state;
+        if (localFilters.search.trim()) params.search = localFilters.search.trim();
+        if (localFilters.category.trim()) params.category = localFilters.category.trim();
+        if (localFilters.status.trim()) params.status = localFilters.status.trim();
 
-        const query = params.toString() ? `?${params.toString()}` : "";
-
-        const response = await api.get(`/consultants${query}`, {
-          timeout: 6000
-        });
+        const data = await api.consultants(params);
 
         if (!active) return;
 
-        const payload = response?.data || fallbackData;
-
-        setMarketplaceData({
-          results: payload.results?.length ? payload.results : fallbackData.results,
-          summary: payload.summary || fallbackData.summary
-        });
+        setConsultantData(data || fallbackData);
+        setIsDemoData(Boolean(data?._demo || data?.demo));
       } catch (err) {
         if (!active) return;
 
         setError(
           err?.response?.data?.error ||
             err?.message ||
-            "Failed to load consultant marketplace"
+            "Failed to load consultants"
         );
-
-        setMarketplaceData(fallbackData);
+        setConsultantData(fallbackData);
+        setIsDemoData(true);
       } finally {
         if (active) setLoading(false);
       }
     }
 
-    loadMarketplace();
+    loadConsultants();
 
     return () => {
       active = false;
     };
-  }, [filters]);
+  }, [filters.state, localFilters.search, localFilters.category, localFilters.status]);
 
-  const consultants = useMemo(
-    () => marketplaceData.results || [],
-    [marketplaceData.results]
-  );
+  const filteredResults = useMemo(() => {
+    let rows = Array.isArray(consultantData?.results) ? consultantData.results : [];
 
-  const summary = marketplaceData.summary || fallbackData.summary;
+    if (filters.state) {
+      rows = rows.filter((row) => row.state === filters.state);
+    }
+
+    if (localFilters.search.trim()) {
+      const q = localFilters.search.trim().toLowerCase();
+      rows = rows.filter((row) => {
+        return (
+          String(row.name || "").toLowerCase().includes(q) ||
+          String(row.category || "").toLowerCase().includes(q) ||
+          String(row.state || "").toLowerCase().includes(q)
+        );
+      });
+    }
+
+    if (localFilters.category.trim()) {
+      rows = rows.filter(
+        (row) =>
+          String(row.category || "").toLowerCase() ===
+          localFilters.category.trim().toLowerCase()
+      );
+    }
+
+    if (localFilters.status.trim()) {
+      rows = rows.filter(
+        (row) =>
+          String(row.status || "").toLowerCase() ===
+          localFilters.status.trim().toLowerCase()
+      );
+    }
+
+    return rows;
+  }, [consultantData, filters.state, localFilters]);
+
+  const summary = useMemo(() => {
+    const categories = new Set(filteredResults.map((row) => row.category).filter(Boolean));
+    const states = new Set(filteredResults.map((row) => row.state).filter(Boolean));
+    const activeCount = filteredResults.filter(
+      (row) => String(row.status || "").toLowerCase() === "active"
+    ).length;
+
+    return {
+      total: filteredResults.length,
+      categories: categories.size,
+      states: states.size,
+      active: activeCount,
+    };
+  }, [filteredResults]);
+
+  const categoryOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        (consultantData?.results || [])
+          .map((row) => row.category)
+          .filter(Boolean)
+      )
+    ).sort();
+  }, [consultantData]);
+
+  const statusOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        (consultantData?.results || [])
+          .map((row) => row.status)
+          .filter(Boolean)
+      )
+    ).sort();
+  }, [consultantData]);
 
   return (
     <PageShell
       eyebrow="Consultant Marketplace"
-      title="Find the campaign operators behind the strongest programs."
-      description="Discover political consultants, strategy partners, field operators, and campaign specialists across the map."
+      title="Find the consulting partners behind campaign execution."
+      description="Browse consulting firms, campaign specialists, and strategic operators across your active executive filter set."
       demo={demoMode}
-      demoText="Demo consultant marketplace is active. Profiles are preloaded for presentation and testing."
+      demoText="Global Demo Mode is active. This module can render fallback consultant data when live endpoints are unavailable."
+      tickerItems={[
+        {
+          label: "Consultants",
+          value: `${summary.total}`,
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "Categories",
+          value: `${summary.categories}`,
+          dotClass: "vs-live-dot-warning",
+        },
+        {
+          label: "Active",
+          value: `${summary.active}`,
+          dotClass: "vs-live-dot",
+        },
+      ]}
     >
-      {error ? (
-        <div
-          className="vs-banner"
-          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
-        >
-          {error}
-        </div>
-      ) : null}
+      <DemoBanner
+        active={isDemoData}
+        text="Demo consultant marketplace data is active for this module."
+      />
+
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
         <StatCard
           label="Visible Consultants"
-          value={summary.total_consultants || 0}
-          subtext="Profiles in the marketplace"
+          value={summary.total}
+          subtext="Results in current view"
         />
         <StatCard
-          label="Featured Firms"
-          value={summary.featured_consultants || 0}
-          subtext="Highlighted consultant partners"
+          label="Categories"
+          value={summary.categories}
+          subtext="Specialties represented"
         />
         <StatCard
-          label="States Covered"
-          value={summary.states_covered || 0}
-          subtext="Regional and national reach"
+          label="States"
+          value={summary.states}
+          subtext="Geographic footprint"
         />
         <StatCard
-          label="Specialties Tracked"
-          value={summary.specialties_tracked || 0}
-          subtext="Capabilities across profiles"
+          label="Active Firms"
+          value={summary.active}
+          subtext="Currently marked active"
         />
       </div>
 
       <SectionCard
         title="Marketplace Filters"
-        subtitle="Narrow consultants by state, focus area, and search term."
-      >
-        <div className="vs-grid-3">
-          <input
-            className="vs-input"
-            value={filters.search}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, search: e.target.value }))
-            }
-            placeholder="Search firms, specialties, locations..."
-          />
-
-          <input
-            className="vs-input"
-            value={filters.state}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, state: e.target.value }))
-            }
-            placeholder="Filter by state"
-          />
-
-          <input
-            className="vs-input"
-            value={filters.specialty}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, specialty: e.target.value }))
-            }
-            placeholder="Filter by specialty"
-          />
-        </div>
-
-        <div
-          style={{
-            marginTop: "1rem",
-            display: "flex",
-            gap: "0.75rem",
-            flexWrap: "wrap"
-          }}
-        >
+        subtitle="Search within the consultant marketplace while honoring your executive state filter."
+        right={
           <button
             type="button"
             className="vs-button vs-button-secondary"
             onClick={() =>
-              setFilters({
+              setLocalFilters({
                 search: "",
-                state: "",
-                specialty: ""
+                category: "",
+                status: "",
               })
             }
           >
             Clear Filters
           </button>
+        }
+      >
+        <div className="vs-grid-2">
+          <input
+            className="vs-input"
+            value={localFilters.search}
+            onChange={(e) =>
+              setLocalFilters((prev) => ({ ...prev, search: e.target.value }))
+            }
+            placeholder="Search consultant, category, or state..."
+          />
+
+          <input
+            className="vs-input"
+            value={filters.state || ""}
+            readOnly
+            placeholder="Executive state filter"
+          />
+        </div>
+
+        <div className="vs-grid-2" style={{ marginTop: "12px" }}>
+          <select
+            className="vs-select"
+            value={localFilters.category}
+            onChange={(e) =>
+              setLocalFilters((prev) => ({ ...prev, category: e.target.value }))
+            }
+          >
+            <option value="">All categories</option>
+            {categoryOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="vs-select"
+            value={localFilters.status}
+            onChange={(e) =>
+              setLocalFilters((prev) => ({ ...prev, status: e.target.value }))
+            }
+          >
+            <option value="">All statuses</option>
+            {statusOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
         </div>
       </SectionCard>
 
       <SectionCard
         title="Consultant Directory"
-        subtitle="Political consultants and campaign operators across your active network."
+        subtitle="Campaign consulting firms and specialists across the filtered marketplace."
+        right={
+          <Badge tone={isDemoData ? "demo" : "active"}>
+            {isDemoData ? "Demo Data" : "Live Data"}
+          </Badge>
+        }
       >
         <div className="vs-stack">
           {loading ? (
             <EmptyState text="Loading consultant marketplace..." />
-          ) : !consultants.length ? (
-            <EmptyState text="No consultants found for the current filters." />
+          ) : !filteredResults.length ? (
+            <EmptyState text="No consultants match the active filters." />
           ) : (
-            consultants.map((consultant, index) => (
-              <ConsultantCard
-                key={`${consultant.id || index}-${consultant.name || consultant.firm_name}`}
+            filteredResults.map((consultant) => (
+              <ConsultantRow
+                key={consultant.id || consultant.name}
                 consultant={consultant}
               />
             ))
