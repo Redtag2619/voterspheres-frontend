@@ -5,153 +5,92 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
+import DemoBanner from "../components/ui/DemoBanner";
+import { useDemoMode } from "../context/DemoModeContext.jsx";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function DonorRow({ item }) {
-  return (
-    <div className="vs-card-muted">
-      <div
-        style={{
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: "1.5fr 1fr 1fr auto",
-          alignItems: "start"
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>
-            {item.name}
-          </div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.85rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {item.location || item.state || "National donor"} • {item.type || "Individual"}
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Total Given</div>
-          <div style={{ marginTop: "0.35rem", fontWeight: 700 }}>
-            {formatMoney(item.total || 0)}
-          </div>
-        </div>
-
-        <div>
-          <div className="vs-stat-label">Affinity</div>
-          <div style={{ marginTop: "0.35rem" }}>
-            <Badge tone="accent">{item.affinity || "High"}</Badge>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Badge tone={String(item.status || "").toLowerCase() === "active" ? "active" : "default"}>
-            {item.status || "tracked"}
-          </Badge>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ClusterCard({ item }) {
-  return (
-    <div className="vs-card-muted">
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontWeight: 700, color: "var(--vs-text)" }}>{item.name}</div>
-          <div
-            style={{
-              marginTop: "0.35rem",
-              fontSize: "0.9rem",
-              color: "var(--vs-text-muted)"
-            }}
-          >
-            {item.description}
-          </div>
-        </div>
-
-        <Badge tone="accent">{item.members} members</Badge>
-      </div>
-
-      <div style={{ marginTop: "1rem" }}>
-        <div className="vs-stat-label">Combined Capacity</div>
-        <div style={{ marginTop: "0.35rem", fontSize: "1.2rem", fontWeight: 700 }}>
-          {formatMoney(item.capacity || 0)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const fallbackData = {
-  metrics: [
-    { label: "Tracked Donors", value: "184", delta: "+18 added", tone: "up" },
-    { label: "Active Donor Clusters", value: "6", delta: "Regional + national", tone: "up" },
-    { label: "Modeled Capacity", value: "$9.4M", delta: "Near-term reachable", tone: "up" },
-    { label: "High-Affinity Donors", value: "42", delta: "Priority outreach", tone: "up" }
-  ],
-  donors: [
+  results: [
     {
       id: 1,
-      name: "Patricia Monroe",
-      location: "Atlanta, GA",
-      type: "Individual",
-      total: 125000,
-      affinity: "High",
-      status: "active"
+      donor_name: "Atlantic Leadership Fund",
+      donor_type: "PAC",
+      state: "Georgia",
+      amount: 250000,
+      relationship_strength: "High",
     },
     {
       id: 2,
-      name: "Southern Growth PAC",
-      location: "Georgia",
-      type: "PAC",
-      total: 350000,
-      affinity: "High",
-      status: "active"
+      donor_name: "Keystone Civic Network",
+      donor_type: "Individual Network",
+      state: "Pennsylvania",
+      amount: 175000,
+      relationship_strength: "Medium",
     },
     {
       id: 3,
-      name: "Liberty Finance Circle",
-      location: "Pennsylvania",
-      type: "Donor Circle",
-      total: 210000,
-      affinity: "Medium",
-      status: "tracked"
-    }
-  ],
-  clusters: [
-    {
-      id: 1,
-      name: "Atlanta Executive Circle",
-      members: 14,
-      capacity: 1800000,
-      description: "High-capacity metro donors aligned with persuasion and growth messaging."
+      donor_name: "Great Lakes Action Council",
+      donor_type: "PAC",
+      state: "Michigan",
+      amount: 120000,
+      relationship_strength: "Growing",
     },
-    {
-      id: 2,
-      name: "Regional Business Network",
-      members: 22,
-      capacity: 2400000,
-      description: "Business-focused donor network with strong late-cycle activation potential."
-    }
-  ]
+  ],
+  summary: {
+    total_donors: 3,
+    total_amount: 545000,
+    top_state: "Georgia",
+  },
+  _demo: true,
 };
 
+function strengthTone(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "high") return "danger";
+  if (v === "medium") return "demo";
+  if (v === "growing") return "info";
+  return "default";
+}
+
+function DonorRow({ donor }) {
+  return (
+    <ResponsiveRow
+      title={donor.donor_name || "Unnamed Donor"}
+      subtitle={`${donor.state || "Unknown state"} • ${donor.donor_type || "Unknown type"}`}
+      meta={[
+        { label: "Amount", value: formatMoney(donor.amount || 0) },
+        { label: "Relationship", value: donor.relationship_strength || "N/A" },
+      ]}
+      alert={
+        String(donor.relationship_strength || "").toLowerCase() === "high"
+          ? "vs-live-dot"
+          : String(donor.relationship_strength || "").toLowerCase() === "medium"
+          ? "vs-live-dot-warning"
+          : "vs-live-dot-success"
+      }
+      right={
+        <Badge tone={strengthTone(donor.relationship_strength)}>
+          {donor.relationship_strength || "Unknown"}
+        </Badge>
+      }
+    />
+  );
+}
+
 export default function DonorNetwork() {
+  const { demoMode } = useDemoMode();
+  const { filters } = useExecutiveFilters();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [networkData, setNetworkData] = useState(fallbackData);
-
-  const demoMode =
-    typeof window !== "undefined" &&
-    localStorage.getItem("vs_demo_mode") === "1";
+  const [localSearch, setLocalSearch] = useState("");
+  const [isDemoData, setIsDemoData] = useState(Boolean(fallbackData._demo));
 
   useEffect(() => {
     let active = true;
@@ -161,27 +100,26 @@ export default function DonorNetwork() {
         setLoading(true);
         setError("");
 
-        const response = await api.get("/donors/network", {
-          timeout: 6000
-        });
+        const params = {};
+        if (filters.state) params.state = filters.state;
+        if (localSearch.trim()) params.search = localSearch.trim();
+
+        const data = await api.donorNetwork(params);
 
         if (!active) return;
 
-        const payload = response?.data || fallbackData;
-
-        setNetworkData({
-          metrics: payload.metrics?.length ? payload.metrics : fallbackData.metrics,
-          donors: payload.donors?.length ? payload.donors : fallbackData.donors,
-          clusters: payload.clusters?.length ? payload.clusters : fallbackData.clusters
-        });
+        setNetworkData(data || fallbackData);
+        setIsDemoData(Boolean(data?._demo || data?.demo));
       } catch (err) {
         if (!active) return;
+
         setError(
           err?.response?.data?.error ||
             err?.message ||
             "Failed to load donor network"
         );
         setNetworkData(fallbackData);
+        setIsDemoData(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -192,76 +130,165 @@ export default function DonorNetwork() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [filters.state, localSearch]);
 
-  const donors = useMemo(() => networkData.donors || [], [networkData.donors]);
-  const clusters = useMemo(() => networkData.clusters || [], [networkData.clusters]);
+  const filteredResults = useMemo(() => {
+    let rows = Array.isArray(networkData?.results) ? networkData.results : [];
+
+    if (filters.state) {
+      rows = rows.filter((row) => row.state === filters.state);
+    }
+
+    if (localSearch.trim()) {
+      const q = localSearch.trim().toLowerCase();
+      rows = rows.filter((row) => {
+        return (
+          String(row.donor_name || "").toLowerCase().includes(q) ||
+          String(row.donor_type || "").toLowerCase().includes(q) ||
+          String(row.relationship_strength || "").toLowerCase().includes(q) ||
+          String(row.state || "").toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return rows;
+  }, [networkData, filters.state, localSearch]);
+
+  const summary = useMemo(() => {
+    if (!filteredResults.length) {
+      return {
+        total_donors: 0,
+        total_amount: 0,
+        top_state: "N/A",
+      };
+    }
+
+    const totalAmount = filteredResults.reduce(
+      (sum, row) => sum + Number(row.amount || 0),
+      0
+    );
+
+    const stateTotals = filteredResults.reduce((acc, row) => {
+      const key = row.state || "Unknown";
+      acc[key] = (acc[key] || 0) + Number(row.amount || 0);
+      return acc;
+    }, {});
+
+    const topState =
+      Object.entries(stateTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+
+    return {
+      total_donors: filteredResults.length,
+      total_amount: totalAmount,
+      top_state: topState,
+    };
+  }, [filteredResults]);
+
+  const highStrengthCount = filteredResults.filter(
+    (row) => String(row.relationship_strength || "").toLowerCase() === "high"
+  ).length;
 
   return (
     <PageShell
       eyebrow="Donor Network"
-      title="See the finance network behind the campaign."
-      description="Track donor relationships, cluster strength, and modeled fundraising capacity across your campaign finance network."
+      title="See the donor network behind campaign momentum."
+      description="Track donor relationships, contribution concentration, and strategic fundraising clusters across your executive filter set."
       demo={demoMode}
-      demoText="Demo donor network mode is active. Donor relationships and fundraising clusters are preloaded for presentation."
+      demoText="Global Demo Mode is active. This module can render fallback donor intelligence when live endpoints are unavailable."
+      tickerItems={[
+        {
+          label: "Donors",
+          value: `${summary.total_donors}`,
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "High Strength",
+          value: `${highStrengthCount}`,
+          dotClass: "vs-live-dot",
+        },
+        {
+          label: "Top State",
+          value: `${summary.top_state}`,
+          dotClass: "vs-live-dot-warning",
+        },
+      ]}
     >
-      {error ? (
-        <div
-          className="vs-banner"
-          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
-        >
-          {error}
-        </div>
-      ) : null}
+      <DemoBanner
+        active={isDemoData}
+        text="Demo donor network data is active for this module."
+      />
+
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
-        {(networkData.metrics || []).map((metric, index) => (
-          <StatCard
-            key={`${metric.label}-${index}`}
-            label={metric.label}
-            value={metric.value}
-            delta={metric.delta}
-            tone={metric.tone}
+        <StatCard
+          label="Tracked Donors"
+          value={summary.total_donors}
+          subtext="Visible across current filters"
+        />
+        <StatCard
+          label="Total Amount"
+          value={formatMoney(summary.total_amount)}
+          subtext="Combined network contribution value"
+        />
+        <StatCard
+          label="Top State"
+          value={summary.top_state}
+          subtext="Highest donor concentration"
+        />
+        <StatCard
+          label="High Strength"
+          value={highStrengthCount}
+          subtext="Strongest donor relationships"
+        />
+      </div>
+
+      <SectionCard
+        title="Donor Filters"
+        subtitle="Search within the donor network while honoring your executive state filter."
+        right={
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => setLocalSearch("")}
+          >
+            Clear Search
+          </button>
+        }
+      >
+        <div className="vs-grid-2">
+          <input
+            className="vs-input"
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            placeholder="Search donor name, type, state, or relationship..."
           />
-        ))}
-      </div>
+          <input
+            className="vs-input"
+            value={filters.state || ""}
+            readOnly
+            placeholder="Executive state filter"
+          />
+        </div>
+      </SectionCard>
 
-      <div className="vs-grid-2">
-        <SectionCard
-          title="Priority Donor Board"
-          subtitle="Highest-value donors and entities currently tracked."
-          right={<Badge tone="accent">{donors.length} tracked</Badge>}
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading donor board..." />
-            ) : !donors.length ? (
-              <EmptyState text="No donor network data available." />
-            ) : (
-              donors.map((item) => (
-                <DonorRow key={`${item.id}-${item.name}`} item={item} />
-              ))
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Fundraising Clusters"
-          subtitle="Donor groups with shared reach and late-cycle capacity."
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading donor clusters..." />
-            ) : !clusters.length ? (
-              <EmptyState text="No donor clusters available." />
-            ) : (
-              clusters.map((item) => (
-                <ClusterCard key={`${item.id}-${item.name}`} item={item} />
-              ))
-            )}
-          </div>
-        </SectionCard>
-      </div>
+      <SectionCard
+        title="Donor Relationship Board"
+        subtitle="High-value contributors and relationship strength across the filtered network."
+        right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live Data"}</Badge>}
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading donor network..." />
+          ) : !filteredResults.length ? (
+            <EmptyState text="No donors match the active filters." />
+          ) : (
+            filteredResults.map((donor) => (
+              <DonorRow key={donor.id || donor.donor_name} donor={donor} />
+            ))
+          )}
+        </div>
+      </SectionCard>
     </PageShell>
   );
 }
