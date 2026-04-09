@@ -507,5 +507,5 @@ export const api = {
   firmWorkspace: crmApi.firmWorkspace,
 };
 
-export { authApi, billingApi, intelligenceApi, platformApi, vendorsApi, donorsApi, http };
+export { http };
 export default http;
