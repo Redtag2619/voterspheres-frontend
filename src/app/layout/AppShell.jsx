@@ -11,6 +11,7 @@ const navItems = [
   { to: "/fundraising", label: "Fundraising" },
   { to: "/vendors", label: "Vendors" },
   { to: "/consultants", label: "Consultants" },
+  { to: "/mailops", label: "MailOps" },
   { to: "/ai-chat", label: "AI Chat" },
   { to: "/war-room", label: "War Room" },
   { to: "/command-center", label: "Command Center" },
