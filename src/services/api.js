@@ -17,151 +17,65 @@ const http = axios.create({
   timeout: 30000,
 });
 
-const DEMO_MODE_ENABLED = true;
+function isDemoModeEnabled() {
+  try {
+    return localStorage.getItem("vs_demo_mode") === "1";
+  } catch {
+    return false;
+  }
+}
 
 const demoFallbacks = {
   "/donors/network": {
     results: [
-      {
-        id: 1,
-        donor_name: "Atlantic Leadership Fund",
-        donor_type: "PAC",
-        state: "Georgia",
-        amount: 250000,
-        relationship_strength: "High",
-      },
-      {
-        id: 2,
-        donor_name: "Keystone Civic Network",
-        donor_type: "Individual Network",
-        state: "Pennsylvania",
-        amount: 175000,
-        relationship_strength: "Medium",
-      },
-      {
-        id: 3,
-        donor_name: "Great Lakes Action Council",
-        donor_type: "PAC",
-        state: "Michigan",
-        amount: 120000,
-        relationship_strength: "Growing",
-      },
+      { id: 1, donor_name: "Atlantic Leadership Fund", donor_type: "PAC", state: "Georgia", amount: 250000, relationship_strength: "High" },
+      { id: 2, donor_name: "Keystone Civic Network", donor_type: "Individual Network", state: "Pennsylvania", amount: 175000, relationship_strength: "Medium" },
+      { id: 3, donor_name: "Great Lakes Action Council", donor_type: "PAC", state: "Michigan", amount: 120000, relationship_strength: "Growing" }
     ],
-    summary: {
-      total_donors: 3,
-      total_amount: 545000,
-      top_state: "Georgia",
-    },
-    _demo: true,
+    summary: { total_donors: 3, total_amount: 545000, top_state: "Georgia" },
+    _demo: true
   },
-
   "/platform/donors/network": {
     results: [
-      {
-        id: 1,
-        donor_name: "Atlantic Leadership Fund",
-        donor_type: "PAC",
-        state: "Georgia",
-        amount: 250000,
-        relationship_strength: "High",
-      },
-      {
-        id: 2,
-        donor_name: "Keystone Civic Network",
-        donor_type: "Individual Network",
-        state: "Pennsylvania",
-        amount: 175000,
-        relationship_strength: "Medium",
-      },
+      { id: 1, donor_name: "Atlantic Leadership Fund", donor_type: "PAC", state: "Georgia", amount: 250000, relationship_strength: "High" },
+      { id: 2, donor_name: "Keystone Civic Network", donor_type: "Individual Network", state: "Pennsylvania", amount: 175000, relationship_strength: "Medium" }
     ],
-    summary: {
-      total_donors: 2,
-      total_amount: 425000,
-      top_state: "Georgia",
-    },
-    _demo: true,
+    summary: { total_donors: 2, total_amount: 425000, top_state: "Georgia" },
+    _demo: true
   },
-
   "/consultants": {
     results: [
-      {
-        id: 1,
-        name: "Red Tag Strategies",
-        category: "General Consulting",
-        state: "Louisiana",
-        website: "https://example.com",
-        status: "active",
-      },
-      {
-        id: 2,
-        name: "Capitol Campaign Group",
-        category: "Media + Strategy",
-        state: "Georgia",
-        website: "https://example.com",
-        status: "active",
-      },
-      {
-        id: 3,
-        name: "Keystone Field Partners",
-        category: "Field Operations",
-        state: "Pennsylvania",
-        website: "https://example.com",
-        status: "active",
-      },
+      { id: 1, name: "Red Tag Strategies", category: "General Consulting", state: "Louisiana", website: "https://example.com", status: "active" },
+      { id: 2, name: "Capitol Campaign Group", category: "Media + Strategy", state: "Georgia", website: "https://example.com", status: "active" },
+      { id: 3, name: "Keystone Field Partners", category: "Field Operations", state: "Pennsylvania", website: "https://example.com", status: "active" }
     ],
-    _demo: true,
+    _demo: true
   },
-
   "/consultants/states": {
     states: ["Georgia", "Louisiana", "Pennsylvania"],
-    _demo: true,
+    _demo: true
   },
-
   "/platform/consultants": {
     results: [
-      {
-        id: 1,
-        name: "Red Tag Strategies",
-        category: "General Consulting",
-        state: "Louisiana",
-        website: "https://example.com",
-        status: "active",
-      },
-      {
-        id: 2,
-        name: "Capitol Campaign Group",
-        category: "Media + Strategy",
-        state: "Georgia",
-        website: "https://example.com",
-        status: "active",
-      },
+      { id: 1, name: "Red Tag Strategies", category: "General Consulting", state: "Louisiana", website: "https://example.com", status: "active" },
+      { id: 2, name: "Capitol Campaign Group", category: "Media + Strategy", state: "Georgia", website: "https://example.com", status: "active" }
     ],
-    _demo: true,
+    _demo: true
   },
-
   "/platform/consultants/states": {
     states: ["Georgia", "Louisiana"],
-    _demo: true,
+    _demo: true
   },
-
   "/marketplace/consultants": {
     results: [
-      {
-        id: 1,
-        name: "Keystone Field Partners",
-        category: "Field Operations",
-        state: "Pennsylvania",
-        website: "https://example.com",
-        status: "active",
-      },
+      { id: 1, name: "Keystone Field Partners", category: "Field Operations", state: "Pennsylvania", website: "https://example.com", status: "active" }
     ],
-    _demo: true,
+    _demo: true
   },
-
   "/marketplace/consultants/states": {
     states: ["Pennsylvania"],
-    _demo: true,
-  },
+    _demo: true
+  }
 };
 
 function isNotFound(error) {
@@ -188,7 +102,7 @@ async function tryGet(paths, config = {}) {
     } catch (error) {
       lastError = error;
 
-      if (isNotFound(error) && DEMO_MODE_ENABLED) {
+      if (isNotFound(error) && isDemoModeEnabled()) {
         const fallback = findDemoFallback(path);
         if (fallback) return fallback;
       }
@@ -271,8 +185,7 @@ http.interceptors.response.use(
       triggerUpgradePrompt?.({
         requiredPlan: data.requiredPlan || "starter",
         currentPlan: data.currentPlan || "free",
-        message:
-          data.message || "Your current plan does not include this feature.",
+        message: data.message || "Your current plan does not include this feature.",
         source: error?.config?.url || "",
       });
     }
@@ -300,10 +213,8 @@ export const authApi = {
 export const billingApi = {
   config: () => unwrap(http.get("/billing/config")),
   debugMe: () => unwrap(http.get("/billing/debug/me")),
-  createCheckoutSession: (payload) =>
-    unwrap(http.post("/billing/checkout-session", payload)),
-  createPortalSession: (payload = {}) =>
-    unwrap(http.post("/billing/portal-session", payload)),
+  createCheckoutSession: (payload) => unwrap(http.post("/billing/checkout-session", payload)),
+  createPortalSession: (payload = {}) => unwrap(http.post("/billing/portal-session", payload)),
 };
 
 export const candidatesApi = {
@@ -332,13 +243,9 @@ export const intelligenceApi = {
   forecast: () => tryGet(["/intelligence/forecast"]),
   rankings: () => tryGet(["/intelligence/rankings"]),
   map: () => tryGet(["/intelligence/map"]),
-  liveFundraising: () =>
-    tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
+  liveFundraising: () => tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
   fundraisingLeaderboard: () =>
-    tryGet([
-      "/intelligence/fundraising/leaderboard",
-      "/fec/fundraising/leaderboard",
-    ]),
+    tryGet(["/intelligence/fundraising/leaderboard", "/fec/fundraising/leaderboard"]),
 };
 
 export const platformApi = {
@@ -368,29 +275,19 @@ export const platformApi = {
 
 export const vendorsApi = {
   states: async () => {
-    const data = await tryGet([
-      "/vendors/states",
-      "/platform/vendors/states",
-      "/crm/vendors/states",
-    ]);
+    const data = await tryGet(["/vendors/states", "/platform/vendors/states", "/crm/vendors/states"]);
     return normalizeListResult(data, ["states"]);
   },
 
   list: async (params = {}) => {
-    const data = await tryGet(
-      ["/vendors", "/platform/vendors", "/crm/vendors"],
-      { params }
-    );
+    const data = await tryGet(["/vendors", "/platform/vendors", "/crm/vendors"], { params });
     return Array.isArray(data) ? { results: data } : data;
   },
 };
 
 export const donorsApi = {
   network: async (params = {}) => {
-    const data = await tryGet(
-      ["/donors/network", "/platform/donors/network"],
-      { params }
-    );
+    const data = await tryGet(["/donors/network", "/platform/donors/network"], { params });
     return Array.isArray(data) ? { results: data } : data;
   },
 };
@@ -410,33 +307,24 @@ export const crmApi = {
 
   createCampaign: (payload) => tryPost(["/crm/campaigns"], payload),
 
-  commandCenter: (campaignId) =>
-    tryGet([`/campaigns/${campaignId}/command-center`]),
-
+  commandCenter: (campaignId) => tryGet([`/campaigns/${campaignId}/command-center`]),
   activity: (campaignId) => tryGet([`/campaigns/${campaignId}/activity`]),
 
-  createTask: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/tasks`], payload),
+  createTask: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/tasks`], payload),
   updateTask: (campaignId, taskId, payload) =>
     tryPatch([`/campaigns/${campaignId}/tasks/${taskId}`], payload),
 
-  createContact: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/contacts`], payload),
+  createContact: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/contacts`], payload),
 
-  createVendor: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/vendors`], payload),
+  createVendor: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/vendors`], payload),
   updateVendor: (campaignId, vendorId, payload) =>
     tryPatch([`/campaigns/${campaignId}/vendors/${vendorId}`], payload),
 
-  createDocument: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/documents`], payload),
+  createDocument: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/documents`], payload),
 
-  createMailProgram: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/mail-programs`], payload),
-  createMailDrop: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/mail-drops`], payload),
-  createMailEvent: (campaignId, payload) =>
-    tryPost([`/campaigns/${campaignId}/mail-events`], payload),
+  createMailProgram: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/mail-programs`], payload),
+  createMailDrop: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/mail-drops`], payload),
+  createMailEvent: (campaignId, payload) => tryPost([`/campaigns/${campaignId}/mail-events`], payload),
   updateMailEvent: (campaignId, eventId, payload) =>
     tryPatch([`/campaigns/${campaignId}/mail-events/${eventId}`], payload),
 
@@ -449,10 +337,7 @@ export const crmApi = {
   createFirm: (payload) => tryPost(["/crm/firms"], payload),
 
   firmWorkspace: (firmId) =>
-    tryGet([
-      `/firms/${firmId}/workspace`,
-      `/crm/firms/${firmId}/workspace`,
-    ]),
+    tryGet([`/firms/${firmId}/workspace`, `/crm/firms/${firmId}/workspace`]),
 };
 
 export const statesApi = {
@@ -461,9 +346,7 @@ export const statesApi = {
       return await tryGet(["/states/geojson"]);
     } catch (error) {
       const response = await fetch("/us-states.geojson");
-      if (!response.ok) {
-        throw error;
-      }
+      if (!response.ok) throw error;
       return response.json();
     }
   },
@@ -526,5 +409,5 @@ export const api = {
   firmWorkspace: crmApi.firmWorkspace,
 };
 
-export { http }; 
-export default http;  
+export { http };
+export default http;
