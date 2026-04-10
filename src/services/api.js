@@ -270,6 +270,42 @@ const demoFallbacks = {
     ],
     _demo: true,
   },
+
+  "/mailops/events": {
+    results: [
+      {
+        id: 1,
+        campaign: "GA Senate Victory",
+        state: "Georgia",
+        office: "Senate",
+        risk: "Elevated",
+        location: "Atlanta NDC",
+        vendor_name: "Precision Mail Group",
+        event_type: "delay_alert",
+        status: "Elevated",
+        severity: "High",
+        event_time: "2026-10-11T10:30:00Z",
+        in_home: "2026-10-14",
+        note: "Tray movement slowed during weekend processing",
+      },
+      {
+        id: 2,
+        campaign: "PA Governor Push",
+        state: "Pennsylvania",
+        office: "Governor",
+        risk: "Watch",
+        location: "Philadelphia P&DC",
+        vendor_name: "Keystone Mail",
+        event_type: "scan_update",
+        status: "On Track",
+        severity: "Medium",
+        event_time: "2026-10-11T12:15:00Z",
+        in_home: "2026-10-16",
+        note: "Scan recovery trend improving",
+      },
+    ],
+    _demo: true,
+  },
 };
 
 function isNotFound(error) {
@@ -314,21 +350,6 @@ async function tryPost(paths, body = {}, config = {}) {
   for (const path of paths) {
     try {
       return await unwrap(http.post(path, body, config));
-    } catch (error) {
-      lastError = error;
-      if (!isNotFound(error)) break;
-    }
-  }
-
-  throw lastError;
-}
-
-async function tryPut(paths, body = {}, config = {}) {
-  let lastError;
-
-  for (const path of paths) {
-    try {
-      return await unwrap(http.put(path, body, config));
     } catch (error) {
       lastError = error;
       if (!isNotFound(error)) break;
@@ -525,20 +546,12 @@ export const mailOpsApi = {
       "/platform/mailops/dashboard",
       "/mail-ops/dashboard",
     ]),
-
+  events: (params = {}) =>
+    tryGet(["/mailops/events"], { params }),
   createEvent: (payload) =>
-    tryPost([
-      "/mailops/events",
-      "/platform/mailops/events",
-      "/mail-ops/events",
-    ], payload),
-
+    tryPost(["/mailops/events"], payload),
   updateEvent: (eventId, payload) =>
-    tryPut([
-      `/mailops/events/${eventId}`,
-      `/platform/mailops/events/${eventId}`,
-      `/mail-ops/events/${eventId}`,
-    ], payload),
+    tryPatch([`/mailops/events/${eventId}`], payload),
 };
 
 export const alertsApi = {
@@ -658,6 +671,7 @@ export const api = {
   donorNetwork: donorsApi.network,
 
   mailOpsDashboard: mailOpsApi.dashboard,
+  mailOpsEvents: mailOpsApi.events,
   createMailOpsEvent: mailOpsApi.createEvent,
   updateMailOpsEvent: mailOpsApi.updateEvent,
 
