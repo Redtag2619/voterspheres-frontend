@@ -1,252 +1,148 @@
-import { useEffect, useMemo, useState } from "react";
-import { api } from "../services/api";
-import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
-import StatCard from "../components/ui/StatCard";
-import Badge from "../components/ui/Badge";
-import EmptyState from "../components/ui/EmptyState";
-import ResponsiveRow from "../components/ui/ResponsiveRow";
-import DemoBanner from "../components/ui/DemoBanner";
-import { useDemoMode } from "../context/DemoModeContext.jsx";
-import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
-
-function toneForStatus(value) {
-  const v = String(value || "").toLowerCase();
-  if (v === "elevated") return "danger";
-  if (v === "on track") return "active";
-  if (v === "watch") return "demo";
-  return "default";
-}
-
-function toneForSeverity(value) {
-  const v = String(value || "").toLowerCase();
-  if (v === "high") return "danger";
-  if (v === "medium") return "demo";
-  return "default";
-}
-
-function DropRow({ row }) {
-  return (
-    <ResponsiveRow
-      title={row.campaign}
-      subtitle={`${row.location} • In-home ${row.in_home}`}
-      meta={[
-        { label: "Status", value: row.status },
-        { label: "Location", value: row.location }
-      ]}
-      alert={
-        String(row.status || "").toLowerCase() === "elevated"
-          ? "vs-live-dot"
-          : "vs-live-dot-success"
-      }
-      right={<Badge tone={toneForStatus(row.status)}>{row.status}</Badge>}
-    />
-  );
-}
-
-function AlertRow({ row }) {
-  return (
-    <ResponsiveRow
-      title={row.title}
-      subtitle={`${row.source} • ${row.detail}`}
-      meta={[
-        { label: "Severity", value: row.severity },
-        { label: "Source", value: row.source }
-      ]}
-      alert={
-        String(row.severity || "").toLowerCase() === "high"
-          ? "vs-live-dot"
-          : "vs-live-dot-warning"
-      }
-      right={<Badge tone={toneForSeverity(row.severity)}>{row.severity}</Badge>}
-    />
-  );
-}
-
-const fallbackData = {
-  metrics: [
-    { label: "Mail Drops", value: "18", delta: "4 active today", tone: "up" },
-    { label: "Delivery Risk", value: "3", delta: "2 elevated", tone: "down" },
-    { label: "Postal Alerts", value: "7", delta: "Live monitoring", tone: "up" },
-    { label: "On-Time Rate", value: "94%", delta: "+2.1%", tone: "up" }
-  ],
-  drops: [
-    {
-      id: 1,
-      campaign: "GA Senate Victory",
-      location: "Atlanta NDC",
-      status: "Elevated",
-      in_home: "2026-10-14",
-      note: "Watch weekend clearance volume"
-    },
-    {
-      id: 2,
-      campaign: "PA Governor Push",
-      location: "Philadelphia P&DC",
-      status: "On Track",
-      in_home: "2026-10-16",
-      note: "Vendor scan performance stable"
-    }
-  ],
-  alerts: [
-    {
-      id: 1,
-      title: "Atlanta NDC delay pressure increasing",
-      severity: "High",
-      source: "MailOps",
-      detail: "Projected slip risk on high-volume trays."
-    },
-    {
-      id: 2,
-      title: "Philadelphia scan recovery improving",
-      severity: "Medium",
-      source: "MailOps",
-      detail: "Recent tray movement indicates stabilization."
-    }
-  ],
-  _demo: true
-};
+import { useEffect, useState } from "react";
+import api from "../services/api";
 
 export default function MailOpsDashboard() {
-  const { demoMode } = useDemoMode();
-  const { filters } = useExecutiveFilters();
-
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [data, setData] = useState(fallbackData);
-  const [isDemoData, setIsDemoData] = useState(Boolean(fallbackData._demo));
+
+  const [form, setForm] = useState({
+    campaign: "",
+    state: "",
+    office: "",
+    location: "",
+  });
+
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/api/mailops/dashboard");
+      setData(res.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load MailOps dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let active = true;
-
-    async function loadMailOps() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await api.mailOpsDashboard();
-
-        if (!active) return;
-
-        setData(response || fallbackData);
-        setIsDemoData(Boolean(response?._demo || response?.demo));
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load MailOps dashboard"
-        );
-        setData(fallbackData);
-        setIsDemoData(true);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    loadMailOps();
-
-    return () => {
-      active = false;
-    };
+    loadDashboard();
   }, []);
 
-  const drops = useMemo(() => data?.drops || [], [data]);
-  const alerts = useMemo(() => data?.alerts || [], [data]);
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
 
-  const elevatedDrops = drops.filter(
-    (row) => String(row.status || "").toLowerCase() === "elevated"
-  ).length;
+    try {
+      await api.post("/api/mailops/events", form);
 
-  const highAlerts = alerts.filter(
-    (row) => String(row.severity || "").toLowerCase() === "high"
-  ).length;
+      setForm({
+        campaign: "",
+        state: "",
+        office: "",
+        location: "",
+      });
+
+      await loadDashboard();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create mail event");
+    }
+  };
+
+  if (loading) return <div className="p-6">Loading MailOps...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
-    <PageShell
-      eyebrow="MailOps Dashboard"
-      title="Track mail execution, delivery risk, and postal disruption."
-      description="Monitor drop performance, scan stability, in-home timing, and operational alerts from one executive mail view."
-      demo={demoMode}
-      demoText="Global Demo Mode is active. This module can render fallback MailOps data when live endpoints are unavailable."
-      tickerItems={[
-        {
-          label: "Drops",
-          value: `${drops.length}`,
-          dotClass: "vs-live-dot-success"
-        },
-        {
-          label: "Elevated",
-          value: `${elevatedDrops}`,
-          dotClass: "vs-live-dot"
-        },
-        {
-          label: "Alerts",
-          value: `${highAlerts} high`,
-          dotClass: "vs-live-dot-warning"
-        }
-      ]}
-    >
-      <DemoBanner
-        active={isDemoData}
-        text="Demo MailOps data is active for this module."
-      />
+    <div className="p-6 space-y-6">
 
-      {filters.state || filters.office || filters.risk ? (
-        <div className="vs-banner">
-          Executive filters are active for this session:
-          {filters.state ? ` state: ${filters.state};` : ""}
-          {filters.office ? ` office: ${filters.office};` : ""}
-          {filters.risk ? ` risk: ${filters.risk};` : ""}
-        </div>
-      ) : null}
+      <h1 className="text-2xl font-bold">MailOps Dashboard</h1>
 
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-
-      <div className="vs-grid-4">
-        {(data?.metrics || []).map((metric, index) => (
-          <StatCard
-            key={`${metric.label}-${index}`}
-            label={metric.label}
-            value={metric.value}
-            delta={metric.delta}
-            tone={metric.tone}
-          />
+      {/* Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {data.metrics.map((m, i) => (
+          <div key={i} className="p-4 bg-white shadow rounded">
+            <div className="text-sm text-gray-500">{m.label}</div>
+            <div className="text-xl font-bold">{m.value}</div>
+            <div className="text-xs text-gray-400">{m.delta}</div>
+          </div>
         ))}
       </div>
 
-      <div className="vs-grid-2">
-        <SectionCard
-          title="Active Mail Drops"
-          subtitle="Live campaigns and in-home delivery posture."
-          right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live Data"}</Badge>}
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading mail drops..." />
-            ) : !drops.length ? (
-              <EmptyState text="No active mail drops available." />
-            ) : (
-              drops.map((row) => <DropRow key={row.id || row.campaign} row={row} />)
-            )}
-          </div>
-        </SectionCard>
+      {/* Create Event */}
+      <div className="p-4 bg-white shadow rounded">
+        <h2 className="font-semibold mb-3">Create Mail Event</h2>
 
-        <SectionCard
-          title="Postal Alerts"
-          subtitle="Risk signals that may affect delivery or in-home timing."
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading postal alerts..." />
-            ) : !alerts.length ? (
-              <EmptyState text="No postal alerts available." />
-            ) : (
-              alerts.map((row) => <AlertRow key={row.id || row.title} row={row} />)
-            )}
-          </div>
-        </SectionCard>
+        <form onSubmit={handleCreateEvent} className="grid grid-cols-2 gap-3">
+          <input
+            placeholder="Campaign"
+            value={form.campaign}
+            onChange={(e) => setForm({ ...form, campaign: e.target.value })}
+            className="border p-2 rounded"
+            required
+          />
+          <input
+            placeholder="State"
+            value={form.state}
+            onChange={(e) => setForm({ ...form, state: e.target.value })}
+            className="border p-2 rounded"
+            required
+          />
+          <input
+            placeholder="Office"
+            value={form.office}
+            onChange={(e) => setForm({ ...form, office: e.target.value })}
+            className="border p-2 rounded"
+            required
+          />
+          <input
+            placeholder="Location"
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
+            className="border p-2 rounded"
+            required
+          />
+
+          <button className="col-span-2 bg-blue-600 text-white p-2 rounded">
+            Create Event
+          </button>
+        </form>
       </div>
-    </PageShell>
+
+      {/* Drops */}
+      <div className="p-4 bg-white shadow rounded">
+        <h2 className="font-semibold mb-3">Active Mail Drops</h2>
+
+        {data.drops.map((d) => (
+          <div key={d.id} className="border-b py-2">
+            <div className="font-medium">
+              {d.campaign} ({d.state})
+            </div>
+            <div className="text-sm text-gray-500">
+              {d.office} • {d.location}
+            </div>
+            <div className="text-sm">
+              Status: {d.status} | Risk: {d.risk}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Alerts */}
+      <div className="p-4 bg-white shadow rounded">
+        <h2 className="font-semibold mb-3">Postal Alerts</h2>
+
+        {data.alerts.map((a) => (
+          <div key={a.id} className="border-b py-2">
+            <div className="font-medium">{a.title}</div>
+            <div className="text-sm text-gray-500">{a.detail}</div>
+            <div className="text-xs">
+              Severity: {a.severity} | Risk: {a.risk}
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
   );
 }
