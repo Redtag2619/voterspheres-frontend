@@ -67,6 +67,7 @@ function AppRoutes() {
 
         <Route element={<ShellLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/candidates" element={<Candidates />} />
           <Route path="/map" element={<ElectionMap />} />
@@ -84,12 +85,30 @@ function AppRoutes() {
           <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
           <Route path="/billing" element={<Billing />} />
 
-          <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
-          <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
-          <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
-          <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
-          <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
-          <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
+          <Route
+            path="/consultant-marketplace"
+            element={<Navigate to="/consultants" replace />}
+          />
+          <Route
+            path="/aichat"
+            element={<Navigate to="/ai-chat" replace />}
+          />
+          <Route
+            path="/warroom"
+            element={<Navigate to="/war-room" replace />}
+          />
+          <Route
+            path="/fundraising-dashboard"
+            element={<Navigate to="/fundraising" replace />}
+          />
+          <Route
+            path="/rankings"
+            element={<Navigate to="/power-rankings" replace />}
+          />
+          <Route
+            path="/mail-ops"
+            element={<Navigate to="/mailops" replace />}
+          />
 
           <Route path="*" element={<NotFound />} />
         </Route>
