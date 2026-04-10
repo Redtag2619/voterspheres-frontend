@@ -323,6 +323,21 @@ async function tryPost(paths, body = {}, config = {}) {
   throw lastError;
 }
 
+async function tryPut(paths, body = {}, config = {}) {
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      return await unwrap(http.put(path, body, config));
+    } catch (error) {
+      lastError = error;
+      if (!isNotFound(error)) break;
+    }
+  }
+
+  throw lastError;
+}
+
 async function tryPatch(paths, body = {}, config = {}) {
   let lastError;
 
@@ -510,6 +525,20 @@ export const mailOpsApi = {
       "/platform/mailops/dashboard",
       "/mail-ops/dashboard",
     ]),
+
+  createEvent: (payload) =>
+    tryPost([
+      "/mailops/events",
+      "/platform/mailops/events",
+      "/mail-ops/events",
+    ], payload),
+
+  updateEvent: (eventId, payload) =>
+    tryPut([
+      `/mailops/events/${eventId}`,
+      `/platform/mailops/events/${eventId}`,
+      `/mail-ops/events/${eventId}`,
+    ], payload),
 };
 
 export const alertsApi = {
@@ -627,7 +656,10 @@ export const api = {
   vendors: vendorsApi.list,
 
   donorNetwork: donorsApi.network,
+
   mailOpsDashboard: mailOpsApi.dashboard,
+  createMailOpsEvent: mailOpsApi.createEvent,
+  updateMailOpsEvent: mailOpsApi.updateEvent,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
