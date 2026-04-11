@@ -16,6 +16,8 @@ const navItems = [
   { to: "/war-room", label: "War Room" },
   { to: "/command-center", label: "Command Center" },
   { to: "/billing", label: "Billing" },
+  { to: "/pricing", label: "Pricing" },
+  { to: "/signup", label: "Sign Up" },
 ];
 
 function navClass({ isActive }) {
@@ -55,10 +57,7 @@ export default function AppShell() {
             </div>
           </div>
 
-          <nav
-            className="vs-shell-nav"
-            aria-label="Primary navigation"
-          >
+          <nav className="vs-shell-nav" aria-label="Primary navigation">
             {navItems.map((item) => (
               <NavLink key={item.to} to={item.to} className={navClass}>
                 {item.label}
