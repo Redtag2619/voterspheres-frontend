@@ -15,7 +15,7 @@ const navItems = [
   { to: "/ai-chat", label: "AI Chat" },
   { to: "/war-room", label: "War Room" },
   { to: "/command-center", label: "Command Center" },
-  { to: "/billing", label: "Billing" }
+  { to: "/billing", label: "Billing" },
 ];
 
 function navClass({ isActive }) {
@@ -30,7 +30,7 @@ export default function AppShell() {
       <header className="vs-shell-header">
         <div className="vs-shell-inner">
           <div className="vs-brand-row">
-            <Link to="/dashboard" className="vs-brand-mark">
+            <Link to="/dashboard" className="vs-brand-mark" aria-label="VoterSpheres home">
               VS
             </Link>
 
@@ -42,13 +42,12 @@ export default function AppShell() {
             <div className="vs-inline-actions" style={{ marginLeft: "auto" }}>
               <div className="vs-brand-live">
                 <span className={demoMode ? "vs-live-dot-warning" : "vs-live-dot-success"} />
-                <span>{demoMode ? "Demo" : "Live"}</span>
+                <span>{demoMode ? "Demo Mode" : "Live Mode"}</span>
               </div>
 
               <button
                 type="button"
                 className="vs-button vs-button-secondary"
-                style={{ minHeight: "36px", padding: "8px 12px" }}
                 onClick={toggleDemoMode}
               >
                 {demoMode ? "Disable Demo" : "Enable Demo"}
@@ -56,7 +55,10 @@ export default function AppShell() {
             </div>
           </div>
 
-          <nav className="vs-shell-nav">
+          <nav
+            className="vs-shell-nav"
+            aria-label="Primary navigation"
+          >
             {navItems.map((item) => (
               <NavLink key={item.to} to={item.to} className={navClass}>
                 {item.label}
@@ -65,7 +67,7 @@ export default function AppShell() {
           </nav>
 
           {demoMode ? (
-            <div className="vs-banner vs-banner-demo" style={{ marginTop: "6px" }}>
+            <div className="vs-banner vs-banner-demo" style={{ marginTop: "10px" }}>
               Global Demo Mode is active. Modules may render fallback data when live endpoints are unavailable.
             </div>
           ) : null}
