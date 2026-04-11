@@ -1,377 +1,296 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  getBillingConfig,
-  createCheckoutSession
-} from "../api/billing";
-import { useAuth } from "../context/AuthContext.jsx";
+import { Link } from "react-router-dom";
+import Badge from "../components/ui/Badge";
 
-const PLAN_META = {
-  starter: {
-    key: "starter",
+const tiers = [
+  {
     name: "Starter",
     price: "$99",
-    period: "/mo",
-    description: "Professional entry point for campaign operators who need a clean command workspace.",
-    features: [
-      "Executive dashboard access",
-      "Candidate and vendor management",
-      "Map and forecast visibility",
-      "Core campaign workspace"
-    ]
+    period: "/month",
+    tone: "default",
+    cta: "Start with Starter",
+    description:
+      "For emerging firms and smaller campaigns that need a clean command layer, visibility, and a professional operating system.",
+    includes: [
+      "Executive dashboard with campaign overview",
+      "Candidates, map, donor network, and forecast access",
+      "Vendor and consultant directory workflows",
+      "Basic MailOps visibility and event tracking",
+      "Shared firm workspace and core CRM records",
+      "Secure account access for small teams",
+    ],
   },
-  pro: {
-    key: "pro",
+  {
     name: "Pro",
     price: "$149",
-    period: "/mo",
-    description: "For active firms and campaigns that need stronger intelligence, finance, and operations visibility.",
-    features: [
+    period: "/month",
+    tone: "accent",
+    featured: true,
+    cta: "Upgrade to Pro",
+    description:
+      "For active consulting firms that need tighter execution, more intelligence depth, and a stronger operating rhythm across clients and campaigns.",
+    includes: [
       "Everything in Starter",
-      "Fundraising and rankings access",
-      "Expanded intelligence workflows",
-      "Deeper operational monitoring"
-    ]
+      "Command Center and AI War Room workflows",
+      "Advanced fundraising and rankings visibility",
+      "Operational MailOps composer and live event updates",
+      "Broader internal coordination across execution teams",
+      "Higher-value intelligence workflows for campaign management",
+    ],
   },
-  enterprise: {
-    key: "enterprise",
+  {
     name: "Enterprise",
     price: "$499",
-    period: "/mo",
-    description: "Full operating system for command center execution, war room intelligence, and client-grade demos.",
-    features: [
+    period: "/month",
+    tone: "danger",
+    cta: "Go Enterprise",
+    description:
+      "For high-volume firms and serious campaign operators who need a premium control layer, live operations, and full-platform execution support.",
+    includes: [
       "Everything in Pro",
-      "AI War Room",
-      "Command Center",
-      "Billing and enterprise workflows",
-      "Premium demo environment"
-    ]
-  }
-};
+      "Full platform access for multi-workstream operations",
+      "Live intelligence fusion across dashboard, map, war room, and MailOps",
+      "Enterprise-grade workflow support for campaign execution",
+      "Operational visibility for leadership, vendors, and delivery risk",
+      "Best fit for top-tier political consulting organizations",
+    ],
+  },
+];
 
-function PlanCard({ plan, currentPlan, billingTestMode, loadingKey, onChoose }) {
-  const isCurrent = String(currentPlan || "").toLowerCase() === plan.key;
-
+function PricingCard({ tier }) {
   return (
     <div
+      className="vs-card"
       style={{
-        border: "1px solid #273142",
-        background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
-        borderRadius: "22px",
-        padding: "22px",
-        boxShadow: "0 18px 40px rgba(0,0,0,0.34)",
         display: "grid",
-        alignContent: "start"
+        gap: "14px",
+        padding: "18px",
+        position: "relative",
+        borderColor: tier.featured
+          ? "rgba(245,158,11,0.42)"
+          : "var(--vs-border)",
+        boxShadow: tier.featured
+          ? "0 12px 32px rgba(245,158,11,0.12)"
+          : "var(--vs-shadow)",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
         <div>
           <div
             style={{
-              fontSize: "11px",
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: "#f59e0b",
-              fontWeight: 900
+              fontSize: "18px",
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
             }}
           >
-            {plan.name}
+            {tier.name}
           </div>
-
           <div
             style={{
-              marginTop: "14px",
-              fontSize: "42px",
-              lineHeight: 1,
-              fontWeight: 900,
-              letterSpacing: "-0.03em"
+              marginTop: "6px",
+              fontSize: "12px",
+              lineHeight: 1.6,
+              color: "var(--vs-text-muted)",
             }}
           >
-            {plan.price}
-            <span style={{ marginLeft: "6px", fontSize: "16px", color: "#95a2b3", fontWeight: 600 }}>
-              {plan.period}
-            </span>
+            {tier.description}
           </div>
         </div>
 
-        <div className="vs-chip-row">
-          {billingTestMode ? <span className="vs-badge vs-badge-demo">Demo checkout</span> : null}
-          {isCurrent ? <span className="vs-badge vs-badge-active">Current</span> : null}
+        {tier.featured ? <Badge tone="accent">Most Popular</Badge> : null}
+      </div>
+
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: "6px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "34px",
+              lineHeight: 0.95,
+              fontWeight: 900,
+              letterSpacing: "-0.04em",
+            }}
+          >
+            {tier.price}
+          </div>
+          <div
+            style={{
+              fontSize: "13px",
+              color: "var(--vs-text-muted)",
+              paddingBottom: "4px",
+            }}
+          >
+            {tier.period}
+          </div>
         </div>
       </div>
 
-      <p style={{ marginTop: "16px", fontSize: "14px", lineHeight: 1.7, color: "#95a2b3" }}>
-        {plan.description}
-      </p>
-
-      <div style={{ marginTop: "18px", display: "grid", gap: "10px" }}>
-        {plan.features.map((feature) => (
+      <div className="vs-stack">
+        {tier.includes.map((item) => (
           <div
-            key={feature}
+            key={item}
             style={{
-              display: "flex",
-              alignItems: "center",
+              display: "grid",
+              gridTemplateColumns: "10px 1fr",
               gap: "10px",
-              fontSize: "14px",
-              color: "#dbe3ec"
+              alignItems: "start",
+              minWidth: 0,
             }}
           >
-            <span className="vs-live-dot-success" />
-            <span>{feature}</span>
+            <span className="vs-live-dot-success" style={{ marginTop: "5px" }} />
+            <div
+              style={{
+                fontSize: "12px",
+                lineHeight: 1.65,
+                color: "var(--vs-text-muted)",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {item}
+            </div>
           </div>
         ))}
       </div>
 
-      <button
-        type="button"
+      <Link
+        to="/signup"
         className="vs-button vs-button-primary"
-        style={{ marginTop: "22px", width: "100%" }}
-        onClick={() => onChoose(plan)}
-        disabled={loadingKey === plan.key}
+        style={{ width: "100%", justifyContent: "center" }}
       >
-        {loadingKey === plan.key
-          ? billingTestMode
-            ? "Starting demo..."
-            : "Redirecting..."
-          : isCurrent
-          ? "Current Plan"
-          : billingTestMode
-          ? `Start ${plan.name} Demo`
-          : `Choose ${plan.name}`}
-      </button>
+        {tier.cta}
+      </Link>
     </div>
   );
 }
 
 export default function Pricing() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-
-  const [config, setConfig] = useState(null);
-  const [loadingConfig, setLoadingConfig] = useState(true);
-  const [loadingKey, setLoadingKey] = useState("");
-  const [error, setError] = useState("");
-
-  const currentPlan = user?.plan_tier || user?.planTier || "starter";
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadConfig() {
-      try {
-        setLoadingConfig(true);
-        setError("");
-        const data = await getBillingConfig();
-        if (!active) return;
-        setConfig(data);
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load billing configuration"
-        );
-      } finally {
-        if (active) setLoadingConfig(false);
-      }
-    }
-
-    loadConfig();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const plans = useMemo(() => {
-    return ["starter", "pro", "enterprise"].map((key) => ({
-      ...PLAN_META[key],
-      priceId: config?.prices?.[key] || key
-    }));
-  }, [config]);
-
-  async function handleChoosePlan(plan) {
-    try {
-      setLoadingKey(plan.key);
-      setError("");
-
-      const checkout = await createCheckoutSession({
-        priceId: plan.priceId
-      });
-
-      if (checkout?.url) {
-        window.location.href = checkout.url;
-        return;
-      }
-
-      navigate("/billing");
-    } catch (err) {
-      setError(
-        err?.response?.data?.error ||
-          err?.message ||
-          "Pricing checkout failed"
-      );
-    } finally {
-      setLoadingKey("");
-    }
-  }
-
-  const billingTestMode = Boolean(config?.billing_test_mode);
-
   return (
     <div
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at top right, rgba(245,158,11,0.08), transparent 22%), linear-gradient(180deg, #0b0f14 0%, #0e131a 100%)",
-        color: "#eef2f7",
-        padding: "24px"
+          "radial-gradient(circle at top, rgba(245,158,11,0.08), transparent 24%), linear-gradient(180deg, #0b0f14 0%, #0a0d12 100%)",
+        padding: "24px 20px 40px",
       }}
     >
-      <div style={{ maxWidth: "1320px", margin: "0 auto", display: "grid", gap: "18px" }}>
-        <section
+      <div
+        style={{
+          width: "min(1200px, 100%)",
+          margin: "0 auto",
+          display: "grid",
+          gap: "18px",
+        }}
+      >
+        <div
           style={{
-            border: "1px solid #273142",
-            background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
-            borderRadius: "24px",
-            padding: "28px",
-            boxShadow: "0 18px 40px rgba(0,0,0,0.34)"
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          <div
+          <Link
+            to="/"
             style={{
-              fontSize: "11px",
-              textTransform: "uppercase",
-              letterSpacing: "0.22em",
-              color: "#f59e0b",
-              fontWeight: 900
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              color: "var(--vs-text)",
+              textDecoration: "none",
             }}
           >
-            VoterSpheres Pricing
-          </div>
-
-          <h1
-            style={{
-              marginTop: "14px",
-              fontSize: "44px",
-              lineHeight: 1.02,
-              fontWeight: 900,
-              letterSpacing: "-0.03em",
-              maxWidth: "780px"
-            }}
-          >
-            Premium campaign intelligence plans built for serious operators.
-          </h1>
-
-          <p
-            style={{
-              marginTop: "14px",
-              maxWidth: "820px",
-              fontSize: "15px",
-              lineHeight: 1.75,
-              color: "#95a2b3"
-            }}
-          >
-            Choose the operating tier that fits your campaign or consulting firm. From polished
-            command visibility to enterprise-grade intelligence workflows, every plan is built to
-            look client-ready and perform like a real operating system.
-          </p>
-
-          <div className="vs-terminal-strip">
-            <div className="vs-terminal-ticker">
-              <span className="vs-live-dot-success" />
-              <strong>Starter</strong>
-              <span>$99</span>
+            <div
+              className="vs-brand-mark"
+              style={{ width: "38px", height: "38px", fontSize: "13px" }}
+            >
+              VS
             </div>
-            <div className="vs-terminal-ticker">
-              <span className="vs-live-dot-warning" />
-              <strong>Pro</strong>
-              <span>$149</span>
-            </div>
-            <div className="vs-terminal-ticker">
-              <span className="vs-live-dot" />
-              <strong>Enterprise</strong>
-              <span>$499</span>
-            </div>
-          </div>
-
-          {billingTestMode ? (
-            <div className="vs-banner" style={{ color: "#fbbf24" }}>
-              Demo checkout is active. Plan selection can simulate checkout without hitting Stripe.
-            </div>
-          ) : null}
-
-          {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-        </section>
-
-        {loadingConfig ? (
-          <div className="vs-loading-screen" style={{ minHeight: "220px" }}>
-            <div className="vs-loading-card">Loading plans...</div>
-          </div>
-        ) : (
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: "18px"
-            }}
-          >
-            {plans.map((plan) => (
-              <PlanCard
-                key={plan.key}
-                plan={plan}
-                currentPlan={currentPlan}
-                billingTestMode={billingTestMode}
-                loadingKey={loadingKey}
-                onChoose={handleChoosePlan}
-              />
-            ))}
-          </section>
-        )}
-
-        <section
-          style={{
-            border: "1px solid #273142",
-            background: "linear-gradient(180deg, #121821 0%, #10161d 100%)",
-            borderRadius: "24px",
-            padding: "22px",
-            boxShadow: "0 18px 40px rgba(0,0,0,0.34)"
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "14px",
-              flexWrap: "wrap",
-              alignItems: "center"
-            }}
-          >
             <div>
-              <div className="vs-section-title">Need access now?</div>
-              <div className="vs-section-subtitle">
-                Create your account and return here anytime to upgrade or manage billing.
+              <div style={{ fontSize: "15px", fontWeight: 700 }}>VoterSpheres</div>
+              <div style={{ fontSize: "11px", color: "var(--vs-text-muted)" }}>
+                Campaign intelligence operating system
               </div>
             </div>
+          </Link>
 
-            <div className="vs-inline-actions">
-              <button
-                type="button"
-                className="vs-button vs-button-secondary"
-                onClick={() => navigate("/login")}
-              >
-                Go to Login
-              </button>
-              <button
-                type="button"
-                className="vs-button vs-button-primary"
-                onClick={() => navigate("/signup")}
-              >
-                Create Account
-              </button>
-            </div>
+          <div className="vs-inline-actions">
+            <Link to="/login" className="vs-button vs-button-secondary">
+              Sign In
+            </Link>
+            <Link to="/signup" className="vs-button vs-button-primary">
+              Create Account
+            </Link>
           </div>
-        </section>
+        </div>
+
+        <div className="vs-card" style={{ padding: "20px" }}>
+          <div className="vs-page-eyebrow">Pricing</div>
+          <h1
+            style={{
+              margin: "8px 0 0",
+              fontSize: "28px",
+              lineHeight: 1.02,
+              fontWeight: 900,
+              letterSpacing: "-0.04em",
+              maxWidth: "800px",
+            }}
+          >
+            Choose the operating package that fits your firm.
+          </h1>
+
+          <div
+            style={{
+              marginTop: "10px",
+              maxWidth: "860px",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              color: "var(--vs-text-muted)",
+            }}
+          >
+            Every plan is built around a professional campaign operating system.
+            The difference is how much intelligence depth, execution support,
+            MailOps visibility, and leadership control your team needs.
+          </div>
+        </div>
+
+        <div className="vs-grid-3">
+          {tiers.map((tier) => (
+            <PricingCard key={tier.name} tier={tier} />
+          ))}
+        </div>
+
+        <div className="vs-card" style={{ padding: "18px" }}>
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: 700,
+              marginBottom: "8px",
+            }}
+          >
+            What subscribers receive
+          </div>
+
+          <div
+            style={{
+              fontSize: "12px",
+              lineHeight: 1.7,
+              color: "var(--vs-text-muted)",
+            }}
+          >
+            Starter gives a firm a clean professional system for campaign visibility.
+            Pro adds more serious execution and intelligence workflows. Enterprise
+            is built for top consulting organizations that need the full platform
+            as a live control surface across leadership, operations, MailOps,
+            fundraising, and campaign decision-making.
+          </div>
+        </div>
       </div>
     </div>
   );
