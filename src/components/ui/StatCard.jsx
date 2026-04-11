@@ -1,25 +1,25 @@
-import React from "react";
-
 export default function StatCard({
   label,
   value,
   delta,
+  subtext,
   tone = "neutral",
-  subtext
 }) {
-  const toneClass =
+  const deltaClass =
     tone === "up"
-      ? "vs-tone-up"
+      ? "vs-stat-delta vs-stat-delta-up"
       : tone === "down"
-      ? "vs-tone-down"
-      : "vs-tone-neutral";
+      ? "vs-stat-delta vs-stat-delta-down"
+      : "vs-stat-delta vs-stat-delta-neutral";
 
   return (
-    <div className="vs-card">
+    <div className="vs-stat">
       <div className="vs-stat-label">{label}</div>
-      <div className="vs-stat-value">{value}</div>
-      {delta ? <div className={`vs-stat-delta ${toneClass}`}>{delta}</div> : null}
-      {subtext ? <div className="vs-stat-delta vs-tone-neutral">{subtext}</div> : null}
+      <div className="vs-stat-value" title={String(value ?? "")}>
+        {value}
+      </div>
+      {delta ? <div className={deltaClass}>{delta}</div> : null}
+      {!delta && subtext ? <div className="vs-stat-delta">{subtext}</div> : null}
     </div>
   );
 }
