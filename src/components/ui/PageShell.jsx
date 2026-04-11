@@ -1,39 +1,37 @@
-import React from "react";
+import DemoBanner from "./DemoBanner";
 
 export default function PageShell({
   eyebrow,
   title,
   description,
   demo = false,
-  demoText = "Demo mode is active.",
+  demoText = "Demo mode is active for this module.",
   tickerItems = [],
-  children
+  children,
 }) {
   return (
-    <div className="vs-page">
-      <div className="vs-page-inner">
-        <section className="vs-hero">
-          {eyebrow ? <div className="vs-eyebrow">{eyebrow}</div> : null}
-          {title ? <h1 className="vs-title">{title}</h1> : null}
-          {description ? <p className="vs-description">{description}</p> : null}
+    <div className="vs-page-shell">
+      <section className="vs-page-hero">
+        {eyebrow ? <div className="vs-page-eyebrow">{eyebrow}</div> : null}
+        {title ? <h1 className="vs-page-title">{title}</h1> : null}
+        {description ? <div className="vs-page-subtitle">{description}</div> : null}
 
-          {tickerItems.length ? (
-            <div className="vs-terminal-strip">
-              {tickerItems.map((item, index) => (
-                <div className="vs-terminal-ticker" key={`${item.label}-${index}`}>
-                  <span className={item.dotClass || "vs-live-dot-warning"} />
-                  <strong>{item.label}</strong>
-                  <span>{item.value}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
+        {tickerItems.length ? (
+          <div className="vs-ticker-strip">
+            {tickerItems.map((item, index) => (
+              <div key={`${item.label}-${index}`} className="vs-ticker-pill">
+                {item.dotClass ? <span className={item.dotClass} /> : null}
+                <span>{item.label}</span>
+                <strong style={{ color: "var(--vs-text)" }}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
-          {demo ? <div className="vs-banner vs-banner-demo">{demoText}</div> : null}
-        </section>
+        <DemoBanner active={demo} text={demoText} />
+      </section>
 
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
