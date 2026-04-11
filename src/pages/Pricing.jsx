@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Badge from "../components/ui/Badge";
+import PublicPageShell from "../components/layout/PublicPageShell.jsx";
 
 const tiers = [
   {
@@ -9,7 +10,7 @@ const tiers = [
     tone: "default",
     cta: "Start with Starter",
     description:
-      "For emerging firms and smaller campaigns that need a clean command layer, visibility, and a professional operating system.",
+      "For emerging firms and smaller campaigns that need a clear command layer, visibility, and a professional operating system.",
     includes: [
       "Executive dashboard with campaign overview",
       "Candidates, map, donor network, and forecast access",
@@ -27,7 +28,7 @@ const tiers = [
     featured: true,
     cta: "Upgrade to Pro",
     description:
-      "For active consulting firms that need tighter execution, more intelligence depth, and a stronger operating rhythm across clients and campaigns.",
+      "For active consulting firms that need tighter execution, more intelligence depth, and stronger operating rhythm across clients and campaigns.",
     includes: [
       "Everything in Starter",
       "Command Center and AI War Room workflows",
@@ -171,127 +172,42 @@ function PricingCard({ tier }) {
 
 export default function Pricing() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top, rgba(245,158,11,0.08), transparent 24%), linear-gradient(180deg, #0b0f14 0%, #0a0d12 100%)",
-        padding: "24px 20px 40px",
-      }}
+    <PublicPageShell
+      eyebrow="Pricing"
+      title="Choose the operating package that fits your firm."
+      description="Every plan is built around a professional campaign operating system. The difference is how much intelligence depth, execution support, MailOps visibility, and leadership control your team needs."
     >
-      <div
-        style={{
-          width: "min(1200px, 100%)",
-          margin: "0 auto",
-          display: "grid",
-          gap: "18px",
-        }}
-      >
+      <div className="vs-grid-3">
+        {tiers.map((tier) => (
+          <PricingCard key={tier.name} tier={tier} />
+        ))}
+      </div>
+
+      <div className="vs-card" style={{ padding: "18px" }}>
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "12px",
-            flexWrap: "wrap",
+            fontSize: "14px",
+            fontWeight: 700,
+            marginBottom: "8px",
           }}
         >
-          <Link
-            to="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              color: "var(--vs-text)",
-              textDecoration: "none",
-            }}
-          >
-            <div
-              className="vs-brand-mark"
-              style={{ width: "38px", height: "38px", fontSize: "13px" }}
-            >
-              VS
-            </div>
-            <div>
-              <div style={{ fontSize: "15px", fontWeight: 700 }}>VoterSpheres</div>
-              <div style={{ fontSize: "11px", color: "var(--vs-text-muted)" }}>
-                Campaign intelligence operating system
-              </div>
-            </div>
-          </Link>
-
-          <div className="vs-inline-actions">
-            <Link to="/login" className="vs-button vs-button-secondary">
-              Sign In
-            </Link>
-            <Link to="/signup" className="vs-button vs-button-primary">
-              Create Account
-            </Link>
-          </div>
+          What subscribers receive
         </div>
 
-        <div className="vs-card" style={{ padding: "20px" }}>
-          <div className="vs-page-eyebrow">Pricing</div>
-          <h1
-            style={{
-              margin: "8px 0 0",
-              fontSize: "28px",
-              lineHeight: 1.02,
-              fontWeight: 900,
-              letterSpacing: "-0.04em",
-              maxWidth: "800px",
-            }}
-          >
-            Choose the operating package that fits your firm.
-          </h1>
-
-          <div
-            style={{
-              marginTop: "10px",
-              maxWidth: "860px",
-              fontSize: "13px",
-              lineHeight: 1.7,
-              color: "var(--vs-text-muted)",
-            }}
-          >
-            Every plan is built around a professional campaign operating system.
-            The difference is how much intelligence depth, execution support,
-            MailOps visibility, and leadership control your team needs.
-          </div>
-        </div>
-
-        <div className="vs-grid-3">
-          {tiers.map((tier) => (
-            <PricingCard key={tier.name} tier={tier} />
-          ))}
-        </div>
-
-        <div className="vs-card" style={{ padding: "18px" }}>
-          <div
-            style={{
-              fontSize: "14px",
-              fontWeight: 700,
-              marginBottom: "8px",
-            }}
-          >
-            What subscribers receive
-          </div>
-
-          <div
-            style={{
-              fontSize: "12px",
-              lineHeight: 1.7,
-              color: "var(--vs-text-muted)",
-            }}
-          >
-            Starter gives a firm a clean professional system for campaign visibility.
-            Pro adds more serious execution and intelligence workflows. Enterprise
-            is built for top consulting organizations that need the full platform
-            as a live control surface across leadership, operations, MailOps,
-            fundraising, and campaign decision-making.
-          </div>
+        <div
+          style={{
+            fontSize: "12px",
+            lineHeight: 1.7,
+            color: "var(--vs-text-muted)",
+          }}
+        >
+          Starter gives a firm a clean professional system for campaign visibility.
+          Pro adds more serious execution and intelligence workflows. Enterprise is
+          built for top consulting organizations that need the full platform as a
+          live control surface across leadership, operations, MailOps, fundraising,
+          and campaign decision-making.
         </div>
       </div>
-    </div>
+    </PublicPageShell>
   );
 }
