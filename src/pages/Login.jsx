@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import PublicPageShell from "../components/layout/PublicPageShell.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -38,76 +39,19 @@ export default function Login() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top, rgba(245,158,11,0.08), transparent 24%), linear-gradient(180deg, #0b0f14 0%, #0a0d12 100%)",
-        display: "grid",
-        placeItems: "center",
-        padding: "20px",
-      }}
+    <PublicPageShell
+      eyebrow="Account Access"
+      title="Sign in to your campaign operating system."
+      description="Access your dashboard, command center, fundraising workflows, MailOps, and intelligence layers from one secure workspace."
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "440px",
-          display: "grid",
-          gap: "16px",
+          maxWidth: "460px",
+          margin: "0 auto",
         }}
       >
-        <Link
-          to="/"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "10px",
-            color: "var(--vs-text)",
-            textDecoration: "none",
-            width: "fit-content",
-          }}
-        >
-          <div
-            className="vs-brand-mark"
-            style={{ width: "38px", height: "38px", fontSize: "13px" }}
-          >
-            VS
-          </div>
-          <div>
-            <div style={{ fontSize: "15px", fontWeight: 700 }}>VoterSpheres</div>
-            <div style={{ fontSize: "11px", color: "var(--vs-text-muted)" }}>
-              Campaign intelligence operating system
-            </div>
-          </div>
-        </Link>
-
         <div className="vs-card" style={{ padding: "20px" }}>
-          <div style={{ marginBottom: "16px" }}>
-            <div className="vs-page-eyebrow">Account Access</div>
-            <h1
-              style={{
-                margin: "8px 0 0",
-                fontSize: "24px",
-                lineHeight: 1.05,
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-              }}
-            >
-              Sign in to VoterSpheres
-            </h1>
-            <div
-              style={{
-                marginTop: "8px",
-                fontSize: "13px",
-                lineHeight: 1.6,
-                color: "var(--vs-text-muted)",
-              }}
-            >
-              Access your campaign command center, intelligence workflows, MailOps,
-              fundraising, and execution layers.
-            </div>
-          </div>
-
           {error ? (
             <div className="vs-banner vs-banner-danger" style={{ marginBottom: "14px" }}>
               {error}
@@ -164,13 +108,13 @@ export default function Login() {
               color: "var(--vs-text-muted)",
             }}
           >
-            New to VoterSpheres?{" "}
+            Need an account?{" "}
             <Link to="/signup" style={{ color: "#fbbf24", fontWeight: 700 }}>
-              Create an account
+              Create one here
             </Link>
           </div>
         </div>
       </div>
-    </div>
+    </PublicPageShell>
   );
 }
