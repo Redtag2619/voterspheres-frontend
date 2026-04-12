@@ -47,6 +47,13 @@ export default function Signup() {
       eyebrow="New Account"
       title="Create your firm workspace."
       description="Launch a secure operating system for campaign intelligence, consultants, vendors, fundraising, and MailOps."
+      announcement="New feature: firms can now activate live MailOps event tracking, operational composer workflows, and real-time delivery updates."
+      announcementTone="info"
+      announcementAction={
+        <Link to="/pricing" className="vs-button vs-button-secondary">
+          Compare Plans
+        </Link>
+      }
     >
       <div
         style={{
