@@ -1,10 +1,19 @@
 import { Link } from "react-router-dom";
 
+function getAnnouncementClass(tone = "info") {
+  if (tone === "demo") return "vs-banner vs-banner-demo";
+  if (tone === "danger") return "vs-banner vs-banner-danger";
+  return "vs-banner";
+}
+
 export default function PublicPageShell({
   eyebrow,
   title,
   description,
   actions,
+  announcement,
+  announcementTone = "info",
+  announcementAction,
   children,
 }) {
   return (
@@ -49,8 +58,11 @@ export default function PublicPageShell({
             >
               VS
             </div>
+
             <div>
-              <div style={{ fontSize: "15px", fontWeight: 700 }}>VoterSpheres</div>
+              <div style={{ fontSize: "15px", fontWeight: 700 }}>
+                VoterSpheres
+              </div>
               <div style={{ fontSize: "11px", color: "var(--vs-text-muted)" }}>
                 Campaign intelligence operating system
               </div>
@@ -69,6 +81,34 @@ export default function PublicPageShell({
             </Link>
           </div>
         </div>
+
+        {announcement ? (
+          <div
+            className={getAnnouncementClass(announcementTone)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "12px",
+                lineHeight: 1.6,
+                color: "inherit",
+                minWidth: 0,
+              }}
+            >
+              {announcement}
+            </div>
+
+            {announcementAction ? (
+              <div style={{ flex: "0 0 auto" }}>{announcementAction}</div>
+            ) : null}
+          </div>
+        ) : null}
 
         <section className="vs-card" style={{ padding: "20px" }}>
           {eyebrow ? <div className="vs-page-eyebrow">{eyebrow}</div> : null}
@@ -102,11 +142,7 @@ export default function PublicPageShell({
             </div>
           ) : null}
 
-          {actions ? (
-            <div style={{ marginTop: "16px" }}>
-              {actions}
-            </div>
-          ) : null}
+          {actions ? <div style={{ marginTop: "16px" }}>{actions}</div> : null}
         </section>
 
         {children}
