@@ -6,6 +6,24 @@ function getAnnouncementClass(tone = "info") {
   return "vs-banner";
 }
 
+const defaultTrustItems = [
+  {
+    label: "Secure auth",
+    value: "Protected firm access",
+    dotClass: "vs-live-dot-success",
+  },
+  {
+    label: "Live MailOps",
+    value: "Operational visibility enabled",
+    dotClass: "vs-live-dot-warning",
+  },
+  {
+    label: "Enterprise onboarding",
+    value: "White-glove rollout available",
+    dotClass: "vs-live-dot-success",
+  },
+];
+
 export default function PublicPageShell({
   eyebrow,
   title,
@@ -14,6 +32,7 @@ export default function PublicPageShell({
   announcement,
   announcementTone = "info",
   announcementAction,
+  trustItems = defaultTrustItems,
   children,
 }) {
   return (
@@ -144,6 +163,55 @@ export default function PublicPageShell({
 
           {actions ? <div style={{ marginTop: "16px" }}>{actions}</div> : null}
         </section>
+
+        {trustItems?.length ? (
+          <section className="vs-card" style={{ padding: "14px 16px" }}>
+            <div
+              className="vs-grid-3"
+              style={{ gap: "12px" }}
+            >
+              {trustItems.map((item, index) => (
+                <div
+                  key={`${item.label}-${index}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    minWidth: 0,
+                  }}
+                >
+                  {item.dotClass ? <span className={item.dotClass} style={{ marginTop: "4px" }} /> : null}
+
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        lineHeight: 1.4,
+                        color: "var(--vs-text)",
+                      }}
+                    >
+                      {item.label}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: "3px",
+                        fontSize: "11px",
+                        lineHeight: 1.6,
+                        color: "var(--vs-text-muted)",
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {item.value}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {children}
       </div>
