@@ -43,6 +43,13 @@ export default function Login() {
       eyebrow="Account Access"
       title="Sign in to your campaign operating system."
       description="Access your dashboard, command center, fundraising workflows, MailOps, and intelligence layers from one secure workspace."
+      announcement="Demo Mode is available for walkthroughs while live data layers, MailOps workflows, or enterprise onboarding are still being configured."
+      announcementTone="demo"
+      announcementAction={
+        <Link to="/pricing" className="vs-button vs-button-secondary">
+          View Plans
+        </Link>
+      }
     >
       <div
         style={{
