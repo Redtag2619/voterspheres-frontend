@@ -176,6 +176,13 @@ export default function Pricing() {
       eyebrow="Pricing"
       title="Choose the operating package that fits your firm."
       description="Every plan is built around a professional campaign operating system. The difference is how much intelligence depth, execution support, MailOps visibility, and leadership control your team needs."
+      announcement="Enterprise onboarding is now available for firms that need a white-glove rollout across leadership, operations, command workflows, and MailOps."
+      announcementTone="info"
+      announcementAction={
+        <Link to="/signup" className="vs-button vs-button-secondary">
+          Start Onboarding
+        </Link>
+      }
     >
       <div className="vs-grid-3">
         {tiers.map((tier) => (
