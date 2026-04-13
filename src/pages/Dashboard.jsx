@@ -64,52 +64,133 @@ function statusTone(value) {
   return "default";
 }
 
-function DashboardRow({
-  title,
-  subtitle,
-  meta = [],
-  badgeText,
-  badgeTone = "default",
-  alertClass = ""
-}) {
+function ExecutiveFeedCard({ item }) {
+  const isHigh = String(item?.severity || "").toLowerCase() === "high";
+
   return (
-    <div className="vs-card-muted">
-      <div className="vs-responsive-row" style={{ gap: "10px" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-            {alertClass ? <span className={alertClass} /> : null}
-            <div style={{ fontWeight: 800, color: "var(--vs-text)", fontSize: "13px", lineHeight: 1.3 }}>
-              {title}
-            </div>
+    <div
+      className="vs-card"
+      style={{
+        padding: "16px",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "238px"
+      }}
+    >
+      <div style={{ minHeight: "50px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <span className={isHigh ? "vs-live-dot" : "vs-live-dot-warning"} />
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: 800,
+              lineHeight: 1.15,
+              letterSpacing: "-0.02em",
+              color: "var(--vs-text)"
+            }}
+          >
+            {item.title}
           </div>
-
-          {subtitle ? (
-            <div style={{ marginTop: "5px", fontSize: "12px", lineHeight: 1.55, color: "var(--vs-text-muted)" }}>
-              {subtitle}
-            </div>
-          ) : null}
         </div>
 
-        <div style={{ display: "grid", gap: "8px", minWidth: 0 }}>
-          {meta.length ? (
-            <div className="vs-responsive-meta" style={{ gap: "8px" }}>
-              {meta.map((item, index) => (
-                <div key={`${item.label}-${index}`} style={{ minWidth: 0 }}>
-                  <div className="vs-stat-label">{item.label}</div>
-                  <div style={{ marginTop: "4px", fontSize: "12px", lineHeight: 1.4, fontWeight: 800, color: "var(--vs-text)", wordBreak: "break-word" }}>
-                    {item.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {badgeText ? (
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <Badge tone={badgeTone}>{badgeText}</Badge>
-            </div>
-          ) : null}
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            color: "var(--vs-text-muted)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}
+          title={[item.source, item.type, item.state, item.office].filter(Boolean).join(" • ")}
+        >
+          {[item.source, item.type, item.state, item.office].filter(Boolean).join(" • ")}
         </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: "12px 18px",
+          marginTop: "14px",
+          minHeight: "98px",
+          alignContent: "start"
+        }}
+      >
+        <div>
+          <div className="vs-stat-label">Time</div>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "16px",
+              fontWeight: 800,
+              lineHeight: 1.15
+            }}
+          >
+            {item.time || "Now"}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Severity</div>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "13px",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap"
+            }}
+          >
+            {item.severity || "Info"}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">State</div>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "13px",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap"
+            }}
+          >
+            {item.state || "National"}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Risk</div>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "13px",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap"
+            }}
+          >
+            {item.risk || "Monitor"}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: "auto",
+          paddingTop: "14px",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "10px",
+          flexWrap: "wrap"
+        }}
+      >
+        <Badge tone={severityTone(item.severity)}>{item.severity || "Info"}</Badge>
+        <Badge tone={riskTone(item.risk)}>{item.risk || "Monitor"}</Badge>
       </div>
     </div>
   );
@@ -637,17 +718,9 @@ export default function Dashboard() {
               <EmptyState text="No feed items match the active filters." />
             ) : (
               filteredFeed.map((item) => (
-                <DashboardRow
+                <ExecutiveFeedCard
                   key={item.id || `${item.time}-${item.title}`}
-                  title={item.title}
-                  subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
-                  meta={[
-                    { label: "Time", value: item.time || "Now" },
-                    { label: "Severity", value: item.severity || "Info" }
-                  ]}
-                  badgeText={item.severity}
-                  badgeTone={severityTone(item.severity)}
-                  alertClass={String(item.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
+                  item={item}
                 />
               ))
             )}
