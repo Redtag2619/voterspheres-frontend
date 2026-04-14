@@ -187,25 +187,10 @@ function CandidateCard({ candidate, isSelected, onSelect }) {
       }}
     >
       <div>
-        <div
-          style={{
-            fontSize: "15px",
-            fontWeight: 800,
-            lineHeight: 1.15,
-            color: "var(--vs-text)"
-          }}
-        >
+        <div style={{ fontSize: "15px", fontWeight: 800, lineHeight: 1.15, color: "var(--vs-text)" }}>
           {candidate.name}
         </div>
-
-        <div
-          style={{
-            marginTop: "6px",
-            fontSize: "12px",
-            lineHeight: 1.45,
-            color: "var(--vs-text-muted)"
-          }}
-        >
+        <div style={{ marginTop: "6px", fontSize: "12px", lineHeight: 1.45, color: "var(--vs-text-muted)" }}>
           {candidate.party || "N/A"} • Rank #{candidate.rank || "—"}
         </div>
       </div>
@@ -249,15 +234,12 @@ function DonorCard({ donor }) {
       <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
         {donor.donor_name || donor.name || "Unknown Donor"}
       </div>
-
       <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
         {donor.donor_type || "Donor"} • {donor.state || "Unknown state"}
       </div>
-
       <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
         {formatMoney(donor.amount || 0)}
       </div>
-
       <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
         {donor.relationship_strength || "Relationship strength unavailable"}
       </div>
@@ -286,28 +268,13 @@ function OverlayCard({ item, isActive, onSelect }) {
     >
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-          <div
-            style={{
-              fontSize: "16px",
-              fontWeight: 800,
-              lineHeight: 1.15,
-              letterSpacing: "-0.02em",
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ fontSize: "16px", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", color: "var(--vs-text)" }}>
             {item.state}
           </div>
           <Badge tone={officeTone(item.office)}>{item.office}</Badge>
         </div>
 
-        <div
-          style={{
-            marginTop: "6px",
-            fontSize: "12px",
-            lineHeight: 1.45,
-            color: "var(--vs-text-muted)"
-          }}
-        >
+        <div style={{ marginTop: "6px", fontSize: "12px", lineHeight: 1.45, color: "var(--vs-text-muted)" }}>
           {item.candidates?.length || 0} candidate signals • Top 5 shown
         </div>
       </div>
@@ -543,15 +510,11 @@ export default function ElectionMap() {
   }, []);
 
   const stateOptions = useMemo(() => {
-    return Array.from(
-      new Set((mapData.battlegrounds || []).map((item) => item.state).filter(Boolean))
-    ).sort();
+    return Array.from(new Set((mapData.battlegrounds || []).map((item) => item.state).filter(Boolean))).sort();
   }, [mapData.battlegrounds]);
 
   const officeOptions = useMemo(() => {
-    return Array.from(
-      new Set((mapData.battlegrounds || []).map((item) => item.office).filter(Boolean))
-    ).sort();
+    return Array.from(new Set((mapData.battlegrounds || []).map((item) => item.office).filter(Boolean))).sort();
   }, [mapData.battlegrounds]);
 
   const filteredOverlays = useMemo(() => {
@@ -566,20 +529,14 @@ export default function ElectionMap() {
     const grouped = new Map();
 
     for (const item of filteredOverlays) {
-      if (!grouped.has(item.state)) {
-        grouped.set(item.state, []);
-      }
+      if (!grouped.has(item.state)) grouped.set(item.state, []);
       grouped.get(item.state).push(item);
     }
 
     return Array.from(grouped.entries())
       .map(([state, overlays]) => {
         const sorted = [...overlays].sort((a, b) => b.overlayScore - a.overlayScore);
-        return {
-          state,
-          overlays: sorted,
-          strongest: sorted[0]
-        };
+        return { state, overlays: sorted, strongest: sorted[0] };
       })
       .sort((a, b) => (b.strongest?.overlayScore || 0) - (a.strongest?.overlayScore || 0));
   }, [filteredOverlays]);
@@ -619,9 +576,7 @@ export default function ElectionMap() {
     }
 
     const stillExists = selectedStateGroup.overlays.some(
-      (item) =>
-        item.state === selectedOverlay?.state &&
-        item.office === selectedOverlay?.office
+      (item) => item.state === selectedOverlay?.state && item.office === selectedOverlay?.office
     );
 
     const nextOverlay = stillExists ? selectedOverlay : selectedStateGroup.overlays[0];
@@ -703,10 +658,7 @@ export default function ElectionMap() {
   };
 
   const hideTooltip = () => {
-    setTooltip((prev) => ({
-      ...prev,
-      visible: false
-    }));
+    setTooltip((prev) => ({ ...prev, visible: false }));
   };
 
   const selectStateGroup = (stateGroup) => {
@@ -730,21 +682,9 @@ export default function ElectionMap() {
       title="Live fundraising overlays by state and office."
       description="Use finance intensity to see which states and offices are carrying the strongest live candidate signals."
       tickerItems={[
-        {
-          label: "Tracked States",
-          value: String(mapData.summary?.trackedStates || 0),
-          dotClass: "vs-live-dot"
-        },
-        {
-          label: "Overlays",
-          value: String(mapData.summary?.overlays || 0),
-          dotClass: "vs-live-dot-warning"
-        },
-        {
-          label: "Last Sync",
-          value: formatDateTime(mapData.summary?.last_synced_at),
-          dotClass: "vs-live-dot-success"
-        }
+        { label: "Tracked States", value: String(mapData.summary?.trackedStates || 0), dotClass: "vs-live-dot" },
+        { label: "Overlays", value: String(mapData.summary?.overlays || 0), dotClass: "vs-live-dot-warning" },
+        { label: "Last Sync", value: formatDateTime(mapData.summary?.last_synced_at), dotClass: "vs-live-dot-success" }
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
@@ -756,29 +696,17 @@ export default function ElectionMap() {
         subtitle="Filter by state and office to narrow the live overlay stack."
       >
         <div className="vs-grid-3">
-          <select
-            className="vs-select"
-            value={selectedState}
-            onChange={(e) => setSelectedState(e.target.value)}
-          >
+          <select className="vs-select" value={selectedState} onChange={(e) => setSelectedState(e.target.value)}>
             <option value="">All states</option>
             {stateOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+              <option key={value} value={value}>{value}</option>
             ))}
           </select>
 
-          <select
-            className="vs-select"
-            value={selectedOffice}
-            onChange={(e) => setSelectedOffice(e.target.value)}
-          >
+          <select className="vs-select" value={selectedOffice} onChange={(e) => setSelectedOffice(e.target.value)}>
             <option value="">All offices</option>
             {officeOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+              <option key={value} value={value}>{value}</option>
             ))}
           </select>
 
@@ -796,30 +724,10 @@ export default function ElectionMap() {
       </SectionCard>
 
       <div className="vs-grid-4">
-        <StatCard
-          label="Tracked States"
-          value={String(mapData.summary?.trackedStates || 0)}
-          delta="States with live finance overlays"
-          tone="up"
-        />
-        <StatCard
-          label="Overlay Count"
-          value={String(filteredOverlays.length || 0)}
-          delta="State-office combinations"
-          tone="up"
-        />
-        <StatCard
-          label="Top Overlay"
-          value={topOverlay ? topOverlay.state : "N/A"}
-          delta={topOverlay ? topOverlay.office + " • " + topOverlay.overlayTier : "No overlays match"}
-          tone="up"
-        />
-        <StatCard
-          label="Last Sync"
-          value={formatDateTime(mapData.summary?.last_synced_at)}
-          delta="Latest FEC finance ingestion"
-          tone="up"
-        />
+        <StatCard label="Tracked States" value={String(mapData.summary?.trackedStates || 0)} delta="States with live finance overlays" tone="up" />
+        <StatCard label="Overlay Count" value={String(filteredOverlays.length || 0)} delta="State-office combinations" tone="up" />
+        <StatCard label="Top Overlay" value={topOverlay ? topOverlay.state : "N/A"} delta={topOverlay ? topOverlay.office + " • " + topOverlay.overlayTier : "No overlays match"} tone="up" />
+        <StatCard label="Last Sync" value={formatDateTime(mapData.summary?.last_synced_at)} delta="Latest FEC finance ingestion" tone="up" />
       </div>
 
       <div
@@ -840,11 +748,7 @@ export default function ElectionMap() {
             ) : !overlaysByState.length ? (
               <EmptyState text="No live overlays match the selected filters." />
             ) : (
-              <ComposableMap
-                projection="geoAlbersUsa"
-                projectionConfig={{ scale: 1200 }}
-                style={{ width: "100%", height: "auto" }}
-              >
+              <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 1200 }} style={{ width: "100%", height: "auto" }}>
                 <Geographies geography={US_TOPO_JSON}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
@@ -937,72 +841,100 @@ export default function ElectionMap() {
           </div>
         </SectionCard>
 
-        <SectionCard
-          title={
-            selectedStateGroup
-              ? selectedStateGroup.state + " • Office Overlays"
-              : "Overlay Detail"
-          }
-          subtitle={
-            selectedStateGroup
-              ? selectedStateGroup.overlays.length +
-                " office overlay" +
-                (selectedStateGroup.overlays.length === 1 ? "" : "s") +
-                " • Last synced " +
-                formatDateTime(mapData.summary?.last_synced_at)
-              : "Select a state to inspect all office overlays."
-          }
-          right={
-            selectedOverlay ? (
-              <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-                {selectedOverlay.overlayTier}
-              </Badge>
-            ) : null
-          }
-        >
-          <div className="vs-stack">
-            {!selectedStateGroup ? (
-              <EmptyState text="Select a highlighted state to see all live office overlays." />
-            ) : (
-              <>
-                <div className="vs-grid-3">
-                  <StatCard
-                    label="State Overlays"
-                    value={String(selectedStateGroup.overlays?.length || 0)}
-                    delta="Office overlays in state"
-                    tone="up"
-                  />
-                  <StatCard
-                    label="Top Receipts"
-                    value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
-                    delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
-                    tone="up"
-                  />
-                  <StatCard
-                    label="Top Tier"
-                    value={selectedStateGroup.strongest?.overlayTier || "N/A"}
-                    delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
-                    tone="up"
-                  />
-                </div>
-
-                <div style={{ display: "grid", gap: "10px" }}>
-                  {(selectedStateGroup.overlays || []).map((item) => (
-                    <OfficeChip
-                      key={item.state + "-" + item.office}
-                      item={item}
-                      isActive={
-                        selectedOverlay?.state === item.state &&
-                        selectedOverlay?.office === item.office
-                      }
-                      onSelect={selectOfficeOverlay}
+        <div className="vs-stack">
+          <SectionCard
+            title={
+              selectedStateGroup
+                ? selectedStateGroup.state + " • Office Overlays"
+                : "Overlay Detail"
+            }
+            subtitle={
+              selectedStateGroup
+                ? selectedStateGroup.overlays.length +
+                  " office overlay" +
+                  (selectedStateGroup.overlays.length === 1 ? "" : "s") +
+                  " • Last synced " +
+                  formatDateTime(mapData.summary?.last_synced_at)
+                : "Select a state to inspect all office overlays."
+            }
+            right={
+              selectedOverlay ? (
+                <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                  {selectedOverlay.overlayTier}
+                </Badge>
+              ) : null
+            }
+          >
+            <div className="vs-stack">
+              {!selectedStateGroup ? (
+                <EmptyState text="Select a highlighted state to see all live office overlays." />
+              ) : (
+                <>
+                  <div className="vs-grid-3">
+                    <StatCard
+                      label="State Overlays"
+                      value={String(selectedStateGroup.overlays?.length || 0)}
+                      delta="Office overlays in state"
+                      tone="up"
                     />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </SectionCard>
+                    <StatCard
+                      label="Top Receipts"
+                      value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
+                      delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
+                      tone="up"
+                    />
+                    <StatCard
+                      label="Top Tier"
+                      value={selectedStateGroup.strongest?.overlayTier || "N/A"}
+                      delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
+                      tone="up"
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {(selectedStateGroup.overlays || []).map((item) => (
+                      <OfficeChip
+                        key={item.state + "-" + item.office}
+                        item={item}
+                        isActive={
+                          selectedOverlay?.state === item.state &&
+                          selectedOverlay?.office === item.office
+                        }
+                        onSelect={selectOfficeOverlay}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Overlay Stack"
+            subtitle="A ranked list of the current live state-office overlays."
+            right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
+          >
+            <div className="vs-stack">
+              {loading ? (
+                <EmptyState text="Loading overlay stack..." />
+              ) : !filteredOverlays.length ? (
+                <EmptyState text="No overlays match the selected filters." />
+              ) : (
+                filteredOverlays.map((item) => (
+                  <OverlayCard
+                    key={item.state + "-" + item.office}
+                    item={item}
+                    isActive={
+                      selectedOverlay?.state === item.state &&
+                      selectedOverlay?.office === item.office
+                    }
+                    onSelect={selectOfficeOverlay}
+                  />
+                ))
+              )}
+            </div>
+          </SectionCard>
+        </div>
       </div>
 
       <SectionCard
@@ -1036,32 +968,6 @@ export default function ElectionMap() {
             ))}
           </div>
         )}
-      </SectionCard>
-
-      <SectionCard
-        title="Overlay Stack"
-        subtitle="A ranked list of the current live state-office overlays."
-        right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
-      >
-        <div className="vs-stack">
-          {loading ? (
-            <EmptyState text="Loading overlay stack..." />
-          ) : !filteredOverlays.length ? (
-            <EmptyState text="No overlays match the selected filters." />
-          ) : (
-            filteredOverlays.map((item) => (
-              <OverlayCard
-                key={item.state + "-" + item.office}
-                item={item}
-                isActive={
-                  selectedOverlay?.state === item.state &&
-                  selectedOverlay?.office === item.office
-                }
-                onSelect={selectOfficeOverlay}
-              />
-            ))
-          )}
-        </div>
       </SectionCard>
 
       <SectionCard
