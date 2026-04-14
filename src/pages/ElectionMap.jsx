@@ -422,7 +422,9 @@ function OfficeChip({ item, isActive, onSelect }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--vs-text)" }}>{item.office}</div>
+        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--vs-text)" }}>
+          {item.office}
+        </div>
         <Badge tone={overlayTone(item.overlayTier)}>{item.overlayTier}</Badge>
       </div>
       <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
@@ -679,7 +681,7 @@ export default function ElectionMap() {
 
     const nextOverlay = stillExists ? selectedOverlay : selectedStateGroup.overlays[0];
     setSelectedOverlay(nextOverlay || null);
-  }, [selectedStateGroup]);
+  }, [selectedStateGroup]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedOverlay?.candidates?.length) {
@@ -692,7 +694,7 @@ export default function ElectionMap() {
     );
 
     setSelectedCandidate(stillExists ? selectedCandidate : selectedOverlay.candidates[0]);
-  }, [selectedOverlay]);
+  }, [selectedOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let active = true;
@@ -701,46 +703,40 @@ export default function ElectionMap() {
       if (!selectedCandidate) {
         setCandidateDonors([]);
         return;
-     useEffect(() => {
-  let active = true;
+      }
 
-  async function loadDonors() {
-    if (!selectedCandidate) {
-      setCandidateDonors([]);
-      return;
+      try {
+        setDonorLoading(true);
+
+        const response = await api.get("/donors/network/public", {
+          timeout: 8000,
+          params: {
+            candidate_id: selectedCandidate.candidate_id || "",
+            state: selectedOverlay?.state || "",
+            search: selectedCandidate.name || "",
+            limit: 10
+          }
+        });
+
+        if (!active) return;
+
+        const results = response?.data?.results || [];
+        setCandidateDonors(Array.isArray(results) ? results.slice(0, 10) : []);
+      } catch {
+        if (!active) return;
+        setCandidateDonors([]);
+      } finally {
+        if (active) setDonorLoading(false);
+      }
     }
 
-    try {
-      setDonorLoading(true);
+    loadDonors();
 
-      const response = await api.get("/donors/network/public", {
-        timeout: 8000,
-        params: {
-          candidate_id: selectedCandidate.candidate_id || "",
-          state: selectedOverlay?.state || "",
-          search: selectedCandidate.name || "",
-          limit: 10
-        }
-      });
+    return () => {
+      active = false;
+    };
+  }, [selectedCandidate?.candidate_id, selectedCandidate?.name, selectedOverlay?.state]);
 
-      if (!active) return;
-
-      const results = response?.data?.results || [];
-      setCandidateDonors(Array.isArray(results) ? results.slice(0, 10) : []);
-    } catch {
-      if (!active) return;
-      setCandidateDonors([]);
-    } finally {
-      if (active) setDonorLoading(false);
-    }
-  }
-
-  loadDonors();
-
-  return () => {
-    active = false;
-  };
-}, [selectedCandidate?.candidate_id, selectedCandidate?.name, selectedOverlay?.state]);
   const topOverlay = filteredOverlays[0] || null;
 
   const showTooltip = (event, stateGroup) => {
@@ -881,173 +877,303 @@ export default function ElectionMap() {
         />
       </div>
 
-     <div
-  style={{
-    display: "grid",
-    gap: "16px",
-    gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)"
-  }}
->
-  <SectionCard
-    title="U.S. Finance Overlay Map"
-    subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
-    right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
-  >
-    <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
-      {loading ? (
-        <EmptyState text="Loading live map..." />
-      ) : !overlaysByState.length ? (
-        <EmptyState text="No live overlays match the selected filters." />
-      ) : (
-        <ComposableMap
-          projection="geoAlbersUsa"
-          projectionConfig={{ scale: 1200 }}
-          style={{ width: "100%", height: "auto" }}
+      <div
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)"
+        }}
+      >
+        <SectionCard
+          title="U.S. Finance Overlay Map"
+          subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
+          right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
         >
-          <Geographies geography={US_TOPO_JSON}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const stateName = geo.properties?.name;
-                const abbr = STATE_NAME_TO_ABBR[stateName];
-                const stateGroup = abbr ? stateGroupByAbbr[abbr] : null;
-                const strongest = stateGroup?.strongest || null;
-                const isActive = stateGroup?.state === selectedStateGroupKey;
+          <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
+            {loading ? (
+              <EmptyState text="Loading live map..." />
+            ) : !overlaysByState.length ? (
+              <EmptyState text="No live overlays match the selected filters." />
+            ) : (
+              <ComposableMap
+                projection="geoAlbersUsa"
+                projectionConfig={{ scale: 1200 }}
+                style={{ width: "100%", height: "auto" }}
+              >
+                <Geographies geography={US_TOPO_JSON}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      const stateName = geo.properties?.name;
+                      const abbr = STATE_NAME_TO_ABBR[stateName];
+                      const stateGroup = abbr ? stateGroupByAbbr[abbr] : null;
+                      const strongest = stateGroup?.strongest || null;
+                      const isActive = stateGroup?.state === selectedStateGroupKey;
 
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={(event) => {
-                      if (stateGroup) showTooltip(event, stateGroup);
-                    }}
-                    onMouseMove={(event) => {
-                      if (stateGroup) moveTooltip(event, stateGroup);
-                    }}
-                    onMouseLeave={hideTooltip}
-                    onClick={() => {
-                      if (stateGroup) selectStateGroup(stateGroup);
-                    }}
-                    style={{
-                      default: {
-                        fill: strongest ? getStateFill(strongest) : "#111827",
-                        stroke: "#374151",
-                        strokeWidth: isActive ? 1.5 : 0.75,
-                        outline: "none",
-                        cursor: stateGroup ? "pointer" : "default"
-                      },
-                      hover: {
-                        fill: strongest ? getStateFill(strongest) : "#1f2937",
-                        stroke: "#cbd5e1",
-                        strokeWidth: 1.4,
-                        outline: "none",
-                        cursor: stateGroup ? "pointer" : "default"
-                      },
-                      pressed: {
-                        fill: strongest ? getStateFill(strongest) : "#1f2937",
-                        stroke: "#cbd5e1",
-                        strokeWidth: 1.2,
-                        outline: "none"
-                      }
-                    }}
-                  />
-                );
-              })
-            }
-          </Geographies>
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          onMouseEnter={(event) => {
+                            if (stateGroup) showTooltip(event, stateGroup);
+                          }}
+                          onMouseMove={(event) => {
+                            if (stateGroup) moveTooltip(event, stateGroup);
+                          }}
+                          onMouseLeave={hideTooltip}
+                          onClick={() => {
+                            if (stateGroup) selectStateGroup(stateGroup);
+                          }}
+                          style={{
+                            default: {
+                              fill: strongest ? getStateFill(strongest) : "#111827",
+                              stroke: "#374151",
+                              strokeWidth: isActive ? 1.5 : 0.75,
+                              outline: "none",
+                              cursor: stateGroup ? "pointer" : "default"
+                            },
+                            hover: {
+                              fill: strongest ? getStateFill(strongest) : "#1f2937",
+                              stroke: "#cbd5e1",
+                              strokeWidth: 1.4,
+                              outline: "none",
+                              cursor: stateGroup ? "pointer" : "default"
+                            },
+                            pressed: {
+                              fill: strongest ? getStateFill(strongest) : "#1f2937",
+                              stroke: "#cbd5e1",
+                              strokeWidth: 1.2,
+                              outline: "none"
+                            }
+                          }}
+                        />
+                      );
+                    })
+                  }
+                </Geographies>
 
-          {overlaysByState.map((group) => {
-            const abbr = STATE_NAME_TO_ABBR[group.state];
-            const coords = abbr ? STATE_CENTROIDS[abbr] : null;
-            if (!coords) return null;
+                {overlaysByState.map((group) => {
+                  const abbr = STATE_NAME_TO_ABBR[group.state];
+                  const coords = abbr ? STATE_CENTROIDS[abbr] : null;
+                  if (!coords) return null;
 
-            const isActive = selectedStateGroupKey === group.state;
+                  const isActive = selectedStateGroupKey === group.state;
 
-            return (
-              <Marker key={group.state} coordinates={coords}>
-                <circle
-                  r={isActive ? 9 : 7}
-                  fill="#f8fafc"
-                  stroke="#111827"
-                  strokeWidth={2}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={(event) => showTooltip(event, group)}
-                  onMouseMove={(event) => moveTooltip(event, group)}
-                  onMouseLeave={hideTooltip}
-                  onClick={() => selectStateGroup(group)}
-                />
-                <text
-                  textAnchor="middle"
-                  y={-12}
-                  style={{
-                    fontFamily: "inherit",
-                    fill: "#e5e7eb",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    pointerEvents: "none"
-                  }}
-                >
-                  {STATE_NAME_TO_ABBR[group.state] || group.state}
-                </text>
-              </Marker>
-            );
-          })}
-        </ComposableMap>
-      )}
-    </div>
-  </SectionCard>
-
-  <SectionCard
-    title={
-      selectedStateGroup
-        ? selectedStateGroup.state + " • Office Overlays"
-        : "Overlay Detail"
-    }
-    subtitle={
-      selectedStateGroup
-        ? selectedStateGroup.overlays.length +
-          " office overlay" +
-          (selectedStateGroup.overlays.length === 1 ? "" : "s") +
-          " • Last synced " +
-          formatDateTime(mapData.summary?.last_synced_at)
-        : "Select a state to inspect all office overlays."
-    }
-    right={
-      selectedOverlay ? (
-        <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-          {selectedOverlay.overlayTier}
-        </Badge>
-      ) : null
-    }
-  >
-    <div className="vs-stack">
-      {!selectedStateGroup ? (
-        <EmptyState text="Select a highlighted state to see all live office overlays." />
-      ) : (
-        <>
-          <div className="vs-grid-3">
-            <StatCard
-              label="State Overlays"
-              value={String(selectedStateGroup.overlays?.length || 0)}
-              delta="Office overlays in state"
-              tone="up"
-            />
-            <StatCard
-              label="Top Receipts"
-              value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
-              delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
-              tone="up"
-            />
-            <StatCard
-              label="Top Tier"
-              value={selectedStateGroup.strongest?.overlayTier || "N/A"}
-              delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
-              tone="up"
-            />
+                  return (
+                    <Marker
+                      key={group.state}
+                      coordinates={coords}
+                    >
+                      <circle
+                        r={isActive ? 9 : 7}
+                        fill="#f8fafc"
+                        stroke="#111827"
+                        strokeWidth={2}
+                        style={{ cursor: "pointer" }}
+                        onMouseEnter={(event) => showTooltip(event, group)}
+                        onMouseMove={(event) => moveTooltip(event, group)}
+                        onMouseLeave={hideTooltip}
+                        onClick={() => selectStateGroup(group)}
+                      />
+                      <text
+                        textAnchor="middle"
+                        y={-12}
+                        style={{
+                          fontFamily: "inherit",
+                          fill: "#e5e7eb",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          pointerEvents: "none"
+                        }}
+                      >
+                        {STATE_NAME_TO_ABBR[group.state] || group.state}
+                      </text>
+                    </Marker>
+                  );
+                })}
+              </ComposableMap>
+            )}
           </div>
+        </SectionCard>
 
-          <div style={{ display: "grid", gap: "10px" }}>
-            {(selectedStateGroup.overlays || []).map((item) => (
-              <OfficeChip
+        <SectionCard
+          title={
+            selectedStateGroup
+              ? selectedStateGroup.state + " • Office Overlays"
+              : "Overlay Detail"
+          }
+          subtitle={
+            selectedStateGroup
+              ? selectedStateGroup.overlays.length +
+                " office overlay" +
+                (selectedStateGroup.overlays.length === 1 ? "" : "s") +
+                " • Last synced " +
+                formatDateTime(mapData.summary?.last_synced_at)
+              : "Select a state to inspect all office overlays."
+          }
+          right={
+            selectedOverlay ? (
+              <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                {selectedOverlay.overlayTier}
+              </Badge>
+            ) : null
+          }
+        >
+          <div className="vs-stack">
+            {!selectedStateGroup ? (
+              <EmptyState text="Select a highlighted state to see all live office overlays." />
+            ) : (
+              <>
+                <div className="vs-grid-3">
+                  <StatCard
+                    label="State Overlays"
+                    value={String(selectedStateGroup.overlays?.length || 0)}
+                    delta="Office overlays in state"
+                    tone="up"
+                  />
+                  <StatCard
+                    label="Top Receipts"
+                    value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
+                    delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
+                    tone="up"
+                  />
+                  <StatCard
+                    label="Top Tier"
+                    value={selectedStateGroup.strongest?.overlayTier || "N/A"}
+                    delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
+                    tone="up"
+                  />
+                </div>
+
+                <div style={{ display: "grid", gap: "10px" }}>
+                  {(selectedStateGroup.overlays || []).map((item) => (
+                    <OfficeChip
+                      key={item.state + "-" + item.office}
+                      item={item}
+                      isActive={
+                        selectedOverlay?.state === item.state &&
+                        selectedOverlay?.office === item.office
+                      }
+                      onSelect={selectOfficeOverlay}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      {selectedOverlay ? (
+        <SectionCard
+          title={
+            selectedCandidate
+              ? "Candidate + Donor Intelligence • " + selectedCandidate.name
+              : "Candidate + Donor Intelligence"
+          }
+          subtitle="Candidate selection, fundraising totals, and donor records tied to the selected overlay."
+        >
+          <div className="vs-stack">
+            <div
+              className="vs-card"
+              style={{
+                padding: "14px",
+                display: "grid",
+                gap: "12px"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
+                  {selectedOverlay.state} • {selectedOverlay.office}
+                </div>
+                <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                  {selectedOverlay.overlayTier}
+                </Badge>
+              </div>
+
+              <div className="vs-grid-3">
+                <StatCard
+                  label="Overlay Score"
+                  value={String(selectedOverlay.overlayScore || 0)}
+                  delta="Finance intensity"
+                  tone="up"
+                />
+                <StatCard
+                  label="Total Receipts"
+                  value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
+                  delta="Combined office receipts"
+                  tone="up"
+                />
+                <StatCard
+                  label="Total Cash"
+                  value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
+                  delta="Combined office reserves"
+                  tone="up"
+                />
+              </div>
+            </div>
+
+            <SectionCard
+              title="Candidates"
+              subtitle="Click a candidate to inspect donor records when available."
+            >
+              <div className="vs-stack">
+                {(selectedOverlay.candidates || []).map((candidate) => (
+                  <CandidateCard
+                    key={candidate.candidate_id}
+                    candidate={candidate}
+                    isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
+                    onSelect={setSelectedCandidate}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title={
+                selectedCandidate
+                  ? "Top Donors • " + selectedCandidate.name
+                  : "Top Donors"
+              }
+              subtitle={
+                selectedCandidate
+                  ? "Showing donor network matches for the selected candidate."
+                  : "Select a candidate to inspect donor records."
+              }
+            >
+              {donorLoading ? (
+                <EmptyState text="Loading donor records..." />
+              ) : !selectedCandidate ? (
+                <EmptyState text="Select a candidate to load donor data." />
+              ) : !candidateDonors.length ? (
+                <EmptyState text="No donor records available yet for this candidate." />
+              ) : (
+                <div className="vs-stack">
+                  {candidateDonors.map((donor, index) => (
+                    <DonorCard
+                      key={donor.id || donor.donor_name || index}
+                      donor={donor}
+                    />
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+          </div>
+        </SectionCard>
+      ) : null}
+
+      <SectionCard
+        title="Overlay Stack"
+        subtitle="A ranked list of the current live state-office overlays."
+        right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading overlay stack..." />
+          ) : !filteredOverlays.length ? (
+            <EmptyState text="No overlays match the selected filters." />
+          ) : (
+            filteredOverlays.map((item) => (
+              <OverlayCard
                 key={item.state + "-" + item.office}
                 item={item}
                 isActive={
@@ -1056,134 +1182,10 @@ export default function ElectionMap() {
                 }
                 onSelect={selectOfficeOverlay}
               />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  </SectionCard>
-</div>
-
-{selectedOverlay ? (
-  <SectionCard
-    title={
-      selectedCandidate
-        ? "Candidate + Donor Intelligence • " + selectedCandidate.name
-        : "Candidate + Donor Intelligence"
-    }
-    subtitle="Candidate selection, fundraising totals, and donor records tied to the selected overlay."
-  >
-    <div className="vs-stack">
-      <div
-        className="vs-card"
-        style={{
-          padding: "14px",
-          display: "grid",
-          gap: "12px"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
-            {selectedOverlay.state} • {selectedOverlay.office}
-          </div>
-          <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-            {selectedOverlay.overlayTier}
-          </Badge>
-        </div>
-
-        <div className="vs-grid-3">
-          <StatCard
-            label="Overlay Score"
-            value={String(selectedOverlay.overlayScore || 0)}
-            delta="Finance intensity"
-            tone="up"
-          />
-          <StatCard
-            label="Total Receipts"
-            value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
-            delta="Combined office receipts"
-            tone="up"
-          />
-          <StatCard
-            label="Total Cash"
-            value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
-            delta="Combined office reserves"
-            tone="up"
-          />
-        </div>
-      </div>
-
-      <SectionCard
-        title="Candidates"
-        subtitle="Click a candidate to inspect donor records when available."
-      >
-        <div className="vs-stack">
-          {(selectedOverlay.candidates || []).map((candidate) => (
-            <CandidateCard
-              key={candidate.candidate_id}
-              candidate={candidate}
-              isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
-              onSelect={setSelectedCandidate}
-            />
-          ))}
+            ))
+          )}
         </div>
       </SectionCard>
-
-      <SectionCard
-        title={
-          selectedCandidate
-            ? "Top Donors • " + selectedCandidate.name
-            : "Top Donors"
-        }
-        subtitle={
-          selectedCandidate
-            ? "Showing donor network matches for the selected candidate."
-            : "Select a candidate to inspect donor records."
-        }
-      >
-        {donorLoading ? (
-          <EmptyState text="Loading donor records..." />
-        ) : !selectedCandidate ? (
-          <EmptyState text="Select a candidate to load donor data." />
-        ) : !candidateDonors.length ? (
-          <EmptyState text="No donor records available yet for this candidate." />
-        ) : (
-          <div className="vs-stack">
-            {candidateDonors.map((donor, index) => (
-              <DonorCard
-                key={donor.id || donor.donor_name || index}
-                donor={donor}
-              />
-            ))}
-          </div>
-        )}
-      </SectionCard>
-    </div>
-  </SectionCard>
-) : null}
-
-<SectionCard
-  title="Overlay Stack"
-  subtitle="A ranked list of the current live state-office overlays."
-  right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
->
-  <div className="vs-stack">
-    {loading ? (
-      <EmptyState text="Loading overlay stack..." />
-    ) : !filteredOverlays.length ? (
-      <EmptyState text="No overlays match the selected filters." />
-    ) : (
-      filteredOverlays.map((item) => (
-        <OverlayCard
-          key={item.state + "-" + item.office}
-          item={item}
-          isActive={
-            selectedOverlay?.state === item.state &&
-            selectedOverlay?.office === item.office
-          }
-          onSelect={selectOfficeOverlay}
-        />
-      ))
-    )}
-  </div>
-</SectionCard>rd>
+    </PageShell>
+  );
+}
