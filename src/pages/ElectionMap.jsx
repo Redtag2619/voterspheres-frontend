@@ -881,7 +881,7 @@ export default function ElectionMap() {
         />
       </div>
 
-      <div
+     <div
   style={{
     display: "grid",
     gap: "16px",
@@ -963,10 +963,7 @@ export default function ElectionMap() {
             const isActive = selectedStateGroupKey === group.state;
 
             return (
-              <Marker
-                key={group.state}
-                coordinates={coords}
-              >
+              <Marker key={group.state} coordinates={coords}>
                 <circle
                   r={isActive ? 9 : 7}
                   fill="#f8fafc"
@@ -1012,7 +1009,7 @@ export default function ElectionMap() {
           (selectedStateGroup.overlays.length === 1 ? "" : "s") +
           " • Last synced " +
           formatDateTime(mapData.summary?.last_synced_at)
-        : "Select a state to inspect all office overlays and candidate detail."
+        : "Select a state to inspect all office overlays."
     }
     right={
       selectedOverlay ? (
@@ -1061,100 +1058,109 @@ export default function ElectionMap() {
               />
             ))}
           </div>
-
-          {selectedOverlay ? (
-            <>
-              <div
-                className="vs-card"
-                style={{
-                  padding: "14px",
-                  display: "grid",
-                  gap: "12px"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
-                    {selectedOverlay.state} • {selectedOverlay.office}
-                  </div>
-                  <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-                    {selectedOverlay.overlayTier}
-                  </Badge>
-                </div>
-
-                <div className="vs-grid-3">
-                  <StatCard
-                    label="Overlay Score"
-                    value={String(selectedOverlay.overlayScore || 0)}
-                    delta="Finance intensity"
-                    tone="up"
-                  />
-                  <StatCard
-                    label="Total Receipts"
-                    value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
-                    delta="Combined office receipts"
-                    tone="up"
-                  />
-                  <StatCard
-                    label="Total Cash"
-                    value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
-                    delta="Combined office reserves"
-                    tone="up"
-                  />
-                </div>
-              </div>
-
-              <SectionCard
-                title="Candidates"
-                subtitle="Click a candidate to inspect donor records when available."
-              >
-                <div className="vs-stack">
-                  {(selectedOverlay.candidates || []).map((candidate) => (
-                    <CandidateCard
-                      key={candidate.candidate_id}
-                      candidate={candidate}
-                      isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
-                      onSelect={setSelectedCandidate}
-                    />
-                  ))}
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                title={
-                  selectedCandidate
-                    ? "Top Donors • " + selectedCandidate.name
-                    : "Top Donors"
-                }
-                subtitle={
-                  selectedCandidate
-                    ? "Showing donor network matches for the selected candidate."
-                    : "Select a candidate to inspect donor records."
-                }
-              >
-                {donorLoading ? (
-                  <EmptyState text="Loading donor records..." />
-                ) : !selectedCandidate ? (
-                  <EmptyState text="Select a candidate to load donor data." />
-                ) : !candidateDonors.length ? (
-                  <EmptyState text="No donor records available yet for this candidate." />
-                ) : (
-                  <div className="vs-stack">
-                    {candidateDonors.map((donor, index) => (
-                      <DonorCard
-                        key={donor.id || donor.donor_name || index}
-                        donor={donor}
-                      />
-                    ))}
-                  </div>
-                )}
-              </SectionCard>
-            </>
-          ) : null}
         </>
       )}
     </div>
   </SectionCard>
 </div>
+
+{selectedOverlay ? (
+  <SectionCard
+    title={
+      selectedCandidate
+        ? "Candidate + Donor Intelligence • " + selectedCandidate.name
+        : "Candidate + Donor Intelligence"
+    }
+    subtitle="Candidate selection, fundraising totals, and donor records tied to the selected overlay."
+  >
+    <div className="vs-stack">
+      <div
+        className="vs-card"
+        style={{
+          padding: "14px",
+          display: "grid",
+          gap: "12px"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
+            {selectedOverlay.state} • {selectedOverlay.office}
+          </div>
+          <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+            {selectedOverlay.overlayTier}
+          </Badge>
+        </div>
+
+        <div className="vs-grid-3">
+          <StatCard
+            label="Overlay Score"
+            value={String(selectedOverlay.overlayScore || 0)}
+            delta="Finance intensity"
+            tone="up"
+          />
+          <StatCard
+            label="Total Receipts"
+            value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
+            delta="Combined office receipts"
+            tone="up"
+          />
+          <StatCard
+            label="Total Cash"
+            value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
+            delta="Combined office reserves"
+            tone="up"
+          />
+        </div>
+      </div>
+
+      <SectionCard
+        title="Candidates"
+        subtitle="Click a candidate to inspect donor records when available."
+      >
+        <div className="vs-stack">
+          {(selectedOverlay.candidates || []).map((candidate) => (
+            <CandidateCard
+              key={candidate.candidate_id}
+              candidate={candidate}
+              isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
+              onSelect={setSelectedCandidate}
+            />
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title={
+          selectedCandidate
+            ? "Top Donors • " + selectedCandidate.name
+            : "Top Donors"
+        }
+        subtitle={
+          selectedCandidate
+            ? "Showing donor network matches for the selected candidate."
+            : "Select a candidate to inspect donor records."
+        }
+      >
+        {donorLoading ? (
+          <EmptyState text="Loading donor records..." />
+        ) : !selectedCandidate ? (
+          <EmptyState text="Select a candidate to load donor data." />
+        ) : !candidateDonors.length ? (
+          <EmptyState text="No donor records available yet for this candidate." />
+        ) : (
+          <div className="vs-stack">
+            {candidateDonors.map((donor, index) => (
+              <DonorCard
+                key={donor.id || donor.donor_name || index}
+                donor={donor}
+              />
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  </SectionCard>
+) : null}
 
 <SectionCard
   title="Overlay Stack"
@@ -1180,4 +1186,4 @@ export default function ElectionMap() {
       ))
     )}
   </div>
-</SectionCard>
+</SectionCard>rd>
