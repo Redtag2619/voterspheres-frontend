@@ -1,3 +1,4 @@
+```jsx
 import { useEffect, useMemo, useState } from "react";
 import {
   ComposableMap,
@@ -326,10 +327,36 @@ function OverlayCard({ item, isActive, onSelect }) {
   );
 }
 
-function MapTooltip({ tooltip }) {
-  if (!tooltip?.visible || !tooltip?.item) return null;
+function OfficeChip({ item, isActive, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(item)}
+      className="vs-card-muted"
+      style={{
+        padding: "10px 12px",
+        textAlign: "left",
+        cursor: "pointer",
+        border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
+        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 800 }}>{item.office}</div>
+        <Badge tone={overlayTone(item.overlayTier)}>{item.overlayTier}</Badge>
+      </div>
+      <div style={{ marginTop: 6, fontSize: 12, color: "var(--vs-text-muted)" }}>
+        Score {item.overlayScore} • {formatMoneyShort(item.totalReceipts || 0)}
+      </div>
+    </button>
+  );
+}
 
-  const { x, y, item } = tooltip;
+function MapTooltip({ tooltip, onSelectOffice }) {
+  if (!tooltip?.visible || !tooltip?.stateGroup?.state) return null;
+
+  const { x, y, stateGroup } = tooltip;
+  const overlays = stateGroup.overlays || [];
 
   return (
     <div
@@ -338,39 +365,17 @@ function MapTooltip({ tooltip }) {
         left: x + 14,
         top: y + 14,
         zIndex: 60,
-        pointerEvents: "none",
-        width: 240,
+        width: 280,
         padding: "12px 14px",
         borderRadius: 16,
-        background: "rgba(10, 14, 22, 0.96)",
+        background: "rgba(10, 14, 22, 0.97)",
         border: "1px solid rgba(148, 163, 184, 0.18)",
         boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
         color: "var(--vs-text)"
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.2 }}>
-          {item.state}
-        </div>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "4px 8px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,0.08)",
-            textTransform: "capitalize"
-          }}
-        >
-          {item.overlayTier}
-        </span>
+      <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.2 }}>
+        {stateGroup.state}
       </div>
 
       <div
@@ -380,43 +385,56 @@ function MapTooltip({ tooltip }) {
           color: "var(--vs-text-muted)"
         }}
       >
-        {item.office} • Score {item.overlayScore}
+        {overlays.length} office overlay{overlays.length === 1 ? "" : "s"} in this state
       </div>
 
-      <div
-        style={{
-          marginTop: 10,
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: "8px 12px"
-        }}
-      >
-        <div>
-          <div className="vs-stat-label">Receipts</div>
-          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800 }}>
-            {formatMoneyShort(item.totalReceipts || 0)}
-          </div>
-        </div>
-        <div>
-          <div className="vs-stat-label">Cash</div>
-          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800 }}>
-            {formatMoneyShort(item.totalCashOnHand || 0)}
-          </div>
-        </div>
-      </div>
+      <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+        {overlays.slice(0, 4).map((item) => (
+          <button
+            key={`${item.state}-${item.office}`}
+            type="button"
+            onClick={() => onSelectOffice(item)}
+            style={{
+              pointerEvents: "auto",
+              textAlign: "left",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.03)",
+              color: "var(--vs-text)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              cursor: "pointer"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>
+                {item.office}
+              </div>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "3px 7px",
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.08)",
+                  textTransform: "capitalize"
+                }}
+              >
+                {item.overlayTier}
+              </span>
+            </div>
 
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: 12,
-          lineHeight: 1.45,
-          color: "var(--vs-text-muted)"
-        }}
-      >
-        Top signal:{" "}
-        <span style={{ color: "var(--vs-text)", fontWeight: 700 }}>
-          {item.candidates?.[0]?.name || "N/A"}
-        </span>
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--vs-text-muted)" }}>
+              Score {item.overlayScore} • {formatMoneyShort(item.totalReceipts || 0)}
+            </div>
+
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--vs-text-muted)" }}>
+              Top signal:{" "}
+              <span style={{ color: "var(--vs-text)", fontWeight: 700 }}>
+                {item.candidates?.[0]?.name || "N/A"}
+              </span>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -436,11 +454,12 @@ export default function ElectionMap() {
   const [selectedOverlay, setSelectedOverlay] = useState(null);
   const [selectedState, setSelectedState] = useState("");
   const [selectedOffice, setSelectedOffice] = useState("");
+  const [selectedStateGroupKey, setSelectedStateGroupKey] = useState("");
   const [tooltip, setTooltip] = useState({
     visible: false,
     x: 0,
     y: 0,
-    item: null
+    stateGroup: null
   });
 
   useEffect(() => {
@@ -467,6 +486,7 @@ export default function ElectionMap() {
 
         if (payload?.battlegrounds?.length) {
           setSelectedOverlay(payload.battlegrounds[0]);
+          setSelectedStateGroupKey(payload.battlegrounds[0].state);
         }
       } catch (err) {
         if (!active) return;
@@ -511,51 +531,85 @@ export default function ElectionMap() {
     });
   }, [mapData.battlegrounds, selectedState, selectedOffice]);
 
-  const overlayByAbbr = useMemo(() => {
-    const map = {};
+  const overlaysByState = useMemo(() => {
+    const grouped = new Map();
+
     for (const item of filteredOverlays) {
-      const abbr = STATE_NAME_TO_ABBR[item.state] || item.state;
-      if (!map[abbr] || Number(item.overlayScore || 0) > Number(map[abbr].overlayScore || 0)) {
-        map[abbr] = item;
+      if (!grouped.has(item.state)) {
+        grouped.set(item.state, []);
       }
+      grouped.get(item.state).push(item);
+    }
+
+    return Array.from(grouped.entries())
+      .map(([state, overlays]) => ({
+        state,
+        overlays: overlays.sort((a, b) => b.overlayScore - a.overlayScore),
+        strongest: overlays.sort((a, b) => b.overlayScore - a.overlayScore)[0]
+      }))
+      .sort((a, b) => (b.strongest?.overlayScore || 0) - (a.strongest?.overlayScore || 0));
+  }, [filteredOverlays]);
+
+  const stateGroupByAbbr = useMemo(() => {
+    const map = {};
+    for (const group of overlaysByState) {
+      const abbr = STATE_NAME_TO_ABBR[group.state] || group.state;
+      map[abbr] = group;
     }
     return map;
-  }, [filteredOverlays]);
+  }, [overlaysByState]);
+
+  const selectedStateGroup = useMemo(() => {
+    if (!selectedStateGroupKey) return null;
+    return overlaysByState.find((group) => group.state === selectedStateGroupKey) || null;
+  }, [overlaysByState, selectedStateGroupKey]);
 
   useEffect(() => {
     if (!filteredOverlays.length) {
       setSelectedOverlay(null);
+      setSelectedStateGroupKey("");
       return;
     }
 
-    const stillExists = filteredOverlays.some(
+    if (!selectedStateGroupKey || !overlaysByState.some((group) => group.state === selectedStateGroupKey)) {
+      setSelectedStateGroupKey(overlaysByState[0]?.state || "");
+    }
+  }, [filteredOverlays, overlaysByState, selectedStateGroupKey]);
+
+  useEffect(() => {
+    if (!selectedStateGroup?.overlays?.length) {
+      setSelectedOverlay(null);
+      return;
+    }
+
+    const stillExists = selectedStateGroup.overlays.some(
       (item) =>
         item.state === selectedOverlay?.state &&
         item.office === selectedOverlay?.office
     );
 
     if (!stillExists) {
-      setSelectedOverlay(filteredOverlays[0]);
+      setSelectedOverlay(selectedStateGroup.overlays[0]);
     }
-  }, [filteredOverlays, selectedOverlay]);
+  }, [selectedStateGroup, selectedOverlay]);
 
   const topOverlay = filteredOverlays[0] || null;
 
-  const showTooltip = (event, item) => {
+  const showTooltip = (event, stateGroup) => {
     setTooltip({
       visible: true,
       x: event.clientX,
       y: event.clientY,
-      item
+      stateGroup
     });
   };
 
-  const moveTooltip = (event, item) => {
+  const moveTooltip = (event, stateGroup) => {
     setTooltip({
       visible: true,
       x: event.clientX,
       y: event.clientY,
-      item
+      stateGroup
     });
   };
 
@@ -564,6 +618,19 @@ export default function ElectionMap() {
       ...prev,
       visible: false
     }));
+  };
+
+  const selectStateGroup = (stateGroup) => {
+    if (!stateGroup) return;
+    setSelectedStateGroupKey(stateGroup.state);
+    setSelectedOverlay(stateGroup.overlays?.[0] || null);
+  };
+
+  const selectOfficeOverlay = (item) => {
+    if (!item) return;
+    setSelectedStateGroupKey(item.state);
+    setSelectedOverlay(item);
+    setTooltip((prev) => ({ ...prev, visible: false }));
   };
 
   return (
@@ -591,7 +658,7 @@ export default function ElectionMap() {
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
-      <MapTooltip tooltip={tooltip} />
+      <MapTooltip tooltip={tooltip} onSelectOffice={selectOfficeOverlay} />
 
       <SectionCard
         title="Map Filters"
@@ -673,13 +740,13 @@ export default function ElectionMap() {
       >
         <SectionCard
           title="U.S. Finance Overlay Map"
-          subtitle="Hover any highlighted state to preview the top overlay. Click to lock detail on the right."
+          subtitle="Hover any highlighted state to preview all office overlays for that state. Click to lock the state on the right."
           right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
         >
           <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
             {loading ? (
               <EmptyState text="Loading live map..." />
-            ) : !filteredOverlays.length ? (
+            ) : !overlaysByState.length ? (
               <EmptyState text="No live overlays match the selected filters." />
             ) : (
               <ComposableMap
@@ -692,44 +759,41 @@ export default function ElectionMap() {
                     geographies.map((geo) => {
                       const stateName = geo.properties?.name;
                       const abbr = STATE_NAME_TO_ABBR[stateName];
-                      const overlay = abbr ? overlayByAbbr[abbr] : null;
-                      const isActive =
-                        overlay &&
-                        selectedOverlay &&
-                        overlay.state === selectedOverlay.state &&
-                        overlay.office === selectedOverlay.office;
+                      const stateGroup = abbr ? stateGroupByAbbr[abbr] : null;
+                      const strongest = stateGroup?.strongest || null;
+                      const isActive = stateGroup?.state === selectedStateGroupKey;
 
                       return (
                         <Geography
                           key={geo.rsmKey}
                           geography={geo}
                           onMouseEnter={(event) => {
-                            if (overlay) showTooltip(event, overlay);
+                            if (stateGroup) showTooltip(event, stateGroup);
                           }}
                           onMouseMove={(event) => {
-                            if (overlay) moveTooltip(event, overlay);
+                            if (stateGroup) moveTooltip(event, stateGroup);
                           }}
                           onMouseLeave={hideTooltip}
                           onClick={() => {
-                            if (overlay) setSelectedOverlay(overlay);
+                            if (stateGroup) selectStateGroup(stateGroup);
                           }}
                           style={{
                             default: {
-                              fill: overlay ? getStateFill(overlay) : "#111827",
+                              fill: strongest ? getStateFill(strongest) : "#111827",
                               stroke: "#374151",
                               strokeWidth: isActive ? 1.5 : 0.75,
                               outline: "none",
-                              cursor: overlay ? "pointer" : "default"
+                              cursor: stateGroup ? "pointer" : "default"
                             },
                             hover: {
-                              fill: overlay ? getStateFill(overlay) : "#1f2937",
+                              fill: strongest ? getStateFill(strongest) : "#1f2937",
                               stroke: "#cbd5e1",
                               strokeWidth: 1.4,
                               outline: "none",
-                              cursor: overlay ? "pointer" : "default"
+                              cursor: stateGroup ? "pointer" : "default"
                             },
                             pressed: {
-                              fill: overlay ? getStateFill(overlay) : "#1f2937",
+                              fill: strongest ? getStateFill(strongest) : "#1f2937",
                               stroke: "#cbd5e1",
                               strokeWidth: 1.2,
                               outline: "none"
@@ -741,30 +805,28 @@ export default function ElectionMap() {
                   }
                 </Geographies>
 
-                {filteredOverlays.map((item) => {
-                  const abbr = STATE_NAME_TO_ABBR[item.state];
+                {overlaysByState.map((group) => {
+                  const abbr = STATE_NAME_TO_ABBR[group.state];
                   const coords = abbr ? STATE_CENTROIDS[abbr] : null;
                   if (!coords) return null;
 
-                  const isActive =
-                    selectedOverlay?.state === item.state &&
-                    selectedOverlay?.office === item.office;
+                  const isActive = selectedStateGroupKey === group.state;
 
                   return (
                     <Marker
-                      key={`${item.state}-${item.office}`}
+                      key={group.state}
                       coordinates={coords}
                     >
                       <circle
-                        r={isActive ? 8 : 6}
+                        r={isActive ? 9 : 7}
                         fill="#f8fafc"
                         stroke="#111827"
                         strokeWidth={2}
                         style={{ cursor: "pointer" }}
-                        onMouseEnter={(event) => showTooltip(event, item)}
-                        onMouseMove={(event) => moveTooltip(event, item)}
+                        onMouseEnter={(event) => showTooltip(event, group)}
+                        onMouseMove={(event) => moveTooltip(event, group)}
                         onMouseLeave={hideTooltip}
-                        onClick={() => setSelectedOverlay(item)}
+                        onClick={() => selectStateGroup(group)}
                       />
                       <text
                         textAnchor="middle"
@@ -777,7 +839,7 @@ export default function ElectionMap() {
                           pointerEvents: "none"
                         }}
                       >
-                        {STATE_NAME_TO_ABBR[item.state] || item.state}
+                        {STATE_NAME_TO_ABBR[group.state] || group.state}
                       </text>
                     </Marker>
                   );
@@ -789,14 +851,14 @@ export default function ElectionMap() {
 
         <SectionCard
           title={
-            selectedOverlay
-              ? `${selectedOverlay.state} • ${selectedOverlay.office}`
+            selectedStateGroup
+              ? `${selectedStateGroup.state} • Office Overlays`
               : "Overlay Detail"
           }
           subtitle={
-            selectedOverlay
-              ? `Overlay score ${selectedOverlay.overlayScore} • Tier ${selectedOverlay.overlayTier} • Last synced ${formatDateTime(mapData.summary?.last_synced_at)}`
-              : "Select a state overlay to inspect live candidate finance detail."
+            selectedStateGroup
+              ? `${selectedStateGroup.overlays.length} office overlay${selectedStateGroup.overlays.length === 1 ? "" : "s"} • Last synced ${formatDateTime(mapData.summary?.last_synced_at)}`
+              : "Select a state to inspect all office overlays and candidate detail."
           }
           right={
             selectedOverlay ? (
@@ -807,39 +869,96 @@ export default function ElectionMap() {
           }
         >
           <div className="vs-stack">
-            {!selectedOverlay ? (
-              <EmptyState text="Select a state-office overlay to see candidate details." />
+            {!selectedStateGroup ? (
+              <EmptyState text="Select a highlighted state to see all live office overlays." />
             ) : (
               <>
                 <div className="vs-grid-3">
                   <StatCard
-                    label="Candidates"
-                    value={String(selectedOverlay.candidates?.length || 0)}
-                    delta="Top candidates shown"
+                    label="State Overlays"
+                    value={String(selectedStateGroup.overlays?.length || 0)}
+                    delta="Office overlays in state"
                     tone="up"
                   />
                   <StatCard
-                    label="Total Receipts"
-                    value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
-                    delta="Combined finance pressure"
+                    label="Top Receipts"
+                    value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
+                    delta={`Strongest office: ${selectedStateGroup.strongest?.office || "N/A"}`}
                     tone="up"
                   />
                   <StatCard
-                    label="Total Cash"
-                    value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
-                    delta="Combined reserve strength"
+                    label="Top Tier"
+                    value={selectedStateGroup.strongest?.overlayTier || "N/A"}
+                    delta={`Score ${selectedStateGroup.strongest?.overlayScore || 0}`}
                     tone="up"
                   />
                 </div>
 
-                <div className="vs-stack">
-                  {(selectedOverlay.candidates || []).map((candidate) => (
-                    <CandidateCard
-                      key={candidate.candidate_id}
-                      candidate={candidate}
+                <div style={{ display: "grid", gap: "10px" }}>
+                  {(selectedStateGroup.overlays || []).map((item) => (
+                    <OfficeChip
+                      key={`${item.state}-${item.office}`}
+                      item={item}
+                      isActive={
+                        selectedOverlay?.state === item.state &&
+                        selectedOverlay?.office === item.office
+                      }
+                      onSelect={selectOfficeOverlay}
                     />
                   ))}
                 </div>
+
+                {selectedOverlay ? (
+                  <>
+                    <div
+                      className="vs-card"
+                      style={{
+                        padding: "14px",
+                        display: "grid",
+                        gap: "12px"
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ fontSize: "16px", fontWeight: 800 }}>
+                          {selectedOverlay.state} • {selectedOverlay.office}
+                        </div>
+                        <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                          {selectedOverlay.overlayTier}
+                        </Badge>
+                      </div>
+
+                      <div className="vs-grid-3">
+                        <StatCard
+                          label="Overlay Score"
+                          value={String(selectedOverlay.overlayScore || 0)}
+                          delta="Finance intensity"
+                          tone="up"
+                        />
+                        <StatCard
+                          label="Total Receipts"
+                          value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
+                          delta="Combined office receipts"
+                          tone="up"
+                        />
+                        <StatCard
+                          label="Total Cash"
+                          value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
+                          delta="Combined office reserves"
+                          tone="up"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="vs-stack">
+                      {(selectedOverlay.candidates || []).map((candidate) => (
+                        <CandidateCard
+                          key={candidate.candidate_id}
+                          candidate={candidate}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : null}
               </>
             )}
           </div>
@@ -865,7 +984,7 @@ export default function ElectionMap() {
                   selectedOverlay?.state === item.state &&
                   selectedOverlay?.office === item.office
                 }
-                onSelect={setSelectedOverlay}
+                onSelect={selectOfficeOverlay}
               />
             ))
           )}
@@ -874,3 +993,4 @@ export default function ElectionMap() {
     </PageShell>
   );
 }
+```
