@@ -261,21 +261,19 @@ function DonorCard({ donor }) {
       }}
     >
       <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
-        {donor.name || donor.donor_name || donor.committee_name || "Unknown Donor"}
+        {donor.donor_name || donor.name || "Unknown Donor"}
       </div>
 
       <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
-        {(donor.city || donor.state) ? [donor.city, donor.state].filter(Boolean).join(", ") : "Donor location unavailable"}
+        {donor.donor_type || "Donor"} • {donor.state || "Unknown state"}
       </div>
 
       <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
-        {formatMoney(
-          donor.amount ||
-          donor.total ||
-          donor.total_amount ||
-          donor.contribution_amount ||
-          0
-        )}
+        {formatMoney(donor.amount || 0)}
+      </div>
+
+      <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
+        {donor.relationship_strength || "Relationship strength unavailable"}
       </div>
     </div>
   );
@@ -700,7 +698,7 @@ export default function ElectionMap() {
     let active = true;
 
     async function loadDonors() {
-      if (!selectedCandidate?.candidate_id) {
+      if (!selectedCandidate) {
         setCandidateDonors([]);
         return;
       }
@@ -708,23 +706,19 @@ export default function ElectionMap() {
       try {
         setDonorLoading(true);
 
-        const response = await api.get("/donors", {
+        const response = await api.get("/donors/network", {
           timeout: 8000,
           params: {
-            candidate_id: selectedCandidate.candidate_id,
+            state: selectedOverlay?.state || "",
+            search: selectedCandidate.name || "",
             limit: 10
           }
         });
 
         if (!active) return;
 
-        const results =
-          response?.data?.results ||
-          response?.data?.donors ||
-          response?.data ||
-          [];
-
-        setCandidateDonors(Array.isArray(results) ? results : []);
+        const results = response?.data?.results || [];
+        setCandidateDonors(Array.isArray(results) ? results.slice(0, 10) : []);
       } catch {
         if (!active) return;
         setCandidateDonors([]);
@@ -738,7 +732,7 @@ export default function ElectionMap() {
     return () => {
       active = false;
     };
-  }, [selectedCandidate?.candidate_id]);
+  }, [selectedCandidate, selectedOverlay?.state]);
 
   const topOverlay = filteredOverlays[0] || null;
 
@@ -1126,7 +1120,7 @@ export default function ElectionMap() {
                       }
                       subtitle={
                         selectedCandidate
-                          ? "Showing donor records for the selected candidate when available."
+                          ? "Showing donor network matches for the selected candidate."
                           : "Select a candidate to inspect donor records."
                       }
                     >
@@ -1138,15 +1132,9 @@ export default function ElectionMap() {
                         <EmptyState text="No donor records available yet for this candidate." />
                       ) : (
                         <div className="vs-stack">
-                          {candidateDonors.slice(0, 10).map((donor, index) => (
+                          {candidateDonors.map((donor, index) => (
                             <DonorCard
-                              key={
-                                donor.id ||
-                                donor.donor_id ||
-                                donor.name ||
-                                donor.donor_name ||
-                                index
-                              }
+                              key={donor.id || donor.donor_name || index}
                               donor={donor}
                             />
                           ))}
