@@ -1,10 +1,131 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker
+} from "react-simple-maps";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+
+const US_TOPO_JSON =
+  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
+const STATE_NAME_TO_ABBR = {
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  Florida: "FL",
+  Georgia: "GA",
+  Hawaii: "HI",
+  Idaho: "ID",
+  Illinois: "IL",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Michigan: "MI",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Montana: "MT",
+  Nebraska: "NE",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY",
+  "District of Columbia": "DC"
+};
+
+const STATE_ABBR_TO_NAME = Object.fromEntries(
+  Object.entries(STATE_NAME_TO_ABBR).map(([name, abbr]) => [abbr, name])
+);
+
+const STATE_CENTROIDS = {
+  AL: [-86.8, 32.8],
+  AK: [-152.4, 64.2],
+  AZ: [-111.7, 34.3],
+  AR: [-92.4, 34.9],
+  CA: [-119.5, 37.2],
+  CO: [-105.5, 39.0],
+  CT: [-72.7, 41.6],
+  DE: [-75.5, 39.0],
+  FL: [-81.7, 27.8],
+  GA: [-83.4, 32.7],
+  HI: [-157.5, 20.9],
+  ID: [-114.1, 44.2],
+  IL: [-89.2, 40.0],
+  IN: [-86.1, 40.0],
+  IA: [-93.5, 42.1],
+  KS: [-98.3, 38.5],
+  KY: [-84.8, 37.8],
+  LA: [-91.9, 31.2],
+  ME: [-69.0, 45.3],
+  MD: [-76.7, 39.0],
+  MA: [-71.8, 42.3],
+  MI: [-84.6, 44.3],
+  MN: [-94.2, 46.3],
+  MS: [-89.7, 32.7],
+  MO: [-92.6, 38.5],
+  MT: [-110.0, 46.9],
+  NE: [-99.8, 41.5],
+  NV: [-116.6, 39.3],
+  NH: [-71.6, 43.7],
+  NJ: [-74.7, 40.1],
+  NM: [-106.1, 34.4],
+  NY: [-75.0, 43.0],
+  NC: [-79.4, 35.5],
+  ND: [-100.5, 47.5],
+  OH: [-82.8, 40.4],
+  OK: [-97.5, 35.6],
+  OR: [-120.5, 44.0],
+  PA: [-77.7, 40.9],
+  RI: [-71.5, 41.7],
+  SC: [-80.9, 33.8],
+  SD: [-100.2, 44.4],
+  TN: [-86.4, 35.8],
+  TX: [-99.3, 31.5],
+  UT: [-111.7, 39.3],
+  VT: [-72.7, 44.1],
+  VA: [-78.7, 37.5],
+  WA: [-120.7, 47.4],
+  WV: [-80.6, 38.6],
+  WI: [-89.6, 44.6],
+  WY: [-107.6, 43.0],
+  DC: [-77.0, 38.9]
+};
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
@@ -20,10 +141,8 @@ function formatMoneyShort(value) {
 
 function formatDateTime(value) {
   if (!value) return "Not synced yet";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Not synced yet";
-
   return date.toLocaleString();
 }
 
@@ -44,6 +163,15 @@ function officeTone(value) {
   return "default";
 }
 
+function getStateFill(item) {
+  const tier = String(item?.overlayTier || "").toLowerCase();
+  if (tier === "critical") return "#7f1d1d";
+  if (tier === "elevated") return "#7c3aed";
+  if (tier === "watch") return "#92400e";
+  if (tier === "monitor") return "#1e3a8a";
+  return "#1f2937";
+}
+
 function CandidateCard({ candidate }) {
   return (
     <div
@@ -56,7 +184,14 @@ function CandidateCard({ candidate }) {
       }}
     >
       <div>
-        <div style={{ fontSize: "15px", fontWeight: 800, lineHeight: 1.15, color: "var(--vs-text)" }}>
+        <div
+          style={{
+            fontSize: "15px",
+            fontWeight: 800,
+            lineHeight: 1.15,
+            color: "var(--vs-text)"
+          }}
+        >
           {candidate.name}
         </div>
 
@@ -116,8 +251,23 @@ function OverlayCard({ item, isActive, onSelect }) {
       }}
     >
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-          <div style={{ fontSize: "16px", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", color: "var(--vs-text)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            flexWrap: "wrap"
+          }}
+        >
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: 800,
+              lineHeight: 1.15,
+              letterSpacing: "-0.02em",
+              color: "var(--vs-text)"
+            }}
+          >
             {item.state}
           </div>
           <Badge tone={officeTone(item.office)}>{item.office}</Badge>
@@ -207,7 +357,11 @@ export default function ElectionMap() {
         if (!active) return;
 
         const payload = response?.data || {
-          summary: { trackedStates: 0, overlays: 0, last_synced_at: null },
+          summary: {
+            trackedStates: 0,
+            overlays: 0,
+            last_synced_at: null
+          },
           battlegrounds: []
         };
 
@@ -259,6 +413,17 @@ export default function ElectionMap() {
     });
   }, [mapData.battlegrounds, selectedState, selectedOffice]);
 
+  const overlayByAbbr = useMemo(() => {
+    const map = {};
+    for (const item of filteredOverlays) {
+      const abbr = STATE_NAME_TO_ABBR[item.state] || item.state;
+      if (!map[abbr] || Number(item.overlayScore || 0) > Number(map[abbr].overlayScore || 0)) {
+        map[abbr] = item;
+      }
+    }
+    return map;
+  }, [filteredOverlays]);
+
   useEffect(() => {
     if (!filteredOverlays.length) {
       setSelectedOverlay(null);
@@ -266,7 +431,9 @@ export default function ElectionMap() {
     }
 
     const stillExists = filteredOverlays.some(
-      (item) => item.state === selectedOverlay?.state && item.office === selectedOverlay?.office
+      (item) =>
+        item.state === selectedOverlay?.state &&
+        item.office === selectedOverlay?.office
     );
 
     if (!stillExists) {
@@ -282,9 +449,21 @@ export default function ElectionMap() {
       title="Live fundraising overlays by state and office."
       description="Use finance intensity to see which states and offices are carrying the strongest live candidate signals."
       tickerItems={[
-        { label: "Tracked States", value: String(mapData.summary?.trackedStates || 0), dotClass: "vs-live-dot" },
-        { label: "Overlays", value: String(mapData.summary?.overlays || 0), dotClass: "vs-live-dot-warning" },
-        { label: "Last Sync", value: formatDateTime(mapData.summary?.last_synced_at), dotClass: "vs-live-dot-success" }
+        {
+          label: "Tracked States",
+          value: String(mapData.summary?.trackedStates || 0),
+          dotClass: "vs-live-dot"
+        },
+        {
+          label: "Overlays",
+          value: String(mapData.summary?.overlays || 0),
+          dotClass: "vs-live-dot-warning"
+        },
+        {
+          label: "Last Sync",
+          value: formatDateTime(mapData.summary?.last_synced_at),
+          dotClass: "vs-live-dot-success"
+        }
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
@@ -301,7 +480,9 @@ export default function ElectionMap() {
           >
             <option value="">All states</option>
             {stateOptions.map((value) => (
-              <option key={value} value={value}>{value}</option>
+              <option key={value} value={value}>
+                {value}
+              </option>
             ))}
           </select>
 
@@ -312,7 +493,9 @@ export default function ElectionMap() {
           >
             <option value="">All offices</option>
             {officeOptions.map((value) => (
-              <option key={value} value={value}>{value}</option>
+              <option key={value} value={value}>
+                {value}
+              </option>
             ))}
           </select>
 
@@ -356,39 +539,129 @@ export default function ElectionMap() {
         />
       </div>
 
-      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.1fr) minmax(360px, 0.9fr)" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)"
+        }}
+      >
         <SectionCard
-          title="Live Overlay Stack"
-          subtitle="Ranked state-office finance signals from the current live table."
+          title="U.S. Finance Overlay Map"
+          subtitle="States are shaded by the strongest state-office finance overlay in the current filter set."
           right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
         >
-          <div className="vs-stack">
+          <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
             {loading ? (
-              <EmptyState text="Loading map overlays..." />
+              <EmptyState text="Loading live map..." />
             ) : !filteredOverlays.length ? (
               <EmptyState text="No live overlays match the selected filters." />
             ) : (
-              filteredOverlays.map((item) => (
-                <OverlayCard
-                  key={`${item.state}-${item.office}`}
-                  item={item}
-                  isActive={
-                    selectedOverlay?.state === item.state &&
-                    selectedOverlay?.office === item.office
+              <ComposableMap
+                projection="geoAlbersUsa"
+                projectionConfig={{ scale: 1200 }}
+                style={{ width: "100%", height: "auto" }}
+              >
+                <Geographies geography={US_TOPO_JSON}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      const stateName = geo.properties?.name;
+                      const abbr = STATE_NAME_TO_ABBR[stateName];
+                      const overlay = abbr ? overlayByAbbr[abbr] : null;
+                      const isActive =
+                        overlay &&
+                        selectedOverlay &&
+                        overlay.state === selectedOverlay.state &&
+                        overlay.office === selectedOverlay.office;
+
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          onClick={() => {
+                            if (overlay) setSelectedOverlay(overlay);
+                          }}
+                          style={{
+                            default: {
+                              fill: overlay ? getStateFill(overlay) : "#111827",
+                              stroke: "#374151",
+                              strokeWidth: isActive ? 1.5 : 0.75,
+                              outline: "none",
+                              cursor: overlay ? "pointer" : "default"
+                            },
+                            hover: {
+                              fill: overlay ? getStateFill(overlay) : "#1f2937",
+                              stroke: "#9ca3af",
+                              strokeWidth: 1.2,
+                              outline: "none",
+                              cursor: overlay ? "pointer" : "default"
+                            },
+                            pressed: {
+                              fill: overlay ? getStateFill(overlay) : "#1f2937",
+                              stroke: "#9ca3af",
+                              strokeWidth: 1.2,
+                              outline: "none"
+                            }
+                          }}
+                        />
+                      );
+                    })
                   }
-                  onSelect={setSelectedOverlay}
-                />
-              ))
+                </Geographies>
+
+                {filteredOverlays.map((item) => {
+                  const abbr = STATE_NAME_TO_ABBR[item.state];
+                  const coords = abbr ? STATE_CENTROIDS[abbr] : null;
+                  if (!coords) return null;
+
+                  const isActive =
+                    selectedOverlay?.state === item.state &&
+                    selectedOverlay?.office === item.office;
+
+                  return (
+                    <Marker
+                      key={`${item.state}-${item.office}`}
+                      coordinates={coords}
+                      onClick={() => setSelectedOverlay(item)}
+                    >
+                      <circle
+                        r={isActive ? 8 : 6}
+                        fill="#f8fafc"
+                        stroke="#111827"
+                        strokeWidth={2}
+                        style={{ cursor: "pointer" }}
+                      />
+                      <text
+                        textAnchor="middle"
+                        y={-12}
+                        style={{
+                          fontFamily: "inherit",
+                          fill: "#e5e7eb",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          pointerEvents: "none"
+                        }}
+                      >
+                        {STATE_NAME_TO_ABBR[item.state] || item.state}
+                      </text>
+                    </Marker>
+                  );
+                })}
+              </ComposableMap>
             )}
           </div>
         </SectionCard>
 
         <SectionCard
-          title={selectedOverlay ? `${selectedOverlay.state} • ${selectedOverlay.office}` : "Overlay Detail"}
+          title={
+            selectedOverlay
+              ? `${selectedOverlay.state} • ${selectedOverlay.office}`
+              : "Overlay Detail"
+          }
           subtitle={
             selectedOverlay
               ? `Overlay score ${selectedOverlay.overlayScore} • Tier ${selectedOverlay.overlayTier} • Last synced ${formatDateTime(mapData.summary?.last_synced_at)}`
-              : "Select an overlay to inspect live candidate finance detail."
+              : "Select a state overlay to inspect live candidate finance detail."
           }
           right={
             selectedOverlay ? (
@@ -437,6 +710,32 @@ export default function ElectionMap() {
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard
+        title="Overlay Stack"
+        subtitle="A ranked list of the current live state-office overlays."
+        right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading overlay stack..." />
+          ) : !filteredOverlays.length ? (
+            <EmptyState text="No overlays match the selected filters." />
+          ) : (
+            filteredOverlays.map((item) => (
+              <OverlayCard
+                key={`${item.state}-${item.office}`}
+                item={item}
+                isActive={
+                  selectedOverlay?.state === item.state &&
+                  selectedOverlay?.office === item.office
+                }
+                onSelect={setSelectedOverlay}
+              />
+            ))
+          )}
+        </div>
+      </SectionCard>
     </PageShell>
   );
 }
