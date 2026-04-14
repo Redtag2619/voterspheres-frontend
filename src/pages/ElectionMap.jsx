@@ -1,107 +1,199 @@
 import { useEffect, useMemo, useState } from "react";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
-import ResponsiveRow from "../components/ui/ResponsiveRow";
-import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
-const GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
-
-const stateNameToCode = {
-  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
-  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
-  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS",
-  Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA",
-  Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO", Montana: "MT",
-  Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
-  "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK",
-  Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC",
-  "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT",
-  Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY"
-};
-
-function colorForTier(tier, selected) {
-  const t = String(tier || "").toLowerCase();
-  if (selected) return "#fbbf24";
-  if (t === "critical" || t === "elevated") return "#ef4444";
-  if (t === "watch") return "#f59e0b";
-  if (t === "priority" || t === "monitor") return "#38bdf8";
-  return "#334155";
+function formatMoney(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function matchesFilters(item, filters) {
-  if (!item) return false;
-  if (filters.state && item.state !== filters.state) return false;
-  if (filters.office && item.office !== filters.office) return false;
-  if (filters.risk && item.overlayTier !== filters.risk && item.risk !== filters.risk) return false;
-  return true;
+function formatMoneyShort(value) {
+  const num = Number(value || 0);
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
+  return `$${num.toLocaleString()}`;
 }
 
-function BattlegroundRow({ item, onSelect, selected }) {
+function formatDateTime(value) {
+  if (!value) return "Not synced yet";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not synced yet";
+
+  return date.toLocaleString();
+}
+
+function overlayTone(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "critical") return "danger";
+  if (v === "elevated") return "accent";
+  if (v === "watch") return "demo";
+  if (v === "monitor") return "info";
+  return "default";
+}
+
+function officeTone(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "senate") return "danger";
+  if (v === "house") return "info";
+  if (v === "president") return "accent";
+  return "default";
+}
+
+function CandidateCard({ candidate }) {
   return (
-    <div onClick={() => onSelect(item)} style={{ cursor: "pointer" }}>
-      <ResponsiveRow
-        title={`${item.state} • ${item.office}`}
-        subtitle="Overlay score and intelligence priority for this battleground."
-        meta={[
-          { label: "Overlay Score", value: item.overlayScore },
-          { label: "Tier", value: item.overlayTier }
-        ]}
-        alert={
-          String(item.overlayTier || "").toLowerCase() === "critical" || String(item.overlayTier || "").toLowerCase() === "elevated"
-            ? "vs-live-dot"
-            : String(item.overlayTier || "").toLowerCase() === "watch"
-            ? "vs-live-dot-warning"
-            : "vs-live-dot-success"
-        }
-        right={
-          <Badge
-            tone={
-              selected
-                ? "accent"
-                : String(item.overlayTier || "").toLowerCase() === "critical" || String(item.overlayTier || "").toLowerCase() === "elevated"
-                ? "danger"
-                : String(item.overlayTier || "").toLowerCase() === "watch"
-                ? "demo"
-                : "info"
-            }
-          >
-            {selected ? "Selected" : item.overlayTier}
-          </Badge>
-        }
-      />
+    <div
+      className="vs-card-muted"
+      style={{
+        padding: "14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px"
+      }}
+    >
+      <div>
+        <div style={{ fontSize: "15px", fontWeight: 800, lineHeight: 1.15, color: "var(--vs-text)" }}>
+          {candidate.name}
+        </div>
+
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            color: "var(--vs-text-muted)"
+          }}
+        >
+          {candidate.party || "N/A"} • Rank #{candidate.rank || "—"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: "10px 16px"
+        }}
+      >
+        <div>
+          <div className="vs-stat-label">Receipts</div>
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+            {formatMoney(candidate.receipts || 0)}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Cash</div>
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+            {formatMoney(candidate.cash_on_hand || 0)}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-const fallbackData = {
-  summary: {
-    trackedStates: 8,
-    overlays: 8
-  },
-  battlegrounds: [
-    { state: "Georgia", office: "Senate", overlayScore: 82, overlayTier: "Elevated" },
-    { state: "Pennsylvania", office: "Governor", overlayScore: 74, overlayTier: "Watch" },
-    { state: "Arizona", office: "Senate", overlayScore: 71, overlayTier: "Watch" },
-    { state: "Michigan", office: "House", overlayScore: 66, overlayTier: "Monitor" }
-  ]
-};
+function OverlayCard({ item, isActive, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(item)}
+      className="vs-card"
+      style={{
+        padding: "16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "14px",
+        minHeight: "220px",
+        textAlign: "left",
+        border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
+        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
+        cursor: "pointer"
+      }}
+    >
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ fontSize: "16px", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", color: "var(--vs-text)" }}>
+            {item.state}
+          </div>
+          <Badge tone={officeTone(item.office)}>{item.office}</Badge>
+        </div>
+
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            color: "var(--vs-text-muted)"
+          }}
+        >
+          {item.candidates?.length || 0} candidate signals • Top 5 shown
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: "12px 18px",
+          alignContent: "start",
+          minHeight: "94px"
+        }}
+      >
+        <div>
+          <div className="vs-stat-label">Overlay Score</div>
+          <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: 800 }}>
+            {item.overlayScore}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Tier</div>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700 }}>
+            {item.overlayTier}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Total Receipts</div>
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+            {formatMoneyShort(item.totalReceipts || 0)}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Total Cash</div>
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+            {formatMoneyShort(item.totalCashOnHand || 0)}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-start" }}>
+        <Badge tone={overlayTone(item.overlayTier)}>{item.overlayTier}</Badge>
+      </div>
+    </button>
+  );
+}
 
 export default function ElectionMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [mapData, setMapData] = useState(fallbackData);
-  const [hovered, setHovered] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const { filters } = useExecutiveFilters();
-
-  const demoMode =
-    typeof window !== "undefined" &&
-    localStorage.getItem("vs_demo_mode") === "1";
+  const [mapData, setMapData] = useState({
+    summary: {
+      trackedStates: 0,
+      overlays: 0,
+      last_synced_at: null
+    },
+    battlegrounds: []
+  });
+  const [selectedOverlay, setSelectedOverlay] = useState(null);
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedOffice, setSelectedOffice] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -111,22 +203,30 @@ export default function ElectionMap() {
         setLoading(true);
         setError("");
 
-        const response = await api.get("/intelligence/map", {
-          timeout: 6000
-        });
-
+        const response = await api.get("/intelligence/map", { timeout: 8000 });
         if (!active) return;
 
-        const payload = response?.data || fallbackData;
+        const payload = response?.data || {
+          summary: { trackedStates: 0, overlays: 0, last_synced_at: null },
+          battlegrounds: []
+        };
 
-        setMapData({
-          summary: payload.summary || fallbackData.summary,
-          battlegrounds: payload.battlegrounds?.length ? payload.battlegrounds : fallbackData.battlegrounds
-        });
+        setMapData(payload);
+
+        if (payload?.battlegrounds?.length) {
+          setSelectedOverlay(payload.battlegrounds[0]);
+        }
       } catch (err) {
         if (!active) return;
         setError(err?.response?.data?.error || err?.message || "Failed to load election map");
-        setMapData(fallbackData);
+        setMapData({
+          summary: {
+            trackedStates: 0,
+            overlays: 0,
+            last_synced_at: null
+          },
+          battlegrounds: []
+        });
       } finally {
         if (active) setLoading(false);
       }
@@ -139,126 +239,201 @@ export default function ElectionMap() {
     };
   }, []);
 
-  const battlegrounds = useMemo(
-    () => (mapData.battlegrounds || []).filter((item) => matchesFilters(item, filters)),
-    [mapData.battlegrounds, filters]
-  );
+  const stateOptions = useMemo(() => {
+    return Array.from(
+      new Set((mapData.battlegrounds || []).map((item) => item.state).filter(Boolean))
+    ).sort();
+  }, [mapData.battlegrounds]);
 
-  const battlegroundByCode = useMemo(() => {
-    const map = {};
-    battlegrounds.forEach((item) => {
-      const code = stateNameToCode[item.state];
-      if (code) map[code] = item;
+  const officeOptions = useMemo(() => {
+    return Array.from(
+      new Set((mapData.battlegrounds || []).map((item) => item.office).filter(Boolean))
+    ).sort();
+  }, [mapData.battlegrounds]);
+
+  const filteredOverlays = useMemo(() => {
+    return (mapData.battlegrounds || []).filter((item) => {
+      if (selectedState && item.state !== selectedState) return false;
+      if (selectedOffice && item.office !== selectedOffice) return false;
+      return true;
     });
-    return map;
-  }, [battlegrounds]);
+  }, [mapData.battlegrounds, selectedState, selectedOffice]);
 
-  const selectedState = selected || hovered || battlegrounds[0] || null;
+  useEffect(() => {
+    if (!filteredOverlays.length) {
+      setSelectedOverlay(null);
+      return;
+    }
+
+    const stillExists = filteredOverlays.some(
+      (item) => item.state === selectedOverlay?.state && item.office === selectedOverlay?.office
+    );
+
+    if (!stillExists) {
+      setSelectedOverlay(filteredOverlays[0]);
+    }
+  }, [filteredOverlays, selectedOverlay]);
+
+  const topOverlay = filteredOverlays[0] || null;
 
   return (
     <PageShell
       eyebrow="Election Map"
-      title="See where the map is moving."
-      description="Visualize battleground states, overlay pressure, and race intensity across the modeled campaign landscape."
-      demo={demoMode}
-      demoText="Demo map mode is active. Battleground overlays and state pressure are preloaded for presentation."
+      title="Live fundraising overlays by state and office."
+      description="Use finance intensity to see which states and offices are carrying the strongest live candidate signals."
       tickerItems={[
-        { label: "Tracked States", value: `${battlegrounds.length}`, dotClass: "vs-live-dot-success" },
-        { label: "Critical", value: `${battlegrounds.filter((b) => ["critical", "elevated"].includes(String(b.overlayTier || "").toLowerCase())).length}`, dotClass: "vs-live-dot" },
-        { label: "Watch", value: `${battlegrounds.filter((b) => String(b.overlayTier || "").toLowerCase() === "watch").length}`, dotClass: "vs-live-dot-warning" }
+        { label: "Tracked States", value: String(mapData.summary?.trackedStates || 0), dotClass: "vs-live-dot" },
+        { label: "Overlays", value: String(mapData.summary?.overlays || 0), dotClass: "vs-live-dot-warning" },
+        { label: "Last Sync", value: formatDateTime(mapData.summary?.last_synced_at), dotClass: "vs-live-dot-success" }
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
+      <SectionCard
+        title="Map Filters"
+        subtitle="Filter by state and office to narrow the live overlay stack."
+      >
+        <div className="vs-grid-3">
+          <select
+            className="vs-select"
+            value={selectedState}
+            onChange={(e) => setSelectedState(e.target.value)}
+          >
+            <option value="">All states</option>
+            {stateOptions.map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+
+          <select
+            className="vs-select"
+            value={selectedOffice}
+            onChange={(e) => setSelectedOffice(e.target.value)}
+          >
+            <option value="">All offices</option>
+            {officeOptions.map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => {
+              setSelectedState("");
+              setSelectedOffice("");
+            }}
+          >
+            Clear Filters
+          </button>
+        </div>
+      </SectionCard>
+
       <div className="vs-grid-4">
-        <StatCard label="Tracked States" value={battlegrounds.length} subtext="States matching executive filters" />
-        <StatCard label="Overlay Zones" value={mapData.summary?.overlays || 0} subtext="Priority map signals" />
-        <StatCard label="Critical Battlegrounds" value={battlegrounds.filter((b) => ["critical", "elevated"].includes(String(b.overlayTier || "").toLowerCase())).length} subtext="Highest-pressure states" />
-        <StatCard label="Watch States" value={battlegrounds.filter((b) => String(b.overlayTier || "").toLowerCase() === "watch").length} subtext="Emerging movement" />
+        <StatCard
+          label="Tracked States"
+          value={String(mapData.summary?.trackedStates || 0)}
+          delta="States with live finance overlays"
+          tone="up"
+        />
+        <StatCard
+          label="Overlay Count"
+          value={String(filteredOverlays.length || 0)}
+          delta="State-office combinations"
+          tone="up"
+        />
+        <StatCard
+          label="Top Overlay"
+          value={topOverlay ? `${topOverlay.state}` : "N/A"}
+          delta={topOverlay ? `${topOverlay.office} • ${topOverlay.overlayTier}` : "No overlays match"}
+          tone="up"
+        />
+        <StatCard
+          label="Last Sync"
+          value={formatDateTime(mapData.summary?.last_synced_at)}
+          delta="Latest FEC finance ingestion"
+          tone="up"
+        />
       </div>
 
-      <div className="vs-grid-2">
-        <SectionCard title="Interactive United States Map" subtitle="This map is now driven by your executive filters." right={<Badge tone="info">Interactive</Badge>}>
-          {loading ? (
-            <EmptyState text="Loading map overlays..." />
-          ) : (
-            <div className="vs-card-muted" style={{ padding: "12px" }}>
-              <ComposableMap projection="geoAlbersUsa" style={{ width: "100%", height: "auto" }}>
-                <Geographies geography={GEO_URL}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const stateName = geo.properties.name;
-                      const code = stateNameToCode[stateName];
-                      const item = battlegroundByCode[code];
-                      const isSelected = selectedState && selectedState.state === stateName;
-
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onMouseEnter={() => {
-                            if (item) setHovered(item);
-                          }}
-                          onMouseLeave={() => setHovered(null)}
-                          onClick={() => {
-                            if (item) setSelected(item);
-                          }}
-                          style={{
-                            default: {
-                              fill: colorForTier(item?.overlayTier, isSelected),
-                              outline: "none",
-                              stroke: "#0a0d12",
-                              strokeWidth: 0.8
-                            },
-                            hover: {
-                              fill: "#fbbf24",
-                              outline: "none",
-                              stroke: "#0a0d12",
-                              strokeWidth: 0.8
-                            },
-                            pressed: {
-                              fill: "#f59e0b",
-                              outline: "none",
-                              stroke: "#0a0d12",
-                              strokeWidth: 0.8
-                            }
-                          }}
-                        />
-                      );
-                    })
+      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.1fr) minmax(360px, 0.9fr)" }}>
+        <SectionCard
+          title="Live Overlay Stack"
+          subtitle="Ranked state-office finance signals from the current live table."
+          right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading map overlays..." />
+            ) : !filteredOverlays.length ? (
+              <EmptyState text="No live overlays match the selected filters." />
+            ) : (
+              filteredOverlays.map((item) => (
+                <OverlayCard
+                  key={`${item.state}-${item.office}`}
+                  item={item}
+                  isActive={
+                    selectedOverlay?.state === item.state &&
+                    selectedOverlay?.office === item.office
                   }
-                </Geographies>
-              </ComposableMap>
-
-              <div style={{ marginTop: "12px" }}>
-                {selectedState ? (
-                  <ResponsiveRow
-                    title={`${selectedState.state} • ${selectedState.office}`}
-                    subtitle="Live selected state from the filtered national map."
-                    meta={[
-                      { label: "Overlay Score", value: selectedState.overlayScore },
-                      { label: "Tier", value: selectedState.overlayTier }
-                    ]}
-                    alert={
-                      ["critical", "elevated"].includes(String(selectedState.overlayTier || "").toLowerCase())
-                        ? "vs-live-dot"
-                        : String(selectedState.overlayTier || "").toLowerCase() === "watch"
-                        ? "vs-live-dot-warning"
-                        : "vs-live-dot-success"
-                    }
-                    right={<Badge tone="accent">Selected</Badge>}
-                  />
-                ) : (
-                  <EmptyState text="No states match the active executive filters." />
-                )}
-              </div>
-            </div>
-          )}
+                  onSelect={setSelectedOverlay}
+                />
+              ))
+            )}
+          </div>
         </SectionCard>
 
-        <SectionCard title="Battleground State Board" subtitle="These entries now stay synchronized with dashboard filters." right={<Badge tone="accent">{battlegrounds.length} active</Badge>}>
+        <SectionCard
+          title={selectedOverlay ? `${selectedOverlay.state} • ${selectedOverlay.office}` : "Overlay Detail"}
+          subtitle={
+            selectedOverlay
+              ? `Overlay score ${selectedOverlay.overlayScore} • Tier ${selectedOverlay.overlayTier} • Last synced ${formatDateTime(mapData.summary?.last_synced_at)}`
+              : "Select an overlay to inspect live candidate finance detail."
+          }
+          right={
+            selectedOverlay ? (
+              <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                {selectedOverlay.overlayTier}
+              </Badge>
+            ) : null
+          }
+        >
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading battleground states..." /> : !battlegrounds.length ? <EmptyState text="No battleground states available for the current filters." /> : battlegrounds.map((item) => <BattlegroundRow key={`${item.state}-${item.office}`} item={item} onSelect={setSelected} selected={selected?.state === item.state} />)}
+            {!selectedOverlay ? (
+              <EmptyState text="Select a state-office overlay to see candidate details." />
+            ) : (
+              <>
+                <div className="vs-grid-3">
+                  <StatCard
+                    label="Candidates"
+                    value={String(selectedOverlay.candidates?.length || 0)}
+                    delta="Top candidates shown"
+                    tone="up"
+                  />
+                  <StatCard
+                    label="Total Receipts"
+                    value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
+                    delta="Combined finance pressure"
+                    tone="up"
+                  />
+                  <StatCard
+                    label="Total Cash"
+                    value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
+                    delta="Combined reserve strength"
+                    tone="up"
+                  />
+                </div>
+
+                <div className="vs-stack">
+                  {(selectedOverlay.candidates || []).map((candidate) => (
+                    <CandidateCard
+                      key={candidate.candidate_id}
+                      candidate={candidate}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </SectionCard>
       </div>
