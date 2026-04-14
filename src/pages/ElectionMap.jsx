@@ -219,28 +219,14 @@ function CandidateCard({ candidate, isSelected, onSelect }) {
       >
         <div>
           <div className="vs-stat-label">Receipts</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "14px",
-              fontWeight: 800,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
             {formatMoney(candidate.receipts || 0)}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Cash</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "14px",
-              fontWeight: 800,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
             {formatMoney(candidate.cash_on_hand || 0)}
           </div>
         </div>
@@ -299,14 +285,7 @@ function OverlayCard({ item, isActive, onSelect }) {
       }}
     >
       <div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            flexWrap: "wrap"
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <div
             style={{
               fontSize: "16px",
@@ -344,56 +323,28 @@ function OverlayCard({ item, isActive, onSelect }) {
       >
         <div>
           <div className="vs-stat-label">Overlay Score</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "18px",
-              fontWeight: 800,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: 800, color: "var(--vs-text)" }}>
             {item.overlayScore}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Tier</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, color: "var(--vs-text)" }}>
             {item.overlayTier}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Total Receipts</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "14px",
-              fontWeight: 800,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
             {formatMoneyShort(item.totalReceipts || 0)}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Total Cash</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "14px",
-              fontWeight: 800,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
             {formatMoneyShort(item.totalCashOnHand || 0)}
           </div>
         </div>
@@ -460,13 +411,7 @@ function MapTooltip({ tooltip, onSelectOffice }) {
         {stateGroup.state}
       </div>
 
-      <div
-        style={{
-          marginTop: "6px",
-          fontSize: "12px",
-          color: "var(--vs-text-muted)"
-        }}
-      >
+      <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
         Top {Math.min(3, overlays.length)} office overlays
       </div>
 
@@ -959,10 +904,7 @@ export default function ElectionMap() {
                   const isActive = selectedStateGroupKey === group.state;
 
                   return (
-                    <Marker
-                      key={group.state}
-                      coordinates={coords}
-                    >
+                    <Marker key={group.state} coordinates={coords}>
                       <circle
                         r={isActive ? 9 : 7}
                         fill="#f8fafc"
@@ -1063,6 +1005,32 @@ export default function ElectionMap() {
         </SectionCard>
       </div>
 
+      <SectionCard
+        title="Overlay Stack"
+        subtitle="A ranked list of the current live state-office overlays."
+        right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading overlay stack..." />
+          ) : !filteredOverlays.length ? (
+            <EmptyState text="No overlays match the selected filters." />
+          ) : (
+            filteredOverlays.map((item) => (
+              <OverlayCard
+                key={item.state + "-" + item.office}
+                item={item}
+                isActive={
+                  selectedOverlay?.state === item.state &&
+                  selectedOverlay?.office === item.office
+                }
+                onSelect={selectOfficeOverlay}
+              />
+            ))
+          )}
+        </div>
+      </SectionCard>
+
       {selectedOverlay ? (
         <SectionCard
           title={
@@ -1160,32 +1128,6 @@ export default function ElectionMap() {
           </div>
         </SectionCard>
       ) : null}
-
-      <SectionCard
-        title="Overlay Stack"
-        subtitle="A ranked list of the current live state-office overlays."
-        right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
-      >
-        <div className="vs-stack">
-          {loading ? (
-            <EmptyState text="Loading overlay stack..." />
-          ) : !filteredOverlays.length ? (
-            <EmptyState text="No overlays match the selected filters." />
-          ) : (
-            filteredOverlays.map((item) => (
-              <OverlayCard
-                key={item.state + "-" + item.office}
-                item={item}
-                isActive={
-                  selectedOverlay?.state === item.state &&
-                  selectedOverlay?.office === item.office
-                }
-                onSelect={selectOfficeOverlay}
-              />
-            ))
-          )}
-        </div>
-      </SectionCard>
     </PageShell>
   );
 }
