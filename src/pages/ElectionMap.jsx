@@ -1,4 +1,3 @@
-```jsx
 import { useEffect, useMemo, useState } from "react";
 import {
   ComposableMap,
@@ -125,15 +124,15 @@ const STATE_CENTROIDS = {
 };
 
 function formatMoney(value) {
-  return `$${Number(value || 0).toLocaleString()}`;
+  return "$" + Number(value || 0).toLocaleString();
 }
 
 function formatMoneyShort(value) {
   const num = Number(value || 0);
-  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
-  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
-  return `$${num.toLocaleString()}`;
+  if (num >= 1_000_000_000) return "$" + (num / 1_000_000_000).toFixed(1) + "B";
+  if (num >= 1_000_000) return "$" + (num / 1_000_000).toFixed(1) + "M";
+  if (num >= 1_000) return "$" + (num / 1_000).toFixed(1) + "K";
+  return "$" + num.toLocaleString();
 }
 
 function formatDateTime(value) {
@@ -342,10 +341,10 @@ function OfficeChip({ item, isActive, onSelect }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 800 }}>{item.office}</div>
+        <div style={{ fontSize: "13px", fontWeight: 800 }}>{item.office}</div>
         <Badge tone={overlayTone(item.overlayTier)}>{item.overlayTier}</Badge>
       </div>
-      <div style={{ marginTop: 6, fontSize: 12, color: "var(--vs-text-muted)" }}>
+      <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
         Score {item.overlayScore} • {formatMoneyShort(item.totalReceipts || 0)}
       </div>
     </button>
@@ -365,7 +364,7 @@ function MapTooltip({ tooltip, onSelectOffice }) {
         left: x + 14,
         top: y + 14,
         zIndex: 60,
-        width: 280,
+        width: 290,
         padding: "12px 14px",
         borderRadius: 16,
         background: "rgba(10, 14, 22, 0.97)",
@@ -374,24 +373,24 @@ function MapTooltip({ tooltip, onSelectOffice }) {
         color: "var(--vs-text)"
       }}
     >
-      <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.2 }}>
+      <div style={{ fontSize: "14px", fontWeight: 800, lineHeight: 1.2 }}>
         {stateGroup.state}
       </div>
 
       <div
         style={{
-          marginTop: 6,
-          fontSize: 12,
+          marginTop: "6px",
+          fontSize: "12px",
           color: "var(--vs-text-muted)"
         }}
       >
-        {overlays.length} office overlay{overlays.length === 1 ? "" : "s"} in this state
+        Top {Math.min(3, overlays.length)} office overlays
       </div>
 
-      <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-        {overlays.slice(0, 4).map((item) => (
+      <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
+        {overlays.slice(0, 3).map((item) => (
           <button
-            key={`${item.state}-${item.office}`}
+            key={item.state + "-" + item.office}
             type="button"
             onClick={() => onSelectOffice(item)}
             style={{
@@ -406,12 +405,12 @@ function MapTooltip({ tooltip, onSelectOffice }) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 800 }}>
+              <div style={{ fontSize: "13px", fontWeight: 800 }}>
                 {item.office}
               </div>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: "11px",
                   fontWeight: 700,
                   padding: "3px 7px",
                   borderRadius: 999,
@@ -423,11 +422,11 @@ function MapTooltip({ tooltip, onSelectOffice }) {
               </span>
             </div>
 
-            <div style={{ marginTop: 6, fontSize: 12, color: "var(--vs-text-muted)" }}>
+            <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
               Score {item.overlayScore} • {formatMoneyShort(item.totalReceipts || 0)}
             </div>
 
-            <div style={{ marginTop: 6, fontSize: 12, color: "var(--vs-text-muted)" }}>
+            <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
               Top signal:{" "}
               <span style={{ color: "var(--vs-text)", fontWeight: 700 }}>
                 {item.candidates?.[0]?.name || "N/A"}
@@ -542,11 +541,14 @@ export default function ElectionMap() {
     }
 
     return Array.from(grouped.entries())
-      .map(([state, overlays]) => ({
-        state,
-        overlays: overlays.sort((a, b) => b.overlayScore - a.overlayScore),
-        strongest: overlays.sort((a, b) => b.overlayScore - a.overlayScore)[0]
-      }))
+      .map(([state, overlays]) => {
+        const sorted = [...overlays].sort((a, b) => b.overlayScore - a.overlayScore);
+        return {
+          state,
+          overlays: sorted,
+          strongest: sorted[0]
+        };
+      })
       .sort((a, b) => (b.strongest?.overlayScore || 0) - (a.strongest?.overlayScore || 0));
   }, [filteredOverlays]);
 
@@ -719,8 +721,8 @@ export default function ElectionMap() {
         />
         <StatCard
           label="Top Overlay"
-          value={topOverlay ? `${topOverlay.state}` : "N/A"}
-          delta={topOverlay ? `${topOverlay.office} • ${topOverlay.overlayTier}` : "No overlays match"}
+          value={topOverlay ? topOverlay.state : "N/A"}
+          delta={topOverlay ? topOverlay.office + " • " + topOverlay.overlayTier : "No overlays match"}
           tone="up"
         />
         <StatCard
@@ -740,7 +742,7 @@ export default function ElectionMap() {
       >
         <SectionCard
           title="U.S. Finance Overlay Map"
-          subtitle="Hover any highlighted state to preview all office overlays for that state. Click to lock the state on the right."
+          subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
           right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
         >
           <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
@@ -852,12 +854,16 @@ export default function ElectionMap() {
         <SectionCard
           title={
             selectedStateGroup
-              ? `${selectedStateGroup.state} • Office Overlays`
+              ? selectedStateGroup.state + " • Office Overlays"
               : "Overlay Detail"
           }
           subtitle={
             selectedStateGroup
-              ? `${selectedStateGroup.overlays.length} office overlay${selectedStateGroup.overlays.length === 1 ? "" : "s"} • Last synced ${formatDateTime(mapData.summary?.last_synced_at)}`
+              ? selectedStateGroup.overlays.length +
+                " office overlay" +
+                (selectedStateGroup.overlays.length === 1 ? "" : "s") +
+                " • Last synced " +
+                formatDateTime(mapData.summary?.last_synced_at)
               : "Select a state to inspect all office overlays and candidate detail."
           }
           right={
@@ -883,13 +889,13 @@ export default function ElectionMap() {
                   <StatCard
                     label="Top Receipts"
                     value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
-                    delta={`Strongest office: ${selectedStateGroup.strongest?.office || "N/A"}`}
+                    delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
                     tone="up"
                   />
                   <StatCard
                     label="Top Tier"
                     value={selectedStateGroup.strongest?.overlayTier || "N/A"}
-                    delta={`Score ${selectedStateGroup.strongest?.overlayScore || 0}`}
+                    delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
                     tone="up"
                   />
                 </div>
@@ -897,7 +903,7 @@ export default function ElectionMap() {
                 <div style={{ display: "grid", gap: "10px" }}>
                   {(selectedStateGroup.overlays || []).map((item) => (
                     <OfficeChip
-                      key={`${item.state}-${item.office}`}
+                      key={item.state + "-" + item.office}
                       item={item}
                       isActive={
                         selectedOverlay?.state === item.state &&
@@ -978,7 +984,7 @@ export default function ElectionMap() {
           ) : (
             filteredOverlays.map((item) => (
               <OverlayCard
-                key={`${item.state}-${item.office}`}
+                key={item.state + "-" + item.office}
                 item={item}
                 isActive={
                   selectedOverlay?.state === item.state &&
@@ -993,4 +999,3 @@ export default function ElectionMap() {
     </PageShell>
   );
 }
-```
