@@ -11,6 +11,15 @@ function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+function formatDateTime(value) {
+  if (!value) return "Not synced yet";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not synced yet";
+
+  return date.toLocaleString();
+}
+
 const fallbackData = {
   metrics: [
     { label: "Win Index", value: "61.8", delta: "+3.1 vs last cycle", tone: "up" },
@@ -29,16 +38,13 @@ const fallbackData = {
     { race: "AZ Senate", state: "Arizona", office: "Senate", probability: "51%", momentum: "+1.1", risk: "Watch", priority: "Tier 2" },
     { race: "MI House", state: "Michigan", office: "House", probability: "49%", momentum: "-0.6", risk: "Monitor", priority: "Tier 2" }
   ],
-  leaderboard: [
-    { rank: 1, candidate_id: 1, name: "Mark Stephens", state: "Georgia", office: "Senate", party: "Democratic", receipts: 12850000, cash_on_hand: 6100000, risk: "Elevated" },
-    { rank: 2, candidate_id: 2, name: "Jane Thompson", state: "Pennsylvania", office: "Senate", party: "Democratic", receipts: 11120000, cash_on_hand: 5400000, risk: "Watch" },
-    { rank: 3, candidate_id: 3, name: "Daniel Brooks", state: "Michigan", office: "House", party: "Republican", receipts: 7600000, cash_on_hand: 3200000, risk: "Monitor" }
-  ],
+  leaderboard: [],
   vendors: [
     { id: 1, vendor_name: "Precision Mail Group", category: "Direct Mail", status: "active", state: "Georgia", office: "Senate", contract_value: 85000, risk: "Elevated" },
     { id: 2, vendor_name: "Capitol Digital Media", category: "Digital", status: "active", state: "Georgia", office: "Senate", contract_value: 120000, risk: "Elevated" },
     { id: 3, vendor_name: "Lakeside Media Partners", category: "Broadcast", status: "active", state: "Michigan", office: "House", contract_value: 68000, risk: "Monitor" }
-  ]
+  ],
+  fundraisingSummary: null
 };
 
 function severityTone(value) {
@@ -520,7 +526,10 @@ export default function Dashboard() {
         const fundraisingPayload = fundraisingRes.status === "fulfilled" ? fundraisingRes.value?.data : null;
         const vendorsPayload = vendorsRes.status === "fulfilled" ? vendorsRes.value?.data : null;
 
-        const leaderboard = fundraisingPayload?.leaderboard?.length ? fundraisingPayload.leaderboard : fallbackData.leaderboard;
+        const fundraisingSummary = fundraisingPayload?.summary || null;
+        const leaderboard = Array.isArray(fundraisingPayload?.leaderboard)
+          ? fundraisingPayload.leaderboard
+          : [];
         const vendors = vendorsPayload?.results?.length ? vendorsPayload.results : fallbackData.vendors;
         const metrics = dashboardPayload?.metrics?.length ? dashboardPayload.metrics : fallbackData.metrics;
 
@@ -529,7 +538,8 @@ export default function Dashboard() {
           feed: fallbackData.feed,
           battlegrounds: fallbackData.battlegrounds,
           leaderboard,
-          vendors
+          vendors,
+          fundraisingSummary
         });
       } catch (err) {
         if (!active) return;
@@ -748,7 +758,7 @@ export default function Dashboard() {
       <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
         <SectionCard
           title="Fundraising Leaders"
-          subtitle="Top candidates by receipts and reserve strength."
+          subtitle={`Top candidates by receipts and reserve strength. Last synced: ${formatDateTime(dashboardData.fundraisingSummary?.last_synced_at)}`}
           right={<Badge tone="info">{filteredLeaderboard.length} tracked</Badge>}
         >
           <div className="vs-stack">
