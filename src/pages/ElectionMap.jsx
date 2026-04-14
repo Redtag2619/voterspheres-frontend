@@ -165,18 +165,25 @@ function getStateFill(item) {
   if (tier === "elevated") return "#7c3aed";
   if (tier === "watch") return "#92400e";
   if (tier === "monitor") return "#1e3a8a";
-  return "#1f2937";
+  return "#111827";
 }
 
-function CandidateCard({ candidate }) {
+function CandidateCard({ candidate, isSelected, onSelect }) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => onSelect(candidate)}
       className="vs-card-muted"
       style={{
         padding: "14px",
         display: "flex",
         flexDirection: "column",
-        gap: "12px"
+        gap: "12px",
+        textAlign: "left",
+        cursor: "pointer",
+        color: "var(--vs-text)",
+        border: isSelected ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
+        boxShadow: isSelected ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
       }}
     >
       <div>
@@ -212,17 +219,63 @@ function CandidateCard({ candidate }) {
       >
         <div>
           <div className="vs-stat-label">Receipts</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)"
+            }}
+          >
             {formatMoney(candidate.receipts || 0)}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Cash</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)"
+            }}
+          >
             {formatMoney(candidate.cash_on_hand || 0)}
           </div>
         </div>
+      </div>
+    </button>
+  );
+}
+
+function DonorCard({ donor }) {
+  return (
+    <div
+      className="vs-card-muted"
+      style={{
+        padding: "14px",
+        display: "grid",
+        gap: "8px",
+        color: "var(--vs-text)"
+      }}
+    >
+      <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+        {donor.name || donor.donor_name || donor.committee_name || "Unknown Donor"}
+      </div>
+
+      <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
+        {(donor.city || donor.state) ? [donor.city, donor.state].filter(Boolean).join(", ") : "Donor location unavailable"}
+      </div>
+
+      <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+        {formatMoney(
+          donor.amount ||
+          donor.total ||
+          donor.total_amount ||
+          donor.contribution_amount ||
+          0
+        )}
       </div>
     </div>
   );
@@ -241,9 +294,10 @@ function OverlayCard({ item, isActive, onSelect }) {
         gap: "14px",
         minHeight: "220px",
         textAlign: "left",
+        cursor: "pointer",
+        color: "var(--vs-text)",
         border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
-        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
-        cursor: "pointer"
+        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
       }}
     >
       <div>
@@ -292,28 +346,56 @@ function OverlayCard({ item, isActive, onSelect }) {
       >
         <div>
           <div className="vs-stat-label">Overlay Score</div>
-          <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: 800 }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "18px",
+              fontWeight: 800,
+              color: "var(--vs-text)"
+            }}
+          >
             {item.overlayScore}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Tier</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700 }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "13px",
+              fontWeight: 700,
+              color: "var(--vs-text)"
+            }}
+          >
             {item.overlayTier}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Total Receipts</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)"
+            }}
+          >
             {formatMoneyShort(item.totalReceipts || 0)}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Total Cash</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800 }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)"
+            }}
+          >
             {formatMoneyShort(item.totalCashOnHand || 0)}
           </div>
         </div>
@@ -336,12 +418,13 @@ function OfficeChip({ item, isActive, onSelect }) {
         padding: "10px 12px",
         textAlign: "left",
         cursor: "pointer",
+        color: "var(--vs-text)",
         border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
         boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ fontSize: "13px", fontWeight: 800 }}>{item.office}</div>
+        <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--vs-text)" }}>{item.office}</div>
         <Badge tone={overlayTone(item.overlayTier)}>{item.overlayTier}</Badge>
       </div>
       <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
@@ -451,6 +534,9 @@ export default function ElectionMap() {
     battlegrounds: []
   });
   const [selectedOverlay, setSelectedOverlay] = useState(null);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [candidateDonors, setCandidateDonors] = useState([]);
+  const [donorLoading, setDonorLoading] = useState(false);
   const [selectedState, setSelectedState] = useState("");
   const [selectedOffice, setSelectedOffice] = useState("");
   const [selectedStateGroupKey, setSelectedStateGroupKey] = useState("");
@@ -486,6 +572,7 @@ export default function ElectionMap() {
         if (payload?.battlegrounds?.length) {
           setSelectedOverlay(payload.battlegrounds[0]);
           setSelectedStateGroupKey(payload.battlegrounds[0].state);
+          setSelectedCandidate(payload.battlegrounds[0].candidates?.[0] || null);
         }
       } catch (err) {
         if (!active) return;
@@ -569,6 +656,7 @@ export default function ElectionMap() {
   useEffect(() => {
     if (!filteredOverlays.length) {
       setSelectedOverlay(null);
+      setSelectedCandidate(null);
       setSelectedStateGroupKey("");
       return;
     }
@@ -581,6 +669,7 @@ export default function ElectionMap() {
   useEffect(() => {
     if (!selectedStateGroup?.overlays?.length) {
       setSelectedOverlay(null);
+      setSelectedCandidate(null);
       return;
     }
 
@@ -590,10 +679,66 @@ export default function ElectionMap() {
         item.office === selectedOverlay?.office
     );
 
-    if (!stillExists) {
-      setSelectedOverlay(selectedStateGroup.overlays[0]);
+    const nextOverlay = stillExists ? selectedOverlay : selectedStateGroup.overlays[0];
+    setSelectedOverlay(nextOverlay || null);
+  }, [selectedStateGroup]);
+
+  useEffect(() => {
+    if (!selectedOverlay?.candidates?.length) {
+      setSelectedCandidate(null);
+      return;
     }
-  }, [selectedStateGroup, selectedOverlay]);
+
+    const stillExists = selectedOverlay.candidates.some(
+      (candidate) => candidate.candidate_id === selectedCandidate?.candidate_id
+    );
+
+    setSelectedCandidate(stillExists ? selectedCandidate : selectedOverlay.candidates[0]);
+  }, [selectedOverlay]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDonors() {
+      if (!selectedCandidate?.candidate_id) {
+        setCandidateDonors([]);
+        return;
+      }
+
+      try {
+        setDonorLoading(true);
+
+        const response = await api.get("/donors", {
+          timeout: 8000,
+          params: {
+            candidate_id: selectedCandidate.candidate_id,
+            limit: 10
+          }
+        });
+
+        if (!active) return;
+
+        const results =
+          response?.data?.results ||
+          response?.data?.donors ||
+          response?.data ||
+          [];
+
+        setCandidateDonors(Array.isArray(results) ? results : []);
+      } catch {
+        if (!active) return;
+        setCandidateDonors([]);
+      } finally {
+        if (active) setDonorLoading(false);
+      }
+    }
+
+    loadDonors();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCandidate?.candidate_id]);
 
   const topOverlay = filteredOverlays[0] || null;
 
@@ -626,12 +771,14 @@ export default function ElectionMap() {
     if (!stateGroup) return;
     setSelectedStateGroupKey(stateGroup.state);
     setSelectedOverlay(stateGroup.overlays?.[0] || null);
+    setSelectedCandidate(stateGroup.overlays?.[0]?.candidates?.[0] || null);
   };
 
   const selectOfficeOverlay = (item) => {
     if (!item) return;
     setSelectedStateGroupKey(item.state);
     setSelectedOverlay(item);
+    setSelectedCandidate(item.candidates?.[0] || null);
     setTooltip((prev) => ({ ...prev, visible: false }));
   };
 
@@ -925,7 +1072,7 @@ export default function ElectionMap() {
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: "16px", fontWeight: 800 }}>
+                        <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
                           {selectedOverlay.state} • {selectedOverlay.office}
                         </div>
                         <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
@@ -955,14 +1102,57 @@ export default function ElectionMap() {
                       </div>
                     </div>
 
-                    <div className="vs-stack">
-                      {(selectedOverlay.candidates || []).map((candidate) => (
-                        <CandidateCard
-                          key={candidate.candidate_id}
-                          candidate={candidate}
-                        />
-                      ))}
-                    </div>
+                    <SectionCard
+                      title="Candidates"
+                      subtitle="Click a candidate to inspect donor records when available."
+                    >
+                      <div className="vs-stack">
+                        {(selectedOverlay.candidates || []).map((candidate) => (
+                          <CandidateCard
+                            key={candidate.candidate_id}
+                            candidate={candidate}
+                            isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
+                            onSelect={setSelectedCandidate}
+                          />
+                        ))}
+                      </div>
+                    </SectionCard>
+
+                    <SectionCard
+                      title={
+                        selectedCandidate
+                          ? "Top Donors • " + selectedCandidate.name
+                          : "Top Donors"
+                      }
+                      subtitle={
+                        selectedCandidate
+                          ? "Showing donor records for the selected candidate when available."
+                          : "Select a candidate to inspect donor records."
+                      }
+                    >
+                      {donorLoading ? (
+                        <EmptyState text="Loading donor records..." />
+                      ) : !selectedCandidate ? (
+                        <EmptyState text="Select a candidate to load donor data." />
+                      ) : !candidateDonors.length ? (
+                        <EmptyState text="No donor records available yet for this candidate." />
+                      ) : (
+                        <div className="vs-stack">
+                          {candidateDonors.slice(0, 10).map((donor, index) => (
+                            <DonorCard
+                              key={
+                                donor.id ||
+                                donor.donor_id ||
+                                donor.name ||
+                                donor.donor_name ||
+                                index
+                              }
+                              donor={donor}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </SectionCard>
                   </>
                 ) : null}
               </>
