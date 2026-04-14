@@ -69,10 +69,6 @@ const STATE_NAME_TO_ABBR = {
   "District of Columbia": "DC"
 };
 
-const STATE_ABBR_TO_NAME = Object.fromEntries(
-  Object.entries(STATE_NAME_TO_ABBR).map(([name, abbr]) => [abbr, name])
-);
-
 const STATE_CENTROIDS = {
   AL: [-86.8, 32.8],
   AK: [-152.4, 64.2],
@@ -330,6 +326,102 @@ function OverlayCard({ item, isActive, onSelect }) {
   );
 }
 
+function MapTooltip({ tooltip }) {
+  if (!tooltip?.visible || !tooltip?.item) return null;
+
+  const { x, y, item } = tooltip;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: x + 14,
+        top: y + 14,
+        zIndex: 60,
+        pointerEvents: "none",
+        width: 240,
+        padding: "12px 14px",
+        borderRadius: 16,
+        background: "rgba(10, 14, 22, 0.96)",
+        border: "1px solid rgba(148, 163, 184, 0.18)",
+        boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
+        color: "var(--vs-text)"
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.2 }}>
+          {item.state}
+        </div>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "4px 8px",
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.08)",
+            textTransform: "capitalize"
+          }}
+        >
+          {item.overlayTier}
+        </span>
+      </div>
+
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 12,
+          color: "var(--vs-text-muted)"
+        }}
+      >
+        {item.office} • Score {item.overlayScore}
+      </div>
+
+      <div
+        style={{
+          marginTop: 10,
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: "8px 12px"
+        }}
+      >
+        <div>
+          <div className="vs-stat-label">Receipts</div>
+          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800 }}>
+            {formatMoneyShort(item.totalReceipts || 0)}
+          </div>
+        </div>
+        <div>
+          <div className="vs-stat-label">Cash</div>
+          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800 }}>
+            {formatMoneyShort(item.totalCashOnHand || 0)}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 12,
+          lineHeight: 1.45,
+          color: "var(--vs-text-muted)"
+        }}
+      >
+        Top signal:{" "}
+        <span style={{ color: "var(--vs-text)", fontWeight: 700 }}>
+          {item.candidates?.[0]?.name || "N/A"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function ElectionMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -344,6 +436,12 @@ export default function ElectionMap() {
   const [selectedOverlay, setSelectedOverlay] = useState(null);
   const [selectedState, setSelectedState] = useState("");
   const [selectedOffice, setSelectedOffice] = useState("");
+  const [tooltip, setTooltip] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    item: null
+  });
 
   useEffect(() => {
     let active = true;
@@ -443,6 +541,31 @@ export default function ElectionMap() {
 
   const topOverlay = filteredOverlays[0] || null;
 
+  const showTooltip = (event, item) => {
+    setTooltip({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      item
+    });
+  };
+
+  const moveTooltip = (event, item) => {
+    setTooltip({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      item
+    });
+  };
+
+  const hideTooltip = () => {
+    setTooltip((prev) => ({
+      ...prev,
+      visible: false
+    }));
+  };
+
   return (
     <PageShell
       eyebrow="Election Map"
@@ -467,6 +590,8 @@ export default function ElectionMap() {
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+
+      <MapTooltip tooltip={tooltip} />
 
       <SectionCard
         title="Map Filters"
@@ -548,7 +673,7 @@ export default function ElectionMap() {
       >
         <SectionCard
           title="U.S. Finance Overlay Map"
-          subtitle="States are shaded by the strongest state-office finance overlay in the current filter set."
+          subtitle="Hover any highlighted state to preview the top overlay. Click to lock detail on the right."
           right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
         >
           <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
@@ -578,6 +703,13 @@ export default function ElectionMap() {
                         <Geography
                           key={geo.rsmKey}
                           geography={geo}
+                          onMouseEnter={(event) => {
+                            if (overlay) showTooltip(event, overlay);
+                          }}
+                          onMouseMove={(event) => {
+                            if (overlay) moveTooltip(event, overlay);
+                          }}
+                          onMouseLeave={hideTooltip}
                           onClick={() => {
                             if (overlay) setSelectedOverlay(overlay);
                           }}
@@ -591,14 +723,14 @@ export default function ElectionMap() {
                             },
                             hover: {
                               fill: overlay ? getStateFill(overlay) : "#1f2937",
-                              stroke: "#9ca3af",
-                              strokeWidth: 1.2,
+                              stroke: "#cbd5e1",
+                              strokeWidth: 1.4,
                               outline: "none",
                               cursor: overlay ? "pointer" : "default"
                             },
                             pressed: {
                               fill: overlay ? getStateFill(overlay) : "#1f2937",
-                              stroke: "#9ca3af",
+                              stroke: "#cbd5e1",
                               strokeWidth: 1.2,
                               outline: "none"
                             }
@@ -622,7 +754,6 @@ export default function ElectionMap() {
                     <Marker
                       key={`${item.state}-${item.office}`}
                       coordinates={coords}
-                      onClick={() => setSelectedOverlay(item)}
                     >
                       <circle
                         r={isActive ? 8 : 6}
@@ -630,6 +761,10 @@ export default function ElectionMap() {
                         stroke="#111827"
                         strokeWidth={2}
                         style={{ cursor: "pointer" }}
+                        onMouseEnter={(event) => showTooltip(event, item)}
+                        onMouseMove={(event) => moveTooltip(event, item)}
+                        onMouseLeave={hideTooltip}
+                        onClick={() => setSelectedOverlay(item)}
                       />
                       <text
                         textAnchor="middle"
