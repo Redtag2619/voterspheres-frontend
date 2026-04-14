@@ -1006,6 +1006,39 @@ export default function ElectionMap() {
       </div>
 
       <SectionCard
+        title="Candidates"
+        subtitle={
+          selectedOverlay
+            ? selectedOverlay.state + " • " + selectedOverlay.office + " candidate field"
+            : "Select an office overlay to inspect candidates."
+        }
+        right={
+          selectedOverlay ? (
+            <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+              {selectedOverlay.overlayTier}
+            </Badge>
+          ) : null
+        }
+      >
+        {!selectedOverlay ? (
+          <EmptyState text="Select an office overlay to view candidates." />
+        ) : !(selectedOverlay.candidates || []).length ? (
+          <EmptyState text="No candidates available for this overlay." />
+        ) : (
+          <div className="vs-stack">
+            {(selectedOverlay.candidates || []).map((candidate) => (
+              <CandidateCard
+                key={candidate.candidate_id}
+                candidate={candidate}
+                isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
+                onSelect={setSelectedCandidate}
+              />
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
         title="Overlay Stack"
         subtitle="A ranked list of the current live state-office overlays."
         right={<Badge tone="info">{filteredOverlays.length} ranked</Badge>}
@@ -1031,103 +1064,35 @@ export default function ElectionMap() {
         </div>
       </SectionCard>
 
-      {selectedOverlay ? (
-        <SectionCard
-          title={
-            selectedCandidate
-              ? "Candidate + Donor Intelligence • " + selectedCandidate.name
-              : "Candidate + Donor Intelligence"
-          }
-          subtitle="Candidate selection, fundraising totals, and donor records tied to the selected overlay."
-        >
+      <SectionCard
+        title={
+          selectedCandidate
+            ? "Donor Intelligence • " + selectedCandidate.name
+            : "Donor Intelligence"
+        }
+        subtitle={
+          selectedCandidate
+            ? "Showing donor network matches for the selected candidate."
+            : "Select a candidate to inspect donor records."
+        }
+      >
+        {donorLoading ? (
+          <EmptyState text="Loading donor records..." />
+        ) : !selectedCandidate ? (
+          <EmptyState text="Select a candidate to load donor data." />
+        ) : !candidateDonors.length ? (
+          <EmptyState text="No donor records available yet for this candidate." />
+        ) : (
           <div className="vs-stack">
-            <div
-              className="vs-card"
-              style={{
-                padding: "14px",
-                display: "grid",
-                gap: "12px"
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
-                  {selectedOverlay.state} • {selectedOverlay.office}
-                </div>
-                <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-                  {selectedOverlay.overlayTier}
-                </Badge>
-              </div>
-
-              <div className="vs-grid-3">
-                <StatCard
-                  label="Overlay Score"
-                  value={String(selectedOverlay.overlayScore || 0)}
-                  delta="Finance intensity"
-                  tone="up"
-                />
-                <StatCard
-                  label="Total Receipts"
-                  value={formatMoneyShort(selectedOverlay.totalReceipts || 0)}
-                  delta="Combined office receipts"
-                  tone="up"
-                />
-                <StatCard
-                  label="Total Cash"
-                  value={formatMoneyShort(selectedOverlay.totalCashOnHand || 0)}
-                  delta="Combined office reserves"
-                  tone="up"
-                />
-              </div>
-            </div>
-
-            <SectionCard
-              title="Candidates"
-              subtitle="Click a candidate to inspect donor records when available."
-            >
-              <div className="vs-stack">
-                {(selectedOverlay.candidates || []).map((candidate) => (
-                  <CandidateCard
-                    key={candidate.candidate_id}
-                    candidate={candidate}
-                    isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
-                    onSelect={setSelectedCandidate}
-                  />
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title={
-                selectedCandidate
-                  ? "Top Donors • " + selectedCandidate.name
-                  : "Top Donors"
-              }
-              subtitle={
-                selectedCandidate
-                  ? "Showing donor network matches for the selected candidate."
-                  : "Select a candidate to inspect donor records."
-              }
-            >
-              {donorLoading ? (
-                <EmptyState text="Loading donor records..." />
-              ) : !selectedCandidate ? (
-                <EmptyState text="Select a candidate to load donor data." />
-              ) : !candidateDonors.length ? (
-                <EmptyState text="No donor records available yet for this candidate." />
-              ) : (
-                <div className="vs-stack">
-                  {candidateDonors.map((donor, index) => (
-                    <DonorCard
-                      key={donor.id || donor.donor_name || index}
-                      donor={donor}
-                    />
-                  ))}
-                </div>
-              )}
-            </SectionCard>
+            {candidateDonors.map((donor, index) => (
+              <DonorCard
+                key={donor.id || donor.donor_name || index}
+                donor={donor}
+              />
+            ))}
           </div>
-        </SectionCard>
-      ) : null}
+        )}
+      </SectionCard>
     </PageShell>
   );
 }
