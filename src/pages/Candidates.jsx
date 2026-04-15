@@ -278,6 +278,7 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
 export default function Candidates() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [refreshingProfile, setRefreshingProfile] = useState(false);
   const [listError, setListError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [data, setData] = useState(fallbackListData);
@@ -474,6 +475,93 @@ export default function Candidates() {
   const profile = selectedDetail?.profile || {};
   const selectedName = normalizeCandidateName(detailCandidate);
 
+  async function handleRefreshProfile() {
+    if (!selectedCandidateId) return;
+
+    try {
+      setRefreshingProfile(true);
+      setDetailError("");
+
+      const response = await api.post(
+        `/candidates/${selectedCandidateId}/refresh-profile`,
+        {},
+        { timeout: 12000 }
+      );
+
+      const payload = response?.data || {};
+      setSelectedDetail({
+        candidate: payload.candidate || detailCandidate || null,
+        profile: payload.profile || {}
+      });
+    } catch (err) {
+      setDetailError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to refresh candidate profile"
+      );
+    } finally {
+      setRefreshingProfile(false);
+    }
+  }
+
+  async function handleRefreshAllProfiles() {
+    try {
+      setListError("");
+
+      await api.post(
+        "/candidates/refresh-profiles",
+        { limit: 100 },
+        { timeout: 20000 }
+      );
+
+      const params = new URLSearchParams();
+      params.set("q", filters.q || "");
+      params.set("state", filters.state || "");
+      params.set("office", filters.office || "");
+      params.set("party", filters.party || "");
+      params.set("page", "1");
+      params.set("limit", "24");
+
+      const response = await api.get(`/candidates?${params.toString()}`, {
+        timeout: 6000
+      });
+
+      const payload = response?.data || fallbackListData;
+      const results = Array.isArray(payload.results) ? payload.results : [];
+      const total = Number(payload.total || results.length || 0);
+
+      setData({
+        total,
+        results
+      });
+
+      if (selectedCandidateId) {
+        const detailResponse = await api.get(`/candidates/${selectedCandidateId}`, {
+          timeout: 6000
+        });
+
+        const selectedCandidate =
+          results.find((item) => String(item.id) === String(selectedCandidateId)) ||
+          detailCandidate ||
+          null;
+
+        const normalized = normalizeDetailPayload(
+          detailResponse?.data,
+          selectedCandidate,
+          fallbackDetail.profile
+        );
+
+        setSelectedDetail(normalized);
+      }
+    } catch (err) {
+      setListError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to refresh live candidate feeds"
+      );
+    }
+  }
+
   return (
     <PageShell
       eyebrow="Candidate Directory"
@@ -590,7 +678,10 @@ export default function Candidates() {
           </select>
         </div>
 
-        <div className="vs-inline-actions" style={{ marginTop: "1rem" }}>
+        <div
+          className="vs-inline-actions"
+          style={{ marginTop: "1rem", display: "flex", gap: "10px", flexWrap: "wrap" }}
+        >
           <button
             type="button"
             className="vs-button vs-button-secondary"
@@ -604,6 +695,14 @@ export default function Candidates() {
             }
           >
             Clear Filters
+          </button>
+
+          <button
+            type="button"
+            className="vs-button"
+            onClick={handleRefreshAllProfiles}
+          >
+            Refresh Live Feed
           </button>
         </div>
       </SectionCard>
@@ -649,13 +748,29 @@ export default function Candidates() {
             }
             right={
               detailCandidate ? (
-                <div className="vs-chip-row">
+                <div
+                  className="vs-chip-row"
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    alignItems: "center",
+                    flexWrap: "wrap"
+                  }}
+                >
                   <Badge tone={getPartyTone(detailCandidate.party)}>
                     {detailCandidate.party || "Unknown"}
                   </Badge>
                   <Badge tone={detailCandidate.incumbent ? "active" : "default"}>
                     {detailCandidate.incumbent ? "Incumbent" : "Challenger"}
                   </Badge>
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={handleRefreshProfile}
+                    disabled={refreshingProfile}
+                  >
+                    {refreshingProfile ? "Refreshing..." : "Refresh Profile"}
+                  </button>
                 </div>
               ) : null
             }
