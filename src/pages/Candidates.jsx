@@ -52,35 +52,8 @@ const fallbackListData = {
 };
 
 const fallbackDetail = {
-  candidate: {
-    id: 1,
-    full_name: "Jane Thompson",
-    first_name: "Jane",
-    last_name: "Thompson",
-    state: "Georgia",
-    office: "Senate",
-    party: "Democratic",
-    incumbent: false,
-    website: "https://example.com",
-    status: "active",
-    election_name: "2026 Georgia Senate"
-  },
-  profile: {
-    campaign_website: "https://example.com",
-    official_website: "",
-    office_address: "101 Capitol Ave, Atlanta, GA",
-    campaign_address: "450 Peachtree St NE, Atlanta, GA",
-    phone: "(404) 555-0142",
-    email: "info@example.com",
-    chief_of_staff_name: "Marcus Hill",
-    campaign_manager_name: "Ava Reynolds",
-    finance_director_name: "Daniel Price",
-    political_director_name: "Sonia Ellis",
-    press_contact_name: "Taylor Brooks",
-    press_contact_email: "press@example.com",
-    source_label: "manual_enrichment",
-    updated_at: null
-  }
+  candidate: null,
+  profile: null
 };
 
 function normalizeCandidateName(candidate) {
@@ -102,7 +75,6 @@ function getStatusTone(status) {
   const value = String(status || "").toLowerCase();
   if (["active", "live", "confirmed"].includes(value)) return "active";
   if (["watch", "pending"].includes(value)) return "warning";
-  if (["inactive", "ended", "closed"].includes(value)) return "default";
   return "default";
 }
 
@@ -114,7 +86,6 @@ function safeUrl(value) {
 
 function formatDateTime(value) {
   if (!value) return "N/A";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "N/A";
 
@@ -127,35 +98,26 @@ function formatDateTime(value) {
   }).format(date);
 }
 
-function normalizeDetailPayload(payload, selectedCandidate, fallbackProfile) {
+function normalizeDetailPayload(payload, selectedCandidate) {
   if (!payload || typeof payload !== "object") {
     return {
       candidate: selectedCandidate || null,
-      profile: fallbackProfile || {}
-    };
-  }
-
-  if (payload.candidate || payload.profile) {
-    return {
-      candidate: payload.candidate || selectedCandidate || null,
-      profile: payload.profile || fallbackProfile || {}
+      profile: null
     };
   }
 
   return {
-    candidate: payload,
-    profile: payload.profile || fallbackProfile || {}
+    candidate: payload.candidate || selectedCandidate || null,
+    profile: payload.profile || null
   };
 }
 
 function getProfileFreshnessTone(updatedAt) {
   if (!updatedAt) return "default";
-
   const time = new Date(updatedAt).getTime();
   if (Number.isNaN(time)) return "default";
 
   const ageHours = (Date.now() - time) / (1000 * 60 * 60);
-
   if (ageHours <= 24) return "active";
   if (ageHours <= 168) return "warning";
   return "default";
@@ -165,14 +127,9 @@ function DetailField({ label, value, href }) {
   return (
     <div
       className="vs-card-muted"
-      style={{
-        padding: "12px 14px",
-        display: "grid",
-        gap: "6px"
-      }}
+      style={{ padding: "12px 14px", display: "grid", gap: "6px" }}
     >
       <div className="vs-stat-label">{label}</div>
-
       {href ? (
         <a
           href={href}
@@ -231,16 +188,9 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
         }}
       >
         <div>
-          <div
-            style={{
-              fontSize: "15px",
-              fontWeight: 800,
-              color: "var(--vs-text)"
-            }}
-          >
+          <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--vs-text)" }}>
             {name}
           </div>
-
           <div
             style={{
               marginTop: "4px",
@@ -271,12 +221,7 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
           flexWrap: "wrap"
         }}
       >
-        <div
-          style={{
-            fontSize: "12px",
-            color: "var(--vs-text-muted)"
-          }}
-        >
+        <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
           {candidate.election_name || "Election not specified"}
         </div>
 
@@ -324,7 +269,6 @@ export default function Candidates() {
         ]);
 
         if (!active) return;
-
         setStates(Array.isArray(statesRes?.data) ? statesRes.data : []);
         setOffices(Array.isArray(officesRes?.data) ? officesRes.data : []);
         setParties(Array.isArray(partiesRes?.data) ? partiesRes.data : []);
@@ -360,19 +304,16 @@ export default function Candidates() {
         params.set("limit", "24");
 
         const response = await api.get(`/candidates?${params.toString()}`, {
-          timeout: 6000
+          timeout: 10000
         });
 
         if (!active) return;
 
-        const payload = response?.data || fallbackListData;
+        const payload = response?.data || { total: 0, results: [] };
         const results = Array.isArray(payload.results) ? payload.results : [];
         const total = Number(payload.total || results.length || 0);
 
-        setData({
-          total,
-          results
-        });
+        setData({ total, results });
 
         if (results.length) {
           setSelectedCandidateId((prev) => {
@@ -381,20 +322,16 @@ export default function Candidates() {
           });
         } else {
           setSelectedCandidateId(null);
-          setSelectedDetail({
-            candidate: null,
-            profile: null
-          });
+          setSelectedDetail(fallbackDetail);
         }
       } catch (err) {
         if (!active) return;
-
         setListError(
           err?.response?.data?.error || err?.message || "Failed to load candidates"
         );
-
-        setData(fallbackListData);
-        setSelectedCandidateId(fallbackListData.results[0]?.id || null);
+        setData({ total: 0, results: [] });
+        setSelectedCandidateId(null);
+        setSelectedDetail(fallbackDetail);
       } finally {
         if (active) setLoadingList(false);
       }
@@ -418,25 +355,22 @@ export default function Candidates() {
         setDetailError("");
 
         const response = await api.get(`/candidates/${selectedCandidateId}`, {
-          timeout: 6000
+          timeout: 10000
         });
 
         if (!active) return;
 
         const selectedCandidate =
           data.results.find((item) => String(item.id) === String(selectedCandidateId)) ||
-          fallbackListData.results[0] ||
           null;
 
-        const normalized = normalizeDetailPayload(
-          response?.data,
-          selectedCandidate,
-          fallbackDetail.profile
-        );
-
-        setSelectedDetail(normalized);
+        setSelectedDetail(normalizeDetailPayload(response?.data, selectedCandidate));
       } catch (err) {
         if (!active) return;
+
+        const selectedCandidate =
+          data.results.find((item) => String(item.id) === String(selectedCandidateId)) ||
+          null;
 
         setDetailError(
           err?.response?.data?.error ||
@@ -444,14 +378,9 @@ export default function Candidates() {
             "Failed to load candidate profile"
         );
 
-        const fallbackCandidate =
-          data.results.find((item) => String(item.id) === String(selectedCandidateId)) ||
-          fallbackListData.results[0] ||
-          null;
-
         setSelectedDetail({
-          candidate: fallbackCandidate,
-          profile: fallbackDetail.profile
+          candidate: selectedCandidate,
+          profile: null
         });
       } finally {
         if (active) setLoadingDetail(false);
@@ -469,7 +398,6 @@ export default function Candidates() {
 
   const summary = useMemo(() => {
     const items = candidates;
-
     return {
       total_candidates: Number(data.total || items.length || 0),
       democratic_candidates: items.filter(
@@ -489,7 +417,7 @@ export default function Candidates() {
   const profile = selectedDetail?.profile || {};
   const selectedName = normalizeCandidateName(detailCandidate);
 
-  async function reloadListAndSelectedDetail() {
+  async function reloadListAndDetail() {
     const params = new URLSearchParams();
     params.set("q", filters.q || "");
     params.set("state", filters.state || "");
@@ -499,35 +427,40 @@ export default function Candidates() {
     params.set("limit", "24");
 
     const response = await api.get(`/candidates?${params.toString()}`, {
-      timeout: 6000
+      timeout: 10000
     });
 
-    const payload = response?.data || fallbackListData;
+    const payload = response?.data || { total: 0, results: [] };
     const results = Array.isArray(payload.results) ? payload.results : [];
     const total = Number(payload.total || results.length || 0);
 
-    setData({
-      total,
-      results
-    });
+    setData({ total, results });
 
     if (selectedCandidateId) {
-      const detailResponse = await api.get(`/candidates/${selectedCandidateId}`, {
-        timeout: 6000
-      });
+      try {
+        const detailResponse = await api.get(`/candidates/${selectedCandidateId}`, {
+          timeout: 10000
+        });
 
-      const selectedCandidate =
-        results.find((item) => String(item.id) === String(selectedCandidateId)) ||
-        detailCandidate ||
-        null;
+        const selectedCandidate =
+          results.find((item) => String(item.id) === String(selectedCandidateId)) ||
+          detailCandidate ||
+          null;
 
-      const normalized = normalizeDetailPayload(
-        detailResponse?.data,
-        selectedCandidate,
-        fallbackDetail.profile
-      );
+        setSelectedDetail(
+          normalizeDetailPayload(detailResponse?.data, selectedCandidate)
+        );
+      } catch {
+        const selectedCandidate =
+          results.find((item) => String(item.id) === String(selectedCandidateId)) ||
+          detailCandidate ||
+          null;
 
-      setSelectedDetail(normalized);
+        setSelectedDetail({
+          candidate: selectedCandidate,
+          profile: null
+        });
+      }
     }
   }
 
@@ -547,7 +480,7 @@ export default function Candidates() {
       const payload = response?.data || {};
       setSelectedDetail({
         candidate: payload.candidate || detailCandidate || null,
-        profile: payload.profile || {}
+        profile: payload.profile || null
       });
     } catch (err) {
       setDetailError(
@@ -571,7 +504,7 @@ export default function Candidates() {
         { timeout: 90000 }
       );
 
-      await reloadListAndSelectedDetail();
+      await reloadListAndDetail();
     } catch (err) {
       setListError(
         err?.response?.data?.error ||
@@ -587,9 +520,9 @@ export default function Candidates() {
     <PageShell
       eyebrow="Candidate Directory"
       title="Track candidates with live profiles and campaign enrichment."
-      description="Search live candidate records and inspect campaign contact, office contact, and key staff details in a premium two-panel layout."
+      description="Search live candidate records and inspect campaign contact, office contact, and key staff details."
       demo={demoMode}
-      demoText="Demo candidate data is active. Candidate records are preloaded for presentation and testing."
+      demoText="Demo candidate data is active."
     >
       {listError ? (
         <div
@@ -605,26 +538,10 @@ export default function Candidates() {
       ) : null}
 
       <div className="vs-grid-4">
-        <StatCard
-          label="Visible Candidates"
-          value={summary.total_candidates || 0}
-          subtext="Current filtered records"
-        />
-        <StatCard
-          label="Democratic"
-          value={summary.democratic_candidates || 0}
-          subtext="Democratic candidates"
-        />
-        <StatCard
-          label="Republican"
-          value={summary.republican_candidates || 0}
-          subtext="Republican candidates"
-        />
-        <StatCard
-          label="Other"
-          value={summary.other_candidates || 0}
-          subtext="Independent and other parties"
-        />
+        <StatCard label="Visible Candidates" value={summary.total_candidates || 0} subtext="Current filtered records" />
+        <StatCard label="Democratic" value={summary.democratic_candidates || 0} subtext="Democratic candidates" />
+        <StatCard label="Republican" value={summary.republican_candidates || 0} subtext="Republican candidates" />
+        <StatCard label="Other" value={summary.other_candidates || 0} subtext="Independent and other parties" />
       </div>
 
       <SectionCard
@@ -635,66 +552,40 @@ export default function Candidates() {
           <input
             className="vs-input"
             value={filters.q}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                q: e.target.value
-              }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
             placeholder="Search candidates..."
           />
 
           <select
             className="vs-input"
             value={filters.state}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                state: e.target.value
-              }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, state: e.target.value }))}
           >
             <option value="">All states</option>
             {states.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
+              <option key={item} value={item}>{item}</option>
             ))}
           </select>
 
           <select
             className="vs-input"
             value={filters.office}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                office: e.target.value
-              }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, office: e.target.value }))}
           >
             <option value="">All offices</option>
             {offices.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
+              <option key={item} value={item}>{item}</option>
             ))}
           </select>
 
           <select
             className="vs-input"
             value={filters.party}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                party: e.target.value
-              }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, party: e.target.value }))}
           >
             <option value="">All parties</option>
             {parties.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
+              <option key={item} value={item}>{item}</option>
             ))}
           </select>
         </div>
@@ -706,14 +597,7 @@ export default function Candidates() {
           <button
             type="button"
             className="vs-button vs-button-secondary"
-            onClick={() =>
-              setFilters({
-                q: "",
-                state: "",
-                office: "",
-                party: ""
-              })
-            }
+            onClick={() => setFilters({ q: "", state: "", office: "", party: "" })}
           >
             Clear Filters
           </button>
@@ -772,12 +656,7 @@ export default function Candidates() {
               detailCandidate ? (
                 <div
                   className="vs-chip-row"
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    alignItems: "center",
-                    flexWrap: "wrap"
-                  }}
+                  style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}
                 >
                   <Badge tone={getPartyTone(detailCandidate.party)}>
                     {detailCandidate.party || "Unknown"}
@@ -785,9 +664,10 @@ export default function Candidates() {
                   <Badge tone={detailCandidate.incumbent ? "active" : "default"}>
                     {detailCandidate.incumbent ? "Incumbent" : "Challenger"}
                   </Badge>
-                  <Badge tone={getProfileFreshnessTone(profile.updated_at)}>
-                    {profile.updated_at ? "Live" : "Unenriched"}
+                  <Badge tone={getProfileFreshnessTone(profile?.updated_at)}>
+                    {profile?.updated_at ? "Live" : "Unenriched"}
                   </Badge>
+                  {profile?.admin_locked ? <Badge tone="warning">Admin Locked</Badge> : null}
                   <button
                     type="button"
                     className="vs-button vs-button-secondary"
@@ -820,114 +700,59 @@ export default function Candidates() {
                 ) : null}
 
                 <div className="vs-grid-4">
-                  <StatCard
-                    label="State"
-                    value={detailCandidate.state || "N/A"}
-                    subtext="Candidate state"
-                  />
-                  <StatCard
-                    label="Office"
-                    value={detailCandidate.office || "N/A"}
-                    subtext="Office sought"
-                  />
-                  <StatCard
-                    label="Status"
-                    value={detailCandidate.status || "active"}
-                    subtext="Campaign status"
-                  />
-                  <StatCard
-                    label="Election"
-                    value={detailCandidate.election_name || "N/A"}
-                    subtext="Election record"
-                  />
+                  <StatCard label="State" value={detailCandidate.state || "N/A"} subtext="Candidate state" />
+                  <StatCard label="Office" value={detailCandidate.office || "N/A"} subtext="Office sought" />
+                  <StatCard label="Status" value={detailCandidate.status || "active"} subtext="Campaign status" />
+                  <StatCard label="Election" value={detailCandidate.election_name || "N/A"} subtext="Election record" />
                 </div>
 
-                <SectionCard
-                  title="Overview"
-                  subtitle="Core candidate and campaign profile fields."
-                >
+                <SectionCard title="Overview" subtitle="Core candidate and campaign profile fields.">
                   <div className="vs-grid-2">
                     <DetailField
                       label="Campaign Website"
-                      value={profile.campaign_website || detailCandidate.website || "N/A"}
-                      href={safeUrl(profile.campaign_website || detailCandidate.website || "")}
+                      value={profile?.campaign_website || detailCandidate.website || "N/A"}
+                      href={safeUrl(profile?.campaign_website || detailCandidate.website || "")}
                     />
                     <DetailField
                       label="Official Website"
-                      value={profile.official_website || "N/A"}
-                      href={safeUrl(profile.official_website || "")}
+                      value={profile?.official_website || "N/A"}
+                      href={safeUrl(profile?.official_website || "")}
                     />
-                    <DetailField
-                      label="Phone"
-                      value={profile.phone || "N/A"}
-                    />
-                    <DetailField
-                      label="Email"
-                      value={profile.email || "N/A"}
-                    />
+                    <DetailField label="Phone" value={profile?.phone || "N/A"} />
+                    <DetailField label="Email" value={profile?.email || "N/A"} />
                   </div>
                 </SectionCard>
 
-                <SectionCard
-                  title="Contact"
-                  subtitle="Campaign and office contact details."
-                >
+                <SectionCard title="Contact" subtitle="Campaign and office contact details.">
                   <div className="vs-grid-2">
-                    <DetailField
-                      label="Office Address"
-                      value={profile.office_address || "N/A"}
-                    />
-                    <DetailField
-                      label="Campaign Address"
-                      value={profile.campaign_address || "N/A"}
-                    />
+                    <DetailField label="Office Address" value={profile?.office_address || "N/A"} />
+                    <DetailField label="Campaign Address" value={profile?.campaign_address || "N/A"} />
                   </div>
                 </SectionCard>
 
-                <SectionCard
-                  title="Campaign Team"
-                  subtitle="Live-enriched staff and leadership fields."
-                >
+                <SectionCard title="Campaign Team" subtitle="Live-enriched staff and leadership fields.">
                   <div className="vs-grid-2">
-                    <DetailField
-                      label="Chief of Staff"
-                      value={profile.chief_of_staff_name || "N/A"}
-                    />
-                    <DetailField
-                      label="Campaign Manager"
-                      value={profile.campaign_manager_name || "N/A"}
-                    />
-                    <DetailField
-                      label="Finance Director"
-                      value={profile.finance_director_name || "N/A"}
-                    />
-                    <DetailField
-                      label="Political Director"
-                      value={profile.political_director_name || "N/A"}
-                    />
-                    <DetailField
-                      label="Press Contact"
-                      value={profile.press_contact_name || "N/A"}
-                    />
-                    <DetailField
-                      label="Press Contact Email"
-                      value={profile.press_contact_email || "N/A"}
-                    />
+                    <DetailField label="Chief of Staff" value={profile?.chief_of_staff_name || "N/A"} />
+                    <DetailField label="Campaign Manager" value={profile?.campaign_manager_name || "N/A"} />
+                    <DetailField label="Finance Director" value={profile?.finance_director_name || "N/A"} />
+                    <DetailField label="Political Director" value={profile?.political_director_name || "N/A"} />
+                    <DetailField label="Press Contact" value={profile?.press_contact_name || "N/A"} />
+                    <DetailField label="Press Contact Email" value={profile?.press_contact_email || "N/A"} />
                   </div>
                 </SectionCard>
 
-                <SectionCard
-                  title="Profile Metadata"
-                  subtitle="Source and freshness of live enrichment records."
-                >
+                <SectionCard title="Profile Metadata" subtitle="Source, lock state, and freshness of records.">
                   <div className="vs-grid-2">
+                    <DetailField label="Source Label" value={profile?.source_label || "live_candidate_feed"} />
+                    <DetailField label="Updated At" value={formatDateTime(profile?.updated_at)} />
+                    <DetailField label="Admin Locked" value={profile?.admin_locked ? "Yes" : "No"} />
                     <DetailField
-                      label="Source Label"
-                      value={profile.source_label || "live_candidate_feed"}
-                    />
-                    <DetailField
-                      label="Updated At"
-                      value={formatDateTime(profile.updated_at)}
+                      label="Locked Fields"
+                      value={
+                        profile?.locked_fields
+                          ? JSON.stringify(profile.locked_fields)
+                          : "{}"
+                      }
                     />
                   </div>
                 </SectionCard>
