@@ -869,6 +869,36 @@ export default function ElectionMap() {
               </div>
             )}
           </SectionCard>
+
+          <SectionCard
+            title={
+              selectedCandidate
+                ? "Donor Intelligence • " + selectedCandidate.name
+                : "Donor Intelligence"
+            }
+            subtitle={
+              selectedCandidate
+                ? "Showing donor network matches for the selected candidate."
+                : "Select a candidate to inspect donor records."
+            }
+          >
+            {donorLoading ? (
+              <EmptyState text="Loading donor records..." />
+            ) : !selectedCandidate ? (
+              <EmptyState text="Select a candidate to load donor data." />
+            ) : !candidateDonors.length ? (
+              <EmptyState text="No donor records available yet for this candidate." />
+            ) : (
+              <div className="vs-stack">
+                {candidateDonors.map((donor, index) => (
+                  <DonorCard
+                    key={donor.id || donor.donor_name || index}
+                    donor={donor}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
         </div>
 
         <div className="vs-stack">
@@ -966,36 +996,6 @@ export default function ElectionMap() {
           </SectionCard>
         </div>
       </div>
-
-      <SectionCard
-        title={
-          selectedCandidate
-            ? "Donor Intelligence • " + selectedCandidate.name
-            : "Donor Intelligence"
-        }
-        subtitle={
-          selectedCandidate
-            ? "Showing donor network matches for the selected candidate."
-            : "Select a candidate to inspect donor records."
-        }
-      >
-        {donorLoading ? (
-          <EmptyState text="Loading donor records..." />
-        ) : !selectedCandidate ? (
-          <EmptyState text="Select a candidate to load donor data." />
-        ) : !candidateDonors.length ? (
-          <EmptyState text="No donor records available yet for this candidate." />
-        ) : (
-          <div className="vs-stack">
-            {candidateDonors.map((donor, index) => (
-              <DonorCard
-                key={donor.id || donor.donor_name || index}
-                donor={donor}
-              />
-            ))}
-          </div>
-        )}
-      </SectionCard>
     </PageShell>
   );
 }
