@@ -98,10 +98,54 @@ function getPartyTone(party) {
   return "default";
 }
 
+function getStatusTone(status) {
+  const value = String(status || "").toLowerCase();
+  if (["active", "live", "confirmed"].includes(value)) return "active";
+  if (["watch", "pending"].includes(value)) return "warning";
+  if (["inactive", "ended", "closed"].includes(value)) return "default";
+  return "default";
+}
+
 function safeUrl(value) {
   if (!value) return "";
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
   return `https://${value}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function normalizeDetailPayload(payload, selectedCandidate, fallbackProfile) {
+  if (!payload || typeof payload !== "object") {
+    return {
+      candidate: selectedCandidate || null,
+      profile: fallbackProfile || {}
+    };
+  }
+
+  if (payload.candidate || payload.profile) {
+    return {
+      candidate: payload.candidate || selectedCandidate || null,
+      profile: payload.profile || fallbackProfile || {}
+    };
+  }
+
+  return {
+    candidate: payload,
+    profile: payload.profile || fallbackProfile || {}
+  };
 }
 
 function DetailField({ label, value, href }) {
@@ -115,6 +159,7 @@ function DetailField({ label, value, href }) {
       }}
     >
       <div className="vs-stat-label">{label}</div>
+
       {href ? (
         <a
           href={href}
@@ -182,6 +227,7 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
           >
             {name}
           </div>
+
           <div
             style={{
               marginTop: "4px",
@@ -194,7 +240,9 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
         </div>
 
         <div className="vs-chip-row">
-          <Badge tone={getPartyTone(candidate.party)}>{candidate.party || "Unknown"}</Badge>
+          <Badge tone={getPartyTone(candidate.party)}>
+            {candidate.party || "Unknown"}
+          </Badge>
           <Badge tone={candidate.incumbent ? "active" : "default"}>
             {candidate.incumbent ? "Incumbent" : "Challenger"}
           </Badge>
@@ -203,11 +251,25 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
 
       <div
         style={{
-          fontSize: "12px",
-          color: "var(--vs-text-muted)"
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "8px",
+          alignItems: "center",
+          flexWrap: "wrap"
         }}
       >
-        {candidate.election_name || "Election not specified"}
+        <div
+          style={{
+            fontSize: "12px",
+            color: "var(--vs-text-muted)"
+          }}
+        >
+          {candidate.election_name || "Election not specified"}
+        </div>
+
+        <Badge tone={getStatusTone(candidate.status)}>
+          {candidate.status || "active"}
+        </Badge>
       </div>
     </button>
   );
@@ -247,6 +309,7 @@ export default function Candidates() {
         ]);
 
         if (!active) return;
+
         setStates(Array.isArray(statesRes?.data) ? statesRes.data : []);
         setOffices(Array.isArray(officesRes?.data) ? officesRes.data : []);
         setParties(Array.isArray(partiesRes?.data) ? partiesRes.data : []);
@@ -310,9 +373,11 @@ export default function Candidates() {
         }
       } catch (err) {
         if (!active) return;
+
         setListError(
           err?.response?.data?.error || err?.message || "Failed to load candidates"
         );
+
         setData(fallbackListData);
         setSelectedCandidateId(fallbackListData.results[0]?.id || null);
       } finally {
@@ -343,13 +408,21 @@ export default function Candidates() {
 
         if (!active) return;
 
-        const payload = response?.data || fallbackDetail;
-        setSelectedDetail({
-          candidate: payload.candidate || null,
-          profile: payload.profile || null
-        });
+        const selectedCandidate =
+          data.results.find((item) => String(item.id) === String(selectedCandidateId)) ||
+          fallbackListData.results[0] ||
+          null;
+
+        const normalized = normalizeDetailPayload(
+          response?.data,
+          selectedCandidate,
+          fallbackDetail.profile
+        );
+
+        setSelectedDetail(normalized);
       } catch (err) {
         if (!active) return;
+
         setDetailError(
           err?.response?.data?.error ||
             err?.message ||
@@ -358,7 +431,8 @@ export default function Candidates() {
 
         const fallbackCandidate =
           data.results.find((item) => String(item.id) === String(selectedCandidateId)) ||
-          fallbackListData.results[0];
+          fallbackListData.results[0] ||
+          null;
 
         setSelectedDetail({
           candidate: fallbackCandidate,
@@ -380,6 +454,7 @@ export default function Candidates() {
 
   const summary = useMemo(() => {
     const items = candidates;
+
     return {
       total_candidates: Number(data.total || items.length || 0),
       democratic_candidates: items.filter(
@@ -395,7 +470,7 @@ export default function Candidates() {
     };
   }, [candidates, data.total]);
 
-  const detailCandidate = selectedDetail?.candidate;
+  const detailCandidate = selectedDetail?.candidate || null;
   const profile = selectedDetail?.profile || {};
   const selectedName = normalizeCandidateName(detailCandidate);
 
@@ -452,7 +527,10 @@ export default function Candidates() {
             className="vs-input"
             value={filters.q}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, q: e.target.value }))
+              setFilters((prev) => ({
+                ...prev,
+                q: e.target.value
+              }))
             }
             placeholder="Search candidates..."
           />
@@ -461,7 +539,10 @@ export default function Candidates() {
             className="vs-input"
             value={filters.state}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, state: e.target.value }))
+              setFilters((prev) => ({
+                ...prev,
+                state: e.target.value
+              }))
             }
           >
             <option value="">All states</option>
@@ -476,7 +557,10 @@ export default function Candidates() {
             className="vs-input"
             value={filters.office}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, office: e.target.value }))
+              setFilters((prev) => ({
+                ...prev,
+                office: e.target.value
+              }))
             }
           >
             <option value="">All offices</option>
@@ -491,7 +575,10 @@ export default function Candidates() {
             className="vs-input"
             value={filters.party}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, party: e.target.value }))
+              setFilters((prev) => ({
+                ...prev,
+                party: e.target.value
+              }))
             }
           >
             <option value="">All parties</option>
