@@ -8,6 +8,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
+const CandidateProfilesAdmin = lazy(() => import("./pages/CandidateProfilesAdmin.jsx"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap.jsx"));
 const DonorNetwork = lazy(() => import("./pages/DonorNetwork.jsx"));
 const ElectionForecast = lazy(() => import("./pages/ElectionForecast.jsx"));
@@ -70,6 +71,7 @@ function AppRoutes() {
 
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/candidates" element={<Candidates />} />
+          <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
           <Route path="/map" element={<ElectionMap />} />
           <Route path="/donors" element={<DonorNetwork />} />
           <Route path="/forecast" element={<ElectionForecast />} />
@@ -85,30 +87,12 @@ function AppRoutes() {
           <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
           <Route path="/billing" element={<Billing />} />
 
-          <Route
-            path="/consultant-marketplace"
-            element={<Navigate to="/consultants" replace />}
-          />
-          <Route
-            path="/aichat"
-            element={<Navigate to="/ai-chat" replace />}
-          />
-          <Route
-            path="/warroom"
-            element={<Navigate to="/war-room" replace />}
-          />
-          <Route
-            path="/fundraising-dashboard"
-            element={<Navigate to="/fundraising" replace />}
-          />
-          <Route
-            path="/rankings"
-            element={<Navigate to="/power-rankings" replace />}
-          />
-          <Route
-            path="/mail-ops"
-            element={<Navigate to="/mailops" replace />}
-          />
+          <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
+          <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
+          <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
+          <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
+          <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
+          <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
 
           <Route path="*" element={<NotFound />} />
         </Route>
