@@ -3,7 +3,7 @@ import {
   ComposableMap,
   Geographies,
   Geography,
-  Marker
+  Marker,
 } from "react-simple-maps";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
@@ -66,7 +66,7 @@ const STATE_NAME_TO_ABBR = {
   "West Virginia": "WV",
   Wisconsin: "WI",
   Wyoming: "WY",
-  "District of Columbia": "DC"
+  "District of Columbia": "DC",
 };
 
 const STATE_CENTROIDS = {
@@ -120,7 +120,7 @@ const STATE_CENTROIDS = {
   WV: [-80.6, 38.6],
   WI: [-89.6, 44.6],
   WY: [-107.6, 43.0],
-  DC: [-77.0, 38.9]
+  DC: [-77.0, 38.9],
 };
 
 function formatMoney(value) {
@@ -183,14 +183,29 @@ function CandidateCard({ candidate, isSelected, onSelect }) {
         cursor: "pointer",
         color: "var(--vs-text)",
         border: isSelected ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
-        boxShadow: isSelected ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
+        boxShadow: isSelected ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
       }}
     >
       <div>
-        <div style={{ fontSize: "15px", fontWeight: 800, lineHeight: 1.15, color: "var(--vs-text)" }}>
+        <div
+          style={{
+            fontSize: "15px",
+            fontWeight: 800,
+            lineHeight: 1.15,
+            color: "var(--vs-text)",
+          }}
+        >
           {candidate.name}
         </div>
-        <div style={{ marginTop: "6px", fontSize: "12px", lineHeight: 1.45, color: "var(--vs-text-muted)" }}>
+
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            color: "var(--vs-text-muted)",
+          }}
+        >
           {candidate.party || "N/A"} • Rank #{candidate.rank || "—"}
         </div>
       </div>
@@ -199,19 +214,33 @@ function CandidateCard({ candidate, isSelected, onSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: "10px 16px"
+          gap: "10px 16px",
         }}
       >
         <div>
           <div className="vs-stat-label">Receipts</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)",
+            }}
+          >
             {formatMoney(candidate.receipts || 0)}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Cash</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)",
+            }}
+          >
             {formatMoney(candidate.cash_on_hand || 0)}
           </div>
         </div>
@@ -228,18 +257,21 @@ function DonorCard({ donor }) {
         padding: "14px",
         display: "grid",
         gap: "8px",
-        color: "var(--vs-text)"
+        color: "var(--vs-text)",
       }}
     >
       <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
         {donor.donor_name || donor.name || "Unknown Donor"}
       </div>
+
       <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
         {donor.donor_type || "Donor"} • {donor.state || "Unknown state"}
       </div>
+
       <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
         {formatMoney(donor.amount || 0)}
       </div>
+
       <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
         {donor.relationship_strength || "Relationship strength unavailable"}
       </div>
@@ -263,18 +295,33 @@ function OverlayCard({ item, isActive, onSelect }) {
         cursor: "pointer",
         color: "var(--vs-text)",
         border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
-        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
+        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
       }}
     >
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-          <div style={{ fontSize: "16px", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", color: "var(--vs-text)" }}>
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: 800,
+              lineHeight: 1.15,
+              letterSpacing: "-0.02em",
+              color: "var(--vs-text)",
+            }}
+          >
             {item.state}
           </div>
           <Badge tone={officeTone(item.office)}>{item.office}</Badge>
         </div>
 
-        <div style={{ marginTop: "6px", fontSize: "12px", lineHeight: 1.45, color: "var(--vs-text-muted)" }}>
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "12px",
+            lineHeight: 1.45,
+            color: "var(--vs-text-muted)",
+          }}
+        >
           {item.candidates?.length || 0} candidate signals • Top 5 shown
         </div>
       </div>
@@ -285,33 +332,61 @@ function OverlayCard({ item, isActive, onSelect }) {
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "12px 18px",
           alignContent: "start",
-          minHeight: "94px"
+          minHeight: "94px",
         }}
       >
         <div>
           <div className="vs-stat-label">Overlay Score</div>
-          <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: 800, color: "var(--vs-text)" }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "18px",
+              fontWeight: 800,
+              color: "var(--vs-text)",
+            }}
+          >
             {item.overlayScore}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Tier</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, color: "var(--vs-text)" }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "13px",
+              fontWeight: 700,
+              color: "var(--vs-text)",
+            }}
+          >
             {item.overlayTier}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Total Receipts</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)",
+            }}
+          >
             {formatMoneyShort(item.totalReceipts || 0)}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Total Cash</div>
-          <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+          <div
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--vs-text)",
+            }}
+          >
             {formatMoneyShort(item.totalCashOnHand || 0)}
           </div>
         </div>
@@ -336,7 +411,7 @@ function OfficeChip({ item, isActive, onSelect }) {
         cursor: "pointer",
         color: "var(--vs-text)",
         border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
-        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined
+        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -371,7 +446,7 @@ function MapTooltip({ tooltip, onSelectOffice }) {
         background: "rgba(10, 14, 22, 0.97)",
         border: "1px solid rgba(148, 163, 184, 0.18)",
         boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
-        color: "var(--vs-text)"
+        color: "var(--vs-text)",
       }}
     >
       <div style={{ fontSize: "14px", fontWeight: 800, lineHeight: 1.2 }}>
@@ -396,13 +471,11 @@ function MapTooltip({ tooltip, onSelectOffice }) {
               color: "var(--vs-text)",
               borderRadius: 12,
               padding: "10px 12px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ fontSize: "13px", fontWeight: 800 }}>
-                {item.office}
-              </div>
+              <div style={{ fontSize: "13px", fontWeight: 800 }}>{item.office}</div>
               <span
                 style={{
                   fontSize: "11px",
@@ -410,7 +483,7 @@ function MapTooltip({ tooltip, onSelectOffice }) {
                   padding: "3px 7px",
                   borderRadius: 999,
                   background: "rgba(255,255,255,0.08)",
-                  textTransform: "capitalize"
+                  textTransform: "capitalize",
                 }}
               >
                 {item.overlayTier}
@@ -441,9 +514,9 @@ export default function ElectionMap() {
     summary: {
       trackedStates: 0,
       overlays: 0,
-      last_synced_at: null
+      last_synced_at: null,
     },
-    battlegrounds: []
+    battlegrounds: [],
   });
   const [selectedOverlay, setSelectedOverlay] = useState(null);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -456,7 +529,7 @@ export default function ElectionMap() {
     visible: false,
     x: 0,
     y: 0,
-    stateGroup: null
+    stateGroup: null,
   });
 
   useEffect(() => {
@@ -474,9 +547,9 @@ export default function ElectionMap() {
           summary: {
             trackedStates: 0,
             overlays: 0,
-            last_synced_at: null
+            last_synced_at: null,
           },
-          battlegrounds: []
+          battlegrounds: [],
         };
 
         setMapData(payload);
@@ -493,9 +566,9 @@ export default function ElectionMap() {
           summary: {
             trackedStates: 0,
             overlays: 0,
-            last_synced_at: null
+            last_synced_at: null,
           },
-          battlegrounds: []
+          battlegrounds: [],
         });
       } finally {
         if (active) setLoading(false);
@@ -510,11 +583,15 @@ export default function ElectionMap() {
   }, []);
 
   const stateOptions = useMemo(() => {
-    return Array.from(new Set((mapData.battlegrounds || []).map((item) => item.state).filter(Boolean))).sort();
+    return Array.from(
+      new Set((mapData.battlegrounds || []).map((item) => item.state).filter(Boolean))
+    ).sort();
   }, [mapData.battlegrounds]);
 
   const officeOptions = useMemo(() => {
-    return Array.from(new Set((mapData.battlegrounds || []).map((item) => item.office).filter(Boolean))).sort();
+    return Array.from(
+      new Set((mapData.battlegrounds || []).map((item) => item.office).filter(Boolean))
+    ).sort();
   }, [mapData.battlegrounds]);
 
   const filteredOverlays = useMemo(() => {
@@ -563,7 +640,10 @@ export default function ElectionMap() {
       return;
     }
 
-    if (!selectedStateGroupKey || !overlaysByState.some((group) => group.state === selectedStateGroupKey)) {
+    if (
+      !selectedStateGroupKey ||
+      !overlaysByState.some((group) => group.state === selectedStateGroupKey)
+    ) {
       setSelectedStateGroupKey(overlaysByState[0]?.state || "");
     }
   }, [filteredOverlays, overlaysByState, selectedStateGroupKey]);
@@ -576,7 +656,9 @@ export default function ElectionMap() {
     }
 
     const stillExists = selectedStateGroup.overlays.some(
-      (item) => item.state === selectedOverlay?.state && item.office === selectedOverlay?.office
+      (item) =>
+        item.state === selectedOverlay?.state &&
+        item.office === selectedOverlay?.office
     );
 
     const nextOverlay = stillExists ? selectedOverlay : selectedStateGroup.overlays[0];
@@ -614,8 +696,8 @@ export default function ElectionMap() {
             candidate_id: selectedCandidate.candidate_id || "",
             state: selectedOverlay?.state || "",
             search: selectedCandidate.name || "",
-            limit: 10
-          }
+            limit: 10,
+          },
         });
 
         if (!active) return;
@@ -644,7 +726,7 @@ export default function ElectionMap() {
       visible: true,
       x: event.clientX,
       y: event.clientY,
-      stateGroup
+      stateGroup,
     });
   };
 
@@ -653,7 +735,7 @@ export default function ElectionMap() {
       visible: true,
       x: event.clientX,
       y: event.clientY,
-      stateGroup
+      stateGroup,
     });
   };
 
@@ -682,9 +764,21 @@ export default function ElectionMap() {
       title="Live fundraising overlays by state and office."
       description="Use finance intensity to see which states and offices are carrying the strongest live candidate signals."
       tickerItems={[
-        { label: "Tracked States", value: String(mapData.summary?.trackedStates || 0), dotClass: "vs-live-dot" },
-        { label: "Overlays", value: String(mapData.summary?.overlays || 0), dotClass: "vs-live-dot-warning" },
-        { label: "Last Sync", value: formatDateTime(mapData.summary?.last_synced_at), dotClass: "vs-live-dot-success" }
+        {
+          label: "Tracked States",
+          value: String(mapData.summary?.trackedStates || 0),
+          dotClass: "vs-live-dot",
+        },
+        {
+          label: "Overlays",
+          value: String(mapData.summary?.overlays || 0),
+          dotClass: "vs-live-dot-warning",
+        },
+        {
+          label: "Last Sync",
+          value: formatDateTime(mapData.summary?.last_synced_at),
+          dotClass: "vs-live-dot-success",
+        },
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
@@ -696,17 +790,29 @@ export default function ElectionMap() {
         subtitle="Filter by state and office to narrow the live overlay stack."
       >
         <div className="vs-grid-3">
-          <select className="vs-select" value={selectedState} onChange={(e) => setSelectedState(e.target.value)}>
+          <select
+            className="vs-select"
+            value={selectedState}
+            onChange={(e) => setSelectedState(e.target.value)}
+          >
             <option value="">All states</option>
             {stateOptions.map((value) => (
-              <option key={value} value={value}>{value}</option>
+              <option key={value} value={value}>
+                {value}
+              </option>
             ))}
           </select>
 
-          <select className="vs-select" value={selectedOffice} onChange={(e) => setSelectedOffice(e.target.value)}>
+          <select
+            className="vs-select"
+            value={selectedOffice}
+            onChange={(e) => setSelectedOffice(e.target.value)}
+          >
             <option value="">All offices</option>
             {officeOptions.map((value) => (
-              <option key={value} value={value}>{value}</option>
+              <option key={value} value={value}>
+                {value}
+              </option>
             ))}
           </select>
 
@@ -724,17 +830,42 @@ export default function ElectionMap() {
       </SectionCard>
 
       <div className="vs-grid-4">
-        <StatCard label="Tracked States" value={String(mapData.summary?.trackedStates || 0)} delta="States with live finance overlays" tone="up" />
-        <StatCard label="Overlay Count" value={String(filteredOverlays.length || 0)} delta="State-office combinations" tone="up" />
-        <StatCard label="Top Overlay" value={topOverlay ? topOverlay.state : "N/A"} delta={topOverlay ? topOverlay.office + " • " + topOverlay.overlayTier : "No overlays match"} tone="up" />
-        <StatCard label="Last Sync" value={formatDateTime(mapData.summary?.last_synced_at)} delta="Latest FEC finance ingestion" tone="up" />
+        <StatCard
+          label="Tracked States"
+          value={String(mapData.summary?.trackedStates || 0)}
+          delta="States with live finance overlays"
+          tone="up"
+        />
+        <StatCard
+          label="Overlay Count"
+          value={String(filteredOverlays.length || 0)}
+          delta="State-office combinations"
+          tone="up"
+        />
+        <StatCard
+          label="Top Overlay"
+          value={topOverlay ? topOverlay.state : "N/A"}
+          delta={
+            topOverlay
+              ? topOverlay.office + " • " + topOverlay.overlayTier
+              : "No overlays match"
+          }
+          tone="up"
+        />
+        <StatCard
+          label="Last Sync"
+          value={formatDateTime(mapData.summary?.last_synced_at)}
+          delta="Latest FEC finance ingestion"
+          tone="up"
+        />
       </div>
 
       <div
         style={{
           display: "grid",
           gap: "16px",
-          gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)"
+          gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)",
+          alignItems: "start",
         }}
       >
         <SectionCard
@@ -748,7 +879,11 @@ export default function ElectionMap() {
             ) : !overlaysByState.length ? (
               <EmptyState text="No live overlays match the selected filters." />
             ) : (
-              <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 1200 }} style={{ width: "100%", height: "auto" }}>
+              <ComposableMap
+                projection="geoAlbersUsa"
+                projectionConfig={{ scale: 1200 }}
+                style={{ width: "100%", height: "auto" }}
+              >
                 <Geographies geography={US_TOPO_JSON}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
@@ -778,21 +913,21 @@ export default function ElectionMap() {
                               stroke: "#374151",
                               strokeWidth: isActive ? 1.5 : 0.75,
                               outline: "none",
-                              cursor: stateGroup ? "pointer" : "default"
+                              cursor: stateGroup ? "pointer" : "default",
                             },
                             hover: {
                               fill: strongest ? getStateFill(strongest) : "#1f2937",
                               stroke: "#cbd5e1",
                               strokeWidth: 1.4,
                               outline: "none",
-                              cursor: stateGroup ? "pointer" : "default"
+                              cursor: stateGroup ? "pointer" : "default",
                             },
                             pressed: {
                               fill: strongest ? getStateFill(strongest) : "#1f2937",
                               stroke: "#cbd5e1",
                               strokeWidth: 1.2,
-                              outline: "none"
-                            }
+                              outline: "none",
+                            },
                           }}
                         />
                       );
@@ -828,7 +963,7 @@ export default function ElectionMap() {
                           fill: "#e5e7eb",
                           fontSize: 10,
                           fontWeight: 700,
-                          pointerEvents: "none"
+                          pointerEvents: "none",
                         }}
                       >
                         {STATE_NAME_TO_ABBR[group.state] || group.state}
@@ -880,13 +1015,19 @@ export default function ElectionMap() {
                     <StatCard
                       label="Top Receipts"
                       value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
-                      delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
+                      delta={
+                        "Strongest office: " +
+                        (selectedStateGroup.strongest?.office || "N/A")
+                      }
                       tone="up"
                     />
                     <StatCard
                       label="Top Tier"
                       value={selectedStateGroup.strongest?.overlayTier || "N/A"}
-                      delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
+                      delta={
+                        "Score " +
+                        (selectedStateGroup.strongest?.overlayScore || 0)
+                      }
                       tone="up"
                     />
                   </div>
