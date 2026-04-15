@@ -148,6 +148,19 @@ function normalizeDetailPayload(payload, selectedCandidate, fallbackProfile) {
   };
 }
 
+function getProfileFreshnessTone(updatedAt) {
+  if (!updatedAt) return "default";
+
+  const time = new Date(updatedAt).getTime();
+  if (Number.isNaN(time)) return "default";
+
+  const ageHours = (Date.now() - time) / (1000 * 60 * 60);
+
+  if (ageHours <= 24) return "active";
+  if (ageHours <= 168) return "warning";
+  return "default";
+}
+
 function DetailField({ label, value, href }) {
   return (
     <div
@@ -279,6 +292,7 @@ export default function Candidates() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [refreshingProfile, setRefreshingProfile] = useState(false);
+  const [refreshingAll, setRefreshingAll] = useState(false);
   const [listError, setListError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [data, setData] = useState(fallbackListData);
@@ -475,6 +489,48 @@ export default function Candidates() {
   const profile = selectedDetail?.profile || {};
   const selectedName = normalizeCandidateName(detailCandidate);
 
+  async function reloadListAndSelectedDetail() {
+    const params = new URLSearchParams();
+    params.set("q", filters.q || "");
+    params.set("state", filters.state || "");
+    params.set("office", filters.office || "");
+    params.set("party", filters.party || "");
+    params.set("page", "1");
+    params.set("limit", "24");
+
+    const response = await api.get(`/candidates?${params.toString()}`, {
+      timeout: 6000
+    });
+
+    const payload = response?.data || fallbackListData;
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const total = Number(payload.total || results.length || 0);
+
+    setData({
+      total,
+      results
+    });
+
+    if (selectedCandidateId) {
+      const detailResponse = await api.get(`/candidates/${selectedCandidateId}`, {
+        timeout: 6000
+      });
+
+      const selectedCandidate =
+        results.find((item) => String(item.id) === String(selectedCandidateId)) ||
+        detailCandidate ||
+        null;
+
+      const normalized = normalizeDetailPayload(
+        detailResponse?.data,
+        selectedCandidate,
+        fallbackDetail.profile
+      );
+
+      setSelectedDetail(normalized);
+    }
+  }
+
   async function handleRefreshProfile() {
     if (!selectedCandidateId) return;
 
@@ -485,7 +541,7 @@ export default function Candidates() {
       const response = await api.post(
         `/candidates/${selectedCandidateId}/refresh-profile`,
         {},
-        { timeout: 12000 }
+        { timeout: 30000 }
       );
 
       const payload = response?.data || {};
@@ -506,59 +562,24 @@ export default function Candidates() {
 
   async function handleRefreshAllProfiles() {
     try {
+      setRefreshingAll(true);
       setListError("");
 
       await api.post(
         "/candidates/refresh-profiles",
         { limit: 100 },
-        { timeout: 20000 }
+        { timeout: 90000 }
       );
 
-      const params = new URLSearchParams();
-      params.set("q", filters.q || "");
-      params.set("state", filters.state || "");
-      params.set("office", filters.office || "");
-      params.set("party", filters.party || "");
-      params.set("page", "1");
-      params.set("limit", "24");
-
-      const response = await api.get(`/candidates?${params.toString()}`, {
-        timeout: 6000
-      });
-
-      const payload = response?.data || fallbackListData;
-      const results = Array.isArray(payload.results) ? payload.results : [];
-      const total = Number(payload.total || results.length || 0);
-
-      setData({
-        total,
-        results
-      });
-
-      if (selectedCandidateId) {
-        const detailResponse = await api.get(`/candidates/${selectedCandidateId}`, {
-          timeout: 6000
-        });
-
-        const selectedCandidate =
-          results.find((item) => String(item.id) === String(selectedCandidateId)) ||
-          detailCandidate ||
-          null;
-
-        const normalized = normalizeDetailPayload(
-          detailResponse?.data,
-          selectedCandidate,
-          fallbackDetail.profile
-        );
-
-        setSelectedDetail(normalized);
-      }
+      await reloadListAndSelectedDetail();
     } catch (err) {
       setListError(
         err?.response?.data?.error ||
           err?.message ||
           "Failed to refresh live candidate feeds"
       );
+    } finally {
+      setRefreshingAll(false);
     }
   }
 
@@ -701,8 +722,9 @@ export default function Candidates() {
             type="button"
             className="vs-button"
             onClick={handleRefreshAllProfiles}
+            disabled={refreshingAll}
           >
-            Refresh Live Feed
+            {refreshingAll ? "Refreshing Live Feed..." : "Refresh Live Feed"}
           </button>
         </div>
       </SectionCard>
@@ -762,6 +784,9 @@ export default function Candidates() {
                   </Badge>
                   <Badge tone={detailCandidate.incumbent ? "active" : "default"}>
                     {detailCandidate.incumbent ? "Incumbent" : "Challenger"}
+                  </Badge>
+                  <Badge tone={getProfileFreshnessTone(profile.updated_at)}>
+                    {profile.updated_at ? "Live" : "Unenriched"}
                   </Badge>
                   <button
                     type="button"
@@ -861,7 +886,7 @@ export default function Candidates() {
 
                 <SectionCard
                   title="Campaign Team"
-                  subtitle="Enrichment-ready staff and leadership fields."
+                  subtitle="Live-enriched staff and leadership fields."
                 >
                   <div className="vs-grid-2">
                     <DetailField
@@ -893,7 +918,7 @@ export default function Candidates() {
 
                 <SectionCard
                   title="Profile Metadata"
-                  subtitle="Source and freshness of enrichment records."
+                  subtitle="Source and freshness of live enrichment records."
                 >
                   <div className="vs-grid-2">
                     <DetailField
