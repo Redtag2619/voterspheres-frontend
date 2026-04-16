@@ -251,8 +251,8 @@ function EditField({ label, type = "text", value, onChange, placeholder }) {
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder || ""}
-          rows={3}
-          style={{ resize: "vertical", minHeight: "76px" }}
+          rows={4}
+          style={{ resize: "vertical", minHeight: "88px" }}
         />
       ) : (
         <input
@@ -314,7 +314,7 @@ function LockToggle({ label, checked, onChange, disabled }) {
   );
 }
 
-function CandidateListRow({ candidate, isActive, onSelect, targetMatch }) {
+function CandidateListRow({ candidate, isActive, onSelect, targetMatch, verified }) {
   const name = normalizeCandidateName(candidate);
 
   return (
@@ -342,18 +342,6 @@ function CandidateListRow({ candidate, isActive, onSelect, targetMatch }) {
         position: "relative"
       }}
     >
-      {targetMatch ? (
-        <div
-          style={{
-            position: "absolute",
-            top: "10px",
-            right: "10px"
-          }}
-        >
-          <Badge tone="warning">Battleground Match</Badge>
-        </div>
-      ) : null}
-
       <div
         style={{
           display: "flex",
@@ -386,6 +374,7 @@ function CandidateListRow({ candidate, isActive, onSelect, targetMatch }) {
         </div>
 
         <div className="vs-chip-row">
+          {verified ? <Badge tone="active">Verified</Badge> : null}
           <Badge tone={getPartyTone(candidate.party)}>
             {candidate.party || "Unknown"}
           </Badge>
@@ -435,6 +424,7 @@ export default function Candidates() {
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [savingLocks, setSavingLocks] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingVerification, setSavingVerification] = useState(false);
   const [editingOverview, setEditingOverview] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
   const [lockEditedFieldsOnSave, setLockEditedFieldsOnSave] = useState(true);
@@ -442,6 +432,7 @@ export default function Candidates() {
   const [detailError, setDetailError] = useState("");
   const [lockMessage, setLockMessage] = useState("");
   const [profileMessage, setProfileMessage] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
   const [data, setData] = useState(fallbackListData);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(fallbackDetail);
@@ -454,6 +445,11 @@ export default function Candidates() {
     locked_fields: {}
   });
   const [editDraft, setEditDraft] = useState({});
+  const [verificationDraft, setVerificationDraft] = useState({
+    is_verified: false,
+    verified_by: "",
+    internal_notes: ""
+  });
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -577,6 +573,7 @@ export default function Candidates() {
         setDetailError("");
         setLockMessage("");
         setProfileMessage("");
+        setVerificationMessage("");
         setEditingOverview(false);
         setEditingContact(false);
 
@@ -612,6 +609,12 @@ export default function Candidates() {
           press_contact_name: profile?.press_contact_name || "",
           press_contact_email: profile?.press_contact_email || ""
         });
+
+        setVerificationDraft({
+          is_verified: Boolean(profile?.is_verified),
+          verified_by: profile?.verified_by || "",
+          internal_notes: profile?.internal_notes || ""
+        });
       } catch (err) {
         if (!active) return;
 
@@ -636,6 +639,11 @@ export default function Candidates() {
         });
 
         setEditDraft({});
+        setVerificationDraft({
+          is_verified: false,
+          verified_by: "",
+          internal_notes: ""
+        });
       } finally {
         if (active) setLoadingDetail(false);
       }
@@ -727,6 +735,12 @@ export default function Candidates() {
         press_contact_name: updatedProfile?.press_contact_name || "",
         press_contact_email: updatedProfile?.press_contact_email || ""
       });
+
+      setVerificationDraft({
+        is_verified: Boolean(updatedProfile?.is_verified),
+        verified_by: updatedProfile?.verified_by || "",
+        internal_notes: updatedProfile?.internal_notes || ""
+      });
     }
   }
 
@@ -738,6 +752,7 @@ export default function Candidates() {
       setDetailError("");
       setLockMessage("");
       setProfileMessage("");
+      setVerificationMessage("");
 
       const response = await api.post(
         `/candidates/${selectedCandidateId}/refresh-profile`,
@@ -770,6 +785,12 @@ export default function Candidates() {
         campaign_address: nextProfile?.campaign_address || "",
         press_contact_name: nextProfile?.press_contact_name || "",
         press_contact_email: nextProfile?.press_contact_email || ""
+      });
+
+      setVerificationDraft({
+        is_verified: Boolean(nextProfile?.is_verified),
+        verified_by: nextProfile?.verified_by || "",
+        internal_notes: nextProfile?.internal_notes || ""
       });
 
       setEditingOverview(false);
@@ -932,6 +953,13 @@ export default function Candidates() {
         press_contact_email: nextProfile?.press_contact_email || ""
       }));
 
+      setVerificationDraft((prev) => ({
+        ...prev,
+        is_verified: Boolean(nextProfile?.is_verified),
+        verified_by: nextProfile?.verified_by || prev.verified_by || "",
+        internal_notes: nextProfile?.internal_notes || prev.internal_notes || ""
+      }));
+
       setProfileMessage(
         lockEditedFieldsOnSave
           ? "Profile changes saved and edited fields locked."
@@ -947,6 +975,54 @@ export default function Candidates() {
       );
     } finally {
       setSavingProfile(false);
+    }
+  }
+
+  async function handleSaveVerification() {
+    if (!selectedCandidateId) return;
+
+    try {
+      setSavingVerification(true);
+      setDetailError("");
+      setVerificationMessage("");
+
+      const response = await api.patch(
+        `/candidates/${selectedCandidateId}/verification`,
+        {
+          is_verified: verificationDraft.is_verified,
+          verified_by: verificationDraft.verified_by,
+          internal_notes: verificationDraft.internal_notes
+        },
+        { timeout: 15000 }
+      );
+
+      const payload = response?.data || {};
+      const nextProfile = payload.profile || null;
+
+      setSelectedDetail({
+        candidate: payload.candidate || detailCandidate || null,
+        profile: nextProfile
+      });
+
+      setVerificationDraft({
+        is_verified: Boolean(nextProfile?.is_verified),
+        verified_by: nextProfile?.verified_by || "",
+        internal_notes: nextProfile?.internal_notes || ""
+      });
+
+      setVerificationMessage(
+        nextProfile?.is_verified
+          ? "Verification and analyst notes saved."
+          : "Verification removed and notes saved."
+      );
+    } catch (err) {
+      setDetailError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to save verification"
+      );
+    } finally {
+      setSavingVerification(false);
     }
   }
 
@@ -1105,21 +1181,29 @@ export default function Candidates() {
             ) : !candidates.length ? (
               <EmptyState text="No candidates found for the current filters." />
             ) : (
-              candidates.map((candidate) => (
-                <CandidateListRow
-                  key={candidate.id || normalizeCandidateName(candidate)}
-                  candidate={candidate}
-                  isActive={String(selectedCandidateId) === String(candidate.id)}
-                  targetMatch={
-                    targetCandidateName
-                      ? normalizeCandidateName(candidate)
-                          .toLowerCase()
-                          .includes(targetCandidateName.toLowerCase())
-                      : false
-                  }
-                  onSelect={(item) => setSelectedCandidateId(item.id)}
-                />
-              ))
+              candidates.map((candidate) => {
+                const rowVerified =
+                  String(candidate.id) === String(selectedCandidateId)
+                    ? Boolean(profile?.is_verified)
+                    : false;
+
+                return (
+                  <CandidateListRow
+                    key={candidate.id || normalizeCandidateName(candidate)}
+                    candidate={candidate}
+                    verified={rowVerified}
+                    isActive={String(selectedCandidateId) === String(candidate.id)}
+                    targetMatch={
+                      targetCandidateName
+                        ? normalizeCandidateName(candidate)
+                            .toLowerCase()
+                            .includes(targetCandidateName.toLowerCase())
+                        : false
+                    }
+                    onSelect={(item) => setSelectedCandidateId(item.id)}
+                  />
+                );
+              })
             )}
           </div>
         </SectionCard>
@@ -1138,6 +1222,7 @@ export default function Candidates() {
                   className="vs-chip-row"
                   style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}
                 >
+                  {profile?.is_verified ? <Badge tone="active">Verified Intelligence</Badge> : null}
                   <Badge tone={getPartyTone(detailCandidate.party)}>
                     {detailCandidate.party || "Unknown"}
                   </Badge>
@@ -1214,6 +1299,19 @@ export default function Candidates() {
                     }}
                   >
                     {profileMessage}
+                  </div>
+                ) : null}
+
+                {verificationMessage ? (
+                  <div
+                    className="vs-banner"
+                    style={{
+                      borderColor: "#86efac",
+                      background: "#f0fdf4",
+                      color: "#166534"
+                    }}
+                  >
+                    {verificationMessage}
                   </div>
                 ) : null}
 
@@ -1409,6 +1507,96 @@ export default function Candidates() {
                   ) : null}
                 </SectionCard>
 
+                <SectionCard
+                  title="Verified Intelligence"
+                  subtitle="Mark records as analyst-reviewed and capture internal notes."
+                  right={
+                    <button
+                      type="button"
+                      className="vs-button"
+                      onClick={handleSaveVerification}
+                      disabled={savingVerification}
+                    >
+                      {savingVerification ? "Saving..." : "Save Verification"}
+                    </button>
+                  }
+                >
+                  <div className="vs-grid-2">
+                    <div
+                      className="vs-card-muted"
+                      style={{
+                        padding: "12px 14px",
+                        display: "grid",
+                        gap: "8px",
+                        minHeight: "84px"
+                      }}
+                    >
+                      <div className="vs-stat-label">Verification Status</div>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          color: "var(--vs-text)",
+                          fontWeight: 700
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(verificationDraft.is_verified)}
+                          onChange={(e) =>
+                            setVerificationDraft((prev) => ({
+                              ...prev,
+                              is_verified: e.target.checked
+                            }))
+                          }
+                        />
+                        Mark as verified intelligence
+                      </label>
+                    </div>
+
+                    <EditField
+                      label="Verified By"
+                      type="text"
+                      value={verificationDraft.verified_by || ""}
+                      onChange={(value) =>
+                        setVerificationDraft((prev) => ({ ...prev, verified_by: value }))
+                      }
+                      placeholder="Analyst name"
+                    />
+
+                    <EditField
+                      label="Internal Notes"
+                      type="textarea"
+                      value={verificationDraft.internal_notes || ""}
+                      onChange={(value) =>
+                        setVerificationDraft((prev) => ({ ...prev, internal_notes: value }))
+                      }
+                      placeholder="Analyst notes, validation context, source quality, follow-up items..."
+                    />
+
+                    <div
+                      className="vs-card-muted"
+                      style={{
+                        padding: "12px 14px",
+                        display: "grid",
+                        gap: "8px",
+                        minHeight: "84px"
+                      }}
+                    >
+                      <div className="vs-stat-label">Verification Metadata</div>
+                      <div style={{ color: "var(--vs-text)", fontWeight: 700 }}>
+                        {profile?.is_verified ? "Verified" : "Not verified"}
+                      </div>
+                      <div style={{ color: "var(--vs-text-muted)", fontSize: "12px" }}>
+                        {profile?.verified_at
+                          ? `Last verified ${formatDateTime(profile.verified_at)}`
+                          : "No verification timestamp yet"}
+                      </div>
+                    </div>
+                  </div>
+                </SectionCard>
+
                 <SectionCard title="Campaign Team" subtitle="Enriched staff and leadership signals.">
                   <div className="vs-grid-2">
                     <DetailField label="Chief of Staff" value={profile?.chief_of_staff_name || "N/A"} />
@@ -1475,6 +1663,14 @@ export default function Candidates() {
                     <DetailField
                       label="Scraped Pages"
                       value={String(scrapedPageCount || 0)}
+                    />
+                    <DetailField
+                      label="Verified By"
+                      value={profile?.verified_by || "N/A"}
+                    />
+                    <DetailField
+                      label="Verified At"
+                      value={formatDateTime(profile?.verified_at)}
                     />
                     <DetailField
                       label="Locked Fields"
