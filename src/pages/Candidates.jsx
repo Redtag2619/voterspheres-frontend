@@ -31,6 +31,20 @@ const LOCKABLE_FIELDS = [
   { key: "political_director_name", label: "Political Director" }
 ];
 
+const OVERVIEW_FIELDS = [
+  { key: "campaign_website", label: "Campaign Website", type: "url" },
+  { key: "official_website", label: "Official Website", type: "url" },
+  { key: "phone", label: "Phone", type: "text" },
+  { key: "email", label: "Email", type: "email" }
+];
+
+const CONTACT_FIELDS = [
+  { key: "office_address", label: "Office Address", type: "textarea" },
+  { key: "campaign_address", label: "Campaign Address", type: "textarea" },
+  { key: "press_contact_name", label: "Press Contact", type: "text" },
+  { key: "press_contact_email", label: "Press Contact Email", type: "email" }
+];
+
 function normalizeCandidateName(candidate) {
   return (
     candidate?.full_name ||
@@ -194,6 +208,41 @@ function DetailField({ label, value, href, monospace = false }) {
   );
 }
 
+function EditField({ label, type = "text", value, onChange, placeholder }) {
+  return (
+    <div
+      className="vs-card-muted"
+      style={{
+        padding: "12px 14px",
+        display: "grid",
+        gap: "6px",
+        minHeight: "84px",
+        alignContent: "start"
+      }}
+    >
+      <div className="vs-stat-label">{label}</div>
+      {type === "textarea" ? (
+        <textarea
+          className="vs-input"
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder || ""}
+          rows={3}
+          style={{ resize: "vertical", minHeight: "76px" }}
+        />
+      ) : (
+        <input
+          className="vs-input"
+          type={type}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder || ""}
+        />
+      )}
+    </div>
+  );
+}
+
 function MetricChip({ label, active }) {
   return (
     <div
@@ -327,9 +376,14 @@ export default function Candidates() {
   const [refreshingProfile, setRefreshingProfile] = useState(false);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [savingLocks, setSavingLocks] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editingOverview, setEditingOverview] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [lockEditedFieldsOnSave, setLockEditedFieldsOnSave] = useState(true);
   const [listError, setListError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [lockMessage, setLockMessage] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
   const [data, setData] = useState(fallbackListData);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(fallbackDetail);
@@ -346,6 +400,7 @@ export default function Candidates() {
     admin_locked: false,
     locked_fields: {}
   });
+  const [editDraft, setEditDraft] = useState({});
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -448,6 +503,9 @@ export default function Candidates() {
         setLoadingDetail(true);
         setDetailError("");
         setLockMessage("");
+        setProfileMessage("");
+        setEditingOverview(false);
+        setEditingContact(false);
 
         const response = await api.get(`/candidates/${selectedCandidateId}`, {
           timeout: 10000
@@ -469,6 +527,17 @@ export default function Candidates() {
             profile.locked_fields && typeof profile.locked_fields === "object"
               ? profile.locked_fields
               : {}
+        });
+
+        setEditDraft({
+          campaign_website: profile?.campaign_website || selectedCandidate?.website || "",
+          official_website: profile?.official_website || "",
+          phone: profile?.phone || "",
+          email: profile?.email || "",
+          office_address: profile?.office_address || "",
+          campaign_address: profile?.campaign_address || "",
+          press_contact_name: profile?.press_contact_name || "",
+          press_contact_email: profile?.press_contact_email || ""
         });
       } catch (err) {
         if (!active) return;
@@ -492,6 +561,8 @@ export default function Candidates() {
           admin_locked: false,
           locked_fields: {}
         });
+
+        setEditDraft({});
       } finally {
         if (active) setLoadingDetail(false);
       }
@@ -571,6 +642,17 @@ export default function Candidates() {
             ? updatedProfile.locked_fields
             : {}
       });
+
+      setEditDraft({
+        campaign_website: updatedProfile?.campaign_website || selectedCandidate?.website || "",
+        official_website: updatedProfile?.official_website || "",
+        phone: updatedProfile?.phone || "",
+        email: updatedProfile?.email || "",
+        office_address: updatedProfile?.office_address || "",
+        campaign_address: updatedProfile?.campaign_address || "",
+        press_contact_name: updatedProfile?.press_contact_name || "",
+        press_contact_email: updatedProfile?.press_contact_email || ""
+      });
     }
   }
 
@@ -581,6 +663,7 @@ export default function Candidates() {
       setRefreshingProfile(true);
       setDetailError("");
       setLockMessage("");
+      setProfileMessage("");
 
       const response = await api.post(
         `/candidates/${selectedCandidateId}/refresh-profile`,
@@ -604,7 +687,20 @@ export default function Candidates() {
             : {}
       });
 
-      setLockMessage("Profile refreshed.");
+      setEditDraft({
+        campaign_website: nextProfile?.campaign_website || payload?.candidate?.website || "",
+        official_website: nextProfile?.official_website || "",
+        phone: nextProfile?.phone || "",
+        email: nextProfile?.email || "",
+        office_address: nextProfile?.office_address || "",
+        campaign_address: nextProfile?.campaign_address || "",
+        press_contact_name: nextProfile?.press_contact_name || "",
+        press_contact_email: nextProfile?.press_contact_email || ""
+      });
+
+      setEditingOverview(false);
+      setEditingContact(false);
+      setProfileMessage("Profile refreshed.");
     } catch (err) {
       setDetailError(
         err?.response?.data?.error ||
@@ -689,6 +785,92 @@ export default function Candidates() {
       );
     } finally {
       setSavingLocks(false);
+    }
+  }
+
+  function resetOverviewDraft() {
+    setEditDraft((prev) => ({
+      ...prev,
+      campaign_website: profile?.campaign_website || detailCandidate?.website || "",
+      official_website: profile?.official_website || "",
+      phone: profile?.phone || "",
+      email: profile?.email || ""
+    }));
+  }
+
+  function resetContactDraft() {
+    setEditDraft((prev) => ({
+      ...prev,
+      office_address: profile?.office_address || "",
+      campaign_address: profile?.campaign_address || "",
+      press_contact_name: profile?.press_contact_name || "",
+      press_contact_email: profile?.press_contact_email || ""
+    }));
+  }
+
+  async function handleSaveProfile(fields) {
+    if (!selectedCandidateId) return;
+
+    try {
+      setSavingProfile(true);
+      setDetailError("");
+      setProfileMessage("");
+
+      const body = {
+        lock_edited_fields: lockEditedFieldsOnSave
+      };
+
+      fields.forEach((field) => {
+        body[field] = editDraft[field] ?? "";
+      });
+
+      const response = await api.patch(
+        `/candidates/${selectedCandidateId}/profile`,
+        body,
+        { timeout: 15000 }
+      );
+
+      const payload = response?.data || {};
+      const nextProfile = payload.profile || null;
+
+      setSelectedDetail({
+        candidate: payload.candidate || detailCandidate || null,
+        profile: nextProfile
+      });
+
+      setLockDraft({
+        admin_locked: Boolean(nextProfile?.admin_locked),
+        locked_fields:
+          nextProfile?.locked_fields && typeof nextProfile.locked_fields === "object"
+            ? nextProfile.locked_fields
+            : {}
+      });
+
+      setEditDraft((prev) => ({
+        ...prev,
+        campaign_website: nextProfile?.campaign_website || payload?.candidate?.website || "",
+        official_website: nextProfile?.official_website || "",
+        phone: nextProfile?.phone || "",
+        email: nextProfile?.email || "",
+        office_address: nextProfile?.office_address || "",
+        campaign_address: nextProfile?.campaign_address || "",
+        press_contact_name: nextProfile?.press_contact_name || "",
+        press_contact_email: nextProfile?.press_contact_email || ""
+      }));
+
+      setProfileMessage(
+        lockEditedFieldsOnSave
+          ? "Profile changes saved and edited fields locked."
+          : "Profile changes saved."
+      );
+    } catch (err) {
+      setDetailError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to save profile changes"
+      );
+    } finally {
+      setSavingProfile(false);
     }
   }
 
@@ -893,6 +1075,19 @@ export default function Candidates() {
                   </div>
                 ) : null}
 
+                {profileMessage ? (
+                  <div
+                    className="vs-banner"
+                    style={{
+                      borderColor: "#bfdbfe",
+                      background: "#eff6ff",
+                      color: "#1d4ed8"
+                    }}
+                  >
+                    {profileMessage}
+                  </div>
+                ) : null}
+
                 <div className="vs-grid-4">
                   <StatCard label="State" value={detailCandidate.state || "N/A"} subtext="Candidate state" />
                   <StatCard label="Office" value={detailCandidate.office || "N/A"} subtext="Office sought" />
@@ -919,30 +1114,170 @@ export default function Candidates() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Overview" subtitle="Core candidate and campaign profile fields.">
+                <SectionCard
+                  title="Overview"
+                  subtitle="Core candidate and campaign profile fields."
+                  right={
+                    editingOverview ? (
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="vs-button vs-button-secondary"
+                          onClick={() => {
+                            resetOverviewDraft();
+                            setEditingOverview(false);
+                          }}
+                          disabled={savingProfile}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="vs-button"
+                          onClick={() => handleSaveProfile(OVERVIEW_FIELDS.map((f) => f.key))}
+                          disabled={savingProfile}
+                        >
+                          {savingProfile ? "Saving..." : "Save Overview"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="vs-button vs-button-secondary"
+                        onClick={() => setEditingOverview(true)}
+                      >
+                        Edit Overview
+                      </button>
+                    )
+                  }
+                >
                   <div className="vs-grid-2">
-                    <DetailField
-                      label="Campaign Website"
-                      value={profile?.campaign_website || detailCandidate.website || "N/A"}
-                      href={safeUrl(profile?.campaign_website || detailCandidate.website || "")}
-                    />
-                    <DetailField
-                      label="Official Website"
-                      value={profile?.official_website || "N/A"}
-                      href={safeUrl(profile?.official_website || "")}
-                    />
-                    <DetailField label="Phone" value={profile?.phone || "N/A"} />
-                    <DetailField label="Email" value={profile?.email || "N/A"} />
+                    {editingOverview
+                      ? OVERVIEW_FIELDS.map((field) => (
+                          <EditField
+                            key={field.key}
+                            label={field.label}
+                            type={field.type}
+                            value={editDraft[field.key] || ""}
+                            onChange={(value) =>
+                              setEditDraft((prev) => ({ ...prev, [field.key]: value }))
+                            }
+                          />
+                        ))
+                      : (
+                        <>
+                          <DetailField
+                            label="Campaign Website"
+                            value={profile?.campaign_website || detailCandidate.website || "N/A"}
+                            href={safeUrl(profile?.campaign_website || detailCandidate.website || "")}
+                          />
+                          <DetailField
+                            label="Official Website"
+                            value={profile?.official_website || "N/A"}
+                            href={safeUrl(profile?.official_website || "")}
+                          />
+                          <DetailField label="Phone" value={profile?.phone || "N/A"} />
+                          <DetailField label="Email" value={profile?.email || "N/A"} />
+                        </>
+                      )}
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Contact" subtitle="Campaign and office contact details.">
+                <SectionCard
+                  title="Contact"
+                  subtitle="Campaign and office contact details."
+                  right={
+                    editingContact ? (
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="vs-button vs-button-secondary"
+                          onClick={() => {
+                            resetContactDraft();
+                            setEditingContact(false);
+                          }}
+                          disabled={savingProfile}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="vs-button"
+                          onClick={() => handleSaveProfile(CONTACT_FIELDS.map((f) => f.key))}
+                          disabled={savingProfile}
+                        >
+                          {savingProfile ? "Saving..." : "Save Contact"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="vs-button vs-button-secondary"
+                        onClick={() => setEditingContact(true)}
+                      >
+                        Edit Contact
+                      </button>
+                    )
+                  }
+                >
                   <div className="vs-grid-2">
-                    <DetailField label="Office Address" value={profile?.office_address || "N/A"} />
-                    <DetailField label="Campaign Address" value={profile?.campaign_address || "N/A"} />
-                    <DetailField label="Press Contact" value={profile?.press_contact_name || "N/A"} />
-                    <DetailField label="Press Contact Email" value={profile?.press_contact_email || "N/A"} />
+                    {editingContact
+                      ? CONTACT_FIELDS.map((field) => (
+                          <EditField
+                            key={field.key}
+                            label={field.label}
+                            type={field.type}
+                            value={editDraft[field.key] || ""}
+                            onChange={(value) =>
+                              setEditDraft((prev) => ({ ...prev, [field.key]: value }))
+                            }
+                          />
+                        ))
+                      : (
+                        <>
+                          <DetailField label="Office Address" value={profile?.office_address || "N/A"} />
+                          <DetailField label="Campaign Address" value={profile?.campaign_address || "N/A"} />
+                          <DetailField label="Press Contact" value={profile?.press_contact_name || "N/A"} />
+                          <DetailField label="Press Contact Email" value={profile?.press_contact_email || "N/A"} />
+                        </>
+                      )}
                   </div>
+
+                  {(editingOverview || editingContact) ? (
+                    <div
+                      className="vs-card-muted"
+                      style={{
+                        marginTop: "12px",
+                        padding: "12px 14px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        alignItems: "center",
+                        flexWrap: "wrap"
+                      }}
+                    >
+                      <div style={{ color: "var(--vs-text-muted)", fontSize: "12px" }}>
+                        Save edits as manual profile values. Optionally protect edited fields from refresh overwrites.
+                      </div>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          color: "var(--vs-text)",
+                          fontWeight: 600,
+                          fontSize: "13px"
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={lockEditedFieldsOnSave}
+                          onChange={(e) => setLockEditedFieldsOnSave(e.target.checked)}
+                        />
+                        Lock edited fields on save
+                      </label>
+                    </div>
+                  ) : null}
                 </SectionCard>
 
                 <SectionCard title="Campaign Team" subtitle="Live-enriched staff and leadership fields.">
