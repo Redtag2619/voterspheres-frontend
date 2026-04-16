@@ -24,7 +24,7 @@ const LOCKABLE_FIELDS = [
   { key: "phone", label: "Phone" },
   { key: "email", label: "Email" },
   { key: "press_contact_name", label: "Press Contact" },
-  { key: "press_contact_email", label: "Press Contact Email" },
+  { key: "press_contact_email", label: "Press Email" },
   { key: "chief_of_staff_name", label: "Chief of Staff" },
   { key: "campaign_manager_name", label: "Campaign Manager" },
   { key: "finance_director_name", label: "Finance Director" },
@@ -53,9 +53,35 @@ function getStatusTone(status) {
   return "default";
 }
 
+function getFreshnessTone(updatedAt) {
+  if (!updatedAt) return "default";
+  const time = new Date(updatedAt).getTime();
+  if (Number.isNaN(time)) return "default";
+
+  const ageHours = (Date.now() - time) / (1000 * 60 * 60);
+  if (ageHours <= 24) return "active";
+  if (ageHours <= 168) return "warning";
+  return "default";
+}
+
+function getConfidenceTone(value) {
+  const score = Number(value || 0);
+  if (score >= 0.7) return "active";
+  if (score >= 0.35) return "warning";
+  return "default";
+}
+
+function formatConfidence(value) {
+  const score = Number(value);
+  if (Number.isNaN(score)) return "N/A";
+  return `${Math.round(score * 100)}%`;
+}
+
 function safeUrl(value) {
   if (!value) return "";
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (String(value).startsWith("http://") || String(value).startsWith("https://")) {
+    return value;
+  }
   return `https://${value}`;
 }
 
@@ -87,29 +113,54 @@ function normalizeDetailPayload(payload, selectedCandidate) {
   };
 }
 
-function getProfileFreshnessTone(updatedAt) {
-  if (!updatedAt) return "default";
-  const time = new Date(updatedAt).getTime();
-  if (Number.isNaN(time)) return "default";
+function getProfileHealth(profile = {}, candidate = null) {
+  const hasCampaignWebsite = Boolean(profile?.campaign_website || candidate?.website);
+  const hasOfficialWebsite = Boolean(profile?.official_website);
+  const hasEmail = Boolean(profile?.email);
+  const hasPressEmail = Boolean(profile?.press_contact_email);
+  const hasPhone = Boolean(profile?.phone);
+  const hasAddress = Boolean(profile?.office_address || profile?.campaign_address);
+  const hasStaff = Boolean(
+    profile?.chief_of_staff_name ||
+      profile?.campaign_manager_name ||
+      profile?.finance_director_name ||
+      profile?.political_director_name ||
+      profile?.press_contact_name
+  );
 
-  const ageHours = (Date.now() - time) / (1000 * 60 * 60);
-  if (ageHours <= 24) return "active";
-  if (ageHours <= 168) return "warning";
-  return "default";
+  const completed = [
+    hasCampaignWebsite || hasOfficialWebsite,
+    hasEmail,
+    hasPressEmail,
+    hasPhone,
+    hasAddress,
+    hasStaff
+  ].filter(Boolean).length;
+
+  return {
+    hasCampaignWebsite,
+    hasOfficialWebsite,
+    hasEmail,
+    hasPressEmail,
+    hasPhone,
+    hasAddress,
+    hasStaff,
+    completed,
+    total: 6
+  };
 }
 
-function getConfidenceTone(value) {
-  const score = Number(value || 0);
-  if (score >= 0.6) return "active";
-  if (score >= 0.25) return "warning";
-  return "default";
-}
-
-function DetailField({ label, value, href }) {
+function DetailField({ label, value, href, monospace = false }) {
   return (
     <div
       className="vs-card-muted"
-      style={{ padding: "12px 14px", display: "grid", gap: "6px" }}
+      style={{
+        padding: "12px 14px",
+        display: "grid",
+        gap: "6px",
+        minHeight: "84px",
+        alignContent: "start"
+      }}
     >
       <div className="vs-stat-label">{label}</div>
       {href ? (
@@ -121,7 +172,8 @@ function DetailField({ label, value, href }) {
             color: "var(--vs-text)",
             fontWeight: 700,
             textDecoration: "none",
-            wordBreak: "break-word"
+            wordBreak: "break-word",
+            fontFamily: monospace ? "ui-monospace, SFMono-Regular, Menlo, monospace" : undefined
           }}
         >
           {value || "N/A"}
@@ -131,12 +183,33 @@ function DetailField({ label, value, href }) {
           style={{
             color: "var(--vs-text)",
             fontWeight: 700,
-            wordBreak: "break-word"
+            wordBreak: "break-word",
+            fontFamily: monospace ? "ui-monospace, SFMono-Regular, Menlo, monospace" : undefined
           }}
         >
           {value || "N/A"}
         </div>
       )}
+    </div>
+  );
+}
+
+function MetricChip({ label, active }) {
+  return (
+    <div
+      className="vs-card-muted"
+      style={{
+        padding: "10px 12px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "10px"
+      }}
+    >
+      <span style={{ color: "var(--vs-text)", fontWeight: 600, fontSize: "12px" }}>
+        {label}
+      </span>
+      <Badge tone={active ? "active" : "default"}>{active ? "Ready" : "Missing"}</Badge>
     </div>
   );
 }
@@ -150,10 +223,13 @@ function LockToggle({ label, checked, onChange, disabled }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: "12px"
+        gap: "12px",
+        minHeight: "56px"
       }}
     >
-      <span style={{ color: "var(--vs-text)", fontWeight: 600 }}>{label}</span>
+      <span style={{ color: "var(--vs-text)", fontWeight: 600, fontSize: "13px" }}>
+        {label}
+      </span>
       <input
         type="checkbox"
         checked={checked}
@@ -175,10 +251,10 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
       className="vs-card"
       style={{
         width: "100%",
-        padding: "14px 16px",
+        padding: "16px",
         textAlign: "left",
         display: "grid",
-        gap: "10px",
+        gap: "12px",
         border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
         boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
         cursor: "pointer"
@@ -193,8 +269,15 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
           flexWrap: "wrap"
         }}
       >
-        <div>
-          <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--vs-text)" }}>
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: "15px",
+              fontWeight: 800,
+              color: "var(--vs-text)",
+              lineHeight: 1.3
+            }}
+          >
             {name}
           </div>
           <div
@@ -230,7 +313,6 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
         <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
           {candidate.election_name || "Election not specified"}
         </div>
-
         <Badge tone={getStatusTone(candidate.status)}>
           {candidate.status || "active"}
         </Badge>
@@ -447,6 +529,7 @@ export default function Candidates() {
   const scrapedPageCount = Array.isArray(profile?.scraped_pages)
     ? profile.scraped_pages.length
     : 0;
+  const health = getProfileHealth(profile, detailCandidate);
 
   async function reloadListAndDetail() {
     const params = new URLSearchParams();
@@ -613,7 +696,7 @@ export default function Candidates() {
     <PageShell
       eyebrow="Candidate Directory"
       title="Track candidates with live profiles and campaign enrichment."
-      description="Search live candidate records and inspect campaign contact, office contact, and key staff details."
+      description="Search live candidate records and manage campaign contact intelligence, discovery confidence, and protected fields."
       demo={demoMode}
       demoText="Demo candidate data is active."
     >
@@ -632,8 +715,8 @@ export default function Candidates() {
 
       <div className="vs-grid-4">
         <StatCard label="Visible Candidates" value={summary.total_candidates || 0} subtext="Current filtered records" />
-        <StatCard label="Democratic" value={summary.democratic_candidates || 0} subtext="Democratic candidates" />
-        <StatCard label="Republican" value={summary.republican_candidates || 0} subtext="Republican candidates" />
+        <StatCard label="Democratic" value={summary.democratic_candidates || 0} subtext="Directory count" />
+        <StatCard label="Republican" value={summary.republican_candidates || 0} subtext="Directory count" />
         <StatCard label="Other" value={summary.other_candidates || 0} subtext="Independent and other parties" />
       </div>
 
@@ -757,12 +840,12 @@ export default function Candidates() {
                   <Badge tone={detailCandidate.incumbent ? "active" : "default"}>
                     {detailCandidate.incumbent ? "Incumbent" : "Challenger"}
                   </Badge>
-                  <Badge tone={getProfileFreshnessTone(profile?.updated_at)}>
+                  <Badge tone={getFreshnessTone(profile?.updated_at)}>
                     {profile?.updated_at ? "Live" : "Unenriched"}
                   </Badge>
                   <Badge tone={getConfidenceTone(profile?.contact_confidence)}>
                     {typeof profile?.contact_confidence === "number"
-                      ? `Confidence ${profile.contact_confidence}`
+                      ? `Confidence ${formatConfidence(profile.contact_confidence)}`
                       : "Confidence N/A"}
                   </Badge>
                   {profile?.admin_locked ? <Badge tone="warning">Admin Locked</Badge> : null}
@@ -817,6 +900,25 @@ export default function Candidates() {
                   <StatCard label="Election" value={detailCandidate.election_name || "N/A"} subtext="Election record" />
                 </div>
 
+                <SectionCard
+                  title="Profile Health"
+                  subtitle="Quick readiness check for premium contact intelligence."
+                  right={
+                    <Badge tone={health.completed >= 4 ? "active" : "warning"}>
+                      {health.completed}/{health.total} signals
+                    </Badge>
+                  }
+                >
+                  <div className="vs-grid-3">
+                    <MetricChip label="Website" active={health.hasCampaignWebsite || health.hasOfficialWebsite} />
+                    <MetricChip label="Primary Email" active={health.hasEmail} />
+                    <MetricChip label="Press Email" active={health.hasPressEmail} />
+                    <MetricChip label="Phone" active={health.hasPhone} />
+                    <MetricChip label="Address" active={health.hasAddress} />
+                    <MetricChip label="Staff" active={health.hasStaff} />
+                  </div>
+                </SectionCard>
+
                 <SectionCard title="Overview" subtitle="Core candidate and campaign profile fields.">
                   <div className="vs-grid-2">
                     <DetailField
@@ -838,6 +940,8 @@ export default function Candidates() {
                   <div className="vs-grid-2">
                     <DetailField label="Office Address" value={profile?.office_address || "N/A"} />
                     <DetailField label="Campaign Address" value={profile?.campaign_address || "N/A"} />
+                    <DetailField label="Press Contact" value={profile?.press_contact_name || "N/A"} />
+                    <DetailField label="Press Contact Email" value={profile?.press_contact_email || "N/A"} />
                   </div>
                 </SectionCard>
 
@@ -847,14 +951,12 @@ export default function Candidates() {
                     <DetailField label="Campaign Manager" value={profile?.campaign_manager_name || "N/A"} />
                     <DetailField label="Finance Director" value={profile?.finance_director_name || "N/A"} />
                     <DetailField label="Political Director" value={profile?.political_director_name || "N/A"} />
-                    <DetailField label="Press Contact" value={profile?.press_contact_name || "N/A"} />
-                    <DetailField label="Press Contact Email" value={profile?.press_contact_email || "N/A"} />
                   </div>
                 </SectionCard>
 
                 <SectionCard
-                  title="Lock Controls"
-                  subtitle="Protect manually curated fields from live refresh overwrites."
+                  title="Protection Controls"
+                  subtitle="Protect manually curated fields from future live refreshes."
                   right={
                     <button
                       type="button"
@@ -893,11 +995,23 @@ export default function Candidates() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Profile Metadata" subtitle="Source, lock state, confidence, and freshness of records.">
+                <SectionCard title="Profile Metadata" subtitle="Source, confidence, lock state, and crawl footprint.">
                   <div className="vs-grid-2">
                     <DetailField label="Source Label" value={profile?.source_label || "live_candidate_feed"} />
                     <DetailField label="Updated At" value={formatDateTime(profile?.updated_at)} />
                     <DetailField label="Admin Locked" value={profile?.admin_locked ? "Yes" : "No"} />
+                    <DetailField
+                      label="Contact Confidence"
+                      value={
+                        typeof profile?.contact_confidence === "number"
+                          ? formatConfidence(profile.contact_confidence)
+                          : "N/A"
+                      }
+                    />
+                    <DetailField
+                      label="Scraped Pages"
+                      value={String(scrapedPageCount || 0)}
+                    />
                     <DetailField
                       label="Locked Fields"
                       value={
@@ -905,18 +1019,7 @@ export default function Candidates() {
                           ? JSON.stringify(profile.locked_fields)
                           : "{}"
                       }
-                    />
-                    <DetailField
-                      label="Contact Confidence"
-                      value={
-                        typeof profile?.contact_confidence === "number"
-                          ? String(profile.contact_confidence)
-                          : "N/A"
-                      }
-                    />
-                    <DetailField
-                      label="Scraped Pages"
-                      value={String(scrapedPageCount || 0)}
+                      monospace
                     />
                   </div>
                 </SectionCard>
