@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -85,6 +86,12 @@ function getConfidenceTone(value) {
   return "default";
 }
 
+function getRiskTone(health) {
+  if (health.completed >= 5) return "active";
+  if (health.completed >= 3) return "warning";
+  return "danger";
+}
+
 function formatConfidence(value) {
   const score = Number(value);
   if (Number.isNaN(score)) return "N/A";
@@ -162,6 +169,23 @@ function getProfileHealth(profile = {}, candidate = null) {
     completed,
     total: 6
   };
+}
+
+function buildCommandSummary(candidate, profile, health) {
+  const parts = [];
+
+  if (candidate?.state) parts.push(candidate.state);
+  if (candidate?.office) parts.push(candidate.office);
+  if (candidate?.party) parts.push(candidate.party);
+
+  const summary = parts.join(" • ");
+  const signals = `${health.completed}/${health.total} intelligence signals`;
+
+  if (profile?.source_label) {
+    return `${summary} • ${signals} • Source: ${profile.source_label}`;
+  }
+
+  return `${summary} • ${signals}`;
 }
 
 function DetailField({ label, value, href, monospace = false }) {
@@ -290,7 +314,7 @@ function LockToggle({ label, checked, onChange, disabled }) {
   );
 }
 
-function CandidateListRow({ candidate, isActive, onSelect }) {
+function CandidateListRow({ candidate, isActive, onSelect, targetMatch }) {
   const name = normalizeCandidateName(candidate);
 
   return (
@@ -304,11 +328,32 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
         textAlign: "left",
         display: "grid",
         gap: "12px",
-        border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : undefined,
-        boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : undefined,
-        cursor: "pointer"
+        border: isActive
+          ? "1px solid rgba(99, 102, 241, 0.55)"
+          : targetMatch
+            ? "1px solid rgba(251, 191, 36, 0.55)"
+            : undefined,
+        boxShadow: isActive
+          ? "0 0 0 1px rgba(99, 102, 241, 0.18)"
+          : targetMatch
+            ? "0 0 0 1px rgba(251, 191, 36, 0.16)"
+            : undefined,
+        cursor: "pointer",
+        position: "relative"
       }}
     >
+      {targetMatch ? (
+        <div
+          style={{
+            position: "absolute",
+            top: "10px",
+            right: "10px"
+          }}
+        >
+          <Badge tone="warning">Battleground Match</Badge>
+        </div>
+      ) : null}
+
       <div
         style={{
           display: "flex",
@@ -371,6 +416,19 @@ function CandidateListRow({ candidate, isActive, onSelect }) {
 }
 
 export default function Candidates() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialFilters = {
+    q: searchParams.get("q") || "",
+    state: searchParams.get("state") || "",
+    office: searchParams.get("office") || "",
+    party: searchParams.get("party") || ""
+  };
+
+  const targetCandidateName = searchParams.get("candidate") || "";
+  const battlegroundContext = searchParams.get("context") || "";
+
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [refreshingProfile, setRefreshingProfile] = useState(false);
@@ -390,12 +448,7 @@ export default function Candidates() {
   const [states, setStates] = useState([]);
   const [offices, setOffices] = useState([]);
   const [parties, setParties] = useState([]);
-  const [filters, setFilters] = useState({
-    q: "",
-    state: "",
-    office: "",
-    party: ""
-  });
+  const [filters, setFilters] = useState(initialFilters);
   const [lockDraft, setLockDraft] = useState({
     admin_locked: false,
     locked_fields: {}
@@ -437,6 +490,19 @@ export default function Candidates() {
   }, []);
 
   useEffect(() => {
+    const next = new URLSearchParams();
+
+    if (filters.q) next.set("q", filters.q);
+    if (filters.state) next.set("state", filters.state);
+    if (filters.office) next.set("office", filters.office);
+    if (filters.party) next.set("party", filters.party);
+    if (targetCandidateName) next.set("candidate", targetCandidateName);
+    if (battlegroundContext) next.set("context", battlegroundContext);
+
+    setSearchParams(next, { replace: true });
+  }, [filters, targetCandidateName, battlegroundContext, setSearchParams]);
+
+  useEffect(() => {
     let active = true;
 
     async function loadCandidates() {
@@ -465,9 +531,16 @@ export default function Candidates() {
         setData({ total, results });
 
         if (results.length) {
+          const preferred =
+            results.find((item) =>
+              targetCandidateName
+                ? normalizeCandidateName(item).toLowerCase().includes(targetCandidateName.toLowerCase())
+                : false
+            ) || results[0];
+
           setSelectedCandidateId((prev) => {
             const exists = results.some((item) => String(item.id) === String(prev));
-            return exists ? prev : results[0].id;
+            return exists ? prev : preferred.id;
           });
         } else {
           setSelectedCandidateId(null);
@@ -491,7 +564,7 @@ export default function Candidates() {
     return () => {
       active = false;
     };
-  }, [filters]);
+  }, [filters, targetCandidateName]);
 
   useEffect(() => {
     let active = true;
@@ -601,6 +674,7 @@ export default function Candidates() {
     ? profile.scraped_pages.length
     : 0;
   const health = getProfileHealth(profile, detailCandidate);
+  const commandSummary = buildCommandSummary(detailCandidate, profile, health);
 
   async function reloadListAndDetail() {
     const params = new URLSearchParams();
@@ -863,6 +937,8 @@ export default function Candidates() {
           ? "Profile changes saved and edited fields locked."
           : "Profile changes saved."
       );
+      setEditingOverview(false);
+      setEditingContact(false);
     } catch (err) {
       setDetailError(
         err?.response?.data?.error ||
@@ -874,14 +950,50 @@ export default function Candidates() {
     }
   }
 
+  function clearBattlegroundContext() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("candidate");
+    next.delete("context");
+    setSearchParams(next, { replace: true });
+  }
+
   return (
     <PageShell
-      eyebrow="Candidate Directory"
-      title="Track candidates with live profiles and campaign enrichment."
-      description="Search live candidate records and manage campaign contact intelligence, discovery confidence, and protected fields."
+      eyebrow="Candidate Intelligence"
+      title="Operate a premium candidate command center."
+      description="Search, enrich, verify, protect, and manage campaign intelligence across live candidate profiles."
       demo={demoMode}
       demoText="Demo candidate data is active."
     >
+      {battlegroundContext ? (
+        <div
+          className="vs-banner"
+          style={{
+            borderColor: "#c7d2fe",
+            background: "linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%)",
+            color: "#3730a3",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+            alignItems: "center"
+          }}
+        >
+          <div>
+            <strong>Top Battlegrounds context active.</strong>{" "}
+            {targetCandidateName ? `Focused on ${targetCandidateName}. ` : ""}
+            Filters were preloaded from the dashboard.
+          </div>
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={clearBattlegroundContext}
+          >
+            Clear Battleground Context
+          </button>
+        </div>
+      ) : null}
+
       {listError ? (
         <div
           className="vs-banner"
@@ -903,15 +1015,15 @@ export default function Candidates() {
       </div>
 
       <SectionCard
-        title="Candidate Filters"
-        subtitle="Search and narrow candidate records by state, office, and party."
+        title="Command Filters"
+        subtitle="Drive candidate intelligence by state, office, party, or direct search."
       >
         <div className="vs-grid-4">
           <input
             className="vs-input"
             value={filters.q}
             onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-            placeholder="Search candidates..."
+            placeholder="Search candidates, race names, or offices..."
           />
 
           <select
@@ -955,9 +1067,12 @@ export default function Candidates() {
           <button
             type="button"
             className="vs-button vs-button-secondary"
-            onClick={() => setFilters({ q: "", state: "", office: "", party: "" })}
+            onClick={() => {
+              setFilters({ q: "", state: "", office: "", party: "" });
+              navigate("/candidates");
+            }}
           >
-            Clear Filters
+            Reset Command Filters
           </button>
 
           <button
@@ -980,8 +1095,8 @@ export default function Candidates() {
         }}
       >
         <SectionCard
-          title="Candidate Directory"
-          subtitle="Live candidate records across states and offices."
+          title="Candidate Queue"
+          subtitle="Select a record to inspect and operate candidate intelligence."
           right={<Badge tone="accent">{candidates.length} loaded</Badge>}
         >
           <div className="vs-stack">
@@ -995,6 +1110,13 @@ export default function Candidates() {
                   key={candidate.id || normalizeCandidateName(candidate)}
                   candidate={candidate}
                   isActive={String(selectedCandidateId) === String(candidate.id)}
+                  targetMatch={
+                    targetCandidateName
+                      ? normalizeCandidateName(candidate)
+                          .toLowerCase()
+                          .includes(targetCandidateName.toLowerCase())
+                      : false
+                  }
                   onSelect={(item) => setSelectedCandidateId(item.id)}
                 />
               ))
@@ -1004,11 +1126,11 @@ export default function Candidates() {
 
         <div className="vs-stack">
           <SectionCard
-            title={detailCandidate ? selectedName : "Candidate Profile"}
+            title={detailCandidate ? selectedName : "Candidate Command Card"}
             subtitle={
               detailCandidate
-                ? `${detailCandidate.office || "Office"} • ${detailCandidate.state || "State"}`
-                : "Select a candidate to view profile details."
+                ? commandSummary
+                : "Select a candidate to view command-level profile details."
             }
             right={
               detailCandidate ? (
@@ -1030,6 +1152,13 @@ export default function Candidates() {
                       ? `Confidence ${formatConfidence(profile.contact_confidence)}`
                       : "Confidence N/A"}
                   </Badge>
+                  <Badge tone={getRiskTone(health)}>
+                    {health.completed >= 5
+                      ? "Operationally Ready"
+                      : health.completed >= 3
+                        ? "Needs Review"
+                        : "Action Required"}
+                  </Badge>
                   {profile?.admin_locked ? <Badge tone="warning">Admin Locked</Badge> : null}
                   <button
                     type="button"
@@ -1046,7 +1175,7 @@ export default function Candidates() {
             {loadingDetail ? (
               <EmptyState text="Loading candidate profile..." />
             ) : !detailCandidate ? (
-              <EmptyState text="Select a candidate from the directory." />
+              <EmptyState text="Select a candidate from the queue." />
             ) : (
               <div className="vs-stack">
                 {detailError ? (
@@ -1096,8 +1225,8 @@ export default function Candidates() {
                 </div>
 
                 <SectionCard
-                  title="Profile Health"
-                  subtitle="Quick readiness check for premium contact intelligence."
+                  title="Intelligence Health"
+                  subtitle="Operational readiness for campaign contact intelligence."
                   right={
                     <Badge tone={health.completed >= 4 ? "active" : "warning"}>
                       {health.completed}/{health.total} signals
@@ -1116,7 +1245,7 @@ export default function Candidates() {
 
                 <SectionCard
                   title="Overview"
-                  subtitle="Core candidate and campaign profile fields."
+                  subtitle="Command fields for direct campaign communication."
                   right={
                     editingOverview ? (
                       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -1185,7 +1314,7 @@ export default function Candidates() {
 
                 <SectionCard
                   title="Contact"
-                  subtitle="Campaign and office contact details."
+                  subtitle="Press and location intelligence for direct outreach."
                   right={
                     editingContact ? (
                       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -1257,7 +1386,7 @@ export default function Candidates() {
                       }}
                     >
                       <div style={{ color: "var(--vs-text-muted)", fontSize: "12px" }}>
-                        Save edits as manual profile values. Optionally protect edited fields from refresh overwrites.
+                        Save manual intelligence back to the profile. Protect edited fields from future refresh overwrites.
                       </div>
                       <label
                         style={{
@@ -1280,7 +1409,7 @@ export default function Candidates() {
                   ) : null}
                 </SectionCard>
 
-                <SectionCard title="Campaign Team" subtitle="Live-enriched staff and leadership fields.">
+                <SectionCard title="Campaign Team" subtitle="Enriched staff and leadership signals.">
                   <div className="vs-grid-2">
                     <DetailField label="Chief of Staff" value={profile?.chief_of_staff_name || "N/A"} />
                     <DetailField label="Campaign Manager" value={profile?.campaign_manager_name || "N/A"} />
