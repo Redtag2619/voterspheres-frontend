@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -33,10 +34,54 @@ const fallbackData = {
     { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ],
   battlegrounds: [
-    { race: "GA Senate", state: "Georgia", office: "Senate", probability: "57%", momentum: "+2.4", risk: "Elevated", priority: "Tier 1" },
-    { race: "PA Senate", state: "Pennsylvania", office: "Senate", probability: "54%", momentum: "+1.8", risk: "Watch", priority: "Tier 1" },
-    { race: "AZ Senate", state: "Arizona", office: "Senate", probability: "51%", momentum: "+1.1", risk: "Watch", priority: "Tier 2" },
-    { race: "MI House", state: "Michigan", office: "House", probability: "49%", momentum: "-0.6", risk: "Monitor", priority: "Tier 2" }
+    {
+      race: "GA Senate",
+      candidate: "Jon Ossoff",
+      state: "Georgia",
+      state_code: "GA",
+      office: "Senate",
+      probability: "57%",
+      momentum: "+2.4",
+      risk: "Elevated",
+      priority: "Tier 1",
+      party: "Democratic"
+    },
+    {
+      race: "PA Senate",
+      candidate: "Dave McCormick",
+      state: "Pennsylvania",
+      state_code: "PA",
+      office: "Senate",
+      probability: "54%",
+      momentum: "+1.8",
+      risk: "Watch",
+      priority: "Tier 1",
+      party: "Republican"
+    },
+    {
+      race: "AZ Senate",
+      candidate: "Ruben Gallego",
+      state: "Arizona",
+      state_code: "AZ",
+      office: "Senate",
+      probability: "51%",
+      momentum: "+1.1",
+      risk: "Watch",
+      priority: "Tier 2",
+      party: "Democratic"
+    },
+    {
+      race: "MI House",
+      candidate: "",
+      state: "Michigan",
+      state_code: "MI",
+      office: "House",
+      probability: "49%",
+      momentum: "-0.6",
+      risk: "Monitor",
+      priority: "Tier 2",
+      party: ""
+    }
   ],
   leaderboard: [],
   vendors: [
@@ -202,7 +247,9 @@ function ExecutiveFeedCard({ item }) {
   );
 }
 
-function BattlegroundCard({ row }) {
+function BattlegroundCard({ row, onOpenIntelligence }) {
+  const candidateName = row.candidate || row.race;
+
   return (
     <div
       className="vs-card"
@@ -210,10 +257,10 @@ function BattlegroundCard({ row }) {
         padding: "16px",
         display: "flex",
         flexDirection: "column",
-        minHeight: "238px"
+        minHeight: "252px"
       }}
     >
-      <div style={{ minHeight: "50px" }}>
+      <div style={{ minHeight: "56px" }}>
         <div style={{ fontSize: "16px", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", color: "var(--vs-text)" }}>
           {row.race}
         </div>
@@ -235,12 +282,25 @@ function BattlegroundCard({ row }) {
       </div>
 
       <div
+        className="vs-card-muted"
+        style={{
+          marginTop: "12px",
+          padding: "10px 12px"
+        }}
+      >
+        <div className="vs-stat-label">Candidate Intelligence Focus</div>
+        <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+          {candidateName}
+        </div>
+      </div>
+
+      <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "12px 18px",
           marginTop: "14px",
-          minHeight: "98px",
+          minHeight: "84px",
           alignContent: "start"
         }}
       >
@@ -273,8 +333,25 @@ function BattlegroundCard({ row }) {
         </div>
       </div>
 
-      <div style={{ marginTop: "auto", paddingTop: "14px", display: "flex", justifyContent: "flex-start" }}>
+      <div
+        style={{
+          marginTop: "auto",
+          paddingTop: "14px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "10px",
+          flexWrap: "wrap"
+        }}
+      >
         <Badge tone={riskTone(row.risk)}>{row.risk}</Badge>
+        <button
+          type="button"
+          className="vs-button vs-button-secondary"
+          onClick={() => onOpenIntelligence(row)}
+        >
+          Open Intelligence
+        </button>
       </div>
     </div>
   );
@@ -497,6 +574,7 @@ function SecondaryRailCard({ label, value, subtext, badge, badgeTone = "accent",
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboardData, setDashboardData] = useState(fallbackData);
@@ -604,6 +682,23 @@ export default function Dashboard() {
   const flagshipDelta = topBattleground
     ? `${topBattleground.momentum} momentum • ${topBattleground.priority}`
     : dashboardData.metrics?.[0]?.delta || "+3.1 vs last cycle";
+
+  function openCandidateIntelligence(row) {
+    const params = new URLSearchParams();
+
+    if (row?.candidate) params.set("q", row.candidate);
+    if (row?.state_code) {
+      params.set("state", row.state_code);
+    } else if (row?.state) {
+      params.set("state", row.state);
+    }
+    if (row?.office) params.set("office", row.office);
+    if (row?.party) params.set("party", row.party);
+    if (row?.candidate) params.set("candidate", row.candidate);
+    if (row?.race) params.set("context", row.race);
+
+    navigate(`/candidates?${params.toString()}`);
+  }
 
   return (
     <PageShell
@@ -737,7 +832,11 @@ export default function Dashboard() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Top Battlegrounds" subtitle="Highest-pressure races right now.">
+        <SectionCard
+          title="Top Battlegrounds"
+          subtitle="Highest-pressure races right now. Jump directly into candidate intelligence."
+          right={<Badge tone="warning">{filteredBattlegrounds.length} active</Badge>}
+        >
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading battlegrounds..." />
@@ -748,6 +847,7 @@ export default function Dashboard() {
                 <BattlegroundCard
                   key={`${row.race}-${row.priority}`}
                   row={row}
+                  onOpenIntelligence={openCandidateIntelligence}
                 />
               ))
             )}
