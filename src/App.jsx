@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom"; 
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
@@ -10,6 +10,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
 const CandidateProfilesAdmin = lazy(() => import("./pages/CandidateProfilesAdmin.jsx"));
+const BetaAccessAdmin = lazy(() => import("./pages/BetaAccessAdmin.jsx"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap.jsx"));
 const DonorNetwork = lazy(() => import("./pages/DonorNetwork.jsx"));
 const ElectionForecast = lazy(() => import("./pages/ElectionForecast.jsx"));
@@ -111,6 +112,7 @@ function AppRoutes() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/candidates" element={<Candidates />} />
             <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
+            <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
             <Route path="/map" element={<ElectionMap />} />
             <Route path="/donors" element={<DonorNetwork />} />
             <Route path="/forecast" element={<ElectionForecast />} />
