@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import PublicPageShell from "../components/layout/PublicPageShell.jsx";
+import PublicPageShell from "../components/layout/PublicPageShell.jsx"; 
 
 export default function Login() {
   const navigate = useNavigate();
