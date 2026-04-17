@@ -14,6 +14,8 @@ export const PERMISSIONS = {
   VIEW_BETA_ACCESS: "view_beta_access",
   VIEW_FIRM_USERS: "view_firm_users",
   MANAGE_FIRM_USERS: "manage_firm_users",
+  VIEW_FIRM_INVITES: "view_firm_invites",
+  MANAGE_FIRM_INVITES: "manage_firm_invites",
   VIEW_MAP: "view_map",
   VIEW_DONORS: "view_donors",
   VIEW_FORECAST: "view_forecast",
