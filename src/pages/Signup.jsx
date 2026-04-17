@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import PublicPageShell from "../components/layout/PublicPageShell.jsx"; 
+import PublicPageShell from "../components/layout/PublicPageShell.jsx";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -157,6 +157,9 @@ export default function Signup() {
                   onChange={handleChange}
                 >
                   <option value="admin">Admin</option>
+                  <option value="strategist">Strategist</option>
+                  <option value="analyst">Analyst</option>
+                  <option value="mailops">MailOps</option>
                   <option value="user">User</option>
                 </select>
               </div>
