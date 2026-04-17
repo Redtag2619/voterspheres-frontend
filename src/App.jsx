@@ -15,6 +15,7 @@ const CandidateProfilesAdmin = lazy(() => import("./pages/CandidateProfilesAdmin
 const BetaAccessAdmin = lazy(() => import("./pages/BetaAccessAdmin.jsx"));
 const FirmUsersAdmin = lazy(() => import("./pages/FirmUsersAdmin.jsx"));
 const FirmInvitesAdmin = lazy(() => import("./pages/FirmInvitesAdmin.jsx"));
+const EnterpriseLeadsAdmin = lazy(() => import("./pages/EnterpriseLeadsAdmin.jsx"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite.jsx"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap.jsx"));
 const DonorNetwork = lazy(() => import("./pages/DonorNetwork.jsx"));
@@ -138,6 +139,10 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_FIRM_INVITES]} />}>
               <Route path="/admin/firm-invites" element={<FirmInvitesAdmin />} />
+            </Route>
+
+            <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_ENTERPRISE_LEADS]} />}>
+              <Route path="/admin/enterprise-leads" element={<EnterpriseLeadsAdmin />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAP]} />}>
