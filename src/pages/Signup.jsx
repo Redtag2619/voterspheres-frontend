@@ -14,6 +14,7 @@ export default function Signup() {
     email: "",
     password: "",
     role: "admin",
+    invite_code: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,11 +45,11 @@ export default function Signup() {
 
   return (
     <PublicPageShell
-      eyebrow="New Account"
-      title="Create your firm workspace."
-      description="Launch a secure operating system for campaign intelligence, consultants, vendors, fundraising, and MailOps."
-      announcement="New feature: firms can now activate live MailOps event tracking, operational composer workflows, and real-time delivery updates."
-      announcementTone="info"
+      eyebrow="Private Beta"
+      title="Create your VoterSpheres account."
+      description="VoterSpheres is onboarding approved consultants, campaign teams, and political operators into private beta."
+      announcement="Signup is limited to approved beta users. Use an approved email or a valid invite code."
+      announcementTone="warning"
       announcementAction={
         <Link to="/pricing" className="vs-button vs-button-secondary">
           Compare Plans
@@ -116,7 +117,7 @@ export default function Signup() {
 
             <div className="vs-stack">
               <label style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
-                Email
+                Work Email
               </label>
               <input
                 className="vs-input"
@@ -161,6 +162,19 @@ export default function Signup() {
               </div>
             </div>
 
+            <div className="vs-stack">
+              <label style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
+                Invite Code
+              </label>
+              <input
+                className="vs-input"
+                name="invite_code"
+                value={form.invite_code}
+                onChange={handleChange}
+                placeholder="Optional invite code"
+              />
+            </div>
+
             <button
               type="submit"
               className="vs-button vs-button-primary"
@@ -180,7 +194,7 @@ export default function Signup() {
               color: "var(--vs-text-muted)",
             }}
           >
-            Already have access?{" "}
+            Already approved?{" "}
             <Link to="/login" style={{ color: "#fbbf24", fontWeight: 700 }}>
               Sign in
             </Link>
