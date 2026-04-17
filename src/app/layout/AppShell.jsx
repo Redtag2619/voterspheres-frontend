@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { useDemoMode } from "../../context/DemoModeContext.jsx";
+import { useDemoMode } from "../../context/DemoModeContext.jsx"; 
 import { useAuth } from "../../context/AuthContext.jsx";
 import { hasPermission, PERMISSIONS } from "../../lib/permissions.js"; 
 
