@@ -28,6 +28,10 @@ function statusTone(status) {
   return "info";
 }
 
+function lifecycleTone(active) {
+  return active ? "active" : "default";
+}
+
 export default function EnterpriseLeadsAdmin() {
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState([]);
@@ -244,6 +248,27 @@ export default function EnterpriseLeadsAdmin() {
                   </div>
                 </div>
 
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    alignItems: "center"
+                  }}
+                >
+                  <Badge tone={lifecycleTone(lead.is_beta_approved)}>
+                    {lead.is_beta_approved ? "Approved" : "Not Approved"}
+                  </Badge>
+
+                  <Badge tone={lifecycleTone(lead.has_pending_invite)}>
+                    {lead.has_pending_invite ? "Invited" : "No Invite"}
+                  </Badge>
+
+                  <Badge tone={lifecycleTone(lead.has_converted_user)}>
+                    {lead.has_converted_user ? "Converted" : "Not Converted"}
+                  </Badge>
+                </div>
+
                 <div className="vs-grid-2">
                   <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
                     <div className="vs-stat-label">Source</div>
@@ -288,24 +313,31 @@ export default function EnterpriseLeadsAdmin() {
                     type="button"
                     className="vs-button vs-button-secondary"
                     onClick={() => handleApproveLead(lead.id)}
+                    disabled={Boolean(lead.is_beta_approved)}
                   >
-                    Approve Email
+                    {lead.is_beta_approved ? "Approved" : "Approve Email"}
                   </button>
 
                   <button
                     type="button"
                     className="vs-button vs-button-secondary"
                     onClick={() => handleInviteLead(lead.id)}
+                    disabled={Boolean(lead.has_pending_invite) || Boolean(lead.has_converted_user)}
                   >
-                    Send Invite
+                    {lead.has_converted_user
+                      ? "Already Converted"
+                      : lead.has_pending_invite
+                        ? "Invite Pending"
+                        : "Send Invite"}
                   </button>
 
                   <button
                     type="button"
                     className="vs-button vs-button-secondary"
                     onClick={() => handleApproveAndInviteLead(lead.id)}
+                    disabled={Boolean(lead.has_converted_user)}
                   >
-                    Approve + Invite
+                    {lead.has_converted_user ? "Converted" : "Approve + Invite"}
                   </button>
 
                   <button
