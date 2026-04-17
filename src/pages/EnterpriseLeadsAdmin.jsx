@@ -89,6 +89,78 @@ export default function EnterpriseLeadsAdmin() {
     }
   }
 
+  async function handleApproveLead(id) {
+    try {
+      setError("");
+      setMessage("");
+
+      await api.post(`/enterprise-leads-admin/${id}/approve`);
+
+      setMessage("Lead approved for beta access.");
+      await loadLeads();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to approve lead"
+      );
+    }
+  }
+
+  async function handleInviteLead(id) {
+    try {
+      setError("");
+      setMessage("");
+
+      const response = await api.post(`/enterprise-leads-admin/${id}/invite`);
+
+      if (response?.data?.email_sent) {
+        setMessage("Invite sent successfully.");
+      } else if (response?.data?.invite_link) {
+        setMessage(
+          `Invite created. Email not sent because SMTP is not configured. Share this link manually: ${response.data.invite_link}`
+        );
+      } else {
+        setMessage("Invite created.");
+      }
+
+      await loadLeads();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to invite lead"
+      );
+    }
+  }
+
+  async function handleApproveAndInviteLead(id) {
+    try {
+      setError("");
+      setMessage("");
+
+      const response = await api.post(`/enterprise-leads-admin/${id}/approve-and-invite`);
+
+      if (response?.data?.email_sent) {
+        setMessage("Lead approved and invite sent.");
+      } else if (response?.data?.invite_link) {
+        setMessage(
+          `Lead approved and invite created. Email not sent because SMTP is not configured. Share this link manually: ${response.data.invite_link}`
+        );
+      } else {
+        setMessage("Lead approved and invite workflow completed.");
+      }
+
+      await loadLeads();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to approve and invite lead"
+      );
+    }
+  }
+
   return (
     <PageShell
       eyebrow="Admin"
@@ -210,6 +282,30 @@ export default function EnterpriseLeadsAdmin() {
                     onClick={() => handleUpdateLead(lead.id, "qualified")}
                   >
                     Mark Qualified
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={() => handleApproveLead(lead.id)}
+                  >
+                    Approve Email
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={() => handleInviteLead(lead.id)}
+                  >
+                    Send Invite
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={() => handleApproveAndInviteLead(lead.id)}
+                  >
+                    Approve + Invite
                   </button>
 
                   <button
