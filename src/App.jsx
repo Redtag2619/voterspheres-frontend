@@ -2,9 +2,11 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
+import RequirePermission from "./components/auth/RequirePermission.jsx";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
 import { DemoModeProvider } from "./context/DemoModeContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import { PERMISSIONS } from "./lib/permissions.js";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -109,24 +111,109 @@ function AppRoutes() {
         <Route element={<RequireAuth />}>
           <Route element={<ShellLayout />}>
             <Route path="/app" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/candidates" element={<Candidates />} />
-            <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
-            <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
-            <Route path="/map" element={<ElectionMap />} />
-            <Route path="/donors" element={<DonorNetwork />} />
-            <Route path="/forecast" element={<ElectionForecast />} />
-            <Route path="/power-rankings" element={<PowerRankings />} />
-            <Route path="/fundraising" element={<FundraisingDashboard />} />
-            <Route path="/vendors" element={<Vendors />} />
-            <Route path="/consultants" element={<ConsultantMarketplace />} />
-            <Route path="/ai-chat" element={<AIChat />} />
-            <Route path="/war-room" element={<AIWarRoom />} />
-            <Route path="/command-center" element={<CommandCenter />} />
-            <Route path="/mailops" element={<MailOpsDashboard />} />
-            <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
-            <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
-            <Route path="/billing" element={<Billing />} />
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_DASHBOARD]} />}
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_CANDIDATES]} />}
+            >
+              <Route path="/candidates" element={<Candidates />} />
+            </Route>
+
+            <Route
+              element={
+                <RequirePermission permissions={[PERMISSIONS.VIEW_CANDIDATE_ADMIN]} />
+              }
+            >
+              <Route
+                path="/admin/candidate-profiles"
+                element={<CandidateProfilesAdmin />}
+              />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_BETA_ACCESS]} />}
+            >
+              <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAP]} />}
+            >
+              <Route path="/map" element={<ElectionMap />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_DONORS]} />}
+            >
+              <Route path="/donors" element={<DonorNetwork />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_FORECAST]} />}
+            >
+              <Route path="/forecast" element={<ElectionForecast />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_POWER_RANKINGS]} />}
+            >
+              <Route path="/power-rankings" element={<PowerRankings />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_FUNDRAISING]} />}
+            >
+              <Route path="/fundraising" element={<FundraisingDashboard />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_VENDORS]} />}
+            >
+              <Route path="/vendors" element={<Vendors />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_CONSULTANTS]} />}
+            >
+              <Route path="/consultants" element={<ConsultantMarketplace />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_AI_CHAT]} />}
+            >
+              <Route path="/ai-chat" element={<AIChat />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_WAR_ROOM]} />}
+            >
+              <Route path="/war-room" element={<AIWarRoom />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_COMMAND_CENTER]} />}
+            >
+              <Route path="/command-center" element={<CommandCenter />} />
+              <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
+              <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}
+            >
+              <Route path="/mailops" element={<MailOpsDashboard />} />
+            </Route>
+
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_BILLING]} />}
+            >
+              <Route path="/billing" element={<Billing />} />
+            </Route>
 
             <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
             <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
