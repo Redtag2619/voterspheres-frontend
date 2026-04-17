@@ -44,6 +44,16 @@ export default function EnterpriseLeadsAdmin() {
 
   const visibleLeads = useMemo(() => leads || [], [leads]);
 
+  const summary = useMemo(() => {
+    return {
+      total: visibleLeads.length,
+      newCount: visibleLeads.filter((lead) => String(lead.status).toLowerCase() === "new").length,
+      approvedCount: visibleLeads.filter((lead) => Boolean(lead.is_beta_approved)).length,
+      invitedCount: visibleLeads.filter((lead) => Boolean(lead.has_pending_invite)).length,
+      convertedCount: visibleLeads.filter((lead) => Boolean(lead.has_converted_user)).length
+    };
+  }, [visibleLeads]);
+
   async function loadLeads() {
     try {
       setLoading(true);
@@ -183,6 +193,43 @@ export default function EnterpriseLeadsAdmin() {
           {message}
         </div>
       ) : null}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: "12px",
+          marginBottom: "16px"
+        }}
+      >
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">New</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
+            {summary.newCount}
+          </div>
+        </div>
+
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Approved</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
+            {summary.approvedCount}
+          </div>
+        </div>
+
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Invited</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
+            {summary.invitedCount}
+          </div>
+        </div>
+
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Converted</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
+            {summary.convertedCount}
+          </div>
+        </div>
+      </div>
 
       <SectionCard
         title="Filters"
