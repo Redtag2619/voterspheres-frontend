@@ -12,6 +12,8 @@ export const PERMISSIONS = {
   EDIT_CANDIDATES: "edit_candidates",
   VIEW_CANDIDATE_ADMIN: "view_candidate_admin",
   VIEW_BETA_ACCESS: "view_beta_access",
+  VIEW_FIRM_USERS: "view_firm_users",
+  MANAGE_FIRM_USERS: "manage_firm_users",
   VIEW_MAP: "view_map",
   VIEW_DONORS: "view_donors",
   VIEW_FORECAST: "view_forecast",
