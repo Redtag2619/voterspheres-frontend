@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import PublicPageShell from "../components/layout/PublicPageShell.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  const next = searchParams.get("next") || "/dashboard";
 
   const [form, setForm] = useState({
     email: "",
@@ -26,7 +29,9 @@ export default function Login() {
 
     try {
       await login(form.email, form.password);
-      navigate("/dashboard");
+
+      // 🔥 redirect back to intended page
+      navigate(next, { replace: true });
     } catch (err) {
       setError(
         err?.response?.data?.error ||
