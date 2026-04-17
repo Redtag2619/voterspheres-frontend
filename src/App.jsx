@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom"; 
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
