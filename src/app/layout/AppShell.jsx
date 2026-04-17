@@ -1,7 +1,7 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { useDemoMode } from "../../context/DemoModeContext.jsx";
 
-const navItems = [
+const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/candidates", label: "Candidates" },
   { to: "/map", label: "Map" },
@@ -15,9 +15,17 @@ const navItems = [
   { to: "/ai-chat", label: "AI Chat" },
   { to: "/war-room", label: "War Room" },
   { to: "/command-center", label: "Command Center" },
-  { to: "/billing", label: "Billing" },
+  { to: "/billing", label: "Billing" }
+];
+
+const adminNavItems = [
+  { to: "/admin/candidate-profiles", label: "Candidate Profiles" },
+  { to: "/admin/beta-access", label: "Beta Access" }
+];
+
+const publicNavItems = [
   { to: "/pricing", label: "Pricing" },
-  { to: "/signup", label: "Sign Up" },
+  { to: "/signup", label: "Sign Up" }
 ];
 
 function navClass({ isActive }) {
@@ -57,13 +65,47 @@ export default function AppShell() {
             </div>
           </div>
 
-          <nav className="vs-shell-nav" aria-label="Primary navigation">
-            {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navClass}>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          <div style={{ display: "grid", gap: "10px" }}>
+            <nav className="vs-shell-nav" aria-label="Primary navigation">
+              {primaryNavItems.map((item) => (
+                <NavLink key={item.to} to={item.to} className={navClass}>
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            <nav
+              className="vs-shell-nav"
+              aria-label="Admin navigation"
+              style={{ borderTop: "1px solid var(--vs-border)", paddingTop: "10px" }}
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--vs-text-muted)",
+                  alignSelf: "center",
+                  marginRight: "6px"
+                }}
+              >
+                Admin
+              </span>
+
+              {adminNavItems.map((item) => (
+                <NavLink key={item.to} to={item.to} className={navClass}>
+                  {item.label}
+                </NavLink>
+              ))}
+
+              {publicNavItems.map((item) => (
+                <NavLink key={item.to} to={item.to} className={navClass}>
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
 
           {demoMode ? (
             <div className="vs-banner vs-banner-demo" style={{ marginTop: "10px" }}>
