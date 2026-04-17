@@ -5,7 +5,7 @@ import { hasPermission, PERMISSIONS } from "../../lib/permissions.js";
 
 const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
-  { to: "/candidates", label: "Candidates", permission: PERMISSIONS.VIEW_CANDATES || PERMISSIONS.VIEW_CANDIDATES },
+  { to: "/candidates", label: "Candidates", permission: PERMISSIONS.VIEW_CANDIDATES },
   { to: "/map", label: "Map", permission: PERMISSIONS.VIEW_MAP },
   { to: "/donors", label: "Donors", permission: PERMISSIONS.VIEW_DONORS },
   { to: "/forecast", label: "Forecast", permission: PERMISSIONS.VIEW_FORECAST },
@@ -40,6 +40,11 @@ const adminNavItems = [
     to: "/admin/firm-invites",
     label: "Firm Invites",
     permission: PERMISSIONS.VIEW_FIRM_INVITES
+  },
+  {
+    to: "/admin/enterprise-leads",
+    label: "Enterprise Leads",
+    permission: PERMISSIONS.VIEW_ENTERPRISE_LEADS
   }
 ];
 
