@@ -6,6 +6,7 @@ import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx"
 import { DemoModeProvider } from "./context/DemoModeContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
+const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
 const CandidateProfilesAdmin = lazy(() => import("./pages/CandidateProfilesAdmin.jsx"));
@@ -62,13 +63,13 @@ function AppRoutes() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pricing" element={<Pricing />} />
 
         <Route element={<ShellLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
+          <Route path="/app" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/candidates" element={<Candidates />} />
           <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
