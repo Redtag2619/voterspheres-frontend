@@ -16,6 +16,8 @@ export const PERMISSIONS = {
   MANAGE_FIRM_USERS: "manage_firm_users",
   VIEW_FIRM_INVITES: "view_firm_invites",
   MANAGE_FIRM_INVITES: "manage_firm_invites",
+  VIEW_ENTERPRISE_LEADS: "view_enterprise_leads",
+  MANAGE_ENTERPRISE_LEADS: "manage_enterprise_leads",
   VIEW_MAP: "view_map",
   VIEW_DONORS: "view_donors",
   VIEW_FORECAST: "view_forecast",
