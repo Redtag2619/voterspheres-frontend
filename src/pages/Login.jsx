@@ -29,8 +29,6 @@ export default function Login() {
 
     try {
       await login(form.email, form.password);
-
-      // 🔥 redirect back to intended page
       navigate(next, { replace: true });
     } catch (err) {
       setError(
@@ -45,11 +43,11 @@ export default function Login() {
 
   return (
     <PublicPageShell
-      eyebrow="Account Access"
+      eyebrow="Private Beta Access"
       title="Sign in to your campaign operating system."
-      description="Access your dashboard, command center, fundraising workflows, MailOps, and intelligence layers from one secure workspace."
-      announcement="Demo Mode is available for walkthroughs while live data layers, MailOps workflows, or enterprise onboarding are still being configured."
-      announcementTone="demo"
+      description="Access your dashboard, command center, candidate intelligence, fundraising workflows, MailOps, and executive layers from one secure workspace."
+      announcement="VoterSpheres is currently in private beta. Only approved emails and invited operators can access the platform."
+      announcementTone="warning"
       announcementAction={
         <Link to="/pricing" className="vs-button vs-button-secondary">
           View Plans
@@ -120,9 +118,9 @@ export default function Login() {
               color: "var(--vs-text-muted)",
             }}
           >
-            Need an account?{" "}
+            Need approved beta access?{" "}
             <Link to="/signup" style={{ color: "#fbbf24", fontWeight: 700 }}>
-              Create one here
+              Request or create an account
             </Link>
           </div>
         </div>
