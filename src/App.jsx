@@ -2,7 +2,7 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
-import RequirePermission from "./components/auth/RequirePermission.jsx";
+import RequirePermission from "./components/RequirePermission.jsx";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
 import { DemoModeProvider } from "./context/DemoModeContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
