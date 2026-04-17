@@ -1,5 +1,6 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { useDemoMode } from "../../context/DemoModeContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard" },
@@ -34,6 +35,10 @@ function navClass({ isActive }) {
 
 export default function AppShell() {
   const { demoMode, toggleDemoMode } = useDemoMode();
+  const { user } = useAuth();
+
+  // 🔐 determine admin access
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
 
   return (
     <div className="vs-shell">
@@ -66,6 +71,7 @@ export default function AppShell() {
           </div>
 
           <div style={{ display: "grid", gap: "10px" }}>
+            {/* PRIMARY NAV */}
             <nav className="vs-shell-nav" aria-label="Primary navigation">
               {primaryNavItems.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass}>
@@ -74,31 +80,47 @@ export default function AppShell() {
               ))}
             </nav>
 
-            <nav
-              className="vs-shell-nav"
-              aria-label="Admin navigation"
-              style={{ borderTop: "1px solid var(--vs-border)", paddingTop: "10px" }}
-            >
-              <span
+            {/* 🔐 ADMIN NAV (ONLY FOR ADMINS) */}
+            {isAdmin ? (
+              <nav
+                className="vs-shell-nav"
+                aria-label="Admin navigation"
                 style={{
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--vs-text-muted)",
-                  alignSelf: "center",
-                  marginRight: "6px"
+                  borderTop: "1px solid var(--vs-border)",
+                  paddingTop: "10px"
                 }}
               >
-                Admin
-              </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--vs-text-muted)",
+                    alignSelf: "center",
+                    marginRight: "6px"
+                  }}
+                >
+                  Admin
+                </span>
 
-              {adminNavItems.map((item) => (
-                <NavLink key={item.to} to={item.to} className={navClass}>
-                  {item.label}
-                </NavLink>
-              ))}
+                {adminNavItems.map((item) => (
+                  <NavLink key={item.to} to={item.to} className={navClass}>
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            ) : null}
 
+            {/* PUBLIC / UTILITY */}
+            <nav
+              className="vs-shell-nav"
+              aria-label="Utility navigation"
+              style={{
+                borderTop: "1px solid var(--vs-border)",
+                paddingTop: "10px"
+              }}
+            >
               {publicNavItems.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass}>
                   {item.label}
