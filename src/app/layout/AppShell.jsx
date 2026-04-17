@@ -1,11 +1,11 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { useDemoMode } from "../../context/DemoModeContext.jsx"; 
+import { useDemoMode } from "../../context/DemoModeContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { hasPermission, PERMISSIONS } from "../../lib/permissions.js"; 
+import { hasPermission, PERMISSIONS } from "../../lib/permissions.js";
 
 const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
-  { to: "/candidates", label: "Candidates", permission: PERMISSIONS.VIEW_CANDIDATES },
+  { to: "/candidates", label: "Candidates", permission: PERMISSIONS.VIEW_CANDATES || PERMISSIONS.VIEW_CANDIDATES },
   { to: "/map", label: "Map", permission: PERMISSIONS.VIEW_MAP },
   { to: "/donors", label: "Donors", permission: PERMISSIONS.VIEW_DONORS },
   { to: "/forecast", label: "Forecast", permission: PERMISSIONS.VIEW_FORECAST },
@@ -27,14 +27,19 @@ const adminNavItems = [
     permission: PERMISSIONS.VIEW_CANDIDATE_ADMIN
   },
   {
+    to: "/admin/beta-access",
+    label: "Beta Access",
+    permission: PERMISSIONS.VIEW_BETA_ACCESS
+  },
+  {
     to: "/admin/firm-users",
     label: "Firm Users",
     permission: PERMISSIONS.VIEW_FIRM_USERS
   },
   {
-    to: "/admin/beta-access",
-    label: "Beta Access",
-    permission: PERMISSIONS.VIEW_BETA_ACCESS
+    to: "/admin/firm-invites",
+    label: "Firm Invites",
+    permission: PERMISSIONS.VIEW_FIRM_INVITES
   }
 ];
 
