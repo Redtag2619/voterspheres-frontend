@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
@@ -53,6 +53,40 @@ function ShellLayout() {
   );
 }
 
+function RequireAuth() {
+  const { loading, user, token } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  const isAuthenticated = Boolean(user || token);
+
+  if (!isAuthenticated) {
+    const next = encodeURIComponent(`${location.pathname}${location.search}${location.hash}`);
+    return <Navigate to={`/login?next=${next}`} replace />;
+  }
+
+  return <Outlet />;
+}
+
+function PublicOnly() {
+  const { loading, user, token } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  const isAuthenticated = Boolean(user || token);
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
+}
+
 function AppRoutes() {
   const { loading } = useAuth();
 
@@ -64,39 +98,44 @@ function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
         <Route path="/pricing" element={<Pricing />} />
 
-        <Route element={<ShellLayout />}>
-          <Route path="/app" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/candidates" element={<Candidates />} />
-          <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
-          <Route path="/map" element={<ElectionMap />} />
-          <Route path="/donors" element={<DonorNetwork />} />
-          <Route path="/forecast" element={<ElectionForecast />} />
-          <Route path="/power-rankings" element={<PowerRankings />} />
-          <Route path="/fundraising" element={<FundraisingDashboard />} />
-          <Route path="/vendors" element={<Vendors />} />
-          <Route path="/consultants" element={<ConsultantMarketplace />} />
-          <Route path="/ai-chat" element={<AIChat />} />
-          <Route path="/war-room" element={<AIWarRoom />} />
-          <Route path="/command-center" element={<CommandCenter />} />
-          <Route path="/mailops" element={<MailOpsDashboard />} />
-          <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
-          <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
-          <Route path="/billing" element={<Billing />} />
-
-          <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
-          <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
-          <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
-          <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
-          <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
-          <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
-
-          <Route path="*" element={<NotFound />} />
+        <Route element={<PublicOnly />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
         </Route>
+
+        <Route element={<RequireAuth />}>
+          <Route element={<ShellLayout />}>
+            <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/candidates" element={<Candidates />} />
+            <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
+            <Route path="/map" element={<ElectionMap />} />
+            <Route path="/donors" element={<DonorNetwork />} />
+            <Route path="/forecast" element={<ElectionForecast />} />
+            <Route path="/power-rankings" element={<PowerRankings />} />
+            <Route path="/fundraising" element={<FundraisingDashboard />} />
+            <Route path="/vendors" element={<Vendors />} />
+            <Route path="/consultants" element={<ConsultantMarketplace />} />
+            <Route path="/ai-chat" element={<AIChat />} />
+            <Route path="/war-room" element={<AIWarRoom />} />
+            <Route path="/command-center" element={<CommandCenter />} />
+            <Route path="/mailops" element={<MailOpsDashboard />} />
+            <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
+            <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
+            <Route path="/billing" element={<Billing />} />
+
+            <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
+            <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
+            <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
+            <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
+            <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
+            <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   );
