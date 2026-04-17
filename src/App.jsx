@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import AppShell from "./components/AppShell";
 import RequirePermission from "./components/RequirePermission.jsx";
@@ -215,6 +216,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AppRoutes />
+        <Analytics />
       </BrowserRouter>
     </ErrorBoundary>
   );
