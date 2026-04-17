@@ -29,6 +29,7 @@ const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard.jsx"));
+const FirmUsersAdmin = lazy(() => import("./pages/FirmUsersAdmin.jsx"));
 
 function LoadingScreen() {
   return (
@@ -208,7 +209,11 @@ function AppRoutes() {
             >
               <Route path="/mailops" element={<MailOpsDashboard />} />
             </Route>
-
+            <Route
+              element={<RequirePermission permissions={[PERMISSIONS.VIEW_FIRM_USERS]} />}
+           >
+              <Route path="/admin/firm-users" element={<FirmUsersAdmin />} />
+            </Route>
             <Route
               element={<RequirePermission permissions={[PERMISSIONS.VIEW_BILLING]} />}
             >
@@ -221,6 +226,7 @@ function AppRoutes() {
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
+            <Route path="/admin/firm-users" element={<FirmUsersAdmin />} />
           </Route>
         </Route>
 
