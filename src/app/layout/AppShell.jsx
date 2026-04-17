@@ -1,27 +1,36 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { useDemoMode } from "../../context/DemoModeContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { hasPermission, PERMISSIONS } from "../../lib/permissions.js";
 
 const primaryNavItems = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/candidates", label: "Candidates" },
-  { to: "/map", label: "Map" },
-  { to: "/donors", label: "Donors" },
-  { to: "/forecast", label: "Forecast" },
-  { to: "/power-rankings", label: "Rankings" },
-  { to: "/fundraising", label: "Fundraising" },
-  { to: "/vendors", label: "Vendors" },
-  { to: "/consultants", label: "Consultants" },
-  { to: "/mailops", label: "MailOps" },
-  { to: "/ai-chat", label: "AI Chat" },
-  { to: "/war-room", label: "War Room" },
-  { to: "/command-center", label: "Command Center" },
-  { to: "/billing", label: "Billing" }
+  { to: "/dashboard", label: "Dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
+  { to: "/candidates", label: "Candidates", permission: PERMISSIONS.VIEW_CANDIDATES },
+  { to: "/map", label: "Map", permission: PERMISSIONS.VIEW_MAP },
+  { to: "/donors", label: "Donors", permission: PERMISSIONS.VIEW_DONORS },
+  { to: "/forecast", label: "Forecast", permission: PERMISSIONS.VIEW_FORECAST },
+  { to: "/power-rankings", label: "Rankings", permission: PERMISSIONS.VIEW_POWER_RANKINGS },
+  { to: "/fundraising", label: "Fundraising", permission: PERMISSIONS.VIEW_FUNDRAISING },
+  { to: "/vendors", label: "Vendors", permission: PERMISSIONS.VIEW_VENDORS },
+  { to: "/consultants", label: "Consultants", permission: PERMISSIONS.VIEW_CONSULTANTS },
+  { to: "/mailops", label: "MailOps", permission: PERMISSIONS.VIEW_MAILOPS },
+  { to: "/ai-chat", label: "AI Chat", permission: PERMISSIONS.VIEW_AI_CHAT },
+  { to: "/war-room", label: "War Room", permission: PERMISSIONS.VIEW_WAR_ROOM },
+  { to: "/command-center", label: "Command Center", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
+  { to: "/billing", label: "Billing", permission: PERMISSIONS.VIEW_BILLING }
 ];
 
 const adminNavItems = [
-  { to: "/admin/candidate-profiles", label: "Candidate Profiles" },
-  { to: "/admin/beta-access", label: "Beta Access" }
+  {
+    to: "/admin/candidate-profiles",
+    label: "Candidate Profiles",
+    permission: PERMISSIONS.VIEW_CANDIDATE_ADMIN
+  },
+  {
+    to: "/admin/beta-access",
+    label: "Beta Access",
+    permission: PERMISSIONS.VIEW_BETA_ACCESS
+  }
 ];
 
 const publicNavItems = [
@@ -37,8 +46,13 @@ export default function AppShell() {
   const { demoMode, toggleDemoMode } = useDemoMode();
   const { user } = useAuth();
 
-  // 🔐 determine admin access
-  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
+  const visiblePrimaryItems = primaryNavItems.filter((item) =>
+    hasPermission(user, item.permission)
+  );
+
+  const visibleAdminItems = adminNavItems.filter((item) =>
+    hasPermission(user, item.permission)
+  );
 
   return (
     <div className="vs-shell">
@@ -71,24 +85,19 @@ export default function AppShell() {
           </div>
 
           <div style={{ display: "grid", gap: "10px" }}>
-            {/* PRIMARY NAV */}
             <nav className="vs-shell-nav" aria-label="Primary navigation">
-              {primaryNavItems.map((item) => (
+              {visiblePrimaryItems.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass}>
                   {item.label}
                 </NavLink>
               ))}
             </nav>
 
-            {/* 🔐 ADMIN NAV (ONLY FOR ADMINS) */}
-            {isAdmin ? (
+            {visibleAdminItems.length ? (
               <nav
                 className="vs-shell-nav"
                 aria-label="Admin navigation"
-                style={{
-                  borderTop: "1px solid var(--vs-border)",
-                  paddingTop: "10px"
-                }}
+                style={{ borderTop: "1px solid var(--vs-border)", paddingTop: "10px" }}
               >
                 <span
                   style={{
@@ -104,7 +113,7 @@ export default function AppShell() {
                   Admin
                 </span>
 
-                {adminNavItems.map((item) => (
+                {visibleAdminItems.map((item) => (
                   <NavLink key={item.to} to={item.to} className={navClass}>
                     {item.label}
                   </NavLink>
@@ -112,14 +121,10 @@ export default function AppShell() {
               </nav>
             ) : null}
 
-            {/* PUBLIC / UTILITY */}
             <nav
               className="vs-shell-nav"
               aria-label="Utility navigation"
-              style={{
-                borderTop: "1px solid var(--vs-border)",
-                paddingTop: "10px"
-              }}
+              style={{ borderTop: "1px solid var(--vs-border)", paddingTop: "10px" }}
             >
               {publicNavItems.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass}>
