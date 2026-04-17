@@ -27,6 +27,11 @@ const adminNavItems = [
     permission: PERMISSIONS.VIEW_CANDIDATE_ADMIN
   },
   {
+    to: "/admin/firm-users",
+    label: "Firm Users",
+    permission: PERMISSIONS.VIEW_FIRM_USERS
+  },
+  {
     to: "/admin/beta-access",
     label: "Beta Access",
     permission: PERMISSIONS.VIEW_BETA_ACCESS
