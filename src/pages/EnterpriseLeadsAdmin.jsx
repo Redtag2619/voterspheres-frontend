@@ -41,18 +41,36 @@ export default function EnterpriseLeadsAdmin() {
     status: "",
     q: ""
   });
+  const [summaryFilter, setSummaryFilter] = useState("all");
 
-  const visibleLeads = useMemo(() => leads || [], [leads]);
+  const filteredLeads = useMemo(() => {
+    const base = leads || [];
+
+    switch (summaryFilter) {
+      case "new":
+        return base.filter((lead) => String(lead.status || "").toLowerCase() === "new");
+      case "approved":
+        return base.filter((lead) => Boolean(lead.is_beta_approved));
+      case "invited":
+        return base.filter((lead) => Boolean(lead.has_pending_invite));
+      case "converted":
+        return base.filter((lead) => Boolean(lead.has_converted_user));
+      default:
+        return base;
+    }
+  }, [leads, summaryFilter]);
 
   const summary = useMemo(() => {
+    const source = leads || [];
+
     return {
-      total: visibleLeads.length,
-      newCount: visibleLeads.filter((lead) => String(lead.status).toLowerCase() === "new").length,
-      approvedCount: visibleLeads.filter((lead) => Boolean(lead.is_beta_approved)).length,
-      invitedCount: visibleLeads.filter((lead) => Boolean(lead.has_pending_invite)).length,
-      convertedCount: visibleLeads.filter((lead) => Boolean(lead.has_converted_user)).length
+      total: source.length,
+      newCount: source.filter((lead) => String(lead.status).toLowerCase() === "new").length,
+      approvedCount: source.filter((lead) => Boolean(lead.is_beta_approved)).length,
+      invitedCount: source.filter((lead) => Boolean(lead.has_pending_invite)).length,
+      convertedCount: source.filter((lead) => Boolean(lead.has_converted_user)).length
     };
-  }, [visibleLeads]);
+  }, [leads]);
 
   async function loadLeads() {
     try {
@@ -175,6 +193,19 @@ export default function EnterpriseLeadsAdmin() {
     }
   }
 
+  function toggleSummaryFilter(key) {
+    setSummaryFilter((current) => (current === key ? "all" : key));
+  }
+
+  function summaryCardStyle(active) {
+    return {
+      padding: "16px",
+      cursor: "pointer",
+      border: active ? "1px solid var(--vs-accent, #60a5fa)" : undefined,
+      boxShadow: active ? "0 0 0 1px rgba(96, 165, 250, 0.2) inset" : undefined
+    };
+  }
+
   return (
     <PageShell
       eyebrow="Admin"
@@ -202,34 +233,69 @@ export default function EnterpriseLeadsAdmin() {
           marginBottom: "16px"
         }}
       >
-        <div className="vs-card" style={{ padding: "16px" }}>
+        <button
+          type="button"
+          className="vs-card"
+          style={summaryCardStyle(summaryFilter === "new")}
+          onClick={() => toggleSummaryFilter("new")}
+        >
           <div className="vs-stat-label">New</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
             {summary.newCount}
           </div>
-        </div>
+        </button>
 
-        <div className="vs-card" style={{ padding: "16px" }}>
+        <button
+          type="button"
+          className="vs-card"
+          style={summaryCardStyle(summaryFilter === "approved")}
+          onClick={() => toggleSummaryFilter("approved")}
+        >
           <div className="vs-stat-label">Approved</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
             {summary.approvedCount}
           </div>
-        </div>
+        </button>
 
-        <div className="vs-card" style={{ padding: "16px" }}>
+        <button
+          type="button"
+          className="vs-card"
+          style={summaryCardStyle(summaryFilter === "invited")}
+          onClick={() => toggleSummaryFilter("invited")}
+        >
           <div className="vs-stat-label">Invited</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
             {summary.invitedCount}
           </div>
-        </div>
+        </button>
 
-        <div className="vs-card" style={{ padding: "16px" }}>
+        <button
+          type="button"
+          className="vs-card"
+          style={summaryCardStyle(summaryFilter === "converted")}
+          onClick={() => toggleSummaryFilter("converted")}
+        >
           <div className="vs-stat-label">Converted</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900, color: "var(--vs-text)" }}>
             {summary.convertedCount}
           </div>
-        </div>
+        </button>
       </div>
+
+      {summaryFilter !== "all" ? (
+        <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <Badge tone="accent">
+            Showing {summaryFilter}
+          </Badge>
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => setSummaryFilter("all")}
+          >
+            Clear Summary Filter
+          </button>
+        </div>
+      ) : null}
 
       <SectionCard
         title="Filters"
@@ -259,7 +325,10 @@ export default function EnterpriseLeadsAdmin() {
           <button
             type="button"
             className="vs-button vs-button-secondary"
-            onClick={() => setFilters({ status: "", q: "" })}
+            onClick={() => {
+              setFilters({ status: "", q: "" });
+              setSummaryFilter("all");
+            }}
           >
             Clear Filters
           </button>
@@ -269,15 +338,15 @@ export default function EnterpriseLeadsAdmin() {
       <SectionCard
         title="Lead Queue"
         subtitle="Incoming requests from the landing page."
-        right={<Badge tone="accent">{visibleLeads.length} leads</Badge>}
+        right={<Badge tone="accent">{filteredLeads.length} leads</Badge>}
       >
         <div className="vs-stack">
           {loading ? (
             <EmptyState text="Loading enterprise leads..." />
-          ) : !visibleLeads.length ? (
+          ) : !filteredLeads.length ? (
             <EmptyState text="No enterprise leads found." />
           ) : (
-            visibleLeads.map((lead) => (
+            filteredLeads.map((lead) => (
               <div key={lead.id} className="vs-card" style={{ padding: "16px", display: "grid", gap: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
                   <div>
