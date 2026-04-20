@@ -19,55 +19,47 @@ function formatDateTime(value) {
   }).format(date);
 }
 
-function statusTone(status) {
-  const value = String(status || "").toLowerCase();
-  if (value === "approved") return "active";
-  if (value === "denied") return "danger";
-  if (value === "pending") return "warning";
-  return "default";
-}
-
 export default function BetaAccessAdmin() {
   const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [filters, setFilters] = useState({
-    status: "",
-    q: ""
-  });
-  const [approvalForm, setApprovalForm] = useState({
+  const [query, setQuery] = useState("");
+  const [form, setForm] = useState({
     access_type: "email",
     email: "",
     domain: "",
     notes: ""
   });
 
-  const filteredRequests = useMemo(() => requests || [], [requests]);
+  const summary = useMemo(() => {
+    const items = approvals || [];
+    return {
+      total: items.length,
+      active: items.filter((item) => item.is_active).length,
+      inactive: items.filter((item) => !item.is_active).length,
+      email: items.filter((item) => item.access_type === "email").length,
+      domain: items.filter((item) => item.access_type === "domain").length
+    };
+  }, [approvals]);
 
-  async function loadAll() {
+  async function loadApprovals() {
     try {
       setLoading(true);
       setError("");
 
-      const [requestsRes, approvalsRes] = await Promise.all([
-        api.get("/beta-admin/requests", {
-          params: {
-            status: filters.status || "",
-            q: filters.q || ""
-          }
-        }),
-        api.get("/beta-admin/approvals")
-      ]);
+      const response = await api.get("/beta-admin", {
+        params: {
+          q: query || ""
+        }
+      });
 
-      setRequests(requestsRes?.data?.results || []);
-      setApprovals(approvalsRes?.data?.results || []);
+      setApprovals(response?.data?.results || []);
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Failed to load beta access dashboard"
+          "Failed to load beta approvals"
       );
     } finally {
       setLoading(false);
@@ -75,75 +67,71 @@ export default function BetaAccessAdmin() {
   }
 
   useEffect(() => {
-    loadAll();
-  }, [filters.status, filters.q]);
-
-  async function handleUpdateRequest(id, status, autoApprove = false) {
-    try {
-      setMessage("");
-      await api.patch(`/beta-admin/requests/${id}`, {
-        status,
-        auto_approve: autoApprove,
-        review_notes:
-          status === "approved"
-            ? "Approved from admin beta dashboard"
-            : "Denied from admin beta dashboard"
-      });
-
-      setMessage(
-        status === "approved"
-          ? "Request approved."
-          : "Request denied."
-      );
-
-      await loadAll();
-    } catch (err) {
-      setError(
-        err?.response?.data?.error ||
-          err?.message ||
-          "Failed to update request"
-      );
-    }
-  }
+    loadApprovals();
+  }, [query]);
 
   async function handleCreateApproval(event) {
     event.preventDefault();
 
     try {
-      setMessage("");
       setError("");
+      setMessage("");
 
-      await api.post("/beta-admin/approvals", approvalForm);
+      const body =
+        form.access_type === "email"
+          ? {
+              access_type: "email",
+              email: form.email,
+              notes: form.notes
+            }
+          : {
+              access_type: "domain",
+              domain: form.domain,
+              notes: form.notes
+            };
 
-      setApprovalForm({
-        access_type: "email",
+      await api.post("/beta-admin", body);
+
+      setMessage(
+        form.access_type === "email"
+          ? "Email approved for beta access."
+          : "Domain approved for beta access."
+      );
+
+      setForm({
+        access_type: form.access_type,
         email: "",
         domain: "",
         notes: ""
       });
 
-      setMessage("Approval saved.");
-      await loadAll();
+      await loadApprovals();
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Failed to save approval"
+          "Failed to create beta approval"
       );
     }
   }
 
-  async function handleDisableApproval(id) {
+  async function handleToggleApproval(item) {
     try {
+      setError("");
       setMessage("");
-      await api.delete(`/beta-admin/approvals/${id}`);
-      setMessage("Approval disabled.");
-      await loadAll();
+
+      await api.patch(`/beta-admin/${item.id}`, {
+        is_active: !item.is_active,
+        notes: item.notes || ""
+      });
+
+      setMessage(item.is_active ? "Approval revoked." : "Approval reactivated.");
+      await loadApprovals();
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Failed to disable approval"
+          "Failed to update approval"
       );
     }
   }
@@ -151,232 +139,199 @@ export default function BetaAccessAdmin() {
   return (
     <PageShell
       eyebrow="Admin"
-      title="Beta Access Dashboard"
-      description="Review access requests, approve operators, and control private beta entry."
+      title="Beta Access"
+      description="Approve emails or domains for private beta signup access."
     >
       {error ? (
         <div className="vs-banner vs-banner-danger">{error}</div>
       ) : null}
 
       {message ? (
-        <div className="vs-banner" style={{ borderColor: "#bbf7d0", background: "#f0fdf4", color: "#166534" }}>
+        <div
+          className="vs-banner"
+          style={{ borderColor: "#bbf7d0", background: "#f0fdf4", color: "#166534" }}
+        >
           {message}
         </div>
       ) : null}
 
-      <SectionCard
-        title="Filters"
-        subtitle="Review the current beta pipeline."
-      >
-        <div className="vs-grid-3">
-          <select
-            className="vs-select"
-            value={filters.status}
-            onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-          >
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="denied">Denied</option>
-          </select>
-
-          <input
-            className="vs-input"
-            value={filters.q}
-            onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-            placeholder="Search by name, firm, email, or role"
-          />
-
-          <button
-            type="button"
-            className="vs-button vs-button-secondary"
-            onClick={() => setFilters({ status: "", q: "" })}
-          >
-            Clear Filters
-          </button>
+      <div className="vs-grid-4" style={{ marginBottom: "16px" }}>
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Total Rules</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
+            {summary.total}
+          </div>
         </div>
+
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Active</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
+            {summary.active}
+          </div>
+        </div>
+
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Email Rules</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
+            {summary.email}
+          </div>
+        </div>
+
+        <div className="vs-card" style={{ padding: "16px" }}>
+          <div className="vs-stat-label">Domain Rules</div>
+          <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
+            {summary.domain}
+          </div>
+        </div>
+      </div>
+
+      <SectionCard
+        title="Create Approval"
+        subtitle="Allow one email or an entire company domain into the private beta."
+      >
+        <form onSubmit={handleCreateApproval} className="vs-stack">
+          <div className="vs-grid-3">
+            <select
+              className="vs-select"
+              value={form.access_type}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, access_type: e.target.value }))
+              }
+            >
+              <option value="email">Email</option>
+              <option value="domain">Domain</option>
+            </select>
+
+            {form.access_type === "email" ? (
+              <input
+                className="vs-input"
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, email: e.target.value }))
+                }
+                placeholder="user@example.com"
+                required
+              />
+            ) : (
+              <input
+                className="vs-input"
+                type="text"
+                value={form.domain}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, domain: e.target.value }))
+                }
+                placeholder="campaignfirm.com"
+                required
+              />
+            )}
+
+            <input
+              className="vs-input"
+              type="text"
+              value={form.notes}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, notes: e.target.value }))
+              }
+              placeholder="Notes"
+            />
+          </div>
+
+          <div>
+            <button type="submit" className="vs-button">
+              Add Approval
+            </button>
+          </div>
+        </form>
       </SectionCard>
 
-      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)" }}>
-        <SectionCard
-          title="Access Requests"
-          subtitle="Public landing page and signup-originated beta requests."
-          right={<Badge tone="warning">{filteredRequests.filter((r) => r.status === "pending").length} pending</Badge>}
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading beta requests..." />
-            ) : !filteredRequests.length ? (
-              <EmptyState text="No beta requests found." />
-            ) : (
-              filteredRequests.map((item) => (
-                <div key={item.id} className="vs-card" style={{ padding: "16px", display: "grid", gap: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
-                        {item.full_name || "Unknown requester"}
-                      </div>
-                      <div style={{ marginTop: "4px", color: "var(--vs-text-muted)", fontSize: "13px" }}>
-                        {item.firm_name || "No firm"} • {item.email}
-                      </div>
+      <SectionCard
+        title="Approval Directory"
+        subtitle="Manage current beta-access rules."
+        right={
+          <input
+            className="vs-input"
+            style={{ minWidth: "260px" }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search email, domain, or notes"
+          />
+        }
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading beta approvals..." />
+          ) : !approvals.length ? (
+            <EmptyState text="No beta approvals found." />
+          ) : (
+            approvals.map((item) => (
+              <div
+                key={item.id}
+                className="vs-card"
+                style={{ padding: "16px", display: "grid", gap: "12px" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap"
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 800 }}>
+                      {item.access_type === "email" ? item.email : item.domain}
                     </div>
-
-                    <div className="vs-chip-row">
-                      <Badge tone={statusTone(item.status)}>{item.status || "pending"}</Badge>
-                      <Badge tone="default">{item.role || "role unknown"}</Badge>
+                    <div style={{ marginTop: "4px", color: "var(--vs-text-muted)", fontSize: "13px" }}>
+                      {item.access_type === "email" ? "Email approval" : "Domain approval"}
                     </div>
                   </div>
 
-                  <div className="vs-grid-2">
-                    <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
-                      <div className="vs-stat-label">Source</div>
-                      <div style={{ marginTop: "4px", fontWeight: 700 }}>{item.source || "landing_page"}</div>
-                    </div>
+                  <div className="vs-chip-row">
+                    <Badge tone={item.is_active ? "active" : "default"}>
+                      {item.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                    <Badge tone="default">{item.access_type}</Badge>
+                  </div>
+                </div>
 
-                    <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
-                      <div className="vs-stat-label">Requested</div>
-                      <div style={{ marginTop: "4px", fontWeight: 700 }}>{formatDateTime(item.created_at)}</div>
+                <div className="vs-grid-2">
+                  <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
+                    <div className="vs-stat-label">Approved By</div>
+                    <div style={{ marginTop: "4px", fontWeight: 700 }}>
+                      {item.approved_by_email || "N/A"}
                     </div>
                   </div>
 
                   <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
-                    <div className="vs-stat-label">Notes</div>
-                    <div style={{ marginTop: "6px", color: "var(--vs-text)" }}>
-                      {item.notes || "No notes provided."}
+                    <div className="vs-stat-label">Updated</div>
+                    <div style={{ marginTop: "4px", fontWeight: 700 }}>
+                      {formatDateTime(item.updated_at)}
                     </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      className="vs-button"
-                      onClick={() => handleUpdateRequest(item.id, "approved", true)}
-                    >
-                      Approve + Allow Email
-                    </button>
-
-                    <button
-                      type="button"
-                      className="vs-button vs-button-secondary"
-                      onClick={() => handleUpdateRequest(item.id, "denied", false)}
-                    >
-                      Deny
-                    </button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </SectionCard>
 
-        <div className="vs-stack">
-          <SectionCard
-            title="Manual Approval"
-            subtitle="Approve an exact email or an entire domain."
-          >
-            <form onSubmit={handleCreateApproval} className="vs-stack">
-              <select
-                className="vs-select"
-                value={approvalForm.access_type}
-                onChange={(e) =>
-                  setApprovalForm((prev) => ({ ...prev, access_type: e.target.value }))
-                }
-              >
-                <option value="email">Email approval</option>
-                <option value="domain">Domain approval</option>
-              </select>
-
-              {approvalForm.access_type === "email" ? (
-                <input
-                  className="vs-input"
-                  value={approvalForm.email}
-                  onChange={(e) =>
-                    setApprovalForm((prev) => ({ ...prev, email: e.target.value }))
-                  }
-                  placeholder="operator@firm.com"
-                />
-              ) : (
-                <input
-                  className="vs-input"
-                  value={approvalForm.domain}
-                  onChange={(e) =>
-                    setApprovalForm((prev) => ({ ...prev, domain: e.target.value }))
-                  }
-                  placeholder="firm.com"
-                />
-              )}
-
-              <textarea
-                className="vs-input"
-                rows={4}
-                value={approvalForm.notes}
-                onChange={(e) =>
-                  setApprovalForm((prev) => ({ ...prev, notes: e.target.value }))
-                }
-                placeholder="Why this access was approved..."
-                style={{ resize: "vertical" }}
-              />
-
-              <button type="submit" className="vs-button">
-                Save Approval
-              </button>
-            </form>
-          </SectionCard>
-
-          <SectionCard
-            title="Approved Access"
-            subtitle="Current approved emails and domains."
-            right={<Badge tone="active">{approvals.filter((item) => item.is_active).length} active</Badge>}
-          >
-            <div className="vs-stack">
-              {loading ? (
-                <EmptyState text="Loading approvals..." />
-              ) : !approvals.length ? (
-                <EmptyState text="No approvals saved yet." />
-              ) : (
-                approvals.map((item) => (
-                  <div key={item.id} className="vs-card" style={{ padding: "16px", display: "grid", gap: "10px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontWeight: 800, color: "var(--vs-text)" }}>
-                          {item.access_type === "domain" ? item.domain : item.email}
-                        </div>
-                        <div style={{ marginTop: "4px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
-                          {item.access_type} • saved {formatDateTime(item.created_at)}
-                        </div>
-                      </div>
-
-                      <div className="vs-chip-row">
-                        <Badge tone={item.is_active ? "active" : "default"}>
-                          {item.is_active ? "active" : "inactive"}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {item.notes ? (
-                      <div style={{ fontSize: "13px", color: "var(--vs-text-muted)" }}>
-                        {item.notes}
-                      </div>
-                    ) : null}
-
-                    {item.is_active ? (
-                      <div>
-                        <button
-                          type="button"
-                          className="vs-button vs-button-secondary"
-                          onClick={() => handleDisableApproval(item.id)}
-                        >
-                          Disable
-                        </button>
-                      </div>
-                    ) : null}
+                <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
+                  <div className="vs-stat-label">Notes</div>
+                  <div style={{ marginTop: "6px", color: "var(--vs-text)" }}>
+                    {item.notes || "No notes."}
                   </div>
-                ))
-              )}
-            </div>
-          </SectionCard>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={() => handleToggleApproval(item)}
+                  >
+                    {item.is_active ? "Revoke Access" : "Reactivate"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </div>
+      </SectionCard>
     </PageShell>
   );
 }
