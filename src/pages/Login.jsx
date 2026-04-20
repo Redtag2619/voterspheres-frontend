@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import PublicPageShell from "../components/layout/PublicPageShell.jsx"; 
+import PublicPageShell from "../components/layout/PublicPageShell.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [searchParams] = useSearchParams();
-
   const next = searchParams.get("next") || "/dashboard";
+  const { login } = useAuth();
 
   const [form, setForm] = useState({
     email: "",
-    password: "",
+    password: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,24 +42,18 @@ export default function Login() {
 
   return (
     <PublicPageShell
-      eyebrow="Private Beta Access"
+      eyebrow="Account Access"
       title="Sign in to your campaign operating system."
-      description="Access your dashboard, command center, candidate intelligence, fundraising workflows, MailOps, and executive layers from one secure workspace."
-      announcement="VoterSpheres is currently in private beta. Only approved emails and invited operators can access the platform."
-      announcementTone="warning"
+      description="Access your dashboard, command center, fundraising workflows, MailOps, and intelligence layers from one secure workspace."
+      announcement="Demo Mode is available for walkthroughs while live data layers, MailOps workflows, or enterprise onboarding are still being configured."
+      announcementTone="demo"
       announcementAction={
         <Link to="/pricing" className="vs-button vs-button-secondary">
           View Plans
         </Link>
       }
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "460px",
-          margin: "0 auto",
-        }}
-      >
+      <div style={{ width: "100%", maxWidth: "460px", margin: "0 auto" }}>
         <div className="vs-card" style={{ padding: "20px" }}>
           {error ? (
             <div className="vs-banner vs-banner-danger" style={{ marginBottom: "14px" }}>
@@ -99,6 +92,12 @@ export default function Login() {
               />
             </div>
 
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <Link to="/forgot-password" style={{ color: "#fbbf24", fontWeight: 700, fontSize: "12px" }}>
+                Forgot password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               className="vs-button vs-button-primary"
@@ -115,12 +114,12 @@ export default function Login() {
               paddingTop: "14px",
               borderTop: "1px solid var(--vs-border)",
               fontSize: "12px",
-              color: "var(--vs-text-muted)",
+              color: "var(--vs-text-muted)"
             }}
           >
-            Need approved beta access?{" "}
+            Need an account?{" "}
             <Link to="/signup" style={{ color: "#fbbf24", fontWeight: 700 }}>
-              Request or create an account
+              Create one here
             </Link>
           </div>
         </div>
