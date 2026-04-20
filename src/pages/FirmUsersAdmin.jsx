@@ -106,6 +106,29 @@ export default function FirmUsersAdmin() {
     }
   }
 
+  async function handleResetPassword(user) {
+    try {
+      setError("");
+      setMessage("");
+
+      const res = await api.post(`/firm-users/${user.id}/send-password-reset`);
+
+      if (res?.data?.email_sent) {
+        setMessage(`Reset email sent to ${user.email}`);
+      } else if (res?.data?.reset_link) {
+        setMessage(`Manual reset link: ${res.data.reset_link}`);
+      } else {
+        setMessage("Password reset triggered.");
+      }
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to send reset"
+      );
+    }
+  }
+
   return (
     <PageShell
       eyebrow="Admin"
@@ -122,7 +145,13 @@ export default function FirmUsersAdmin() {
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.1fr) minmax(360px, 0.9fr)" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "minmax(0, 1.1fr) minmax(360px, 0.9fr)"
+        }}
+      >
         <SectionCard
           title="Firm Team"
           subtitle="All users in your current firm."
@@ -135,13 +164,36 @@ export default function FirmUsersAdmin() {
               <EmptyState text="No users found in this firm." />
             ) : (
               users.map((user) => (
-                <div key={user.id} className="vs-card" style={{ padding: "16px", display: "grid", gap: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                <div
+                  key={user.id}
+                  className="vs-card"
+                  style={{ padding: "16px", display: "grid", gap: "12px" }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap"
+                    }}
+                  >
                     <div>
-                      <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--vs-text)" }}>
+                      <div
+                        style={{
+                          fontSize: "16px",
+                          fontWeight: 800,
+                          color: "var(--vs-text)"
+                        }}
+                      >
                         {user.first_name} {user.last_name}
                       </div>
-                      <div style={{ marginTop: "4px", color: "var(--vs-text-muted)", fontSize: "13px" }}>
+                      <div
+                        style={{
+                          marginTop: "4px",
+                          color: "var(--vs-text-muted)",
+                          fontSize: "13px"
+                        }}
+                      >
                         {user.email}
                       </div>
                     </div>
@@ -200,6 +252,14 @@ export default function FirmUsersAdmin() {
                     >
                       {user.is_active ? "Disable" : "Enable"}
                     </button>
+
+                    <button
+                      type="button"
+                      className="vs-button vs-button-secondary"
+                      onClick={() => handleResetPassword(user)}
+                    >
+                      Reset Password
+                    </button>
                   </div>
                 </div>
               ))
@@ -216,14 +276,18 @@ export default function FirmUsersAdmin() {
               <input
                 className="vs-input"
                 value={form.first_name}
-                onChange={(e) => setForm((prev) => ({ ...prev, first_name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, first_name: e.target.value }))
+                }
                 placeholder="First name"
                 required
               />
               <input
                 className="vs-input"
                 value={form.last_name}
-                onChange={(e) => setForm((prev) => ({ ...prev, last_name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, last_name: e.target.value }))
+                }
                 placeholder="Last name"
                 required
               />
@@ -233,7 +297,9 @@ export default function FirmUsersAdmin() {
               className="vs-input"
               type="email"
               value={form.email}
-              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, email: e.target.value }))
+              }
               placeholder="Work email"
               required
             />
@@ -242,7 +308,9 @@ export default function FirmUsersAdmin() {
               className="vs-input"
               type="password"
               value={form.password}
-              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, password: e.target.value }))
+              }
               placeholder="Temporary password"
               required
             />
@@ -250,7 +318,9 @@ export default function FirmUsersAdmin() {
             <select
               className="vs-select"
               value={form.role}
-              onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, role: e.target.value }))
+              }
             >
               <option value="user">User</option>
               <option value="analyst">Analyst</option>
