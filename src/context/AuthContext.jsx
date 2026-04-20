@@ -1,146 +1,193 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import {
-  clearStoredAuth,
-  getStoredToken,
-  getStoredUser,
-  setStoredAuth,
-} from "../lib/auth";
-import { hasPlanAccess, normalizePlan } from "../lib/plan";
-import { authApi } from "../services/api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { api } from "../services/api";
+import { enrichUserWithPermissions } from "../lib/permissions.js";
 
 const AuthContext = createContext(null);
 
-function normalizeUser(user) {
-  if (!user) return null;
+const TOKEN_KEY = "vs_token";
+const USER_KEY = "vs_user";
 
-  return {
-    ...user,
-    firm_id:
-      user.firm_id ||
-      user.firmId ||
-      user.firm?.id ||
-      user.organization_id ||
-      null,
-    role: user.role || "user",
-    plan_tier: normalizePlan(
-      user.plan_tier ||
-        user.planTier ||
-        user.plan ||
-        user.subscription_plan ||
-        user.firm?.plan_tier
-    ),
-  };
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+function getStoredUser() {
+  if (typeof window === "undefined") return null;
+
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    return enrichUserWithPermissions(parsed);
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
+
+function setStoredAuth(token, user) {
+  if (typeof window === "undefined") return;
+
+  const safeToken = token || "";
+  const enrichedUser = user ? enrichUserWithPermissions(user) : null;
+
+  if (safeToken) {
+    localStorage.setItem(TOKEN_KEY, safeToken);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+
+  if (enrichedUser) {
+    localStorage.setItem(USER_KEY, JSON.stringify(enrichedUser));
+  } else {
+    localStorage.removeItem(USER_KEY);
+  }
+}
+
+function clearStoredAuth() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+function normalizeAuthResponse(data = {}) {
+  const token = data?.token || "";
+  const rawUser = data?.user || null;
+  const rawFirm = data?.firm || null;
+
+  const user = rawUser
+    ? enrichUserWithPermissions({
+        ...rawUser,
+        firm: rawFirm || rawUser?.firm || null
+      })
+    : null;
+
+  return { token, user, firm: rawFirm };
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(getStoredToken() || "");
-  const [user, setUser] = useState(normalizeUser(getStoredUser()));
+  const [token, setToken] = useState(() => getStoredToken());
+  const [user, setUser] = useState(() => getStoredUser());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let active = true;
-
-    async function bootstrap() {
-      try {
-        const existingToken = getStoredToken();
-
-        if (!existingToken) {
-          if (active) setLoading(false);
-          return;
-        }
-
-        const data = await authApi.me();
-        const normalizedUser = normalizeUser(data?.user || data);
-
-        if (!normalizedUser) {
-          throw new Error("Unable to load authenticated user");
-        }
-
-        setStoredAuth(existingToken, normalizedUser);
-
-        if (!active) return;
-
-        setToken(existingToken);
-        setUser(normalizedUser);
-      } catch (error) {
-        console.error("Auth bootstrap failed:", error);
-        clearStoredAuth();
-
-        if (!active) return;
-
-        setToken("");
-        setUser(null);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    bootstrap();
-
-    return () => {
-      active = false;
-    };
+  const applyAuth = useCallback((nextToken, nextUser) => {
+    const enrichedUser = nextUser ? enrichUserWithPermissions(nextUser) : null;
+    setToken(nextToken || "");
+    setUser(enrichedUser);
+    setStoredAuth(nextToken || "", enrichedUser);
   }, []);
 
-  async function login(emailOrPayload, passwordArg) {
-    const payload =
-      typeof emailOrPayload === "object" && emailOrPayload !== null
-        ? emailOrPayload
-        : { email: emailOrPayload, password: passwordArg };
-
-    const data = await authApi.login(payload);
-    const normalizedUser = normalizeUser(data?.user);
-
-    if (!data?.token) {
-      throw new Error("Login response did not include a token");
-    }
-
-    setStoredAuth(data.token, normalizedUser);
-    setToken(data.token);
-    setUser(normalizedUser);
-
-    return normalizedUser;
-  }
-
-  async function signup(payload) {
-    const data = await authApi.signup(payload);
-    const normalizedUser = normalizeUser(data?.user);
-
-    if (!data?.token) {
-      throw new Error("Signup response did not include a token");
-    }
-
-    setStoredAuth(data.token, normalizedUser);
-    setToken(data.token);
-    setUser(normalizedUser);
-
-    return normalizedUser;
-  }
-
-  async function refreshMe() {
-    const existingToken = getStoredToken();
-
-    if (!existingToken) return null;
-
-    const data = await authApi.me();
-    const normalizedUser = normalizeUser(data?.user || data);
-
-    setStoredAuth(existingToken, normalizedUser);
-    setToken(existingToken);
-    setUser(normalizedUser);
-
-    return normalizedUser;
-  }
-
-  function logout() {
+  const logout = useCallback(() => {
     clearStoredAuth();
     setToken("");
     setUser(null);
-  }
+  }, []);
 
-  function canAccess(requiredPlan) {
-    return hasPlanAccess(user?.plan_tier, requiredPlan);
-  }
+  const bootstrapAuth = useCallback(async () => {
+    const storedToken = getStoredToken();
+    const storedUser = getStoredUser();
+
+    if (!storedToken) {
+      setLoading(false);
+      return;
+    }
+
+    if (storedUser) {
+      setUser(storedUser);
+    }
+
+    try {
+      const response = await api.get("/auth/me", {
+        headers: {
+          Authorization: `Bearer ${storedToken}`
+        }
+      });
+
+      const me = response?.data || null;
+
+      if (!me) {
+        logout();
+        return;
+      }
+
+      applyAuth(storedToken, me);
+    } catch (error) {
+      console.error("Auth bootstrap failed:", error);
+      logout();
+    } finally {
+      setLoading(false);
+    }
+  }, [applyAuth, logout]);
+
+  useEffect(() => {
+    bootstrapAuth();
+  }, [bootstrapAuth]);
+
+  const login = useCallback(
+    async (email, password) => {
+      const response = await api.post("/auth/login", {
+        email,
+        password
+      });
+
+      const { token: nextToken, user: nextUser } = normalizeAuthResponse(response?.data || {});
+
+      if (!nextToken || !nextUser) {
+        throw new Error("Login response was missing token or user.");
+      }
+
+      applyAuth(nextToken, nextUser);
+      return { token: nextToken, user: nextUser };
+    },
+    [applyAuth]
+  );
+
+  const signup = useCallback(
+    async (form) => {
+      const response = await api.post("/auth/signup", form);
+      const { token: nextToken, user: nextUser, firm } = normalizeAuthResponse(response?.data || {});
+
+      if (!nextToken || !nextUser) {
+        throw new Error("Signup response was missing token or user.");
+      }
+
+      const userWithFirm = {
+        ...nextUser,
+        firm: firm || nextUser?.firm || null
+      };
+
+      applyAuth(nextToken, userWithFirm);
+      return { token: nextToken, user: userWithFirm, firm };
+    },
+    [applyAuth]
+  );
+
+  const refreshMe = useCallback(async () => {
+    const activeToken = token || getStoredToken();
+
+    if (!activeToken) {
+      logout();
+      return null;
+    }
+
+    const response = await api.get("/auth/me", {
+      headers: {
+        Authorization: `Bearer ${activeToken}`
+      }
+    });
+
+    const me = response?.data || null;
+
+    if (!me) {
+      logout();
+      return null;
+    }
+
+    applyAuth(activeToken, me);
+    return enrichUserWithPermissions(me);
+  }, [applyAuth, logout, token]);
 
   const value = useMemo(
     () => ({
@@ -148,27 +195,24 @@ export function AuthProvider({ children }) {
       user,
       loading,
       isAuthenticated: Boolean(token && user),
-      firmId: user?.firm_id || null,
-      role: user?.role || null,
-      planTier: user?.plan_tier || "free",
       login,
       signup,
       logout,
       refreshMe,
-      canAccess,
+      setUser: (nextUser) => applyAuth(token, nextUser)
     }),
-    [token, user, loading]
+    [token, user, loading, login, signup, logout, refreshMe, applyAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
+  const context = useContext(AuthContext);
 
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
 
-  return ctx;
+  return context;
 }
