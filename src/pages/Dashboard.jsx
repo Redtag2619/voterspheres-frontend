@@ -610,25 +610,23 @@ export default function Dashboard() {
           : [];
         const vendors = vendorsPayload?.results?.length ? vendorsPayload.results : fallbackData.vendors;
         const metrics = dashboardPayload?.metrics?.length ? dashboardPayload.metrics : fallbackData.metrics;
+        const feed =
+          Array.isArray(dashboardPayload?.feed) && dashboardPayload.feed.length
+            ? dashboardPayload.feed
+            : fallbackData.feed;
+        const battlegrounds =
+          Array.isArray(dashboardPayload?.battlegrounds) && dashboardPayload.battlegrounds.length
+            ? dashboardPayload.battlegrounds
+            : fallbackData.battlegrounds;
 
-       const feed =
-  Array.isArray(dashboardPayload?.feed) && dashboardPayload.feed.length
-    ? dashboardPayload.feed
-    : fallbackData.feed;
-
-const battlegrounds =
-  Array.isArray(dashboardPayload?.battlegrounds) && dashboardPayload.battlegrounds.length
-    ? dashboardPayload.battlegrounds
-    : fallbackData.battlegrounds;
-
-setDashboardData({
-  metrics,
-  feed,
-  battlegrounds,
-  leaderboard,
-  vendors,
-  fundraisingSummary
-});
+        setDashboardData({
+          metrics,
+          feed,
+          battlegrounds,
+          leaderboard,
+          vendors,
+          fundraisingSummary
+        });
       } catch (err) {
         if (!active) return;
         setError(err?.response?.data?.error || err?.message || "Failed to load dashboard");
