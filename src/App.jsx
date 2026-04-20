@@ -17,6 +17,8 @@ const FirmUsersAdmin = lazy(() => import("./pages/FirmUsersAdmin.jsx"));
 const FirmInvitesAdmin = lazy(() => import("./pages/FirmInvitesAdmin.jsx"));
 const EnterpriseLeadsAdmin = lazy(() => import("./pages/EnterpriseLeadsAdmin.jsx"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite.jsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap.jsx"));
 const DonorNetwork = lazy(() => import("./pages/DonorNetwork.jsx"));
 const ElectionForecast = lazy(() => import("./pages/ElectionForecast.jsx"));
@@ -107,6 +109,8 @@ function AppRoutes() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route element={<PublicOnly />}>
           <Route path="/login" element={<Login />} />
