@@ -22,6 +22,7 @@ function formatDateTime(value) {
 export default function BetaAccessAdmin() {
   const [loading, setLoading] = useState(true);
   const [approvals, setApprovals] = useState([]);
+  const [pendingSignups, setPendingSignups] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
@@ -34,32 +35,39 @@ export default function BetaAccessAdmin() {
 
   const summary = useMemo(() => {
     const items = approvals || [];
+    const pending = pendingSignups || [];
+
     return {
       total: items.length,
       active: items.filter((item) => item.is_active).length,
       inactive: items.filter((item) => !item.is_active).length,
       email: items.filter((item) => item.access_type === "email").length,
-      domain: items.filter((item) => item.access_type === "domain").length
+      domain: items.filter((item) => item.access_type === "domain").length,
+      pending: pending.filter((item) => item.status === "pending").length
     };
-  }, [approvals]);
+  }, [approvals, pendingSignups]);
 
-  async function loadApprovals() {
+  async function loadData() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await api.get("/beta-admin", {
-        params: {
-          q: query || ""
-        }
-      });
+      const [approvalsRes, pendingRes] = await Promise.all([
+        api.get("/beta-admin", {
+          params: { q: query || "" }
+        }),
+        api.get("/beta-admin/pending-signups", {
+          params: { q: query || "" }
+        })
+      ]);
 
-      setApprovals(response?.data?.results || []);
+      setApprovals(approvalsRes?.data?.results || []);
+      setPendingSignups(pendingRes?.data?.results || []);
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Failed to load beta approvals"
+          "Failed to load beta access data"
       );
     } finally {
       setLoading(false);
@@ -67,7 +75,7 @@ export default function BetaAccessAdmin() {
   }
 
   useEffect(() => {
-    loadApprovals();
+    loadData();
   }, [query]);
 
   async function handleCreateApproval(event) {
@@ -105,7 +113,7 @@ export default function BetaAccessAdmin() {
         notes: ""
       });
 
-      await loadApprovals();
+      await loadData();
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -126,7 +134,7 @@ export default function BetaAccessAdmin() {
       });
 
       setMessage(item.is_active ? "Approval revoked." : "Approval reactivated.");
-      await loadApprovals();
+      await loadData();
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -136,11 +144,47 @@ export default function BetaAccessAdmin() {
     }
   }
 
+  async function handleApprovePending(item) {
+    try {
+      setError("");
+      setMessage("");
+
+      await api.post(`/beta-admin/pending-signups/${item.id}/approve`);
+
+      setMessage(`Approved ${item.email}. They can now sign up.`);
+      await loadData();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to approve pending signup"
+      );
+    }
+  }
+
+  async function handleRejectPending(item) {
+    try {
+      setError("");
+      setMessage("");
+
+      await api.patch(`/beta-admin/pending-signups/${item.id}/reject`);
+
+      setMessage(`Rejected ${item.email}.`);
+      await loadData();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to reject pending signup"
+      );
+    }
+  }
+
   return (
     <PageShell
       eyebrow="Admin"
       title="Beta Access"
-      description="Approve emails or domains for private beta signup access."
+      description="Approve emails or domains for private beta signup access, and process blocked signup attempts."
     >
       {error ? (
         <div className="vs-banner vs-banner-danger">{error}</div>
@@ -171,16 +215,16 @@ export default function BetaAccessAdmin() {
         </div>
 
         <div className="vs-card" style={{ padding: "16px" }}>
-          <div className="vs-stat-label">Email Rules</div>
+          <div className="vs-stat-label">Domain Rules</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
-            {summary.email}
+            {summary.domain}
           </div>
         </div>
 
         <div className="vs-card" style={{ padding: "16px" }}>
-          <div className="vs-stat-label">Domain Rules</div>
+          <div className="vs-stat-label">Pending Signups</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
-            {summary.domain}
+            {summary.pending}
           </div>
         </div>
       </div>
@@ -246,17 +290,106 @@ export default function BetaAccessAdmin() {
       </SectionCard>
 
       <SectionCard
-        title="Approval Directory"
-        subtitle="Manage current beta-access rules."
+        title="Pending Signup Attempts"
+        subtitle="Users blocked by private beta can be approved in one click."
         right={
           <input
             className="vs-input"
             style={{ minWidth: "260px" }}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search email, domain, or notes"
+            placeholder="Search email, name, or firm"
           />
         }
+      >
+        <div className="vs-stack">
+          {loading ? (
+            <EmptyState text="Loading pending signups..." />
+          ) : !pendingSignups.length ? (
+            <EmptyState text="No pending signup attempts found." />
+          ) : (
+            pendingSignups.map((item) => (
+              <div
+                key={item.id}
+                className="vs-card"
+                style={{ padding: "16px", display: "grid", gap: "12px" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap"
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 800 }}>
+                      {[item.first_name, item.last_name].filter(Boolean).join(" ") || item.email}
+                    </div>
+                    <div style={{ marginTop: "4px", color: "var(--vs-text-muted)", fontSize: "13px" }}>
+                      {item.email} • {item.firm_name || "No firm"} • {item.requested_role || "user"}
+                    </div>
+                  </div>
+
+                  <div className="vs-chip-row">
+                    <Badge tone={item.status === "pending" ? "warning" : item.status === "approved" ? "active" : "default"}>
+                      {item.status}
+                    </Badge>
+                    {item.already_approved ? <Badge tone="active">Already Approved</Badge> : null}
+                  </div>
+                </div>
+
+                <div className="vs-grid-2">
+                  <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
+                    <div className="vs-stat-label">Submitted</div>
+                    <div style={{ marginTop: "4px", fontWeight: 700 }}>
+                      {formatDateTime(item.created_at)}
+                    </div>
+                  </div>
+
+                  <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
+                    <div className="vs-stat-label">Reviewed By</div>
+                    <div style={{ marginTop: "4px", fontWeight: 700 }}>
+                      {item.reviewed_by_email || "Not reviewed"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="vs-card-muted" style={{ padding: "12px 14px" }}>
+                  <div className="vs-stat-label">Notes</div>
+                  <div style={{ marginTop: "6px", color: "var(--vs-text)" }}>
+                    {item.notes || "No notes."}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="vs-button"
+                    onClick={() => handleApprovePending(item)}
+                    disabled={item.status === "approved"}
+                  >
+                    {item.status === "approved" ? "Approved" : "Approve & Activate"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={() => handleRejectPending(item)}
+                    disabled={item.status === "rejected"}
+                  >
+                    {item.status === "rejected" ? "Rejected" : "Reject"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Approval Directory"
+        subtitle="Manage current beta-access rules."
       >
         <div className="vs-stack">
           {loading ? (
