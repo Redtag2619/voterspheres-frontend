@@ -40,10 +40,9 @@ export default function BetaAccessAdmin() {
     return {
       total: items.length,
       active: items.filter((item) => item.is_active).length,
-      inactive: items.filter((item) => !item.is_active).length,
-      email: items.filter((item) => item.access_type === "email").length,
       domain: items.filter((item) => item.access_type === "domain").length,
-      pending: pending.filter((item) => item.status === "pending").length
+      pending: pending.filter((item) => item.status === "pending").length,
+      invited: pending.filter((item) => item.status === "invited").length
     };
   }, [approvals, pendingSignups]);
 
@@ -162,6 +161,35 @@ export default function BetaAccessAdmin() {
     }
   }
 
+  async function handleApproveAndInvitePending(item) {
+    try {
+      setError("");
+      setMessage("");
+
+      const response = await api.post(
+        `/beta-admin/pending-signups/${item.id}/approve-and-invite`
+      );
+
+      if (response?.data?.email_sent) {
+        setMessage(`Approved and invited ${item.email}. Invite email sent.`);
+      } else if (response?.data?.invite_link) {
+        setMessage(
+          `Approved and invited ${item.email}. Email was not sent, so share this link manually: ${response.data.invite_link}`
+        );
+      } else {
+        setMessage(`Approved and invited ${item.email}.`);
+      }
+
+      await loadData();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to approve and invite pending signup"
+      );
+    }
+  }
+
   async function handleRejectPending(item) {
     try {
       setError("");
@@ -184,7 +212,7 @@ export default function BetaAccessAdmin() {
     <PageShell
       eyebrow="Admin"
       title="Beta Access"
-      description="Approve emails or domains for private beta signup access, and process blocked signup attempts."
+      description="Approve emails or domains for private beta signup access, and convert blocked signup attempts into live onboarding."
     >
       {error ? (
         <div className="vs-banner vs-banner-danger">{error}</div>
@@ -215,16 +243,16 @@ export default function BetaAccessAdmin() {
         </div>
 
         <div className="vs-card" style={{ padding: "16px" }}>
-          <div className="vs-stat-label">Domain Rules</div>
+          <div className="vs-stat-label">Pending Signups</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
-            {summary.domain}
+            {summary.pending}
           </div>
         </div>
 
         <div className="vs-card" style={{ padding: "16px" }}>
-          <div className="vs-stat-label">Pending Signups</div>
+          <div className="vs-stat-label">Invited</div>
           <div style={{ marginTop: "8px", fontSize: "28px", fontWeight: 900 }}>
-            {summary.pending}
+            {summary.invited}
           </div>
         </div>
       </div>
@@ -291,7 +319,7 @@ export default function BetaAccessAdmin() {
 
       <SectionCard
         title="Pending Signup Attempts"
-        subtitle="Users blocked by private beta can be approved in one click."
+        subtitle="Approve blocked signups or convert them directly into invite-based onboarding."
         right={
           <input
             className="vs-input"
@@ -332,7 +360,13 @@ export default function BetaAccessAdmin() {
                   </div>
 
                   <div className="vs-chip-row">
-                    <Badge tone={item.status === "pending" ? "warning" : item.status === "approved" ? "active" : "default"}>
+                    <Badge tone={
+                      item.status === "pending"
+                        ? "warning"
+                        : item.status === "approved" || item.status === "invited"
+                          ? "active"
+                          : "default"
+                    }>
                       {item.status}
                     </Badge>
                     {item.already_approved ? <Badge tone="active">Already Approved</Badge> : null}
@@ -367,9 +401,20 @@ export default function BetaAccessAdmin() {
                     type="button"
                     className="vs-button"
                     onClick={() => handleApprovePending(item)}
-                    disabled={item.status === "approved"}
+                    disabled={item.status === "approved" || item.status === "invited"}
                   >
-                    {item.status === "approved" ? "Approved" : "Approve & Activate"}
+                    {item.status === "approved" || item.status === "invited"
+                      ? "Approved"
+                      : "Approve Only"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={() => handleApproveAndInvitePending(item)}
+                    disabled={item.status === "invited"}
+                  >
+                    {item.status === "invited" ? "Invited" : "Approve & Invite"}
                   </button>
 
                   <button
