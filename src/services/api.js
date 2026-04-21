@@ -2,19 +2,31 @@ import axios from "axios";
 import { getStoredToken, clearStoredAuth } from "../lib/auth";
 import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
-const RAW_BASE =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://voterspheres-backend.onrender.com";
+function normalizeApiBaseUrl(rawValue) {
+  const trimmed = String(rawValue || "").trim();
 
-const API_BASE = RAW_BASE.endsWith("/api") ? RAW_BASE : `${RAW_BASE}/api`;
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE = normalizeApiBaseUrl(RAW_BASE);
+
+if (!API_BASE) {
+  console.error(
+    "[VoterSpheres] Missing VITE_API_BASE_URL. Example: https://your-backend.onrender.com/api"
+  );
+}
 
 const http = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE || "/api",
   headers: {
-    "Content-Type": "application/json",
+    "Content-Type": "application/json"
   },
-  timeout: 30000,
+  timeout: 30000
 });
 
 function isDemoModeEnabled() {
@@ -34,7 +46,7 @@ const demoFallbacks = {
         donor_type: "PAC",
         state: "Georgia",
         amount: 250000,
-        relationship_strength: "High",
+        relationship_strength: "High"
       },
       {
         id: 2,
@@ -42,15 +54,15 @@ const demoFallbacks = {
         donor_type: "Individual Network",
         state: "Pennsylvania",
         amount: 175000,
-        relationship_strength: "Medium",
-      },
+        relationship_strength: "Medium"
+      }
     ],
     summary: {
       total_donors: 2,
       total_amount: 425000,
-      top_state: "Georgia",
+      top_state: "Georgia"
     },
-    _demo: true,
+    _demo: true
   },
   "/consultants": {
     results: [
@@ -60,21 +72,21 @@ const demoFallbacks = {
         category: "General Consulting",
         state: "Louisiana",
         website: "https://example.com",
-        status: "active",
-      },
+        status: "active"
+      }
     ],
-    _demo: true,
+    _demo: true
   },
   "/consultants/states": {
     states: ["Georgia", "Louisiana", "Pennsylvania"],
-    _demo: true,
+    _demo: true
   },
   "/mailops/dashboard": {
     metrics: [
       { label: "Mail Drops", value: "18", delta: "4 active today", tone: "up" },
       { label: "Delivery Risk", value: "3", delta: "2 elevated", tone: "down" },
       { label: "Postal Alerts", value: "7", delta: "Live monitoring", tone: "up" },
-      { label: "On-Time Rate", value: "94%", delta: "+2.1%", tone: "up" },
+      { label: "On-Time Rate", value: "94%", delta: "+2.1%", tone: "up" }
     ],
     drops: [
       {
@@ -83,8 +95,8 @@ const demoFallbacks = {
         location: "Atlanta NDC",
         status: "Elevated",
         in_home: "2026-10-14",
-        note: "Watch weekend clearance volume",
-      },
+        note: "Watch weekend clearance volume"
+      }
     ],
     alerts: [
       {
@@ -92,10 +104,10 @@ const demoFallbacks = {
         title: "Atlanta NDC delay pressure increasing",
         severity: "High",
         source: "MailOps",
-        detail: "Projected slip risk on high-volume trays.",
-      },
+        detail: "Projected slip risk on high-volume trays."
+      }
     ],
-    _demo: true,
+    _demo: true
   },
   "/mailops/events": {
     results: [
@@ -112,11 +124,11 @@ const demoFallbacks = {
         severity: "High",
         event_time: "2026-10-11T10:30:00Z",
         in_home: "2026-10-14",
-        note: "Tray movement slowed during weekend processing",
-      },
+        note: "Tray movement slowed during weekend processing"
+      }
     ],
-    _demo: true,
-  },
+    _demo: true
+  }
 };
 
 function isNotFound(error) {
@@ -228,7 +240,7 @@ http.interceptors.response.use(
         currentPlan: data.currentPlan || "free",
         message:
           data.message || "Your current plan does not include this feature.",
-        source: error?.config?.url || "",
+        source: error?.config?.url || ""
       });
     }
 
@@ -250,6 +262,8 @@ export const authApi = {
   signup: (payload) => unwrap(http.post("/auth/signup", payload)),
   login: (payload) => unwrap(http.post("/auth/login", payload)),
   me: () => unwrap(http.get("/auth/me")),
+  forgotPassword: (payload) => unwrap(http.post("/auth/forgot-password", payload)),
+  resetPassword: (payload) => unwrap(http.post("/auth/reset-password", payload))
 };
 
 export const billingApi = {
@@ -258,7 +272,7 @@ export const billingApi = {
   createCheckoutSession: (payload) =>
     unwrap(http.post("/billing/checkout-session", payload)),
   createPortalSession: (payload = {}) =>
-    unwrap(http.post("/billing/portal-session", payload)),
+    unwrap(http.post("/billing/portal-session", payload))
 };
 
 export const candidatesApi = {
@@ -277,7 +291,7 @@ export const candidatesApi = {
   parties: async () => {
     const data = await tryGet(["/candidates/parties"]);
     return normalizeListResult(data, ["parties"]);
-  },
+  }
 };
 
 export const intelligenceApi = {
@@ -286,13 +300,15 @@ export const intelligenceApi = {
   forecast: () => tryGet(["/intelligence/forecast"]),
   rankings: () => tryGet(["/intelligence/rankings"]),
   map: () => tryGet(["/intelligence/map"]),
+  candidateSummary: (params = {}) => tryGet(["/intelligence/candidate-summary"], { params }),
+  battlegrounds: () => tryGet(["/intelligence/battlegrounds"]),
   liveFundraising: () =>
     tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
   fundraisingLeaderboard: () =>
     tryGet([
       "/intelligence/fundraising/leaderboard",
-      "/fec/fundraising/leaderboard",
-    ]),
+      "/fec/fundraising/leaderboard"
+    ])
 };
 
 export const platformApi = {
@@ -312,10 +328,10 @@ export const platformApi = {
     const data = await tryGet([
       "/platform/consultants/states",
       "/consultants/states",
-      "/marketplace/consultants/states",
+      "/marketplace/consultants/states"
     ]);
     return normalizeListResult(data, ["states"]);
-  },
+  }
 };
 
 export const vendorsApi = {
@@ -323,7 +339,7 @@ export const vendorsApi = {
     const data = await tryGet([
       "/vendors/states",
       "/platform/vendors/states",
-      "/crm/vendors/states",
+      "/crm/vendors/states"
     ]);
     return normalizeListResult(data, ["states"]);
   },
@@ -333,7 +349,7 @@ export const vendorsApi = {
       { params }
     );
     return Array.isArray(data) ? { results: data } : data;
-  },
+  }
 };
 
 export const donorsApi = {
@@ -343,7 +359,7 @@ export const donorsApi = {
       { params }
     );
     return Array.isArray(data) ? { results: data } : data;
-  },
+  }
 };
 
 export const mailOpsApi = {
@@ -351,17 +367,17 @@ export const mailOpsApi = {
     tryGet([
       "/mailops/dashboard",
       "/platform/mailops/dashboard",
-      "/mail-ops/dashboard",
+      "/mail-ops/dashboard"
     ]),
   events: (params = {}) => tryGet(["/mailops/events"], { params }),
   createEvent: (payload) => tryPost(["/mailops/events"], payload),
   updateEvent: (eventId, payload) =>
-    tryPatch([`/mailops/events/${eventId}`], payload),
+    tryPatch([`/mailops/events/${eventId}`], payload)
 };
 
 export const publicApi = {
   createEnterpriseLead: (payload) =>
-    unwrap(http.post("/public/enterprise-leads", payload)),
+    unwrap(http.post("/public/enterprise-leads", payload))
 };
 
 export const api = {
@@ -374,6 +390,8 @@ export const api = {
   signup: authApi.signup,
   login: authApi.login,
   me: authApi.me,
+  forgotPassword: authApi.forgotPassword,
+  resetPassword: authApi.resetPassword,
 
   billingConfig: billingApi.config,
   billingDebug: billingApi.debugMe,
@@ -390,6 +408,8 @@ export const api = {
   intelligenceForecast: intelligenceApi.forecast,
   intelligenceRankings: intelligenceApi.rankings,
   intelligenceMap: intelligenceApi.map,
+  intelligenceCandidateSummary: intelligenceApi.candidateSummary,
+  intelligenceBattlegrounds: intelligenceApi.battlegrounds,
   liveFundraising: intelligenceApi.liveFundraising,
   fundraisingLeaderboard: intelligenceApi.fundraisingLeaderboard,
 
@@ -411,8 +431,8 @@ export const api = {
   createMailOpsEvent: mailOpsApi.createEvent,
   updateMailOpsEvent: mailOpsApi.updateEvent,
 
-  createEnterpriseLead: publicApi.createEnterpriseLead,
+  createEnterpriseLead: publicApi.createEnterpriseLead
 };
 
-export { http };
+export { API_BASE, http };
 export default http;
