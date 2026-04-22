@@ -134,7 +134,7 @@ function AppRoutes() {
             </Route>
 
             <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
-            </Route>
+            
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_FIRM_USERS]} />}>
               <Route path="/admin/firm-users" element={<FirmUsersAdmin />} />
