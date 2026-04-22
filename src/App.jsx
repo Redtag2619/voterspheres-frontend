@@ -133,8 +133,7 @@ function AppRoutes() {
               <Route path="/admin/candidate-profiles" element={<CandidateProfilesAdmin />} />
             </Route>
 
-            <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_BETA_ACCESS]} />}>
-              <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
+            <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_FIRM_USERS]} />}>
