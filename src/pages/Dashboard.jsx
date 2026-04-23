@@ -23,10 +23,10 @@ function formatDateTime(value) {
 
 const fallbackData = {
   metrics: [
-    { label: "Win Index", value: "61.8", delta: "+3.1 vs last cycle", tone: "up" },
-    { label: "Fundraising Pulse", value: "$12.8M", delta: "+9.4% this period", tone: "up" },
-    { label: "Active Threats", value: "4", delta: "2 require action", tone: "down" },
-    { label: "Priority Vendors", value: "2", delta: "All active", tone: "up" }
+    { label: "Fundraising Leaders", value: "0", delta: "Waiting on live dashboard", tone: "up" },
+    { label: "Receipts Modeled", value: "$0", delta: "Waiting on live dashboard", tone: "up" },
+    { label: "Cash On Hand", value: "$0", delta: "Waiting on live dashboard", tone: "up" },
+    { label: "Average Raise", value: "$0", delta: "Waiting on live dashboard", tone: "up" }
   ],
   feed: [],
   battlegrounds: [],
@@ -173,7 +173,15 @@ function BattlegroundCard({ row, onOpenIntelligence }) {
       }}
     >
       <div style={{ minHeight: "56px" }}>
-        <div style={{ fontSize: "16px", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", color: "var(--vs-text)" }}>
+        <div
+          style={{
+            fontSize: "16px",
+            fontWeight: 800,
+            lineHeight: 1.15,
+            letterSpacing: "-0.02em",
+            color: "var(--vs-text)"
+          }}
+        >
           {row.race}
         </div>
 
@@ -206,7 +214,7 @@ function BattlegroundCard({ row, onOpenIntelligence }) {
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "12px 18px",
           marginTop: "14px",
-          minHeight: "98px",
+          minHeight: "112px",
           alignContent: "start"
         }}
       >
@@ -235,6 +243,20 @@ function BattlegroundCard({ row, onOpenIntelligence }) {
           <div className="vs-stat-label">Priority</div>
           <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {row.priority}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Receipts</div>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
+            {formatMoney(row.receipts || 0)}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Vendors</div>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
+            {row.vendor_count ?? 0}
           </div>
         </div>
       </div>
@@ -498,32 +520,19 @@ export default function Dashboard() {
         setLoading(true);
         setError("");
 
-        const [dashboardRes, fundraisingRes, vendorsRes] = await Promise.allSettled([
-          api.get("/intelligence/dashboard", { timeout: 8000 }),
-          api.get("/intelligence/fundraising/leaderboard", { timeout: 8000 }),
-          api.get("/vendors", { timeout: 8000 })
-        ]);
+        const dashboardRes = await api.get("/intelligence/dashboard", { timeout: 8000 });
 
         if (!active) return;
 
-        const dashboardPayload = dashboardRes.status === "fulfilled" ? dashboardRes.value?.data : null;
-        const fundraisingPayload = fundraisingRes.status === "fulfilled" ? fundraisingRes.value?.data : null;
-        const vendorsPayload = vendorsRes.status === "fulfilled" ? vendorsRes.value?.data : null;
-
-        const fundraisingSummary = fundraisingPayload?.summary || null;
-        const leaderboard = Array.isArray(fundraisingPayload?.leaderboard) ? fundraisingPayload.leaderboard : [];
-        const vendors = Array.isArray(vendorsPayload?.results) ? vendorsPayload.results : [];
-        const metrics = Array.isArray(dashboardPayload?.metrics) ? dashboardPayload.metrics : fallbackData.metrics;
-        const feed = Array.isArray(dashboardPayload?.feed) ? dashboardPayload.feed : [];
-        const battlegrounds = Array.isArray(dashboardPayload?.battlegrounds) ? dashboardPayload.battlegrounds : [];
+        const payload = dashboardRes?.data || {};
 
         setDashboardData({
-          metrics,
-          feed,
-          battlegrounds,
-          leaderboard,
-          vendors,
-          fundraisingSummary
+          metrics: Array.isArray(payload.metrics) ? payload.metrics : fallbackData.metrics,
+          feed: Array.isArray(payload.feed) ? payload.feed : [],
+          battlegrounds: Array.isArray(payload.battlegrounds) ? payload.battlegrounds : [],
+          leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
+          vendors: Array.isArray(payload.vendors) ? payload.vendors : [],
+          fundraisingSummary: payload.fundraisingSummary || null
         });
       } catch (err) {
         if (!active) return;
