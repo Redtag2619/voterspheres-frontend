@@ -59,7 +59,7 @@ function navClass({ isActive }) {
 
 export default function AppShell() {
   const { demoMode, toggleDemoMode } = useDemoMode();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const visiblePrimaryItems = primaryNavItems.filter((item) =>
     hasPermission(user, item.permission)
@@ -96,58 +96,45 @@ export default function AppShell() {
               >
                 {demoMode ? "Disable Demo" : "Enable Demo"}
               </button>
+
+              {user ? (
+                <button
+                  type="button"
+                  className="vs-button vs-button-secondary"
+                  onClick={logout}
+                >
+                  Log Out
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: "10px" }}>
-            <nav className="vs-shell-nav" aria-label="Primary navigation">
-              {visiblePrimaryItems.map((item) => (
-                <NavLink key={item.to} to={item.to} className={navClass}>
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
+          <nav className="vs-shell-nav" aria-label="Primary navigation">
+            {visiblePrimaryItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={navClass}>
+                {item.label}
+              </NavLink>
+            ))}
 
             {visibleAdminItems.length ? (
-              <nav
-                className="vs-shell-nav"
-                aria-label="Admin navigation"
-                style={{ borderTop: "1px solid var(--vs-border)", paddingTop: "10px" }}
-              >
-                <span
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 800,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--vs-text-muted)",
-                    alignSelf: "center",
-                    marginRight: "6px"
-                  }}
-                >
-                  Admin
-                </span>
-
+              <>
+                <span className="vs-nav-divider" aria-hidden="true" />
                 {visibleAdminItems.map((item) => (
                   <NavLink key={item.to} to={item.to} className={navClass}>
                     {item.label}
                   </NavLink>
                 ))}
-              </nav>
+              </>
             ) : null}
 
-            <nav
-              className="vs-shell-nav"
-              aria-label="Utility navigation"
-              style={{ borderTop: "1px solid var(--vs-border)", paddingTop: "10px" }}
-            >
-              {publicNavItems.map((item) => (
-                <NavLink key={item.to} to={item.to} className={navClass}>
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          </div>
+            {!user
+              ? publicNavItems.map((item) => (
+                  <NavLink key={item.to} to={item.to} className={navClass}>
+                    {item.label}
+                  </NavLink>
+                ))
+              : null}
+          </nav>
 
           {demoMode ? (
             <div className="vs-banner vs-banner-demo" style={{ marginTop: "10px" }}>
