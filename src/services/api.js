@@ -12,17 +12,32 @@ function normalizeApiBaseUrl(rawValue) {
   return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 
-const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "";
-const API_BASE = normalizeApiBaseUrl(RAW_BASE);
+function resolveApiBaseUrl() {
+  const envBase = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
-if (!API_BASE) {
-  console.error(
-    "[VoterSpheres] Missing VITE_API_BASE_URL. Example: https://your-backend.onrender.com/api"
-  );
+  if (envBase) {
+    return envBase;
+  }
+
+  const hostname =
+    typeof window !== "undefined" ? window.location.hostname : "";
+
+  const isLocalhost =
+    hostname === "localhost" || hostname === "127.0.0.1";
+
+  if (isLocalhost) {
+    return "http://127.0.0.1:10000/api";
+  }
+
+  return "https://voterspheres-backend-2pap.onrender.com/api";
 }
 
+const API_BASE = resolveApiBaseUrl();
+
+console.log("[VoterSpheres] API_BASE =", API_BASE);
+
 const http = axios.create({
-  baseURL: API_BASE || "/api",
+  baseURL: API_BASE,
   headers: {
     "Content-Type": "application/json"
   },
@@ -300,7 +315,8 @@ export const intelligenceApi = {
   forecast: () => tryGet(["/intelligence/forecast"]),
   rankings: () => tryGet(["/intelligence/rankings"]),
   map: () => tryGet(["/intelligence/map"]),
-  candidateSummary: (params = {}) => tryGet(["/intelligence/candidate-summary"], { params }),
+  candidateSummary: (params = {}) =>
+    tryGet(["/intelligence/candidate-summary"], { params }),
   battlegrounds: () => tryGet(["/intelligence/battlegrounds"]),
   liveFundraising: () =>
     tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
