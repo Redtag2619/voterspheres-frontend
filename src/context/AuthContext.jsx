@@ -7,12 +7,12 @@ const AuthContext = createContext(null);
 const TOKEN_KEY = "vs_token";
 const USER_KEY = "vs_user";
 
-function getStoredToken() {
+export function getStoredToken() {
   if (typeof window === "undefined") return "";
   return localStorage.getItem(TOKEN_KEY) || "";
 }
 
-function getStoredUser() {
+export function getStoredUser() {
   if (typeof window === "undefined") return null;
 
   const raw = localStorage.getItem(USER_KEY);
@@ -27,26 +27,23 @@ function getStoredUser() {
   }
 }
 
-function setStoredAuth(token, user) {
+export function setStoredAuth(token, user) {
   if (typeof window === "undefined") return;
 
-  const safeToken = token || "";
-  const enrichedUser = user ? enrichUserWithPermissions(user) : null;
-
-  if (safeToken) {
-    localStorage.setItem(TOKEN_KEY, safeToken);
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
   } else {
     localStorage.removeItem(TOKEN_KEY);
   }
 
-  if (enrichedUser) {
-    localStorage.setItem(USER_KEY, JSON.stringify(enrichedUser));
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(enrichUserWithPermissions(user)));
   } else {
     localStorage.removeItem(USER_KEY);
   }
 }
 
-function clearStoredAuth() {
+export function clearStoredAuth() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -54,17 +51,15 @@ function clearStoredAuth() {
 
 function normalizeAuthResponse(data = {}) {
   const token = data?.token || "";
-  const rawUser = data?.user || null;
-  const rawFirm = data?.firm || null;
-
-  const user = rawUser
+  const firm = data?.firm || null;
+  const user = data?.user
     ? enrichUserWithPermissions({
-        ...rawUser,
-        firm: rawFirm || rawUser?.firm || null
+        ...data.user,
+        firm: data.user?.firm || firm || null
       })
     : null;
 
-  return { token, user, firm: rawFirm };
+  return { token, user, firm };
 }
 
 export function AuthProvider({ children }) {
@@ -84,85 +79,6 @@ export function AuthProvider({ children }) {
     setToken("");
     setUser(null);
   }, []);
-
-  const bootstrapAuth = useCallback(async () => {
-    const storedToken = getStoredToken();
-    const storedUser = getStoredUser();
-
-    if (!storedToken) {
-      setLoading(false);
-      return;
-    }
-
-    if (storedUser) {
-      setUser(storedUser);
-    }
-
-    try {
-      const response = await api.get("/auth/me", {
-        headers: {
-          Authorization: `Bearer ${storedToken}`
-        }
-      });
-
-      const me = response?.data || null;
-
-      if (!me) {
-        logout();
-        return;
-      }
-
-      applyAuth(storedToken, me);
-    } catch (error) {
-      console.error("Auth bootstrap failed:", error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  }, [applyAuth, logout]);
-
-  useEffect(() => {
-    bootstrapAuth();
-  }, [bootstrapAuth]);
-
-  const login = useCallback(
-    async (email, password) => {
-      const response = await api.post("/auth/login", {
-        email,
-        password
-      });
-
-      const { token: nextToken, user: nextUser } = normalizeAuthResponse(response?.data || {});
-
-      if (!nextToken || !nextUser) {
-        throw new Error("Login response was missing token or user.");
-      }
-
-      applyAuth(nextToken, nextUser);
-      return { token: nextToken, user: nextUser };
-    },
-    [applyAuth]
-  );
-
-  const signup = useCallback(
-    async (form) => {
-      const response = await api.post("/auth/signup", form);
-      const { token: nextToken, user: nextUser, firm } = normalizeAuthResponse(response?.data || {});
-
-      if (!nextToken || !nextUser) {
-        throw new Error("Signup response was missing token or user.");
-      }
-
-      const userWithFirm = {
-        ...nextUser,
-        firm: firm || nextUser?.firm || null
-      };
-
-      applyAuth(nextToken, userWithFirm);
-      return { token: nextToken, user: userWithFirm, firm };
-    },
-    [applyAuth]
-  );
 
   const refreshMe = useCallback(async () => {
     const activeToken = token || getStoredToken();
@@ -188,6 +104,98 @@ export function AuthProvider({ children }) {
     applyAuth(activeToken, me);
     return enrichUserWithPermissions(me);
   }, [applyAuth, logout, token]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function bootstrap() {
+      const storedToken = getStoredToken();
+      const storedUser = getStoredUser();
+
+      if (!storedToken) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
+      if (storedUser && isMounted) {
+        setUser(storedUser);
+      }
+
+      try {
+        const response = await api.get("/auth/me", {
+          headers: {
+            Authorization: `Bearer ${storedToken}`
+          }
+        });
+
+        const me = response?.data || null;
+
+        if (!me) {
+          logout();
+          return;
+        }
+
+        if (isMounted) {
+          applyAuth(storedToken, me);
+        }
+      } catch (error) {
+        console.error("Auth bootstrap failed:", error);
+        if (isMounted) {
+          logout();
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    bootstrap();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [applyAuth, logout]);
+
+  const login = useCallback(
+    async (email, password) => {
+      const response = await api.post("/auth/login", {
+        email,
+        password
+      });
+
+      const { token: nextToken, user: nextUser } = normalizeAuthResponse(response?.data || {});
+
+      if (!nextToken || !nextUser) {
+        throw new Error("Login response missing token or user.");
+      }
+
+      applyAuth(nextToken, nextUser);
+      return { token: nextToken, user: nextUser };
+    },
+    [applyAuth]
+  );
+
+  const signup = useCallback(
+    async (payload) => {
+      const response = await api.post("/auth/signup", payload);
+
+      const { token: nextToken, user: nextUser, firm } = normalizeAuthResponse(response?.data || {});
+
+      if (!nextToken || !nextUser) {
+        throw new Error("Signup response missing token or user.");
+      }
+
+      const userWithFirm = {
+        ...nextUser,
+        firm: firm || nextUser?.firm || null
+      };
+
+      applyAuth(nextToken, userWithFirm);
+      return { token: nextToken, user: userWithFirm, firm };
+    },
+    [applyAuth]
+  );
 
   const value = useMemo(
     () => ({
