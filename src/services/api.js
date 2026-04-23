@@ -278,7 +278,9 @@ export const authApi = {
   login: (payload) => unwrap(http.post("/auth/login", payload)),
   me: () => unwrap(http.get("/auth/me")),
   forgotPassword: (payload) => unwrap(http.post("/auth/forgot-password", payload)),
-  resetPassword: (payload) => unwrap(http.post("/auth/reset-password", payload))
+  resetPassword: (payload) => unwrap(http.post("/auth/reset-password", payload)),
+  liveIntelligenceStatus: () => unwrap(http.get("/intelligence/status")),
+  refreshLiveIntelligence: () => unwrap(http.post("/intelligence/refresh", {}))
 };
 
 export const billingApi = {
