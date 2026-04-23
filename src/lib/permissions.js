@@ -1,6 +1,3 @@
-// src/lib/permissions.js
-
-// 🔐 Canonical permission keys used across the app
 export const PERMISSIONS = {
   VIEW_DASHBOARD: "VIEW_DASHBOARD",
   VIEW_CANDIDATES: "VIEW_CANDIDATES",
@@ -27,14 +24,17 @@ export const PERMISSIONS = {
   VIEW_BILLING: "VIEW_BILLING"
 };
 
-// 👇 All permissions list (used for admin full access)
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
-// 🧠 Role → Permission mapping
-export function getPermissionsForRole(role) {
-  const normalized = String(role || "").toLowerCase();
+export function normalizePermissionList(input) {
+  if (!Array.isArray(input)) return [];
+  return [...new Set(input.map((item) => String(item || "").trim()).filter(Boolean))];
+}
 
-  switch (normalized) {
+export function getPermissionsForRole(role) {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+
+  switch (normalizedRole) {
     case "admin":
       return [...ALL_PERMISSIONS];
 
@@ -43,13 +43,17 @@ export function getPermissionsForRole(role) {
         PERMISSIONS.VIEW_DASHBOARD,
         PERMISSIONS.VIEW_CANDIDATES,
         PERMISSIONS.VIEW_MAP,
+        PERMISSIONS.VIEW_DONORS,
         PERMISSIONS.VIEW_FORECAST,
         PERMISSIONS.VIEW_POWER_RANKINGS,
         PERMISSIONS.VIEW_FUNDRAISING,
+        PERMISSIONS.VIEW_VENDORS,
         PERMISSIONS.VIEW_CONSULTANTS,
         PERMISSIONS.VIEW_AI_CHAT,
         PERMISSIONS.VIEW_WAR_ROOM,
-        PERMISSIONS.VIEW_COMMAND_CENTER
+        PERMISSIONS.VIEW_COMMAND_CENTER,
+        PERMISSIONS.VIEW_MAILOPS,
+        PERMISSIONS.VIEW_BILLING
       ];
 
     case "analyst":
@@ -57,13 +61,19 @@ export function getPermissionsForRole(role) {
         PERMISSIONS.VIEW_DASHBOARD,
         PERMISSIONS.VIEW_CANDIDATES,
         PERMISSIONS.VIEW_MAP,
+        PERMISSIONS.VIEW_DONORS,
         PERMISSIONS.VIEW_FORECAST,
-        PERMISSIONS.VIEW_POWER_RANKINGS
+        PERMISSIONS.VIEW_POWER_RANKINGS,
+        PERMISSIONS.VIEW_FUNDRAISING,
+        PERMISSIONS.VIEW_AI_CHAT,
+        PERMISSIONS.VIEW_WAR_ROOM,
+        PERMISSIONS.VIEW_COMMAND_CENTER
       ];
 
     case "mailops":
       return [
         PERMISSIONS.VIEW_DASHBOARD,
+        PERMISSIONS.VIEW_CANDIDATES,
         PERMISSIONS.VIEW_MAILOPS
       ];
 
@@ -76,49 +86,43 @@ export function getPermissionsForRole(role) {
   }
 }
 
-// 🔍 Check if user has permission
-export function hasPermission(user, permission) {
-  if (!user) return false;
-
-  const permissions = user.permissions || getPermissionsForRole(user.role);
-
-  return permissions.includes(permission);
-}
-
-// 🔍 Check multiple permissions (OR logic)
-export function hasAnyPermission(user, requiredPermissions = []) {
-  if (!user) return false;
-
-  const permissions = user.permissions || getPermissionsForRole(user.role);
-
-  return requiredPermissions.some((perm) => permissions.includes(perm));
-}
-
-// 🔍 Check multiple permissions (AND logic)
-export function hasAllPermissions(user, requiredPermissions = []) {
-  if (!user) return false;
-
-  const permissions = user.permissions || getPermissionsForRole(user.role);
-
-  return requiredPermissions.every((perm) => permissions.includes(perm));
-}
-
-// 🔍 Role check helper
-export function hasRole(user, roles = []) {
-  if (!user) return false;
-
-  const userRole = String(user.role || "").toLowerCase();
-  const normalizedRoles = roles.map((r) => String(r).toLowerCase());
-
-  return normalizedRoles.includes(userRole);
-}
-
-// 🧠 Attach permissions to user (IMPORTANT)
 export function enrichUserWithPermissions(user) {
   if (!user) return null;
 
+  const explicitPermissions = normalizePermissionList(user.permissions);
+  const rolePermissions = getPermissionsForRole(user.role);
+  const permissions = explicitPermissions.length ? explicitPermissions : rolePermissions;
+
   return {
     ...user,
-    permissions: getPermissionsForRole(user.role)
+    permissions
   };
+}
+
+export function hasPermission(user, permission) {
+  if (!user || !permission) return false;
+
+  const enriched = enrichUserWithPermissions(user);
+  return enriched.permissions.includes(permission);
+}
+
+export function hasAnyPermission(user, permissions = []) {
+  if (!user) return false;
+
+  const enriched = enrichUserWithPermissions(user);
+  return permissions.some((permission) => enriched.permissions.includes(permission));
+}
+
+export function hasAllPermissions(user, permissions = []) {
+  if (!user) return false;
+
+  const enriched = enrichUserWithPermissions(user);
+  return permissions.every((permission) => enriched.permissions.includes(permission));
+}
+
+export function hasRole(user, roles = []) {
+  if (!user) return false;
+
+  const normalizedRole = String(user.role || "").trim().toLowerCase();
+  return roles.map((role) => String(role || "").trim().toLowerCase()).includes(normalizedRole);
 }
