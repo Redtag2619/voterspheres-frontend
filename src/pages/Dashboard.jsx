@@ -28,67 +28,10 @@ const fallbackData = {
     { label: "Active Threats", value: "4", delta: "2 require action", tone: "down" },
     { label: "Priority Vendors", value: "2", delta: "All active", tone: "up" }
   ],
-  feed: [
-    { id: 1, time: "08:12", title: "Opposition affordability attack accelerating", source: "War Room", severity: "High", type: "warroom.threat_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 2, time: "08:41", title: "Mail delay detected at Atlanta NDC", source: "Mail Intelligence", severity: "High", type: "mail.delay_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" }
-  ],
-  battlegrounds: [
-    {
-      race: "GA Senate",
-      candidate: "Jon Ossoff",
-      state: "Georgia",
-      state_code: "GA",
-      office: "Senate",
-      probability: "57%",
-      momentum: "+2.4",
-      risk: "Elevated",
-      priority: "Tier 1",
-      party: "Democratic"
-    },
-    {
-      race: "PA Senate",
-      candidate: "Dave McCormick",
-      state: "Pennsylvania",
-      state_code: "PA",
-      office: "Senate",
-      probability: "54%",
-      momentum: "+1.8",
-      risk: "Watch",
-      priority: "Tier 1",
-      party: "Republican"
-    },
-    {
-      race: "AZ Senate",
-      candidate: "Ruben Gallego",
-      state: "Arizona",
-      state_code: "AZ",
-      office: "Senate",
-      probability: "51%",
-      momentum: "+1.1",
-      risk: "Watch",
-      priority: "Tier 2",
-      party: "Democratic"
-    },
-    {
-      race: "MI House",
-      candidate: "",
-      state: "Michigan",
-      state_code: "MI",
-      office: "House",
-      probability: "49%",
-      momentum: "-0.6",
-      risk: "Monitor",
-      priority: "Tier 2",
-      party: ""
-    }
-  ],
+  feed: [],
+  battlegrounds: [],
   leaderboard: [],
-  vendors: [
-    { id: 1, vendor_name: "Precision Mail Group", category: "Direct Mail", status: "active", state: "Georgia", office: "Senate", contract_value: 85000, risk: "Elevated" },
-    { id: 2, vendor_name: "Capitol Digital Media", category: "Digital", status: "active", state: "Georgia", office: "Senate", contract_value: 120000, risk: "Elevated" },
-    { id: 3, vendor_name: "Lakeside Media Partners", category: "Broadcast", status: "active", state: "Michigan", office: "House", contract_value: 68000, risk: "Monitor" }
-  ],
+  vendors: [],
   fundraisingSummary: null
 };
 
@@ -172,59 +115,28 @@ function ExecutiveFeedCard({ item }) {
       >
         <div>
           <div className="vs-stat-label">Time</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "16px",
-              fontWeight: 800,
-              lineHeight: 1.15
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "16px", fontWeight: 800, lineHeight: 1.15 }}>
             {item.time || "Now"}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Severity</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "13px",
-              fontWeight: 700,
-              lineHeight: 1.2,
-              whiteSpace: "nowrap"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {item.severity || "Info"}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">State</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "13px",
-              fontWeight: 700,
-              lineHeight: 1.2,
-              whiteSpace: "nowrap"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {item.state || "National"}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Risk</div>
-          <div
-            style={{
-              marginTop: "4px",
-              fontSize: "13px",
-              fontWeight: 700,
-              lineHeight: 1.2,
-              whiteSpace: "nowrap"
-            }}
-          >
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {item.risk || "Monitor"}
           </div>
         </div>
@@ -281,13 +193,7 @@ function BattlegroundCard({ row, onOpenIntelligence }) {
         </div>
       </div>
 
-      <div
-        className="vs-card-muted"
-        style={{
-          marginTop: "12px",
-          padding: "10px 12px"
-        }}
-      >
+      <div className="vs-card-muted" style={{ marginTop: "12px", padding: "10px 12px" }}>
         <div className="vs-stat-label">Candidate Intelligence Focus</div>
         <div style={{ marginTop: "4px", fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
           {candidateName}
@@ -300,7 +206,7 @@ function BattlegroundCard({ row, onOpenIntelligence }) {
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "12px 18px",
           marginTop: "14px",
-          minHeight: "84px",
+          minHeight: "98px",
           alignContent: "start"
         }}
       >
@@ -320,14 +226,14 @@ function BattlegroundCard({ row, onOpenIntelligence }) {
 
         <div>
           <div className="vs-stat-label">Risk</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {row.risk}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Priority</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {row.priority}
           </div>
         </div>
@@ -418,14 +324,14 @@ function FundraisingLeaderCard({ row }) {
 
         <div>
           <div className="vs-stat-label">State</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {row.state}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Office</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {row.office}
           </div>
         </div>
@@ -489,21 +395,21 @@ function VendorCard({ vendor }) {
 
         <div>
           <div className="vs-stat-label">Status</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {vendor.status || "active"}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">State</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {vendor.state || "N/A"}
           </div>
         </div>
 
         <div>
           <div className="vs-stat-label">Office</div>
-          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <div style={{ marginTop: "4px", fontSize: "13px", fontWeight: 700, lineHeight: 1.2 }}>
             {vendor.office || "N/A"}
           </div>
         </div>
@@ -593,9 +499,9 @@ export default function Dashboard() {
         setError("");
 
         const [dashboardRes, fundraisingRes, vendorsRes] = await Promise.allSettled([
-          api.get("/intelligence/dashboard", { timeout: 6000 }),
-          api.get("/intelligence/fundraising/leaderboard", { timeout: 6000 }),
-          api.get("/vendors", { timeout: 6000 })
+          api.get("/intelligence/dashboard", { timeout: 8000 }),
+          api.get("/intelligence/fundraising/leaderboard", { timeout: 8000 }),
+          api.get("/vendors", { timeout: 8000 })
         ]);
 
         if (!active) return;
@@ -605,19 +511,11 @@ export default function Dashboard() {
         const vendorsPayload = vendorsRes.status === "fulfilled" ? vendorsRes.value?.data : null;
 
         const fundraisingSummary = fundraisingPayload?.summary || null;
-        const leaderboard = Array.isArray(fundraisingPayload?.leaderboard)
-          ? fundraisingPayload.leaderboard
-          : [];
-        const vendors = vendorsPayload?.results?.length ? vendorsPayload.results : fallbackData.vendors;
-        const metrics = dashboardPayload?.metrics?.length ? dashboardPayload.metrics : fallbackData.metrics;
-        const feed =
-          Array.isArray(dashboardPayload?.feed) && dashboardPayload.feed.length
-            ? dashboardPayload.feed
-            : fallbackData.feed;
-        const battlegrounds =
-          Array.isArray(dashboardPayload?.battlegrounds) && dashboardPayload.battlegrounds.length
-            ? dashboardPayload.battlegrounds
-            : fallbackData.battlegrounds;
+        const leaderboard = Array.isArray(fundraisingPayload?.leaderboard) ? fundraisingPayload.leaderboard : [];
+        const vendors = Array.isArray(vendorsPayload?.results) ? vendorsPayload.results : [];
+        const metrics = Array.isArray(dashboardPayload?.metrics) ? dashboardPayload.metrics : fallbackData.metrics;
+        const feed = Array.isArray(dashboardPayload?.feed) ? dashboardPayload.feed : [];
+        const battlegrounds = Array.isArray(dashboardPayload?.battlegrounds) ? dashboardPayload.battlegrounds : [];
 
         setDashboardData({
           metrics,
