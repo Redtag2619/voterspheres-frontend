@@ -7,6 +7,7 @@ import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx"
 import { DemoModeProvider } from "./context/DemoModeContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { PERMISSIONS } from "./lib/permissions.js";
+import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -199,6 +200,7 @@ function AppRoutes() {
             </Route>
 
             <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
+            <Route path="/admin/live-intelligence" element={<AdminLiveIntelligence />} />
             <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
             <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
