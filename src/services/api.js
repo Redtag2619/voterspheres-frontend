@@ -332,9 +332,49 @@ export const intelligenceApi = {
 export const platformApi = {
   aiChat: () => tryGet(["/platform/ai-chat"]),
   postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], payload),
-  warRoom: () => tryGet(["/platform/war-room"]),
+
+  // 🔥 NOW WIRED TO LIVE HUB
+  warRoom: async () => {
+    const data = await tryGet([
+      "/intelligence/feed",
+      "/platform/war-room"
+    ]);
+
+    // normalize for existing UI
+    return {
+      feed: data?.results || data?.feed || [],
+      _live: true
+    };
+  },
+
   simulator: () => tryGet(["/platform/simulator"]),
-  commandCenter: () => tryGet(["/platform/command-center"]),
+
+  commandCenter: async () => {
+    const data = await tryGet([
+      "/intelligence/command",
+      "/platform/command-center"
+    ]);
+
+    return data;
+  },
+
+  consultants: async (params = {}) => {
+    const data = await tryGet(
+      ["/platform/consultants", "/consultants", "/marketplace/consultants"],
+      { params }
+    );
+    return Array.isArray(data) ? { results: data } : data;
+  },
+
+  consultantStates: async () => {
+    const data = await tryGet([
+      "/platform/consultants/states",
+      "/consultants/states",
+      "/marketplace/consultants/states"
+    ]);
+    return normalizeListResult(data, ["states"]);
+  }
+};
   consultants: async (params = {}) => {
     const data = await tryGet(
       ["/platform/consultants", "/consultants", "/marketplace/consultants"],
