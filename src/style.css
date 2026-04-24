@@ -682,4 +682,80 @@ textarea {
   .vs-stat-value {
     font-size: 18px;
   }
+
+  .vs-shell-inner-premium {
+  padding: 16px 0 14px;
 }
+
+.vs-shell-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.vs-shell-topline .vs-brand-row {
+  text-decoration: none;
+}
+
+.vs-shell-nav-premium {
+  margin-top: 16px;
+  gap: 9px;
+  align-items: center;
+}
+
+.vs-nav-divider {
+  width: 1px;
+  height: 26px;
+  margin: 0 4px;
+  background: rgba(141, 153, 168, 0.22);
+}
+
+.vs-user-email {
+  max-width: 220px;
+  color: var(--vs-text-muted);
+  font-size: var(--vs-text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vs-brand-mark {
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+.vs-brand-name {
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.vs-brand-tagline {
+  letter-spacing: 0.04em;
+}
+
+.vs-nav-pill {
+  padding: 8px 13px;
+  min-height: 36px;
+}
+
+.vs-nav-pill-active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 900px) {
+  .vs-shell-topline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .vs-inline-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .vs-nav-divider {
+    display: none;
+  }
+}
+
