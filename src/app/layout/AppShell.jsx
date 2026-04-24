@@ -75,6 +75,7 @@ export default function AppShell() {
         <div className="vs-shell-inner">
           <div className="vs-brand-row">
             <Link to="/dashboard" className="vs-brand-mark" aria-label="VoterSpheres home">
+              <Link to="/admin/alerts">Alert Center</Link>
               VS
             </Link>
 
