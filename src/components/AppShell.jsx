@@ -10,30 +10,24 @@ const primaryItems = [
   { label: "Vendors", to: "/vendors" }
 ];
 
-const moreItems = [
+const secondaryItems = [
   { label: "Map", to: "/map" },
-  { label: "Donors", to: "/donors" },
   { label: "Forecast", to: "/forecast" },
+  { label: "Donors", to: "/donors" },
   { label: "Consultants", to: "/consultants" },
   { label: "MailOps", to: "/mailops" },
   { label: "Pricing", to: "/pricing" },
-  { label: "Billing", to: "/billing" }
+  { label: "Billing", to: "/billing" },
+  { label: "Alerts", to: "/admin/alerts" },
+  { label: "Live Intel", to: "/admin/live-intelligence" }
 ];
 
-const adminItems = [
-  { label: "Alert Center", to: "/admin/alerts" },
-  { label: "Live Intelligence", to: "/admin/live-intelligence" },
-  { label: "Beta Access", to: "/admin/beta-access" },
-  { label: "Firm Users", to: "/admin/firm-users" },
-  { label: "Enterprise Leads", to: "/admin/enterprise-leads" }
-];
-
-function NavItem({ item }) {
+function Pill({ item }) {
   return (
     <NavLink
       to={item.to}
       className={({ isActive }) =>
-        isActive ? "vs-nav-link active" : "vs-nav-link"
+        isActive ? "vs-nav-pill vs-nav-pill-active" : "vs-nav-pill"
       }
     >
       {item.label}
@@ -46,52 +40,48 @@ export default function AppShell() {
 
   return (
     <div className="vs-shell">
-      <header className="vs-header vs-header-premium">
-        <NavLink to="/dashboard" className="vs-logo vs-logo-premium">
-          <span className="vs-logo-mark">VS</span>
-          <span className="vs-logo-text">VoterSpheres</span>
-        </NavLink>
+      <header className="vs-shell-header">
+        <div className="vs-shell-inner vs-shell-inner-premium">
+          <div className="vs-shell-topline">
+            <NavLink to="/dashboard" className="vs-brand-row">
+              <div className="vs-brand-mark">VS</div>
+              <div className="vs-brand-copy">
+                <div className="vs-brand-name">VoterSpheres</div>
+                <div className="vs-brand-tagline">Political Intelligence Platform</div>
+              </div>
+            </NavLink>
 
-        <nav className="vs-nav vs-nav-premium">
-          {primaryItems.map((item) => (
-            <NavItem key={item.to} item={item} />
-          ))}
+            <div className="vs-inline-actions">
+              <span className="vs-brand-live">
+                <span className="vs-live-dot-success" />
+                Live Intelligence
+              </span>
 
-          <div className="vs-nav-menu">
-            <button type="button" className="vs-nav-menu-trigger">
-              More
-            </button>
-            <div className="vs-nav-menu-panel">
-              {moreItems.map((item) => (
-                <NavItem key={item.to} item={item} />
-              ))}
+              <span className="vs-user-email">{user?.email}</span>
+
+              {typeof logout === "function" ? (
+                <button type="button" className="vs-button vs-button-secondary" onClick={logout}>
+                  Sign out
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <div className="vs-nav-menu">
-            <button type="button" className="vs-nav-menu-trigger vs-nav-admin-trigger">
-              Admin
-            </button>
-            <div className="vs-nav-menu-panel">
-              {adminItems.map((item) => (
-                <NavItem key={item.to} item={item} />
-              ))}
-            </div>
-          </div>
-        </nav>
+          <nav className="vs-shell-nav vs-shell-nav-premium">
+            {primaryItems.map((item) => (
+              <Pill key={item.to} item={item} />
+            ))}
 
-        <div className="vs-user-area vs-user-area-premium">
-          <span className="vs-live-chip">Live</span>
-          <span className="vs-user-email">{user?.email}</span>
-          {typeof logout === "function" ? (
-            <button type="button" className="vs-button vs-button-secondary" onClick={logout}>
-              Sign out
-            </button>
-          ) : null}
+            <div className="vs-nav-divider" />
+
+            {secondaryItems.map((item) => (
+              <Pill key={item.to} item={item} />
+            ))}
+          </nav>
         </div>
       </header>
 
-      <main className="vs-page">
+      <main className="vs-shell-main">
         <Outlet />
       </main>
     </div>
