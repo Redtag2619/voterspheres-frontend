@@ -4,30 +4,18 @@ import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
 function normalizeApiBaseUrl(rawValue) {
   const trimmed = String(rawValue || "").trim();
-
-  if (!trimmed) {
-    return "";
-  }
-
+  if (!trimmed) return "";
   return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 
 function resolveApiBaseUrl() {
   const envBase = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  if (envBase) return envBase;
 
-  if (envBase) {
-    return envBase;
-  }
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
 
-  const hostname =
-    typeof window !== "undefined" ? window.location.hostname : "";
-
-  const isLocalhost =
-    hostname === "localhost" || hostname === "127.0.0.1";
-
-  if (isLocalhost) {
-    return "http://127.0.0.1:10000/api";
-  }
+  if (isLocalhost) return "http://127.0.0.1:10000/api";
 
   return "https://voterspheres-backend-2pap.onrender.com/api";
 }
@@ -38,9 +26,7 @@ console.log("[VoterSpheres] API_BASE =", API_BASE);
 
 const http = axios.create({
   baseURL: API_BASE,
-  headers: {
-    "Content-Type": "application/json"
-  },
+  headers: { "Content-Type": "application/json" },
   timeout: 30000
 });
 
@@ -54,94 +40,26 @@ function isDemoModeEnabled() {
 
 const demoFallbacks = {
   "/donors/network": {
-    results: [
-      {
-        id: 1,
-        donor_name: "Atlantic Leadership Fund",
-        donor_type: "PAC",
-        state: "Georgia",
-        amount: 250000,
-        relationship_strength: "High"
-      },
-      {
-        id: 2,
-        donor_name: "Keystone Civic Network",
-        donor_type: "Individual Network",
-        state: "Pennsylvania",
-        amount: 175000,
-        relationship_strength: "Medium"
-      }
-    ],
-    summary: {
-      total_donors: 2,
-      total_amount: 425000,
-      top_state: "Georgia"
-    },
+    results: [],
+    summary: { total_donors: 0, total_amount: 0, top_state: "N/A" },
     _demo: true
   },
   "/consultants": {
-    results: [
-      {
-        id: 1,
-        name: "Red Tag Strategies",
-        category: "General Consulting",
-        state: "Louisiana",
-        website: "https://example.com",
-        status: "active"
-      }
-    ],
+    results: [],
     _demo: true
   },
   "/consultants/states": {
-    states: ["Georgia", "Louisiana", "Pennsylvania"],
+    states: [],
     _demo: true
   },
   "/mailops/dashboard": {
-    metrics: [
-      { label: "Mail Drops", value: "18", delta: "4 active today", tone: "up" },
-      { label: "Delivery Risk", value: "3", delta: "2 elevated", tone: "down" },
-      { label: "Postal Alerts", value: "7", delta: "Live monitoring", tone: "up" },
-      { label: "On-Time Rate", value: "94%", delta: "+2.1%", tone: "up" }
-    ],
-    drops: [
-      {
-        id: 1,
-        campaign: "GA Senate Victory",
-        location: "Atlanta NDC",
-        status: "Elevated",
-        in_home: "2026-10-14",
-        note: "Watch weekend clearance volume"
-      }
-    ],
-    alerts: [
-      {
-        id: 1,
-        title: "Atlanta NDC delay pressure increasing",
-        severity: "High",
-        source: "MailOps",
-        detail: "Projected slip risk on high-volume trays."
-      }
-    ],
+    metrics: [],
+    drops: [],
+    alerts: [],
     _demo: true
   },
   "/mailops/events": {
-    results: [
-      {
-        id: 1,
-        campaign: "GA Senate Victory",
-        state: "Georgia",
-        office: "Senate",
-        risk: "Elevated",
-        location: "Atlanta NDC",
-        vendor_name: "Precision Mail Group",
-        event_type: "delay_alert",
-        status: "Elevated",
-        severity: "High",
-        event_time: "2026-10-11T10:30:00Z",
-        in_home: "2026-10-14",
-        note: "Tray movement slowed during weekend processing"
-      }
-    ],
+    results: [],
     _demo: true
   }
 };
@@ -224,6 +142,59 @@ function normalizeListResult(data, preferredKeys = []) {
   if (Array.isArray(data?.rows)) return data.rows;
 
   return [];
+}
+
+function normalizeWarRoomPayload(data) {
+  const feed = data?.results || data?.feed || [];
+  const threats = feed.map((item) => ({
+    id: item.id,
+    title: item.title,
+    severity: item.severity || "Medium",
+    source: item.source || "Intelligence Feed",
+    velocity: item.metadata?.velocity || "Live",
+    recommendation:
+      item.metadata?.recommendation ||
+      item.metadata?.description ||
+      "Review signal and assign rapid response.",
+    state: item.state || "National",
+    office: item.office || "N/A",
+    risk: item.risk || "Monitor"
+  }));
+
+  const highThreats = threats.filter((item) =>
+    ["High", "Critical"].includes(item.severity)
+  ).length;
+
+  return {
+    metrics: [
+      { label: "Active Threats", value: String(threats.length), delta: `${highThreats} high severity`, tone: highThreats ? "down" : "up" },
+      { label: "Signal Stream", value: String(feed.length), delta: "Live intelligence feed", tone: "up" },
+      { label: "Response Window", value: "Live", delta: "Monitor continuously", tone: "neutral" },
+      { label: "Signal Confidence", value: "Live", delta: "Database-backed", tone: "up" }
+    ],
+    threats,
+    queue: threats.slice(0, 6).map((item, index) => ({
+      id: `queue-${item.id || index}`,
+      priority: ["High", "Critical"].includes(item.severity) ? "P1" : "P2",
+      owner: item.source || "War Room",
+      item: item.recommendation,
+      eta: index < 2 ? "Now" : "Today",
+      state: item.state,
+      office: item.office,
+      risk: item.risk
+    })),
+    signals: feed.map((item) => ({
+      id: item.id,
+      time: item.time || "Now",
+      channel: item.source || "Live Feed",
+      text: item.title,
+      state: item.state || "National",
+      office: item.office || "N/A",
+      risk: item.risk || "Monitor"
+    })),
+    feed,
+    _live: true
+  };
 }
 
 http.interceptors.request.use(
@@ -317,6 +288,8 @@ export const intelligenceApi = {
   forecast: () => tryGet(["/intelligence/forecast"]),
   rankings: () => tryGet(["/intelligence/rankings"]),
   map: () => tryGet(["/intelligence/map"]),
+  feed: (params = {}) => tryGet(["/intelligence/feed"], { params }),
+  command: () => tryGet(["/intelligence/command"]),
   candidateSummary: (params = {}) =>
     tryGet(["/intelligence/candidate-summary"], { params }),
   battlegrounds: () => tryGet(["/intelligence/battlegrounds"]),
@@ -333,34 +306,27 @@ export const platformApi = {
   aiChat: () => tryGet(["/platform/ai-chat"]),
   postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], payload),
 
-  // 🔥 NOW WIRED TO LIVE HUB
   warRoom: async () => {
     const data = await tryGet([
       "/intelligence/feed",
       "/platform/war-room"
     ]);
 
-    // normalize for existing UI
-    return {
-      feed: data?.results || data?.feed || [],
-      _live: true
-    };
+    return normalizeWarRoomPayload(data);
   },
 
   simulator: () => tryGet(["/platform/simulator"]),
 
   commandCenter: async () => {
-    const data = await tryGet([
+    return tryGet([
       "/intelligence/command",
       "/platform/command-center"
     ]);
-
-    return data;
   },
 
   consultants: async (params = {}) => {
     const data = await tryGet(
-      ["/platform/consultants", "/consultants", "/marketplace/consultants"],
+      ["/consultants", "/platform/consultants", "/marketplace/consultants"],
       { params }
     );
     return Array.isArray(data) ? { results: data } : data;
@@ -368,24 +334,8 @@ export const platformApi = {
 
   consultantStates: async () => {
     const data = await tryGet([
-      "/platform/consultants/states",
       "/consultants/states",
-      "/marketplace/consultants/states"
-    ]);
-    return normalizeListResult(data, ["states"]);
-  }
-};
-  consultants: async (params = {}) => {
-    const data = await tryGet(
-      ["/platform/consultants", "/consultants", "/marketplace/consultants"],
-      { params }
-    );
-    return Array.isArray(data) ? { results: data } : data;
-  },
-  consultantStates: async () => {
-    const data = await tryGet([
       "/platform/consultants/states",
-      "/consultants/states",
       "/marketplace/consultants/states"
     ]);
     return normalizeListResult(data, ["states"]);
@@ -466,6 +416,8 @@ export const api = {
   intelligenceForecast: intelligenceApi.forecast,
   intelligenceRankings: intelligenceApi.rankings,
   intelligenceMap: intelligenceApi.map,
+  intelligenceFeed: intelligenceApi.feed,
+  intelligenceCommand: intelligenceApi.command,
   intelligenceCandidateSummary: intelligenceApi.candidateSummary,
   intelligenceBattlegrounds: intelligenceApi.battlegrounds,
   liveFundraising: intelligenceApi.liveFundraising,
