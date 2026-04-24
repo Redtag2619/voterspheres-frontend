@@ -68,9 +68,7 @@ function RequireAuth() {
   const { loading, user, token } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
 
   const isAuthenticated = Boolean(user || token);
 
@@ -85,9 +83,7 @@ function RequireAuth() {
 function PublicOnly() {
   const { loading, user, token } = useAuth();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
 
   const isAuthenticated = Boolean(user || token);
 
@@ -101,9 +97,7 @@ function PublicOnly() {
 function AppRoutes() {
   const { loading } = useAuth();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
 
   return (
     <Suspense fallback={<LoadingScreen />}>
@@ -113,7 +107,6 @@ function AppRoutes() {
         <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/admin/alerts" element={<AdminAlerts />} />
 
         <Route element={<PublicOnly />}>
           <Route path="/login" element={<Login />} />
@@ -137,7 +130,8 @@ function AppRoutes() {
             </Route>
 
             <Route path="/admin/beta-access" element={<BetaAccessAdmin />} />
-            
+            <Route path="/admin/live-intelligence" element={<AdminLiveIntelligence />} />
+            <Route path="/admin/alerts" element={<AdminAlerts />} />
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_FIRM_USERS]} />}>
               <Route path="/admin/firm-users" element={<FirmUsersAdmin />} />
@@ -202,7 +196,6 @@ function AppRoutes() {
             </Route>
 
             <Route path="/consultant-marketplace" element={<Navigate to="/consultants" replace />} />
-            <Route path="/admin/live-intelligence" element={<AdminLiveIntelligence />} />
             <Route path="/aichat" element={<Navigate to="/ai-chat" replace />} />
             <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
