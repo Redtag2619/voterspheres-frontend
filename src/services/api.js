@@ -27,7 +27,7 @@ console.log("[VoterSpheres] API_BASE =", API_BASE);
 const http = axios.create({
   baseURL: API_BASE,
   headers: { "Content-Type": "application/json" },
-  timeout: 30000
+  timeout: 30000,
 });
 
 function isDemoModeEnabled() {
@@ -42,26 +42,27 @@ const demoFallbacks = {
   "/donors/network": {
     results: [],
     summary: { total_donors: 0, total_amount: 0, top_state: "N/A" },
-    _demo: true
+    _demo: true,
   },
   "/consultants": {
     results: [],
-    _demo: true
+    _demo: true,
   },
   "/consultants/states": {
     states: [],
-    _demo: true
+    results: [],
+    _demo: true,
   },
   "/mailops/dashboard": {
     metrics: [],
     drops: [],
     alerts: [],
-    _demo: true
+    _demo: true,
   },
   "/mailops/events": {
     results: [],
-    _demo: true
-  }
+    _demo: true,
+  },
 };
 
 function isNotFound(error) {
@@ -115,6 +116,21 @@ async function tryPost(paths, body = {}, config = {}) {
   throw lastError;
 }
 
+async function tryPut(paths, body = {}, config = {}) {
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      return await unwrap(http.put(path, body, config));
+    } catch (error) {
+      lastError = error;
+      if (!isNotFound(error)) break;
+    }
+  }
+
+  throw lastError;
+}
+
 async function tryPatch(paths, body = {}, config = {}) {
   let lastError;
 
@@ -146,6 +162,7 @@ function normalizeListResult(data, preferredKeys = []) {
 
 function normalizeWarRoomPayload(data) {
   const feed = data?.results || data?.feed || [];
+
   const threats = feed.map((item) => ({
     id: item.id,
     title: item.title,
@@ -158,7 +175,7 @@ function normalizeWarRoomPayload(data) {
       "Review signal and assign rapid response.",
     state: item.state || "National",
     office: item.office || "N/A",
-    risk: item.risk || "Monitor"
+    risk: item.risk || "Monitor",
   }));
 
   const highThreats = threats.filter((item) =>
@@ -167,10 +184,30 @@ function normalizeWarRoomPayload(data) {
 
   return {
     metrics: [
-      { label: "Active Threats", value: String(threats.length), delta: `${highThreats} high severity`, tone: highThreats ? "down" : "up" },
-      { label: "Signal Stream", value: String(feed.length), delta: "Live intelligence feed", tone: "up" },
-      { label: "Response Window", value: "Live", delta: "Monitor continuously", tone: "neutral" },
-      { label: "Signal Confidence", value: "Live", delta: "Database-backed", tone: "up" }
+      {
+        label: "Active Threats",
+        value: String(threats.length),
+        delta: `${highThreats} high severity`,
+        tone: highThreats ? "down" : "up",
+      },
+      {
+        label: "Signal Stream",
+        value: String(feed.length),
+        delta: "Live intelligence feed",
+        tone: "up",
+      },
+      {
+        label: "Response Window",
+        value: "Live",
+        delta: "Monitor continuously",
+        tone: "neutral",
+      },
+      {
+        label: "Signal Confidence",
+        value: "Live",
+        delta: "Database-backed",
+        tone: "up",
+      },
     ],
     threats,
     queue: threats.slice(0, 6).map((item, index) => ({
@@ -181,7 +218,7 @@ function normalizeWarRoomPayload(data) {
       eta: index < 2 ? "Now" : "Today",
       state: item.state,
       office: item.office,
-      risk: item.risk
+      risk: item.risk,
     })),
     signals: feed.map((item) => ({
       id: item.id,
@@ -190,10 +227,10 @@ function normalizeWarRoomPayload(data) {
       text: item.title,
       state: item.state || "National",
       office: item.office || "N/A",
-      risk: item.risk || "Monitor"
+      risk: item.risk || "Monitor",
     })),
     feed,
-    _live: true
+    _live: true,
   };
 }
 
@@ -226,7 +263,7 @@ http.interceptors.response.use(
         currentPlan: data.currentPlan || "free",
         message:
           data.message || "Your current plan does not include this feature.",
-        source: error?.config?.url || ""
+        source: error?.config?.url || "",
       });
     }
 
@@ -251,7 +288,7 @@ export const authApi = {
   forgotPassword: (payload) => unwrap(http.post("/auth/forgot-password", payload)),
   resetPassword: (payload) => unwrap(http.post("/auth/reset-password", payload)),
   liveIntelligenceStatus: () => unwrap(http.get("/intelligence/status")),
-  refreshLiveIntelligence: () => unwrap(http.post("/intelligence/refresh", {}))
+  refreshLiveIntelligence: () => unwrap(http.post("/intelligence/refresh", {})),
 };
 
 export const billingApi = {
@@ -260,7 +297,7 @@ export const billingApi = {
   createCheckoutSession: (payload) =>
     unwrap(http.post("/billing/checkout-session", payload)),
   createPortalSession: (payload = {}) =>
-    unwrap(http.post("/billing/portal-session", payload))
+    unwrap(http.post("/billing/portal-session", payload)),
 };
 
 export const candidatesApi = {
@@ -279,10 +316,12 @@ export const candidatesApi = {
   parties: async () => {
     const data = await tryGet(["/candidates/parties"]);
     return normalizeListResult(data, ["parties"]);
-  }
+  },
 };
 
 export const intelligenceApi = {
+  status: () => tryGet(["/intelligence/status"]),
+  refresh: () => tryPost(["/intelligence/refresh"], {}),
   summary: () => tryGet(["/intelligence/summary"]),
   dashboard: () => tryGet(["/intelligence/dashboard"]),
   forecast: () => tryGet(["/intelligence/forecast"]),
@@ -298,8 +337,13 @@ export const intelligenceApi = {
   fundraisingLeaderboard: () =>
     tryGet([
       "/intelligence/fundraising/leaderboard",
-      "/fec/fundraising/leaderboard"
-    ])
+      "/fec/fundraising/leaderboard",
+    ]),
+
+  // Cross-signal intelligence engine
+  crossSignal: () => tryGet(["/intelligence/cross-signal"]),
+  dispatchCrossSignalAlerts: () =>
+    tryPost(["/intelligence/cross-signal/dispatch-alerts"], {}),
 };
 
 export const platformApi = {
@@ -307,21 +351,14 @@ export const platformApi = {
   postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], payload),
 
   warRoom: async () => {
-    const data = await tryGet([
-      "/intelligence/feed",
-      "/platform/war-room"
-    ]);
-
+    const data = await tryGet(["/intelligence/feed", "/platform/war-room"]);
     return normalizeWarRoomPayload(data);
   },
 
   simulator: () => tryGet(["/platform/simulator"]),
 
   commandCenter: async () => {
-    return tryGet([
-      "/intelligence/command",
-      "/platform/command-center"
-    ]);
+    return tryGet(["/intelligence/command", "/platform/command-center"]);
   },
 
   consultants: async (params = {}) => {
@@ -336,10 +373,10 @@ export const platformApi = {
     const data = await tryGet([
       "/consultants/states",
       "/platform/consultants/states",
-      "/marketplace/consultants/states"
+      "/marketplace/consultants/states",
     ]);
     return normalizeListResult(data, ["states"]);
-  }
+  },
 };
 
 export const vendorsApi = {
@@ -347,17 +384,33 @@ export const vendorsApi = {
     const data = await tryGet([
       "/vendors/states",
       "/platform/vendors/states",
-      "/crm/vendors/states"
+      "/crm/vendors/states",
     ]);
-    return normalizeListResult(data, ["states"]);
+    return normalizeListResult(data, ["states", "results"]);
   },
+
+  categories: async () => {
+    const data = await tryGet(["/vendors/dropdowns/categories"]);
+    return normalizeListResult(data, ["results", "categories"]);
+  },
+
+  statuses: async () => {
+    const data = await tryGet(["/vendors/dropdowns/statuses"]);
+    return normalizeListResult(data, ["results", "statuses"]);
+  },
+
   list: async (params = {}) => {
     const data = await tryGet(
       ["/vendors", "/platform/vendors", "/crm/vendors"],
       { params }
     );
     return Array.isArray(data) ? { results: data } : data;
-  }
+  },
+
+  scoring: () => tryGet(["/vendors/intelligence/scoring"]),
+
+  dispatchAlerts: () =>
+    tryPost(["/vendors/intelligence/dispatch-alerts"], {}),
 };
 
 export const donorsApi = {
@@ -367,7 +420,7 @@ export const donorsApi = {
       { params }
     );
     return Array.isArray(data) ? { results: data } : data;
-  }
+  },
 };
 
 export const mailOpsApi = {
@@ -375,17 +428,30 @@ export const mailOpsApi = {
     tryGet([
       "/mailops/dashboard",
       "/platform/mailops/dashboard",
-      "/mail-ops/dashboard"
+      "/mail-ops/dashboard",
     ]),
   events: (params = {}) => tryGet(["/mailops/events"], { params }),
   createEvent: (payload) => tryPost(["/mailops/events"], payload),
   updateEvent: (eventId, payload) =>
-    tryPatch([`/mailops/events/${eventId}`], payload)
+    tryPatch([`/mailops/events/${eventId}`], payload),
+};
+
+export const alertsApi = {
+  list: () => tryGet(["/alerts"]),
+  rebuild: () => tryPost(["/alerts/rebuild"], {}),
+  rules: () => tryGet(["/alerts/rules"]),
+  deliveries: (params = {}) => tryGet(["/alerts/deliveries"], { params }),
+  dispatch: (payload = { limit: 25 }) => tryPost(["/alerts/dispatch"], payload),
+  updateRule: (ruleId, payload) => tryPut([`/alerts/rules/${ruleId}`], payload),
+};
+
+export const realtimeApi = {
+  status: () => tryGet(["/realtime/status"]),
 };
 
 export const publicApi = {
   createEnterpriseLead: (payload) =>
-    unwrap(http.post("/public/enterprise-leads", payload))
+    unwrap(http.post("/public/enterprise-leads", payload)),
 };
 
 export const api = {
@@ -401,6 +467,9 @@ export const api = {
   forgotPassword: authApi.forgotPassword,
   resetPassword: authApi.resetPassword,
 
+  liveIntelligenceStatus: authApi.liveIntelligenceStatus,
+  refreshLiveIntelligence: authApi.refreshLiveIntelligence,
+
   billingConfig: billingApi.config,
   billingDebug: billingApi.debugMe,
   createCheckoutSession: billingApi.createCheckoutSession,
@@ -411,6 +480,8 @@ export const api = {
   candidateOffices: candidatesApi.offices,
   candidateParties: candidatesApi.parties,
 
+  intelligenceStatus: intelligenceApi.status,
+  intelligenceRefresh: intelligenceApi.refresh,
   intelligenceSummary: intelligenceApi.summary,
   intelligenceDashboard: intelligenceApi.dashboard,
   intelligenceForecast: intelligenceApi.forecast,
@@ -423,6 +494,9 @@ export const api = {
   liveFundraising: intelligenceApi.liveFundraising,
   fundraisingLeaderboard: intelligenceApi.fundraisingLeaderboard,
 
+  crossSignalIntelligence: intelligenceApi.crossSignal,
+  dispatchCrossSignalAlerts: intelligenceApi.dispatchCrossSignalAlerts,
+
   aiChat: platformApi.aiChat,
   postAiPrompt: platformApi.postAiPrompt,
   warRoom: platformApi.warRoom,
@@ -432,7 +506,11 @@ export const api = {
   consultantStates: platformApi.consultantStates,
 
   vendorStates: vendorsApi.states,
+  vendorCategories: vendorsApi.categories,
+  vendorStatuses: vendorsApi.statuses,
   vendors: vendorsApi.list,
+  vendorScoring: vendorsApi.scoring,
+  dispatchVendorAlerts: vendorsApi.dispatchAlerts,
 
   donorNetwork: donorsApi.network,
 
@@ -441,7 +519,16 @@ export const api = {
   createMailOpsEvent: mailOpsApi.createEvent,
   updateMailOpsEvent: mailOpsApi.updateEvent,
 
-  createEnterpriseLead: publicApi.createEnterpriseLead
+  alerts: alertsApi.list,
+  rebuildAlerts: alertsApi.rebuild,
+  alertRules: alertsApi.rules,
+  alertDeliveries: alertsApi.deliveries,
+  dispatchAlerts: alertsApi.dispatch,
+  updateAlertRule: alertsApi.updateRule,
+
+  realtimeStatus: realtimeApi.status,
+
+  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
 export { API_BASE, http };
