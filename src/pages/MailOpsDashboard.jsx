@@ -9,6 +9,7 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 import DemoBanner from "../components/ui/DemoBanner";
 import { useDemoMode } from "../context/DemoModeContext.jsx";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
+import useRealtimeStream from "../hooks/useRealtimeStream";
 
 function toneForStatus(value) {
   const v = String(value || "").toLowerCase();
@@ -65,25 +66,12 @@ function AlertRow({ row }) {
   );
 }
 
-function EventRow({
-  row,
-  draft,
-  onDraftChange,
-  onSave,
-  saving,
-}) {
+function EventRow({ row, draft, onDraftChange, onSave, saving }) {
   return (
     <div className="vs-card-muted">
       <div className="vs-responsive-row" style={{ gap: "12px" }}>
         <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <span
               className={
                 String(row.severity || "").toLowerCase() === "high"
@@ -91,39 +79,18 @@ function EventRow({
                   : "vs-live-dot-warning"
               }
             />
-            <div
-              style={{
-                fontSize: "14px",
-                fontWeight: 800,
-                lineHeight: 1.35,
-                color: "var(--vs-text)",
-              }}
-            >
+            <div style={{ fontSize: "14px", fontWeight: 800, lineHeight: 1.35, color: "var(--vs-text)" }}>
               {row.campaign}
             </div>
             <Badge tone={toneForSeverity(row.severity)}>{row.severity}</Badge>
             <Badge tone={toneForStatus(row.status)}>{row.status}</Badge>
           </div>
 
-          <div
-            style={{
-              marginTop: "6px",
-              fontSize: "13px",
-              lineHeight: 1.6,
-              color: "var(--vs-text-muted)",
-            }}
-          >
+          <div style={{ marginTop: "6px", fontSize: "13px", lineHeight: 1.6, color: "var(--vs-text-muted)" }}>
             {row.location} • {row.state} • {row.office} • {row.event_type}
           </div>
 
-          <div
-            style={{
-              marginTop: "8px",
-              fontSize: "12px",
-              lineHeight: 1.6,
-              color: "var(--vs-text-muted)",
-            }}
-          >
+          <div style={{ marginTop: "8px", fontSize: "12px", lineHeight: 1.6, color: "var(--vs-text-muted)" }}>
             {row.note || "No note yet."}
           </div>
         </div>
@@ -133,12 +100,7 @@ function EventRow({
             <select
               className="vs-select"
               value={draft.status}
-              onChange={(e) =>
-                onDraftChange(row.id, {
-                  ...draft,
-                  status: e.target.value,
-                })
-              }
+              onChange={(e) => onDraftChange(row.id, { ...draft, status: e.target.value })}
             >
               <option value="Pending">Pending</option>
               <option value="Scheduled">Scheduled</option>
@@ -153,12 +115,7 @@ function EventRow({
             <select
               className="vs-select"
               value={draft.severity}
-              onChange={(e) =>
-                onDraftChange(row.id, {
-                  ...draft,
-                  severity: e.target.value,
-                })
-              }
+              onChange={(e) => onDraftChange(row.id, { ...draft, severity: e.target.value })}
             >
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>
@@ -170,12 +127,7 @@ function EventRow({
             className="vs-textarea"
             rows={3}
             value={draft.note}
-            onChange={(e) =>
-              onDraftChange(row.id, {
-                ...draft,
-                note: e.target.value,
-              })
-            }
+            onChange={(e) => onDraftChange(row.id, { ...draft, note: e.target.value })}
             placeholder="Update operational note..."
           />
 
@@ -202,76 +154,13 @@ const fallbackData = {
     { label: "Postal Alerts", value: "7", delta: "Live monitoring", tone: "up" },
     { label: "On-Time Rate", value: "94%", delta: "+2.1%", tone: "up" },
   ],
-  drops: [
-    {
-      id: 1,
-      campaign: "GA Senate Victory",
-      location: "Atlanta NDC",
-      status: "Elevated",
-      in_home: "2026-10-14",
-      note: "Watch weekend clearance volume",
-    },
-    {
-      id: 2,
-      campaign: "PA Governor Push",
-      location: "Philadelphia P&DC",
-      status: "On Track",
-      in_home: "2026-10-16",
-      note: "Vendor scan performance stable",
-    },
-  ],
-  alerts: [
-    {
-      id: 1,
-      title: "Atlanta NDC delay pressure increasing",
-      severity: "High",
-      source: "MailOps",
-      detail: "Projected slip risk on high-volume trays.",
-    },
-    {
-      id: 2,
-      title: "Philadelphia scan recovery improving",
-      severity: "Medium",
-      source: "MailOps",
-      detail: "Recent tray movement indicates stabilization.",
-    },
-  ],
+  drops: [],
+  alerts: [],
   _demo: true,
 };
 
 const fallbackEvents = {
-  results: [
-    {
-      id: 1,
-      campaign: "GA Senate Victory",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated",
-      location: "Atlanta NDC",
-      vendor_name: "Precision Mail Group",
-      event_type: "delay_alert",
-      status: "Elevated",
-      severity: "High",
-      event_time: "2026-10-11T10:30:00Z",
-      in_home: "2026-10-14",
-      note: "Tray movement slowed during weekend processing",
-    },
-    {
-      id: 2,
-      campaign: "PA Governor Push",
-      state: "Pennsylvania",
-      office: "Governor",
-      risk: "Watch",
-      location: "Philadelphia P&DC",
-      vendor_name: "Keystone Mail",
-      event_type: "scan_update",
-      status: "On Track",
-      severity: "Medium",
-      event_time: "2026-10-11T12:15:00Z",
-      in_home: "2026-10-16",
-      note: "Scan recovery trend improving",
-    },
-  ],
+  results: [],
   _demo: true,
 };
 
@@ -308,6 +197,58 @@ export default function MailOpsDashboard() {
 
   const [eventDrafts, setEventDrafts] = useState({});
 
+  useRealtimeStream("intelligence:mailops", (event) => {
+    const payload = event?.payload || {};
+    const liveEvent = payload.event || null;
+    const liveAlert = payload.alert || null;
+
+    if (liveEvent) {
+      setEventsData((prev) => {
+        const existing = prev?.results || [];
+        const withoutDuplicate = existing.filter((row) => row.id !== liveEvent.id);
+
+        return {
+          ...(prev || {}),
+          results: [liveEvent, ...withoutDuplicate].slice(0, 100),
+          _demo: false,
+          demo: false,
+        };
+      });
+
+      setData((prev) => {
+        const existingDrops = prev?.drops || [];
+        const withoutDuplicateDrops = existingDrops.filter((row) => row.id !== liveEvent.id);
+
+        return {
+          ...(prev || fallbackData),
+          drops: [liveEvent, ...withoutDuplicateDrops].slice(0, 10),
+          _demo: false,
+          demo: false,
+        };
+      });
+
+      setIsDemoEvents(false);
+      setIsDemoData(false);
+      setSuccessMessage(`Live MailOps update received: ${liveEvent.campaign || "New event"}`);
+    }
+
+    if (liveAlert) {
+      setData((prev) => {
+        const existingAlerts = prev?.alerts || [];
+        const withoutDuplicateAlerts = existingAlerts.filter((row) => row.id !== liveAlert.id);
+
+        return {
+          ...(prev || fallbackData),
+          alerts: [liveAlert, ...withoutDuplicateAlerts].slice(0, 10),
+          _demo: false,
+          demo: false,
+        };
+      });
+
+      setIsDemoData(false);
+    }
+  });
+
   useEffect(() => {
     setComposer((prev) => ({
       ...prev,
@@ -334,11 +275,7 @@ export default function MailOpsDashboard() {
       } catch (err) {
         if (!active) return;
 
-        setError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load MailOps dashboard"
-        );
+        setError(err?.response?.data?.error || err?.message || "Failed to load MailOps dashboard");
         setData(fallbackData);
         setIsDemoData(true);
       } finally {
@@ -366,28 +303,18 @@ export default function MailOpsDashboard() {
         if (filters.office) params.office = filters.office;
         if (filters.risk) params.risk = filters.risk;
 
-        let response;
-        try {
-          response = api.mailOpsEvents
-            ? await api.mailOpsEvents(params)
-            : (await api.get("/mailops/events", { params })).data;
-        } catch (err) {
-          response = fallbackEvents;
-          throw err;
-        } finally {
-          if (response && active) {
-            setEventsData(response || fallbackEvents);
-            setIsDemoEvents(Boolean(response?._demo || response?.demo));
-          }
-        }
+        const response = api.mailOpsEvents
+          ? await api.mailOpsEvents(params)
+          : (await api.get("/mailops/events", { params })).data;
+
+        if (!active) return;
+
+        setEventsData(response || fallbackEvents);
+        setIsDemoEvents(Boolean(response?._demo || response?.demo));
       } catch (err) {
         if (!active) return;
 
-        setEventError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load MailOps events"
-        );
+        setEventError(err?.response?.data?.error || err?.message || "Failed to load MailOps events");
         setEventsData(fallbackEvents);
         setIsDemoEvents(true);
       } finally {
@@ -418,13 +345,8 @@ export default function MailOpsDashboard() {
     setEventDrafts(nextDrafts);
   }, [events]);
 
-  const elevatedDrops = drops.filter(
-    (row) => String(row.status || "").toLowerCase() === "elevated"
-  ).length;
-
-  const highAlerts = alerts.filter(
-    (row) => String(row.severity || "").toLowerCase() === "high"
-  ).length;
+  const elevatedDrops = drops.filter((row) => String(row.status || "").toLowerCase() === "elevated").length;
+  const highAlerts = alerts.filter((row) => String(row.severity || "").toLowerCase() === "high").length;
 
   async function refreshEvents() {
     const params = {};
@@ -477,11 +399,7 @@ export default function MailOpsDashboard() {
 
       await refreshEvents();
     } catch (err) {
-      setEventError(
-        err?.response?.data?.error ||
-          err?.message ||
-          "Failed to create MailOps event"
-      );
+      setEventError(err?.response?.data?.error || err?.message || "Failed to create MailOps event");
     } finally {
       setCreatingEvent(false);
     }
@@ -512,11 +430,7 @@ export default function MailOpsDashboard() {
       setSuccessMessage(`MailOps event #${eventId} updated successfully.`);
       await refreshEvents();
     } catch (err) {
-      setEventError(
-        err?.response?.data?.error ||
-          err?.message ||
-          "Failed to update MailOps event"
-      );
+      setEventError(err?.response?.data?.error || err?.message || "Failed to update MailOps event");
     } finally {
       setSavingEventId(null);
     }
@@ -530,27 +444,12 @@ export default function MailOpsDashboard() {
       demo={demoMode}
       demoText="Global Demo Mode is active. This module can render fallback MailOps data when live endpoints are unavailable."
       tickerItems={[
-        {
-          label: "Drops",
-          value: `${drops.length}`,
-          dotClass: "vs-live-dot-success",
-        },
-        {
-          label: "Elevated",
-          value: `${elevatedDrops}`,
-          dotClass: "vs-live-dot",
-        },
-        {
-          label: "Alerts",
-          value: `${highAlerts} high`,
-          dotClass: "vs-live-dot-warning",
-        },
+        { label: "Drops", value: `${drops.length}`, dotClass: "vs-live-dot-success" },
+        { label: "Elevated", value: `${elevatedDrops}`, dotClass: "vs-live-dot" },
+        { label: "Alerts", value: `${highAlerts} high`, dotClass: "vs-live-dot-warning" },
       ]}
     >
-      <DemoBanner
-        active={isDemoData || isDemoEvents}
-        text="Demo MailOps data is active for part of this module."
-      />
+      <DemoBanner active={isDemoData || isDemoEvents} text="Demo MailOps data is active for part of this module." />
 
       {filters.state || filters.office || filters.risk ? (
         <div className="vs-banner">
@@ -580,80 +479,24 @@ export default function MailOpsDashboard() {
       <SectionCard
         title="Operational Composer"
         subtitle="Create live MailOps events directly from the dashboard."
-        right={
-          <Badge tone={isDemoEvents ? "demo" : "active"}>
-            {isDemoEvents ? "Demo Event Layer" : "Live Event Layer"}
-          </Badge>
-        }
+        right={<Badge tone={isDemoEvents ? "demo" : "active"}>{isDemoEvents ? "Demo Event Layer" : "Live Event Layer"}</Badge>}
       >
         <form onSubmit={handleCreateEvent} className="vs-stack">
           <div className="vs-grid-2">
-            <input
-              className="vs-input"
-              placeholder="Campaign"
-              value={composer.campaign}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, campaign: e.target.value }))
-              }
-              required
-            />
-            <input
-              className="vs-input"
-              placeholder="Location"
-              value={composer.location}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, location: e.target.value }))
-              }
-              required
-            />
+            <input className="vs-input" placeholder="Campaign" value={composer.campaign} onChange={(e) => setComposer((prev) => ({ ...prev, campaign: e.target.value }))} required />
+            <input className="vs-input" placeholder="Location" value={composer.location} onChange={(e) => setComposer((prev) => ({ ...prev, location: e.target.value }))} required />
           </div>
 
           <div className="vs-grid-3">
-            <input
-              className="vs-input"
-              placeholder="State"
-              value={composer.state}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, state: e.target.value }))
-              }
-              required
-            />
-            <input
-              className="vs-input"
-              placeholder="Office"
-              value={composer.office}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, office: e.target.value }))
-              }
-              required
-            />
-            <input
-              className="vs-input"
-              placeholder="Risk"
-              value={composer.risk}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, risk: e.target.value }))
-              }
-            />
+            <input className="vs-input" placeholder="State" value={composer.state} onChange={(e) => setComposer((prev) => ({ ...prev, state: e.target.value }))} required />
+            <input className="vs-input" placeholder="Office" value={composer.office} onChange={(e) => setComposer((prev) => ({ ...prev, office: e.target.value }))} required />
+            <input className="vs-input" placeholder="Risk" value={composer.risk} onChange={(e) => setComposer((prev) => ({ ...prev, risk: e.target.value }))} />
           </div>
 
           <div className="vs-grid-3">
-            <input
-              className="vs-input"
-              placeholder="Vendor Name"
-              value={composer.vendor_name}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, vendor_name: e.target.value }))
-              }
-            />
+            <input className="vs-input" placeholder="Vendor Name" value={composer.vendor_name} onChange={(e) => setComposer((prev) => ({ ...prev, vendor_name: e.target.value }))} />
 
-            <select
-              className="vs-select"
-              value={composer.event_type}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, event_type: e.target.value }))
-              }
-            >
+            <select className="vs-select" value={composer.event_type} onChange={(e) => setComposer((prev) => ({ ...prev, event_type: e.target.value }))}>
               <option value="mail_update">mail_update</option>
               <option value="drop_created">drop_created</option>
               <option value="scan_update">scan_update</option>
@@ -664,13 +507,7 @@ export default function MailOpsDashboard() {
               <option value="issue_resolved">issue_resolved</option>
             </select>
 
-            <select
-              className="vs-select"
-              value={composer.status}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, status: e.target.value }))
-              }
-            >
+            <select className="vs-select" value={composer.status} onChange={(e) => setComposer((prev) => ({ ...prev, status: e.target.value }))}>
               <option value="Pending">Pending</option>
               <option value="Scheduled">Scheduled</option>
               <option value="In Transit">In Transit</option>
@@ -683,53 +520,20 @@ export default function MailOpsDashboard() {
           </div>
 
           <div className="vs-grid-3">
-            <select
-              className="vs-select"
-              value={composer.severity}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, severity: e.target.value }))
-              }
-            >
+            <select className="vs-select" value={composer.severity} onChange={(e) => setComposer((prev) => ({ ...prev, severity: e.target.value }))}>
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>
               <option value="High">High</option>
             </select>
 
-            <input
-              className="vs-input"
-              type="datetime-local"
-              value={composer.event_time}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, event_time: e.target.value }))
-              }
-            />
-
-            <input
-              className="vs-input"
-              type="date"
-              value={composer.in_home}
-              onChange={(e) =>
-                setComposer((prev) => ({ ...prev, in_home: e.target.value }))
-              }
-            />
+            <input className="vs-input" type="datetime-local" value={composer.event_time} onChange={(e) => setComposer((prev) => ({ ...prev, event_time: e.target.value }))} />
+            <input className="vs-input" type="date" value={composer.in_home} onChange={(e) => setComposer((prev) => ({ ...prev, in_home: e.target.value }))} />
           </div>
 
-          <textarea
-            className="vs-textarea"
-            rows={4}
-            placeholder="Operational note"
-            value={composer.note}
-            onChange={(e) =>
-              setComposer((prev) => ({ ...prev, note: e.target.value }))
-            }
-          />
+          <textarea className="vs-textarea" rows={4} placeholder="Operational note" value={composer.note} onChange={(e) => setComposer((prev) => ({ ...prev, note: e.target.value }))} />
 
           <div className="vs-inline-actions">
-            <button
-              type="submit"
-              className="vs-button vs-button-primary"
-              disabled={creatingEvent}
-            >
+            <button type="submit" className="vs-button vs-button-primary" disabled={creatingEvent}>
               {creatingEvent ? "Creating..." : "Create Mail Event"}
             </button>
           </div>
@@ -740,11 +544,7 @@ export default function MailOpsDashboard() {
         <SectionCard
           title="Active Mail Drops"
           subtitle="Live campaigns and in-home delivery posture."
-          right={
-            <Badge tone={isDemoData ? "demo" : "active"}>
-              {isDemoData ? "Demo Data" : "Live Data"}
-            </Badge>
-          }
+          right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live Data"}</Badge>}
         >
           <div className="vs-stack">
             {loading ? (
@@ -757,10 +557,7 @@ export default function MailOpsDashboard() {
           </div>
         </SectionCard>
 
-        <SectionCard
-          title="Postal Alerts"
-          subtitle="Risk signals that may affect delivery or in-home timing."
-        >
+        <SectionCard title="Postal Alerts" subtitle="Risk signals that may affect delivery or in-home timing.">
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading postal alerts..." />
@@ -776,11 +573,7 @@ export default function MailOpsDashboard() {
       <SectionCard
         title="Operational Event Queue"
         subtitle="Update live MailOps events directly from the control surface."
-        right={
-          <Badge tone={isDemoEvents ? "demo" : "active"}>
-            {isDemoEvents ? "Demo Events" : "Live Events"}
-          </Badge>
-        }
+        right={<Badge tone={isDemoEvents ? "demo" : "active"}>{isDemoEvents ? "Demo Events" : "Live Events"}</Badge>}
       >
         <div className="vs-stack">
           {loadingEvents ? (
