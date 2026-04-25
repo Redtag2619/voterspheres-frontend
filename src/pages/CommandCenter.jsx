@@ -8,6 +8,7 @@ import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
+import useRealtimeStream from "../hooks/useRealtimeStream";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 const fallbackData = {
@@ -34,11 +35,21 @@ const fallbackData = {
   ]
 };
 
+const fallbackCrossSignal = {
+  summary: {},
+  top_priorities: [],
+  results: []
+};
+
 function badgeToneFromSeverity(value) {
   const v = String(value || "").toLowerCase();
-  if (v === "high") return "danger";
-  if (v === "medium") return "demo";
+  if (v === "critical" || v === "high" || v === "elevated" || v === "severe") return "danger";
+  if (v === "medium" || v === "watch") return "demo";
   return "default";
+}
+
+function formatMoney(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
 }
 
 function dedupeFeed(items) {
@@ -106,15 +117,62 @@ function ActionRow({ item }) {
   );
 }
 
+function PriorityRow({ item, index }) {
+  return (
+    <ResponsiveRow
+      title={`#${index + 1} ${item.state} — ${item.severity}`}
+      subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
+      meta={[
+        { label: "Score", value: item.priority_score },
+        { label: "Receipts", value: formatMoney(item.finance?.receipts) },
+        { label: "Vendors", value: item.vendors?.coverage_status || "—" },
+        { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
+      ]}
+      alert={["Critical", "High"].includes(item.severity) ? "vs-live-dot" : "vs-live-dot-warning"}
+      right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.risk}</Badge>}
+    />
+  );
+}
+
 export default function CommandCenter() {
   const fetcher = useCallback(() => api.commandCenter(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
+  const [crossSignal, setCrossSignal] = useState(fallbackCrossSignal);
+  const [crossLoading, setCrossLoading] = useState(true);
   const [liveBanner, setLiveBanner] = useState("");
+  const [liveAlerts, setLiveAlerts] = useState([]);
   const { filters } = useExecutiveFilters();
 
   const demoMode =
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCrossSignal() {
+      try {
+        setCrossLoading(true);
+        const response = api.crossSignalIntelligence
+          ? await api.crossSignalIntelligence()
+          : (await api.get("/intelligence/cross-signal")).data;
+
+        if (!active) return;
+        setCrossSignal(response || fallbackCrossSignal);
+      } catch {
+        if (!active) return;
+        setCrossSignal(fallbackCrossSignal);
+      } finally {
+        if (active) setCrossLoading(false);
+      }
+    }
+
+    loadCrossSignal();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useLiveChannel("intelligence:command-center", (event) => {
     if (!event?.type) return;
@@ -145,6 +203,28 @@ export default function CommandCenter() {
     }
   });
 
+  useRealtimeStream(null, (event) => {
+    const alert = event?.payload?.alert || event?.payload?.event || null;
+    if (!alert) return;
+
+    setLiveBanner(`Realtime alert fused into Command Center: ${alert.title || "New signal"}`);
+
+    setLiveAlerts((prev) => [
+      {
+        id: event.id || `live-${Date.now()}`,
+        time: new Date(event.timestamp || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: alert.title || "Realtime intelligence signal",
+        source: alert.source || "Realtime",
+        severity: alert.severity || "Medium",
+        type: alert.event_type || event.type || "alert.dispatched",
+        state: alert.state || "National",
+        office: alert.office || "Statewide",
+        risk: alert.risk || "Watch"
+      },
+      ...prev
+    ].slice(0, 8));
+  });
+
   useEffect(() => {
     if (!liveBanner) return;
     const timer = setTimeout(() => setLiveBanner(""), 5000);
@@ -152,23 +232,61 @@ export default function CommandCenter() {
   }, [liveBanner]);
 
   const battlegrounds = useMemo(() => (data?.battlegrounds || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
-  const feed = useMemo(() => (data?.feed || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
+  const feed = useMemo(() => dedupeFeed([...(liveAlerts || []), ...(data?.feed || [])]).filter((item) => matchesFilters(item, filters)), [data, liveAlerts, filters]);
   const actions = useMemo(() => (data?.actions || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
 
+  const topPriorities = useMemo(() => {
+    return (crossSignal?.top_priorities || []).filter((item) => {
+      if (filters.state && item.state !== filters.state) return false;
+      if (filters.risk && item.risk !== filters.risk && item.severity !== filters.risk) return false;
+      return true;
+    });
+  }, [crossSignal, filters]);
+
   const highSeverityCount = feed.filter(
-    (item) => String(item.severity || "").toLowerCase() === "high"
+    (item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())
   ).length;
+
+  const crossMetrics = useMemo(() => {
+    const summary = crossSignal?.summary || {};
+    return [
+      {
+        label: "Tracked States",
+        value: summary.states_tracked || 0,
+        delta: "Cross-signal engine",
+        tone: "up"
+      },
+      {
+        label: "Critical States",
+        value: summary.critical_states || 0,
+        delta: "Immediate review",
+        tone: summary.critical_states ? "down" : "up"
+      },
+      {
+        label: "High States",
+        value: summary.high_states || 0,
+        delta: "Priority markets",
+        tone: summary.high_states ? "down" : "up"
+      },
+      {
+        label: "Vendor Gap States",
+        value: summary.vendor_gap_states || 0,
+        delta: "Coverage pressure",
+        tone: summary.vendor_gap_states ? "down" : "up"
+      }
+    ];
+  }, [crossSignal]);
 
   return (
     <PageShell
       eyebrow="Executive Command Center"
       title="The operating system for campaign control, race velocity, and strategic response."
-      description="Monitor battleground pressure, fundraising flow, narrative threats, and next-best actions across the national map from one executive view."
+      description="Monitor battleground pressure, fundraising flow, narrative threats, vendor gaps, MailOps risk, and next-best actions across one executive view."
       demo={demoMode}
       demoText="Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation."
       tickerItems={[
         { label: "Threats", value: `${highSeverityCount} high`, dotClass: "vs-live-dot" },
-        { label: "Battlegrounds", value: `${battlegrounds.length} tracked`, dotClass: "vs-live-dot-warning" },
+        { label: "Priorities", value: `${topPriorities.length} ranked`, dotClass: "vs-live-dot-warning" },
         { label: "Actions", value: `${actions.length} queued`, dotClass: "vs-live-dot-success" }
       ]}
     >
@@ -182,6 +300,30 @@ export default function CommandCenter() {
       </div>
 
       <SectionCard
+        title="Cross-Signal Priority Layer"
+        subtitle="Highest-pressure states ranked from fundraising, vendor coverage, MailOps risk, and live executive feed signals."
+        right={<Badge tone="danger">{topPriorities.length} ranked</Badge>}
+      >
+        <div className="vs-grid-4" style={{ marginBottom: 16 }}>
+          {crossMetrics.map((metric) => (
+            <StatCard key={metric.label} {...metric} />
+          ))}
+        </div>
+
+        <div className="vs-stack">
+          {crossLoading ? (
+            <EmptyState text="Loading cross-signal priority engine..." />
+          ) : !topPriorities.length ? (
+            <EmptyState text="No cross-signal priorities available for the current filters." />
+          ) : (
+            topPriorities.slice(0, 6).map((item, index) => (
+              <PriorityRow key={`${item.state}-${index}`} item={item} index={index} />
+            ))
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
         title="Priority Battleground Board"
         subtitle="Top races requiring executive monitoring and rapid adjustments."
         right={<Badge tone="accent">{battlegrounds.length} tracked</Badge>}
@@ -192,7 +334,7 @@ export default function CommandCenter() {
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, and forecast signals entering the executive terminal.">
+        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and realtime alert signals entering the executive terminal.">
           <div className="vs-stack">
             {loading ? <EmptyState text="Loading command feed..." /> : !feed.length ? <EmptyState text="No live command feed items for the current filters." /> : feed.map((item) => <FeedRow key={item.id || `${item.time}-${item.title}`} item={item} />)}
           </div>
