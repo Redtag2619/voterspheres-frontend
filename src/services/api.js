@@ -305,18 +305,40 @@ export const candidatesApi = {
     const data = await tryGet(["/candidates"], { params });
     return Array.isArray(data) ? data : data;
   },
+
   states: async () => {
     const data = await tryGet(["/candidates/states"]);
     return normalizeListResult(data, ["states"]);
   },
+
   offices: async () => {
     const data = await tryGet(["/candidates/offices"]);
     return normalizeListResult(data, ["offices"]);
   },
+
   parties: async () => {
     const data = await tryGet(["/candidates/parties"]);
     return normalizeListResult(data, ["parties"]);
   },
+
+  detail: (id) => tryGet([`/candidates/${id}`]),
+
+  contacts: (id) => tryGet([`/candidates/${id}/contacts`]),
+
+  enrichProfile: (id) =>
+    tryPost([`/candidates/${id}/refresh-profile`, `/candidates/${id}/enrich-profile`], {}),
+
+  manualProfile: (id, payload) =>
+    tryPost([`/candidates/${id}/manual-profile`], payload),
+
+  refreshProfiles: (payload = { limit: 100 }) =>
+    tryPost(["/candidates/refresh-profiles"], payload),
+
+  scoring: (params = {}) =>
+    tryGet(["/candidates/intelligence/scoring"], { params }),
+
+  dispatchIntelligenceAlerts: (payload = {}) =>
+    tryPost(["/candidates/intelligence/dispatch-alerts"], payload),
 };
 
 export const intelligenceApi = {
@@ -540,6 +562,7 @@ export const api = {
 
 export { API_BASE, http };
 export default http;
+
 
 
 
