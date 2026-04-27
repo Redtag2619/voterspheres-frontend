@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -6,6 +6,8 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import DemoOnboarding from "../components/demo/DemoOnboarding.jsx";
+import LiveActivityStream from "../components/demo/LiveActivityStream.jsx";
 import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useRealtimeStream from "../hooks/useRealtimeStream";
@@ -31,13 +33,51 @@ const fallbackData = {
   feed: [
     { id: 1, time: "08:12", title: "Opposition affordability attack accelerating", source: "War Room", severity: "High", type: "warroom.threat_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
     { id: 2, time: "08:41", title: "Mail delay detected at Atlanta NDC", source: "Mail Intelligence", severity: "High", type: "mail.delay_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" }
+    { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" },
+    { id: 4, time: "09:22", title: "Vendor coverage gap flagged in AZ", source: "Vendor Intelligence", severity: "High", type: "vendor.coverage_gap", state: "Arizona", office: "Senate", risk: "Elevated" },
+    { id: 5, time: "09:37", title: "Candidate contact gap requires verification", source: "Candidate Intelligence", severity: "Medium", type: "candidate.contact_gap", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ]
 };
 
 const fallbackCrossSignal = {
-  summary: {},
-  top_priorities: [],
+  summary: {
+    states_tracked: 3,
+    critical_states: 1,
+    high_states: 2,
+    vendor_gap_states: 1
+  },
+  top_priorities: [
+    {
+      state: "Georgia",
+      severity: "High",
+      risk: "Elevated",
+      priority_score: 91,
+      recommended_actions: ["Escalate MailOps response.", "Increase suburban persuasion pressure."],
+      finance: { receipts: 12800000 },
+      vendors: { coverage_status: "Tight" },
+      mailops: { mail_risks: 2 }
+    },
+    {
+      state: "Arizona",
+      severity: "High",
+      risk: "Elevated",
+      priority_score: 84,
+      recommended_actions: ["Audit vendor coverage.", "Prepare backup vendor lane."],
+      finance: { receipts: 9400000 },
+      vendors: { coverage_status: "Gap" },
+      mailops: { mail_risks: 1 }
+    },
+    {
+      state: "Pennsylvania",
+      severity: "Medium",
+      risk: "Watch",
+      priority_score: 76,
+      recommended_actions: ["Verify candidate contacts.", "Refresh surrogate memo."],
+      finance: { receipts: 11100000 },
+      vendors: { coverage_status: "Stable" },
+      mailops: { mail_risks: 0 }
+    }
+  ],
   results: []
 };
 
@@ -62,53 +102,6 @@ function dedupeFeed(items) {
   });
 }
 
-
-function buildExecutiveDecision({ feed = [], battlegrounds = [] }) {
-  if (!feed.length) return null;
-
-  const high = feed.find(f =>
-    ["high", "critical"].includes(String(f.severity || "").toLowerCase())
-  );
-
-  if (!high) return null;
-
-  const state = high.state || "Priority State";
-
-  if (high.type?.includes("mail")) {
-    return {
-      level: "CRITICAL",
-      title: `${state} MailOps disruption`,
-      actions: [
-        "Escalate vendor immediately",
-        "Contact USPS political desk",
-        "Shift delivery windows"
-      ]
-    };
-  }
-
-  if (high.type?.includes("vendor")) {
-    return {
-      level: "HIGH",
-      title: `${state} Vendor coverage risk`,
-      actions: [
-        "Audit vendor coverage",
-        "Deploy backup vendor",
-        "Escalate operations team"
-      ]
-    };
-  }
-
-  return {
-    level: "HIGH",
-    title: `${state} campaign pressure rising`,
-    actions: [
-      "Deploy message shift",
-      "Increase media weight",
-      "Activate surrogate network"
-    ]
-  };
-}
-
 function matchesFilters(item, filters) {
   if (!item) return false;
   if (filters.state && item.state !== filters.state) return false;
@@ -117,35 +110,53 @@ function matchesFilters(item, filters) {
   return true;
 }
 
-function BattlegroundRow({ row, active = false }) {
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+function buildExecutiveDecision({ feed = [] }) {
+  if (!feed.length) return null;
 
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
+  const high = feed.find((item) =>
+    ["high", "critical"].includes(String(item.severity || "").toLowerCase())
+  );
 
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
+  if (!high) return null;
+
+  const state = high.state || "Priority State";
+
+  if (String(high.type || "").includes("mail")) {
+    return {
+      level: "CRITICAL",
+      title: `${state} MailOps disruption`,
+      actions: ["Escalate vendor immediately", "Contact USPS political desk", "Shift delivery windows"]
+    };
   }
 
+  if (String(high.type || "").includes("vendor")) {
+    return {
+      level: "HIGH",
+      title: `${state} vendor coverage risk`,
+      actions: ["Audit vendor coverage", "Deploy backup vendor", "Escalate operations team"]
+    };
+  }
+
+  if (String(high.type || "").includes("candidate")) {
+    return {
+      level: "HIGH",
+      title: `${state} candidate intelligence gap`,
+      actions: ["Refresh candidate profile", "Verify contact record", "Assign analyst review"]
+    };
+  }
+
+  return {
+    level: "HIGH",
+    title: `${state} campaign pressure rising`,
+    actions: ["Deploy message shift", "Increase media weight", "Activate surrogate network"]
+  };
+}
+
+function BattlegroundRow({ row, active = false }) {
   return (
     <ResponsiveRow
-      title={row.race} active={active}
+      active={active}
+      title={row.race}
       subtitle="Priority race requiring executive visibility."
       meta={[
         { label: "Win Prob.", value: row.probability },
@@ -160,35 +171,11 @@ function BattlegroundRow({ row, active = false }) {
 }
 
 function FeedRow({ item, live = false }) {
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
-
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
-
   return (
     <ResponsiveRow
-      title={item.title} live={live}
-      subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
+      live={live}
+      title={item.title}
+      subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
       meta={[
         { label: "Time", value: item.time || "Now" },
         { label: "Severity", value: item.severity || "Info" }
@@ -200,34 +187,9 @@ function FeedRow({ item, live = false }) {
 }
 
 function ActionRow({ item }) {
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
-
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
-
   return (
     <ResponsiveRow
-      title={item.title} live={live}
+      title={item.title}
       subtitle={item.detail}
       meta={[
         { label: "Owner", value: item.owner },
@@ -240,39 +202,14 @@ function ActionRow({ item }) {
 }
 
 function PriorityRow({ item, index }) {
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
-
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
-
   return (
     <ResponsiveRow
-      title={`#${index + 1} ${item.state} â€” ${item.severity}`}
+      title={`#${index + 1} ${item.state} — ${item.severity}`}
       subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
       meta={[
         { label: "Score", value: item.priority_score },
         { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-        { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
+        { label: "Vendors", value: item.vendors?.coverage_status || "—" },
         { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
       ]}
       alert={["Critical", "High"].includes(item.severity) ? "vs-live-dot" : "vs-live-dot-warning"}
@@ -284,22 +221,33 @@ function PriorityRow({ item, index }) {
 export default function CommandCenter() {
   const fetcher = useCallback(() => api.commandCenter(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
+
   const [crossSignal, setCrossSignal] = useState(fallbackCrossSignal);
   const [crossLoading, setCrossLoading] = useState(true);
   const [liveBanner, setLiveBanner] = useState("");
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [liveFeedIds, setLiveFeedIds] = useState([]);
   const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
+
   const { filters } = useExecutiveFilters();
 
   const demoMode =
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
 
+  const effectiveData = demoMode ? fallbackData : data || fallbackData;
+  const effectiveCrossSignal = demoMode ? fallbackCrossSignal : crossSignal || fallbackCrossSignal;
+
   useEffect(() => {
     let active = true;
 
     async function loadCrossSignal() {
+      if (demoMode) {
+        setCrossSignal(fallbackCrossSignal);
+        setCrossLoading(false);
+        return;
+      }
+
       try {
         setCrossLoading(true);
         const response = api.crossSignalIntelligence
@@ -317,35 +265,11 @@ export default function CommandCenter() {
     }
 
     loadCrossSignal();
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
 
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
-
-  return () => {
+    return () => {
       active = false;
     };
-  }, []);
+  }, [demoMode]);
 
   useLiveChannel("intelligence:command-center", (event) => {
     if (!event?.type) return;
@@ -353,14 +277,20 @@ export default function CommandCenter() {
     if (event.type === "warroom.threat_detected") {
       const threat = event.payload || {};
       const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const liveId = `cc-threat-${Date.now()}`;
 
       setLiveBanner(`Live threat fused into Command Center: ${threat.title || "Threat detected"}`);
+      setLiveFeedIds((prev) => [liveId, ...prev].slice(0, 8));
+      setLiveBattlegroundStates((prev) => [
+        threat.state || "Georgia",
+        ...prev.filter((item) => item !== (threat.state || "Georgia"))
+      ].slice(0, 5));
 
       setData((prev) => ({
         ...(prev || fallbackData),
         feed: dedupeFeed([
           {
-            id: `cc-threat-${Date.now()}`,
+            id: liveId,
             time: now,
             title: threat.title || "Threat detected",
             source: threat.source || "War Room",
@@ -380,11 +310,18 @@ export default function CommandCenter() {
     const alert = event?.payload?.alert || event?.payload?.event || null;
     if (!alert) return;
 
+    const liveId = event.id || `live-${Date.now()}`;
+
     setLiveBanner(`Realtime alert fused into Command Center: ${alert.title || "New signal"}`);
+    setLiveFeedIds((prev) => [liveId, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      alert.state || "National",
+      ...prev.filter((item) => item !== (alert.state || "National"))
+    ].slice(0, 5));
 
     setLiveAlerts((prev) => [
       {
-        id: event.id || `live-${Date.now()}`,
+        id: liveId,
         time: new Date(event.timestamp || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         title: alert.title || "Realtime intelligence signal",
         source: alert.source || "Realtime",
@@ -398,131 +335,97 @@ export default function CommandCenter() {
     ].slice(0, 8));
   });
 
+  function handleDemoSignal(signal) {
+    const liveId = signal.id || `demo-live-${Date.now()}`;
+
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+    setLiveFeedIds((prev) => [liveId, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: liveId,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
   useEffect(() => {
     if (!liveBanner) return;
     const timer = setTimeout(() => setLiveBanner(""), 5000);
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
-
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
-
-  return () => clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, [liveBanner]);
 
-  const battlegrounds = useMemo(() => (data?.battlegrounds || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
-  const feed = useMemo(() => dedupeFeed([...(liveAlerts || []), ...(data?.feed || [])]).filter((item) => matchesFilters(item, filters)), [data, liveAlerts, filters]);
-  const actions = useMemo(() => (data?.actions || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
+  useEffect(() => {
+    if (!liveFeedIds.length && !liveBattlegroundStates.length) return;
+
+    const timer = setTimeout(() => {
+      setLiveFeedIds([]);
+      setLiveBattlegroundStates([]);
+    }, 5200);
+
+    return () => clearTimeout(timer);
+  }, [liveFeedIds, liveBattlegroundStates]);
+
+  const battlegrounds = useMemo(
+    () => (effectiveData?.battlegrounds || []).filter((item) => matchesFilters(item, filters)),
+    [effectiveData, filters]
+  );
+
+  const feed = useMemo(
+    () =>
+      dedupeFeed([...(liveAlerts || []), ...(effectiveData?.feed || [])]).filter((item) =>
+        matchesFilters(item, filters)
+      ),
+    [effectiveData, liveAlerts, filters]
+  );
+
+  const actions = useMemo(
+    () => (effectiveData?.actions || []).filter((item) => matchesFilters(item, filters)),
+    [effectiveData, filters]
+  );
 
   const topPriorities = useMemo(() => {
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
-
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
-
-  return (crossSignal?.top_priorities || []).filter((item) => {
+    return (effectiveCrossSignal?.top_priorities || []).filter((item) => {
       if (filters.state && item.state !== filters.state) return false;
       if (filters.risk && item.risk !== filters.risk && item.severity !== filters.risk) return false;
       return true;
     });
-  }, [crossSignal, filters]);
+  }, [effectiveCrossSignal, filters]);
 
-  const highSeverityCount = feed.filter(
-    (item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())
+  const highSeverityCount = feed.filter((item) =>
+    ["high", "critical"].includes(String(item.severity || "").toLowerCase())
   ).length;
 
+  const executiveDecision = useMemo(() => {
+    try {
+      return buildExecutiveDecision({ feed, battlegrounds });
+    } catch {
+      return null;
+    }
+  }, [feed, battlegrounds]);
+
   const crossMetrics = useMemo(() => {
-    const summary = crossSignal?.summary || {};
+    const summary = effectiveCrossSignal?.summary || {};
+
     return [
-      {
-        label: "Tracked States",
-        value: summary.states_tracked || 0,
-        delta: "Cross-signal engine",
-        tone: "up"
-      },
-      {
-        label: "Critical States",
-        value: summary.critical_states || 0,
-        delta: "Immediate review",
-        tone: summary.critical_states ? "down" : "up"
-      },
-      {
-        label: "High States",
-        value: summary.high_states || 0,
-        delta: "Priority markets",
-        tone: summary.high_states ? "down" : "up"
-      },
-      {
-        label: "Vendor Gap States",
-        value: summary.vendor_gap_states || 0,
-        delta: "Coverage pressure",
-        tone: summary.vendor_gap_states ? "down" : "up"
-      }
+      { label: "Tracked States", value: summary.states_tracked || 0, delta: "Cross-signal engine", tone: "up" },
+      { label: "Critical States", value: summary.critical_states || 0, delta: "Immediate review", tone: summary.critical_states ? "down" : "up" },
+      { label: "High States", value: summary.high_states || 0, delta: "Priority markets", tone: summary.high_states ? "down" : "up" },
+      { label: "Vendor Gap States", value: summary.vendor_gap_states || 0, delta: "Coverage pressure", tone: summary.vendor_gap_states ? "down" : "up" }
     ];
-  }, [crossSignal]);
-  function handleDemoSignal(signal) {
-    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
-
-    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
-    setLiveBattlegroundStates((prev) => [
-      signal.state,
-      ...prev.filter((item) => item !== signal.state)
-    ].slice(0, 5));
-
-    setLiveAlerts((prev) => [
-      {
-        id: signal.id || `demo-live-${Date.now()}`,
-        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        title: signal.title,
-        source: signal.source,
-        severity: signal.severity,
-        type: "demo.signal",
-        state: signal.state,
-        office: signal.office,
-        risk: signal.risk
-      },
-      ...prev
-    ].slice(0, 8));
-  }
+  }, [effectiveCrossSignal]);
 
   return (
     <PageShell
@@ -537,23 +440,22 @@ export default function CommandCenter() {
         { label: "Actions", value: `${actions.length} queued`, dotClass: "vs-live-dot-success" }
       ]}
     >
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+      {error && !demoMode ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
-      {/* Executive Decision Panel */}
+
+      <DemoOnboarding />
+      <LiveActivityStream onSignal={handleDemoSignal} />
+
       {executiveDecision ? (
         <div className="vs-decision-panel">
           <div className="vs-decision-header">
-            <span className="vs-decision-level">
-              {executiveDecision.level}
-            </span>
-            <span className="vs-decision-title">
-              {executiveDecision.title}
-            </span>
+            <span className="vs-decision-level">{executiveDecision.level}</span>
+            <span className="vs-decision-title">{executiveDecision.title}</span>
           </div>
 
           <div className="vs-decision-actions">
             {executiveDecision.actions.map((action, index) => (
-              <button key={index} className="vs-decision-btn">
+              <button key={`${action}-${index}`} className="vs-decision-btn" type="button">
                 {action}
               </button>
             ))}
@@ -561,9 +463,8 @@ export default function CommandCenter() {
         </div>
       ) : null}
 
-
       <div className="vs-grid-4">
-        {(data?.metrics || []).map((metric, index) => (
+        {(effectiveData?.metrics || []).map((metric, index) => (
           <StatCard key={`${metric.label}-${index}`} label={metric.label} value={metric.value} delta={metric.delta} tone={metric.tone} />
         ))}
       </div>
@@ -580,7 +481,7 @@ export default function CommandCenter() {
         </div>
 
         <div className="vs-stack">
-          {crossLoading ? (
+          {!demoMode && crossLoading ? (
             <EmptyState text="Loading cross-signal priority engine..." />
           ) : !topPriorities.length ? (
             <EmptyState text="No cross-signal priorities available for the current filters." />
@@ -598,31 +499,56 @@ export default function CommandCenter() {
         right={<Badge tone="accent">{battlegrounds.length} tracked</Badge>}
       >
         <div className="vs-stack">
-          {loading ? <EmptyState text="Loading battleground board..." /> : !battlegrounds.length ? <EmptyState text="No battleground data available for the current filters." /> : battlegrounds.map((row) => <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} active={liveBattlegroundStates.includes(row.state) || liveBattlegroundStates.includes(String(row.state || "").slice(0, 2))} />)}
+          {!demoMode && loading ? (
+            <EmptyState text="Loading battleground board..." />
+          ) : !battlegrounds.length ? (
+            <EmptyState text="No battleground data available for the current filters." />
+          ) : (
+            battlegrounds.map((row) => (
+              <BattlegroundRow
+                key={`${row.race}-${row.priority}`}
+                row={row}
+                active={
+                  liveBattlegroundStates.includes(row.state) ||
+                  liveBattlegroundStates.includes(String(row.state || "").slice(0, 2))
+                }
+              />
+            ))
+          )}
         </div>
       </SectionCard>
 
       <div className="vs-grid-2">
         <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and realtime alert signals entering the executive terminal.">
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading command feed..." /> : !feed.length ? <EmptyState text="No live command feed items for the current filters." /> : feed.map((item) => <FeedRow key={item.id || `${item.time}-${item.title}`} item={item} live={liveFeedIds.includes(item.id)} />)}
+            {!demoMode && loading ? (
+              <EmptyState text="Loading command feed..." />
+            ) : !feed.length ? (
+              <EmptyState text="No live command feed items for the current filters." />
+            ) : (
+              feed.map((item) => (
+                <FeedRow
+                  key={item.id || `${item.time}-${item.title}`}
+                  item={item}
+                  live={liveFeedIds.includes(item.id)}
+                />
+              ))
+            )}
           </div>
         </SectionCard>
 
         <SectionCard title="Executive Action Queue" subtitle="Highest-leverage next steps across live intelligence inputs.">
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading action queue..." /> : !actions.length ? <EmptyState text="No executive actions available for the current filters." /> : actions.map((item, index) => <ActionRow key={`${item.title}-${index}`} item={item} />)}
+            {!demoMode && loading ? (
+              <EmptyState text="Loading action queue..." />
+            ) : !actions.length ? (
+              <EmptyState text="No executive actions available for the current filters." />
+            ) : (
+              actions.map((item, index) => <ActionRow key={`${item.title}-${index}`} item={item} />)
+            )}
           </div>
         </SectionCard>
       </div>
     </PageShell>
   );
 }
-
-
-
-
-
-
-
-
