@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -70,10 +70,35 @@ function matchesFilters(item, filters) {
   return true;
 }
 
-function BattlegroundRow({ row }) {
+function BattlegroundRow({ row, active = false }) {
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
   return (
     <ResponsiveRow
-      title={row.race}
+      title={row.race} active={active}
       subtitle="Priority race requiring executive visibility."
       meta={[
         { label: "Win Prob.", value: row.probability },
@@ -87,11 +112,36 @@ function BattlegroundRow({ row }) {
   );
 }
 
-function FeedRow({ item }) {
+function FeedRow({ item, live = false }) {
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
   return (
     <ResponsiveRow
-      title={item.title}
-      subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+      title={item.title} live={live}
+      subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
       meta={[
         { label: "Time", value: item.time || "Now" },
         { label: "Severity", value: item.severity || "Info" }
@@ -103,9 +153,34 @@ function FeedRow({ item }) {
 }
 
 function ActionRow({ item }) {
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
   return (
     <ResponsiveRow
-      title={item.title}
+      title={item.title} live={live}
       subtitle={item.detail}
       meta={[
         { label: "Owner", value: item.owner },
@@ -118,14 +193,39 @@ function ActionRow({ item }) {
 }
 
 function PriorityRow({ item, index }) {
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
   return (
     <ResponsiveRow
-      title={`#${index + 1} ${item.state} — ${item.severity}`}
+      title={`#${index + 1} ${item.state} â€” ${item.severity}`}
       subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
       meta={[
         { label: "Score", value: item.priority_score },
         { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-        { label: "Vendors", value: item.vendors?.coverage_status || "—" },
+        { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
         { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
       ]}
       alert={["Critical", "High"].includes(item.severity) ? "vs-live-dot" : "vs-live-dot-warning"}
@@ -141,6 +241,8 @@ export default function CommandCenter() {
   const [crossLoading, setCrossLoading] = useState(true);
   const [liveBanner, setLiveBanner] = useState("");
   const [liveAlerts, setLiveAlerts] = useState([]);
+  const [liveFeedIds, setLiveFeedIds] = useState([]);
+  const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
   const { filters } = useExecutiveFilters();
 
   const demoMode =
@@ -168,8 +270,32 @@ export default function CommandCenter() {
     }
 
     loadCrossSignal();
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
 
-    return () => {
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
+  return () => {
       active = false;
     };
   }, []);
@@ -228,7 +354,32 @@ export default function CommandCenter() {
   useEffect(() => {
     if (!liveBanner) return;
     const timer = setTimeout(() => setLiveBanner(""), 5000);
-    return () => clearTimeout(timer);
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
+  return () => clearTimeout(timer);
   }, [liveBanner]);
 
   const battlegrounds = useMemo(() => (data?.battlegrounds || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
@@ -236,7 +387,32 @@ export default function CommandCenter() {
   const actions = useMemo(() => (data?.actions || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
 
   const topPriorities = useMemo(() => {
-    return (crossSignal?.top_priorities || []).filter((item) => {
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
+
+  return (crossSignal?.top_priorities || []).filter((item) => {
       if (filters.state && item.state !== filters.state) return false;
       if (filters.risk && item.risk !== filters.risk && item.severity !== filters.risk) return false;
       return true;
@@ -276,6 +452,30 @@ export default function CommandCenter() {
       }
     ];
   }, [crossSignal]);
+  function handleDemoSignal(signal) {
+    setLiveBanner(`Demo signal fused into Command Center: ${signal.title}`);
+
+    setLiveFeedIds((prev) => [signal.id, ...prev].slice(0, 8));
+    setLiveBattlegroundStates((prev) => [
+      signal.state,
+      ...prev.filter((item) => item !== signal.state)
+    ].slice(0, 5));
+
+    setLiveAlerts((prev) => [
+      {
+        id: signal.id || `demo-live-${Date.now()}`,
+        time: signal.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        title: signal.title,
+        source: signal.source,
+        severity: signal.severity,
+        type: "demo.signal",
+        state: signal.state,
+        office: signal.office,
+        risk: signal.risk
+      },
+      ...prev
+    ].slice(0, 8));
+  }
 
   return (
     <PageShell
@@ -291,7 +491,7 @@ export default function CommandCenter() {
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-      {liveBanner ? <div className="vs-banner">{liveBanner}</div> : null}
+      {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
 
       <div className="vs-grid-4">
         {(data?.metrics || []).map((metric, index) => (
@@ -329,14 +529,14 @@ export default function CommandCenter() {
         right={<Badge tone="accent">{battlegrounds.length} tracked</Badge>}
       >
         <div className="vs-stack">
-          {loading ? <EmptyState text="Loading battleground board..." /> : !battlegrounds.length ? <EmptyState text="No battleground data available for the current filters." /> : battlegrounds.map((row) => <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} />)}
+          {loading ? <EmptyState text="Loading battleground board..." /> : !battlegrounds.length ? <EmptyState text="No battleground data available for the current filters." /> : battlegrounds.map((row) => <BattlegroundRow key={`${row.race}-${row.priority}`} row={row} active={liveBattlegroundStates.includes(row.state) || liveBattlegroundStates.includes(String(row.state || "").slice(0, 2))} />)}
         </div>
       </SectionCard>
 
       <div className="vs-grid-2">
         <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and realtime alert signals entering the executive terminal.">
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading command feed..." /> : !feed.length ? <EmptyState text="No live command feed items for the current filters." /> : feed.map((item) => <FeedRow key={item.id || `${item.time}-${item.title}`} item={item} />)}
+            {loading ? <EmptyState text="Loading command feed..." /> : !feed.length ? <EmptyState text="No live command feed items for the current filters." /> : feed.map((item) => <FeedRow key={item.id || `${item.time}-${item.title}`} item={item} live={liveFeedIds.includes(item.id)} />)}
           </div>
         </SectionCard>
 
@@ -349,3 +549,5 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
+

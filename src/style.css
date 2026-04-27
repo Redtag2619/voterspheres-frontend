@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -760,4 +760,86 @@ textarea {
 }
 
 
+}
+
+/* === VoterSpheres Live Animation === */
+@keyframes vsPulseIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.18);
+  }
+}
+
+.vs-live-highlight {
+  animation: vsPulseIn 700ms ease both;
+}
+
+
+/* === VoterSpheres Live Command Center Motion === */
+@keyframes vsRowLiveFlash {
+  0% {
+    transform: translateY(-4px);
+    border-color: rgba(34, 211, 238, 0.72);
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+
+  35% {
+    transform: translateY(0);
+    border-color: rgba(34, 211, 238, 0.62);
+    box-shadow: 0 0 28px rgba(34, 211, 238, 0.2);
+  }
+
+  100% {
+    transform: translateY(0);
+    border-color: var(--vs-border);
+    box-shadow: none;
+  }
+}
+
+@keyframes vsBattlegroundPulse {
+  0%, 100% {
+    border-color: var(--vs-border);
+    box-shadow: none;
+  }
+
+  45% {
+    border-color: rgba(245, 158, 11, 0.68);
+    box-shadow: 0 0 26px rgba(245, 158, 11, 0.18);
+  }
+}
+
+@keyframes vsBannerPulse {
+  0% {
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 rgba(56, 189, 248, 0);
+  }
+
+  40% {
+    transform: translateY(0);
+    box-shadow: 0 0 24px rgba(56, 189, 248, 0.18);
+  }
+
+  100% {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+}
+
+.vs-row-live-flash {
+  animation: vsRowLiveFlash 1.2s ease both;
+}
+
+.vs-row-active-pulse {
+  animation: vsBattlegroundPulse 1.8s ease both;
+}
+
+.vs-live-banner-pulse {
+  animation: vsBannerPulse 850ms ease both;
 }

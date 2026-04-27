@@ -1,12 +1,24 @@
-export default function ResponsiveRow({
+﻿export default function ResponsiveRow({
   title,
   subtitle,
   meta = [],
   alert,
   right,
+  active = false,
+  live = false,
+  className = "",
 }) {
   return (
-    <div className="vs-card-muted">
+    <div
+      className={[
+        "vs-card-muted",
+        active ? "vs-row-active-pulse" : "",
+        live ? "vs-row-live-flash" : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div className="vs-responsive-row">
         <div className="vs-responsive-left">
           <div
