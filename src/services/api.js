@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { getStoredToken, clearStoredAuth } from "../lib/auth";
 import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
@@ -479,6 +479,13 @@ export const api = {
   candidateStates: candidatesApi.states,
   candidateOffices: candidatesApi.offices,
   candidateParties: candidatesApi.parties,
+  candidateDetail: candidatesApi.detail,
+  candidateContacts: candidatesApi.contacts,
+  enrichCandidateProfile: candidatesApi.enrichProfile,
+  manualCandidateProfile: candidatesApi.manualProfile,
+  refreshCandidateProfiles: candidatesApi.refreshProfiles,
+  candidateScoring: candidatesApi.scoring,
+  dispatchCandidateIntelligenceAlerts: candidatesApi.dispatchIntelligenceAlerts,
 
   intelligenceStatus: intelligenceApi.status,
   intelligenceRefresh: intelligenceApi.refresh,
@@ -533,3 +540,7 @@ export const api = {
 
 export { API_BASE, http };
 export default http;
+
+
+
+
