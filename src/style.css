@@ -843,3 +843,49 @@ textarea {
 .vs-live-banner-pulse {
   animation: vsBannerPulse 850ms ease both;
 }
+
+/* === Executive Decision Panel === */
+.vs-decision-panel {
+  border: 1px solid rgba(239,68,68,0.4);
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(15,23,42,0.85));
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  animation: vsBannerPulse 800ms ease;
+}
+
+.vs-decision-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 800;
+}
+
+.vs-decision-level {
+  color: #fca5a5;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.vs-decision-title {
+  font-size: 16px;
+}
+
+.vs-decision-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.vs-decision-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--vs-border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.vs-decision-btn:hover {
+  background: rgba(255,255,255,0.12);
+}

@@ -62,6 +62,53 @@ function dedupeFeed(items) {
   });
 }
 
+
+function buildExecutiveDecision({ feed = [], battlegrounds = [] }) {
+  if (!feed.length) return null;
+
+  const high = feed.find(f =>
+    ["high", "critical"].includes(String(f.severity || "").toLowerCase())
+  );
+
+  if (!high) return null;
+
+  const state = high.state || "Priority State";
+
+  if (high.type?.includes("mail")) {
+    return {
+      level: "CRITICAL",
+      title: `${state} MailOps disruption`,
+      actions: [
+        "Escalate vendor immediately",
+        "Contact USPS political desk",
+        "Shift delivery windows"
+      ]
+    };
+  }
+
+  if (high.type?.includes("vendor")) {
+    return {
+      level: "HIGH",
+      title: `${state} Vendor coverage risk`,
+      actions: [
+        "Audit vendor coverage",
+        "Deploy backup vendor",
+        "Escalate operations team"
+      ]
+    };
+  }
+
+  return {
+    level: "HIGH",
+    title: `${state} campaign pressure rising`,
+    actions: [
+      "Deploy message shift",
+      "Increase media weight",
+      "Activate surrogate network"
+    ]
+  };
+}
+
 function matchesFilters(item, filters) {
   if (!item) return false;
   if (filters.state && item.state !== filters.state) return false;
@@ -492,6 +539,28 @@ export default function CommandCenter() {
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
+      {/* Executive Decision Panel */}
+      {executiveDecision ? (
+        <div className="vs-decision-panel">
+          <div className="vs-decision-header">
+            <span className="vs-decision-level">
+              {executiveDecision.level}
+            </span>
+            <span className="vs-decision-title">
+              {executiveDecision.title}
+            </span>
+          </div>
+
+          <div className="vs-decision-actions">
+            {executiveDecision.actions.map((action, index) => (
+              <button key={index} className="vs-decision-btn">
+                {action}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
 
       <div className="vs-grid-4">
         {(data?.metrics || []).map((metric, index) => (
@@ -549,5 +618,11 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
+
+
+
+
+
 
 
