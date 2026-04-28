@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -186,19 +186,6 @@ function buildExecutiveDecision({ feed = [] }) {
   };
 }
 
-function CommandSectionIntro({ eyebrow, title, description, badge }) {
-  return (
-    <div className="vs-command-section-intro">
-      <div>
-        {eyebrow ? <div className="vs-command-eyebrow">{eyebrow}</div> : null}
-        <h3>{title}</h3>
-        {description ? <p>{description}</p> : null}
-      </div>
-      {badge ? <div>{badge}</div> : null}
-    </div>
-  );
-}
-
 function BattlegroundRow({ row, active = false }) {
   const isElevated = String(row.risk || "").toLowerCase() === "elevated";
 
@@ -293,6 +280,7 @@ export default function CommandCenter() {
   const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
   const [executionTasks, setExecutionTasks] = useState([]);
 
+  const autoVendorTaskIds = useRef(new Set());
   const { filters } = useExecutiveFilters();
 
   const demoMode =
@@ -515,8 +503,8 @@ export default function CommandCenter() {
 
     const payload = {
       title: action,
-      description: "Generated from the Command Center decision engine.",
-      source: "command_center",
+      description: context.detail || "Generated from the Command Center decision engine.",
+      source: context.source || "command_center",
       state: context.state || "National",
       office: context.office || "Statewide",
       priority,
@@ -547,6 +535,50 @@ export default function CommandCenter() {
       return fallbackTask;
     }
   }
+
+  useEffect(() => {
+    if (demoMode) return;
+    if (!vendorIntel?.recommended_actions?.length) return;
+
+    const existingIds = new Set(
+      executionTasks
+        .map((task) => task?.metadata?.vendor_action_id)
+        .filter(Boolean)
+        .map(String)
+    );
+
+    async function createVendorGapTasks() {
+      for (const action of vendorIntel.recommended_actions.slice(0, 5)) {
+        const vendorActionId = String(action.id || `${action.state || "National"}-${action.title || "vendor-gap"}`);
+
+        if (existingIds.has(vendorActionId)) continue;
+        if (autoVendorTaskIds.current.has(vendorActionId)) continue;
+
+        autoVendorTaskIds.current.add(vendorActionId);
+
+        await createExecutionTask(action.title || "Close vendor coverage gap", {
+          vendor_action_id: vendorActionId,
+          state: action.state || "National",
+          office: "Statewide",
+          risk: action.priority === "High" ? "Elevated" : "Watch",
+          source: "vendor_intelligence",
+          detail: action.detail || "Review vendor bench strength and assign backup capacity."
+        });
+
+        injectLocalSignal({
+          title: `Vendor task created: ${action.title || "Close vendor coverage gap"}`,
+          severity: action.priority === "High" ? "High" : "Medium",
+          source: "Vendor Intelligence",
+          type: "vendor.task_created",
+          state: action.state || "National",
+          office: "Statewide",
+          risk: action.priority === "High" ? "Elevated" : "Watch"
+        });
+      }
+    }
+
+    createVendorGapTasks();
+  }, [demoMode, vendorIntel, executionTasks]);
 
   async function updateExecutionTaskStatus(task, status) {
     if (!task) return;
