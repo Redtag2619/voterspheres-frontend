@@ -33,6 +33,28 @@ function getActionKey(action = {}, fallback = "") {
   return String(action.id || `${action.state || "National"}-${action.title || fallback || "vendor-action"}`);
 }
 
+function getInitialStateFromUrl() {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  return params.get("state") || "";
+}
+
+function updateUrlState(state) {
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+
+  if (state) {
+    url.searchParams.set("state", state);
+  } else {
+    url.searchParams.delete("state");
+  }
+
+  url.searchParams.set("source", url.searchParams.get("source") || "vendor-network");
+
+  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+}
+
 function VendorRow({ vendor }) {
   const name = vendor.name || vendor.vendor_name || "Unnamed Vendor";
   const category = vendor.category || "Campaign Vendor";
@@ -126,12 +148,16 @@ export default function Vendors() {
 
   const [filters, setFilters] = useState({
     q: "",
-    state: "",
+    state: getInitialStateFromUrl(),
     category: "",
     status: "",
     page: 1,
     limit: 12
   });
+
+  useEffect(() => {
+    updateUrlState(filters.state);
+  }, [filters.state]);
 
   useEffect(() => {
     let active = true;
@@ -247,21 +273,17 @@ export default function Vendors() {
         }
       });
 
-      if (result?.duplicate) {
-        setExistingTaskIds((prev) => {
-          const next = new Set(prev);
-          next.add(taskKey);
-          return next;
-        });
-        setTaskMessage(`Task exists: ${action.title || "Review vendor coverage"}`);
-        return;
-      }
-
       setExistingTaskIds((prev) => {
         const next = new Set(prev);
         next.add(taskKey);
         return next;
       });
+
+      if (result?.duplicate) {
+        setTaskMessage(`Task exists: ${action.title || "Review vendor coverage"}`);
+        return;
+      }
+
       setTaskMessage(`Task created: ${action.title || "Review vendor coverage"}`);
     } catch (err) {
       setTaskMessage(err?.message || "Failed to create vendor task.");
@@ -406,7 +428,11 @@ export default function Vendors() {
       <div className="vs-grid-2">
         <SectionCard
           title="Live Vendor Directory"
-          subtitle="Database-backed vendor network with operating coverage and status."
+          subtitle={
+            filters.state
+              ? `Database-backed vendor network filtered to ${filters.state}.`
+              : "Database-backed vendor network with operating coverage and status."
+          }
           right={<Badge tone="accent">{rows.length} shown</Badge>}
         >
           <div className="vs-stack">
