@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -27,8 +27,8 @@ const fallbackData = {
   ],
   actions: [
     { title: "Deploy suburban affordability contrast", owner: "War Room", due: "Now", detail: "Shift message weight into metro persuadable voter clusters.", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { title: "Escalate mail delay response", owner: "MailOps", due: "45 min", detail: "Coordinate with vendor and USPS contact to protect weekend delivery.", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { title: "Refresh surrogate briefing memo", owner: "Comms", due: "2 hrs", detail: "Update talking points around education and cost-of-living.", state: "Pennsylvania", office: "Senate", risk: "Watch" }
+    { title: "Escalate MailOps delay response", owner: "MailOps", due: "45 min", detail: "Coordinate with vendor and USPS contacts to protect weekend delivery.", state: "Georgia", office: "Senate", risk: "Elevated" },
+    { title: "Refresh surrogate briefing memo", owner: "Comms", due: "2 hrs", detail: "Update talking points around education and cost-of-living pressure.", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ],
   feed: [
     { id: 1, time: "08:12", title: "Opposition affordability attack accelerating", source: "War Room", severity: "High", type: "warroom.threat_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
@@ -110,6 +110,18 @@ function matchesFilters(item, filters) {
   return true;
 }
 
+function getActionClass(action) {
+  const value = String(action || "").toLowerCase();
+
+  if (value.includes("escalate")) return "vs-decision-btn escalate";
+  if (value.includes("audit")) return "vs-decision-btn audit";
+  if (value.includes("deploy")) return "vs-decision-btn deploy";
+  if (value.includes("activate")) return "vs-decision-btn activate";
+  if (value.includes("verify") || value.includes("refresh")) return "vs-decision-btn verify";
+
+  return "vs-decision-btn";
+}
+
 function buildExecutiveDecision({ feed = [] }) {
   if (!feed.length) return null;
 
@@ -120,28 +132,29 @@ function buildExecutiveDecision({ feed = [] }) {
   if (!high) return null;
 
   const state = high.state || "Priority State";
+  const type = String(high.type || "").toLowerCase();
 
-  if (String(high.type || "").includes("mail")) {
+  if (type.includes("mail")) {
     return {
       level: "CRITICAL",
-      title: `${state} MailOps disruption`,
-      actions: ["Escalate vendor immediately", "Contact USPS political desk", "Shift delivery windows"]
+      title: `${state} MailOps disruption detected`,
+      actions: ["Escalate logistics response", "Contact USPS political desk", "Shift delivery windows"]
     };
   }
 
-  if (String(high.type || "").includes("vendor")) {
+  if (type.includes("vendor")) {
     return {
       level: "HIGH",
-      title: `${state} vendor coverage risk`,
-      actions: ["Audit vendor coverage", "Deploy backup vendor", "Escalate operations team"]
+      title: `${state} vendor coverage instability`,
+      actions: ["Audit vendor coverage", "Deploy backup vendor", "Escalate operations"]
     };
   }
 
-  if (String(high.type || "").includes("candidate")) {
+  if (type.includes("candidate")) {
     return {
       level: "HIGH",
       title: `${state} candidate intelligence gap`,
-      actions: ["Refresh candidate profile", "Verify contact record", "Assign analyst review"]
+      actions: ["Refresh candidate profile", "Verify contact records", "Assign analyst review"]
     };
   }
 
@@ -175,7 +188,7 @@ function FeedRow({ item, live = false }) {
     <ResponsiveRow
       live={live}
       title={item.title}
-      subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
+      subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
       meta={[
         { label: "Time", value: item.time || "Now" },
         { label: "Severity", value: item.severity || "Info" }
@@ -204,12 +217,12 @@ function ActionRow({ item }) {
 function PriorityRow({ item, index }) {
   return (
     <ResponsiveRow
-      title={`#${index + 1} ${item.state} â€” ${item.severity}`}
+      title={`#${index + 1} ${item.state} — ${item.severity}`}
       subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
       meta={[
         { label: "Score", value: item.priority_score },
         { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-        { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
+        { label: "Vendors", value: item.vendors?.coverage_status || "—" },
         { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
       ]}
       alert={["Critical", "High"].includes(item.severity) ? "vs-live-dot" : "vs-live-dot-warning"}
@@ -360,6 +373,7 @@ export default function CommandCenter() {
       ...prev
     ].slice(0, 8));
   }
+
   function injectLocalSignal(signal = {}) {
     const liveId = `exec-${Date.now()}`;
 
@@ -515,8 +529,8 @@ export default function CommandCenter() {
   return (
     <PageShell
       eyebrow="Executive Command Center"
-      title="The operating system for campaign control, race velocity, and strategic response."
-      description="Monitor battleground pressure, fundraising flow, narrative threats, vendor gaps, MailOps risk, and next-best actions across one executive view."
+      title="Campaign control, race velocity, and strategic response in one operating view."
+      description="Monitor battleground pressure, fundraising movement, narrative threats, vendor gaps, MailOps risk, and next-best actions across one executive command surface."
       demo={demoMode}
       demoText="Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation."
       tickerItems={[
@@ -532,7 +546,7 @@ export default function CommandCenter() {
       <LiveActivityStream onSignal={handleDemoSignal} />
 
       {executiveDecision ? (
-        <div className="vs-decision-panel">
+        <div className={`vs-decision-panel ${String(executiveDecision.level || "").toLowerCase()}`}>
           <div className="vs-decision-header">
             <span className="vs-decision-level">{executiveDecision.level}</span>
             <span className="vs-decision-title">{executiveDecision.title}</span>
@@ -542,7 +556,7 @@ export default function CommandCenter() {
             {executiveDecision.actions.map((action, index) => (
               <button
                 key={`${action}-${index}`}
-                className="vs-decision-btn"
+                className={getActionClass(action)}
                 type="button"
                 onClick={() =>
                   handleActionClick(action, {
@@ -567,7 +581,7 @@ export default function CommandCenter() {
 
       <SectionCard
         title="Cross-Signal Priority Layer"
-        subtitle="Highest-pressure states ranked from fundraising, vendor coverage, MailOps risk, and live executive feed signals."
+        subtitle="Highest-pressure states ranked from fundraising, vendor coverage, MailOps risk, and executive feed signals."
         right={<Badge tone="danger">{topPriorities.length} ranked</Badge>}
       >
         <div className="vs-grid-4" style={{ marginBottom: 16 }}>
@@ -591,7 +605,7 @@ export default function CommandCenter() {
 
       <SectionCard
         title="Priority Battleground Board"
-        subtitle="Top races requiring executive monitoring and rapid adjustments."
+        subtitle="Top races requiring executive monitoring and rapid adjustment."
         right={<Badge tone="accent">{battlegrounds.length} tracked</Badge>}
       >
         <div className="vs-stack">
@@ -615,7 +629,7 @@ export default function CommandCenter() {
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and realtime alert signals entering the executive terminal.">
+        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and alert signals entering the executive terminal.">
           <div className="vs-stack">
             {!demoMode && loading ? (
               <EmptyState text="Loading command feed..." />
@@ -633,7 +647,7 @@ export default function CommandCenter() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Executive Action Queue" subtitle="Highest-leverage next steps across live intelligence inputs.">
+        <SectionCard title="Executive Action Queue" subtitle="Highest-leverage next steps across active intelligence inputs.">
           <div className="vs-stack">
             {!demoMode && loading ? (
               <EmptyState text="Loading action queue..." />
@@ -648,4 +662,3 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
-
