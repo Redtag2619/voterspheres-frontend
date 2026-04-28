@@ -20,21 +20,41 @@ function getSourceMeta(task = {}) {
   if (source === "vendor_network" || source === "vendor_intelligence") {
     return {
       label: "Vendor",
-      tone: "accent"
+      tone: "accent",
+      isVendor: true
     };
   }
 
   if (source === "command_center") {
     return {
       label: "Command",
-      tone: "default"
+      tone: "default",
+      isVendor: false
     };
   }
 
   return {
     label: "System",
-    tone: "default"
+    tone: "default",
+    isVendor: false
   };
+}
+
+function getVendorLink(task = {}) {
+  const state = task.state || task.metadata?.state || "";
+  const params = new URLSearchParams();
+
+  if (state && state !== "National") {
+    params.set("state", state);
+  }
+
+  params.set("source", "execution-board");
+
+  return `/vendors?${params.toString()}`;
+}
+
+function openVendorLink(task) {
+  window.location.href = getVendorLink(task);
 }
 
 export default function ExecutionBoard({ tasks = [], onStatusChange }) {
@@ -63,20 +83,18 @@ export default function ExecutionBoard({ tasks = [], onStatusChange }) {
           <>
             {open.map((task) => {
               const sourceMeta = getSourceMeta(task);
-              const isVendor = sourceMeta.label === "Vendor";
 
               return (
                 <div
                   key={task.id || task.local_id}
-                  className={`vs-card-muted ${isVendor ? "vs-card-vendor" : ""}`}
+                  className={`vs-card-muted ${sourceMeta.isVendor ? "vs-card-vendor" : ""}`}
                 >
                   <div className="vs-responsive-row">
                     <div className="vs-responsive-left">
                       <div className="vs-row-title">{task.title}</div>
 
                       <div className="vs-row-subtitle">
-                        {task.description ||
-                          "Execution task generated from Command Center."}
+                        {task.description || "Execution task generated from Command Center."}
                       </div>
 
                       <div className="vs-responsive-meta">
@@ -104,9 +122,7 @@ export default function ExecutionBoard({ tasks = [], onStatusChange }) {
                         <div className="vs-meta-block">
                           <div className="vs-meta-label">Source</div>
                           <div className="vs-meta-value">
-                            {isVendor
-                              ? "Vendor Intelligence"
-                              : "Command Center"}
+                            {sourceMeta.isVendor ? "Vendor Intelligence" : "Command Center"}
                           </div>
                         </div>
                       </div>
@@ -114,9 +130,7 @@ export default function ExecutionBoard({ tasks = [], onStatusChange }) {
 
                     <div className="vs-responsive-right">
                       <div className="vs-inline-actions">
-                        <Badge tone={sourceMeta.tone}>
-                          {sourceMeta.label}
-                        </Badge>
+                        <Badge tone={sourceMeta.tone}>{sourceMeta.label}</Badge>
 
                         <Badge tone={priorityTone(task.priority)}>
                           {task.priority || "medium"}
@@ -126,29 +140,35 @@ export default function ExecutionBoard({ tasks = [], onStatusChange }) {
                           {task.status || "open"}
                         </Badge>
 
-                        {task.status !== "in_progress" && (
+                        {sourceMeta.isVendor ? (
                           <button
                             type="button"
                             className="vs-button vs-button-secondary"
-                            onClick={() =>
-                              onStatusChange?.(task, "in_progress")
-                            }
+                            onClick={() => openVendorLink(task)}
+                          >
+                            View Vendors
+                          </button>
+                        ) : null}
+
+                        {task.status !== "in_progress" ? (
+                          <button
+                            type="button"
+                            className="vs-button vs-button-secondary"
+                            onClick={() => onStatusChange?.(task, "in_progress")}
                           >
                             Start
                           </button>
-                        )}
+                        ) : null}
 
-                        {task.status !== "complete" && (
+                        {task.status !== "complete" ? (
                           <button
                             type="button"
                             className="vs-button"
-                            onClick={() =>
-                              onStatusChange?.(task, "complete")
-                            }
+                            onClick={() => onStatusChange?.(task, "complete")}
                           >
                             Complete
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -169,13 +189,24 @@ export default function ExecutionBoard({ tasks = [], onStatusChange }) {
                     return (
                       <div
                         key={task.id || task.local_id}
-                        className="vs-card-muted"
+                        className={`vs-card-muted ${sourceMeta.isVendor ? "vs-card-vendor" : ""}`}
                       >
                         <div className="vs-row-title">{task.title}</div>
                         <div className="vs-row-subtitle">
-                          Completed • {task.assigned_to || "Command Team"} •{" "}
-                          {sourceMeta.label}
+                          Completed • {task.assigned_to || "Command Team"} • {sourceMeta.label}
                         </div>
+
+                        {sourceMeta.isVendor ? (
+                          <div style={{ marginTop: 10 }}>
+                            <button
+                              type="button"
+                              className="vs-button vs-button-secondary"
+                              onClick={() => openVendorLink(task)}
+                            >
+                              View Vendors
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
