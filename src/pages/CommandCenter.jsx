@@ -207,13 +207,13 @@ function BattlegroundRow({ row, active = false }) {
       <ResponsiveRow
         active={active}
         title={row.race}
-        subtitle={`${row.state || "Statewide"} â€¢ ${row.office || "Race"}`}
-      meta={[
-        { label: "Win Prob.", value: row.probability },
-        { label: "Momentum", value: row.momentum },
-        { label: "Risk", value: row.risk },
-        { label: "Priority", value: row.priority }
-      ]}
+        subtitle={`${row.state || "Statewide"} • ${row.office || "Race"}`}
+        meta={[
+          { label: "Win Prob.", value: row.probability },
+          { label: "Momentum", value: row.momentum },
+          { label: "Risk", value: row.risk },
+          { label: "Priority", value: row.priority }
+        ]}
         alert={isElevated ? "vs-live-dot" : "vs-live-dot-warning"}
         right={<Badge tone={isElevated ? "danger" : "demo"}>{row.risk}</Badge>}
       />
@@ -227,13 +227,13 @@ function FeedRow({ item, live = false }) {
   return (
     <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
       <ResponsiveRow
-      live={live}
-      title={item.title}
-      subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
-      meta={[
-        { label: "Time", value: item.time || "Now" },
-        { label: "Severity", value: item.severity || "Info" }
-      ]}
+        live={live}
+        title={item.title}
+        subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+        meta={[
+          { label: "Time", value: item.time || "Now" },
+          { label: "Severity", value: item.severity || "Info" }
+        ]}
         alert={severity === "high" || severity === "critical" ? "vs-live-dot" : "vs-live-dot-warning"}
         right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
       />
@@ -245,12 +245,12 @@ function ActionRow({ item }) {
   return (
     <div className="vs-premium-row-card is-action">
       <ResponsiveRow
-      title={item.title}
-      subtitle={item.detail}
-      meta={[
-        { label: "Owner", value: item.owner },
-        { label: "Due", value: item.due }
-      ]}
+        title={item.title}
+        subtitle={item.detail}
+        meta={[
+          { label: "Owner", value: item.owner },
+          { label: "Due", value: item.due }
+        ]}
         alert="vs-live-dot-success"
         right={<Badge tone="accent">{item.due}</Badge>}
       />
@@ -264,14 +264,14 @@ function PriorityRow({ item, index }) {
   return (
     <div className={`vs-premium-row-card ${isUrgent ? "is-elevated" : ""}`}>
       <ResponsiveRow
-      title={`#${index + 1} ${item.state} â€” ${item.severity}`}
-      subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
-      meta={[
-        { label: "Score", value: item.priority_score },
-        { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-        { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
-        { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
-      ]}
+        title={`#${index + 1} ${item.state} — ${item.severity}`}
+        subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
+        meta={[
+          { label: "Score", value: item.priority_score },
+          { label: "Receipts", value: formatMoney(item.finance?.receipts) },
+          { label: "Vendors", value: item.vendors?.coverage_status || "—" },
+          { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
+        ]}
         alert={isUrgent ? "vs-live-dot" : "vs-live-dot-warning"}
         right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.risk}</Badge>}
       />
@@ -285,6 +285,8 @@ export default function CommandCenter() {
 
   const [crossSignal, setCrossSignal] = useState(fallbackCrossSignal);
   const [crossLoading, setCrossLoading] = useState(true);
+  const [vendorIntel, setVendorIntel] = useState(null);
+  const [vendorLoading, setVendorLoading] = useState(true);
   const [liveBanner, setLiveBanner] = useState("");
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [liveFeedIds, setLiveFeedIds] = useState([]);
@@ -331,6 +333,41 @@ export default function CommandCenter() {
     return () => {
       active = false;
     };
+  }, [demoMode]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadVendorIntel() {
+      if (demoMode) {
+        setVendorIntel(null);
+        setVendorLoading(false);
+        return;
+      }
+
+      try {
+        setVendorLoading(true);
+        const response = await api.vendorScoring?.();
+        if (!active) return;
+        setVendorIntel(response || null);
+      } catch {
+        if (!active) return;
+        setVendorIntel(null);
+      } finally {
+        if (active) setVendorLoading(false);
+      }
+    }
+
+    loadVendorIntel();
+
+    return () => {
+      active = false;
+    };
+  }, [demoMode]);
+
+  useEffect(() => {
+    if (demoMode) return;
+    api.dispatchVendorAlerts?.().catch(() => {});
   }, [demoMode]);
 
   useEffect(() => {
@@ -550,6 +587,19 @@ export default function CommandCenter() {
       return;
     }
 
+    if (text.includes("vendor") || text.includes("coverage") || text.includes("operations")) {
+      injectLocalSignal({
+        title: `Vendor action queued: ${action}`,
+        severity: context.risk === "Elevated" ? "High" : "Medium",
+        source: "Vendor Intelligence",
+        type: "vendor.action_queued",
+        state: context.state,
+        office: context.office || "Statewide",
+        risk: context.risk || "Watch"
+      });
+      return;
+    }
+
     if (text.includes("alert") || text.includes("escalate")) {
       try {
         await api.dispatchAlerts?.({ limit: 1 });
@@ -612,26 +662,89 @@ export default function CommandCenter() {
     [effectiveData, filters]
   );
 
+  const vendorFeed = useMemo(() => {
+    const riskSignals = (vendorIntel?.risk_signals || []).map((item) => ({
+      id: `vendor-risk-${item.id}`,
+      time: "Now",
+      title: item.title || `${item.vendor_name || "Vendor"} requires review`,
+      source: "Vendor Intelligence",
+      severity: item.severity || "Medium",
+      type: "vendor.coverage_gap",
+      state: item.state || "National",
+      office: "Statewide",
+      risk: String(item.status || "").toLowerCase() === "active" ? "Watch" : "Elevated"
+    }));
+
+    const gapSignals = (vendorIntel?.gaps || []).map((gap, index) => ({
+      id: `vendor-gap-${gap.state || index}`,
+      time: "Now",
+      title: gap.title || `${gap.state || "State"} vendor coverage gap`,
+      source: "Vendor Intelligence",
+      severity: gap.severity || "Medium",
+      type: "vendor.coverage_gap",
+      state: gap.state || "National",
+      office: "Statewide",
+      risk: gap.severity === "High" ? "Elevated" : "Watch"
+    }));
+
+    return dedupeFeed([...gapSignals, ...riskSignals]).slice(0, 8);
+  }, [vendorIntel]);
+
   const feed = useMemo(
     () =>
-      dedupeFeed([...(liveAlerts || []), ...(effectiveData?.feed || [])]).filter((item) =>
+      dedupeFeed([...(vendorFeed || []), ...(liveAlerts || []), ...(effectiveData?.feed || [])]).filter((item) =>
         matchesFilters(item, filters)
       ),
-    [effectiveData, liveAlerts, filters]
+    [effectiveData, liveAlerts, vendorFeed, filters]
   );
 
+  const vendorActions = useMemo(() => {
+    return (vendorIntel?.recommended_actions || []).map((item) => ({
+      title: item.title || "Review vendor coverage",
+      owner: item.owner || "Vendor Intelligence",
+      due: item.due || "Today",
+      detail: item.detail || "Review vendor bench strength and assign backup capacity.",
+      state: item.state || "National",
+      office: "Statewide",
+      risk: item.priority === "High" ? "Elevated" : "Watch"
+    }));
+  }, [vendorIntel]);
+
   const actions = useMemo(
-    () => (effectiveData?.actions || []).filter((item) => matchesFilters(item, filters)),
-    [effectiveData, filters]
+    () =>
+      [...vendorActions, ...(effectiveData?.actions || [])].filter((item) =>
+        matchesFilters(item, filters)
+      ),
+    [effectiveData, vendorActions, filters]
   );
 
   const topPriorities = useMemo(() => {
-    return (effectiveCrossSignal?.top_priorities || []).filter((item) => {
+    const base = (effectiveCrossSignal?.top_priorities || []).filter((item) => {
       if (filters.state && item.state !== filters.state) return false;
       if (filters.risk && item.risk !== filters.risk && item.severity !== filters.risk) return false;
       return true;
     });
-  }, [effectiveCrossSignal, filters]);
+
+    const vendorPriorities = (vendorIntel?.gaps || []).map((gap) => {
+      const score = Number(gap.coverage_score || 50);
+      const priorityScore = Math.max(1, 100 - score);
+
+      return {
+        state: gap.state,
+        severity: gap.severity || "Medium",
+        risk: gap.severity === "High" ? "Elevated" : "Watch",
+        priority_score: priorityScore,
+        recommended_actions: [gap.detail || "Close vendor coverage gap and assign backup capacity."],
+        finance: { receipts: 0 },
+        vendors: { coverage_status: score < 30 ? "Gap" : "Thin" },
+        mailops: { mail_risks: 0 }
+      };
+    });
+
+    return [...vendorPriorities, ...base]
+      .sort((a, b) => Number(b.priority_score || 0) - Number(a.priority_score || 0))
+      .slice(0, 6);
+  }, [effectiveCrossSignal, vendorIntel, filters]);
 
   const highSeverityCount = feed.filter((item) =>
     ["high", "critical"].includes(String(item.severity || "").toLowerCase())
@@ -647,14 +760,15 @@ export default function CommandCenter() {
 
   const crossMetrics = useMemo(() => {
     const summary = effectiveCrossSignal?.summary || {};
+    const vendorSummary = vendorIntel?.summary || {};
 
     return [
-      { label: "Tracked States", value: summary.states_tracked || 0, delta: "Cross-signal engine", tone: "up" },
+      { label: "Tracked States", value: summary.states_tracked || vendorSummary.states_covered || 0, delta: "Cross-signal engine", tone: "up" },
       { label: "Critical States", value: summary.critical_states || 0, delta: "Immediate review", tone: summary.critical_states ? "down" : "up" },
-      { label: "High States", value: summary.high_states || 0, delta: "Priority markets", tone: summary.high_states ? "down" : "up" },
-      { label: "Vendor Gap States", value: summary.vendor_gap_states || 0, delta: "Coverage pressure", tone: summary.vendor_gap_states ? "down" : "up" }
+      { label: "High States", value: summary.high_states || vendorSummary.high_gap_states || 0, delta: "Priority markets", tone: summary.high_states || vendorSummary.high_gap_states ? "down" : "up" },
+      { label: "Vendor Gap States", value: summary.vendor_gap_states || ((vendorSummary.high_gap_states || 0) + (vendorSummary.medium_gap_states || 0)), delta: "Coverage pressure", tone: summary.vendor_gap_states || vendorSummary.high_gap_states || vendorSummary.medium_gap_states ? "down" : "up" }
     ];
-  }, [effectiveCrossSignal]);
+  }, [effectiveCrossSignal, vendorIntel]);
 
   return (
     <PageShell
@@ -734,6 +848,7 @@ export default function CommandCenter() {
           background: transparent;
         }
       `}</style>
+
       {error && !demoMode ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
 
@@ -788,7 +903,7 @@ export default function CommandCenter() {
         </div>
 
         <div className="vs-stack">
-          {!demoMode && crossLoading ? (
+          {!demoMode && (crossLoading || vendorLoading) ? (
             <EmptyState text="Loading cross-signal priority engine..." />
           ) : !topPriorities.length ? (
             <EmptyState text="No cross-signal priorities available for the current filters." />
@@ -826,7 +941,7 @@ export default function CommandCenter() {
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and alert signals entering the executive terminal.">
+        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the executive terminal.">
           <div className="vs-stack">
             {!demoMode && loading ? (
               <EmptyState text="Loading command feed..." />
