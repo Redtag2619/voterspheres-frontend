@@ -846,29 +846,42 @@ textarea {
 
 /* === Executive Decision Panel === */
 .vs-decision-panel {
-  border: 1px solid rgba(239,68,68,0.4);
-  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(15,23,42,0.85));
+  border: 1px solid rgba(239, 68, 68, 0.38);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(15, 23, 42, 0.88));
   padding: 16px;
-  border-radius: 12px;
+  border-radius: 14px;
   margin-bottom: 12px;
   animation: vsBannerPulse 800ms ease;
+}
+
+.vs-decision-panel.high {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(15, 23, 42, 0.88));
+}
+
+.vs-decision-panel.critical {
+  border-color: rgba(239, 68, 68, 0.52);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(15, 23, 42, 0.88));
 }
 
 .vs-decision-header {
   display: flex;
   gap: 10px;
   align-items: center;
-  font-weight: 800;
+  font-weight: 850;
+  flex-wrap: wrap;
 }
 
 .vs-decision-level {
   color: #fca5a5;
   font-size: 12px;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .vs-decision-title {
   font-size: 16px;
+  color: var(--vs-text);
 }
 
 .vs-decision-actions {
@@ -879,13 +892,47 @@ textarea {
 }
 
 .vs-decision-btn {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--vs-border);
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 9px;
   font-size: 12px;
+  font-weight: 800;
+  border: 1px solid var(--vs-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--vs-text);
+  transition: all 0.2s ease;
+}
+
+.vs-decision-btn.deploy {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #7dd3fc;
+}
+
+.vs-decision-btn.escalate {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
+.vs-decision-btn.audit {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.vs-decision-btn.activate {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #4ade80;
+}
+
+.vs-decision-btn.verify {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(129, 140, 248, 0.45);
+  color: #c4b5fd;
 }
 
 .vs-decision-btn:hover {
-  background: rgba(255,255,255,0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
