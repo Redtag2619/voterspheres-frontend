@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 
@@ -115,10 +115,13 @@ export default function LandingPage() {
         firm_name: form.firm_name.trim(),
         email: form.email.trim(),
         role: form.role.trim(),
-        notes: form.notes.trim()
+        notes: form.notes.trim(),
+        phone: "",
+        team_size: form.role.trim(),
+        message: form.notes.trim()
       });
 
-      setMessage("Request received. We’ll follow up with private beta access details.");
+      setMessage("Request received. Weâ€™ll follow up with private beta access details.");
       setMessageTone("success");
 
       setForm({
@@ -225,7 +228,7 @@ export default function LandingPage() {
             </h2>
 
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#94a3b8" }}>
-              We’re onboarding political consultants, campaign teams, direct mail firms, and serious political operators first.
+              Weâ€™re onboarding political consultants, campaign teams, direct mail firms, and serious political operators first.
             </p>
 
             <form onSubmit={handleSubmit} style={{ marginTop: 22, display: "grid", gap: 14 }}>
@@ -274,7 +277,7 @@ export default function LandingPage() {
         <section style={{ marginTop: 32 }}>
           <div style={cardStyle}>
             <div style={eyebrowStyle}>Why firms switch</div>
-            <h2 style={sectionTitleStyle}>Campaigns are losing because their operations aren’t connected.</h2>
+            <h2 style={sectionTitleStyle}>Campaigns are losing because their operations arenâ€™t connected.</h2>
 
             <div style={threeGridStyle}>
               {switchReasons.map((item) => (
@@ -303,7 +306,7 @@ export default function LandingPage() {
         <section style={{ marginTop: 28 }}>
           <div style={cardStyle}>
             <div style={eyebrowStyle}>Live system preview</div>
-            <h2 style={sectionTitleStyle}>A real campaign command system — not another dashboard.</h2>
+            <h2 style={sectionTitleStyle}>A real campaign command system â€” not another dashboard.</h2>
 
             <div style={threeGridStyle}>
               {previewCards.map((item) => (
@@ -397,7 +400,7 @@ export default function LandingPage() {
             fontSize: 13
           }}
         >
-          <div>© {new Date().getFullYear()} VoterSpheres. Private beta.</div>
+          <div>Â© {new Date().getFullYear()} VoterSpheres. Private beta.</div>
           <div>Political intelligence for consultants, campaigns, and operators.</div>
         </footer>
       </div>
@@ -574,3 +577,4 @@ const primarySmallStyle = {
   fontSize: 13,
   fontWeight: 800
 };
+
