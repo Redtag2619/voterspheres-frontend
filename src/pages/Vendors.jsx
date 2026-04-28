@@ -29,6 +29,10 @@ function severityTone(value) {
   return "accent";
 }
 
+function getActionKey(action = {}, fallback = "") {
+  return String(action.id || `${action.state || "National"}-${action.title || fallback || "vendor-action"}`);
+}
+
 function VendorRow({ vendor }) {
   const name = vendor.name || vendor.vendor_name || "Unnamed Vendor";
   const category = vendor.category || "Campaign Vendor";
@@ -73,7 +77,7 @@ function RiskRow({ item }) {
   );
 }
 
-function ActionTaskRow({ action, onCreateTask, creating }) {
+function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
   const severity = action.priority || action.severity || "Medium";
 
   return (
@@ -87,14 +91,18 @@ function ActionTaskRow({ action, onCreateTask, creating }) {
           { label: "State", value: action.state || "National" }
         ]}
         right={
-          <button
-            type="button"
-            className="vs-decision-btn deploy"
-            disabled={creating}
-            onClick={() => onCreateTask(action)}
-          >
-            {creating ? "Creating..." : "Create Task"}
-          </button>
+          taskExists ? (
+            <Badge tone="demo">Task Exists</Badge>
+          ) : (
+            <button
+              type="button"
+              className="vs-decision-btn deploy"
+              disabled={creating}
+              onClick={() => onCreateTask(action)}
+            >
+              {creating ? "Creating..." : "Create Task"}
+            </button>
+          )
         }
       />
     </div>
@@ -114,6 +122,7 @@ export default function Vendors() {
   const [dispatchMessage, setDispatchMessage] = useState("");
   const [taskMessage, setTaskMessage] = useState("");
   const [creatingTaskId, setCreatingTaskId] = useState("");
+  const [existingTaskIds, setExistingTaskIds] = useState(() => new Set());
 
   const [filters, setFilters] = useState({
     q: "",
@@ -216,13 +225,13 @@ export default function Vendors() {
   }
 
   async function createVendorTask(action = {}) {
-    const taskKey = String(action.id || `${action.state || "National"}-${action.title || "vendor-action"}`);
+    const taskKey = getActionKey(action);
 
     try {
       setCreatingTaskId(taskKey);
       setTaskMessage(`Creating task: ${action.title || "Review vendor coverage"}`);
 
-      await api.createTask?.({
+      const result = await api.createTask?.({
         title: action.title || "Review vendor coverage",
         description: action.detail || "Generated from Vendor Network intelligence.",
         source: "vendor_network",
@@ -238,6 +247,21 @@ export default function Vendors() {
         }
       });
 
+      if (result?.duplicate) {
+        setExistingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.add(taskKey);
+          return next;
+        });
+        setTaskMessage(`Task exists: ${action.title || "Review vendor coverage"}`);
+        return;
+      }
+
+      setExistingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.add(taskKey);
+        return next;
+      });
       setTaskMessage(`Task created: ${action.title || "Review vendor coverage"}`);
     } catch (err) {
       setTaskMessage(err?.message || "Failed to create vendor task.");
@@ -430,13 +454,14 @@ export default function Vendors() {
                 <EmptyState text="No recommended vendor actions." />
               ) : (
                 intel.recommended_actions.slice(0, 6).map((action, index) => {
-                  const taskKey = String(action.id || `${action.state || "National"}-${action.title || index}`);
+                  const taskKey = getActionKey(action, index);
 
                   return (
                     <ActionTaskRow
                       key={taskKey}
                       action={action}
                       creating={creatingTaskId === taskKey}
+                      taskExists={existingTaskIds.has(taskKey)}
                       onCreateTask={createVendorTask}
                     />
                   );
