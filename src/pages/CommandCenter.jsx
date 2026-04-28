@@ -186,69 +186,96 @@ function buildExecutiveDecision({ feed = [] }) {
   };
 }
 
-function BattlegroundRow({ row, active = false }) {
+function CommandSectionIntro({ eyebrow, title, description, badge }) {
   return (
-    <ResponsiveRow
-      active={active}
-      title={row.race}
-      subtitle="Priority race requiring executive visibility."
+    <div className="vs-command-section-intro">
+      <div>
+        {eyebrow ? <div className="vs-command-eyebrow">{eyebrow}</div> : null}
+        <h3>{title}</h3>
+        {description ? <p>{description}</p> : null}
+      </div>
+      {badge ? <div>{badge}</div> : null}
+    </div>
+  );
+}
+
+function BattlegroundRow({ row, active = false }) {
+  const isElevated = String(row.risk || "").toLowerCase() === "elevated";
+
+  return (
+    <div className={`vs-premium-row-card ${active ? "is-live" : ""} ${isElevated ? "is-elevated" : ""}`}>
+      <ResponsiveRow
+        active={active}
+        title={row.race}
+        subtitle={`${row.state || "Statewide"} â€¢ ${row.office || "Race"}`}
       meta={[
         { label: "Win Prob.", value: row.probability },
         { label: "Momentum", value: row.momentum },
         { label: "Risk", value: row.risk },
         { label: "Priority", value: row.priority }
       ]}
-      alert={String(row.risk || "").toLowerCase() === "elevated" ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={<Badge tone={String(row.risk || "").toLowerCase() === "elevated" ? "danger" : "demo"}>{row.risk}</Badge>}
-    />
+        alert={isElevated ? "vs-live-dot" : "vs-live-dot-warning"}
+        right={<Badge tone={isElevated ? "danger" : "demo"}>{row.risk}</Badge>}
+      />
+    </div>
   );
 }
 
 function FeedRow({ item, live = false }) {
+  const severity = String(item.severity || "").toLowerCase();
+
   return (
-    <ResponsiveRow
+    <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
+      <ResponsiveRow
       live={live}
       title={item.title}
-      subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+      subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
       meta={[
         { label: "Time", value: item.time || "Now" },
         { label: "Severity", value: item.severity || "Info" }
       ]}
-      alert={String(item.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
-    />
+        alert={severity === "high" || severity === "critical" ? "vs-live-dot" : "vs-live-dot-warning"}
+        right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
+      />
+    </div>
   );
 }
 
 function ActionRow({ item }) {
   return (
-    <ResponsiveRow
+    <div className="vs-premium-row-card is-action">
+      <ResponsiveRow
       title={item.title}
       subtitle={item.detail}
       meta={[
         { label: "Owner", value: item.owner },
         { label: "Due", value: item.due }
       ]}
-      alert="vs-live-dot-success"
-      right={<Badge tone="accent">{item.due}</Badge>}
-    />
+        alert="vs-live-dot-success"
+        right={<Badge tone="accent">{item.due}</Badge>}
+      />
+    </div>
   );
 }
 
 function PriorityRow({ item, index }) {
+  const isUrgent = ["Critical", "High"].includes(item.severity);
+
   return (
-    <ResponsiveRow
-      title={`#${index + 1} ${item.state} — ${item.severity}`}
+    <div className={`vs-premium-row-card ${isUrgent ? "is-elevated" : ""}`}>
+      <ResponsiveRow
+      title={`#${index + 1} ${item.state} â€” ${item.severity}`}
       subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
       meta={[
         { label: "Score", value: item.priority_score },
         { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-        { label: "Vendors", value: item.vendors?.coverage_status || "—" },
+        { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
         { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
       ]}
-      alert={["Critical", "High"].includes(item.severity) ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.risk}</Badge>}
-    />
+        alert={isUrgent ? "vs-live-dot" : "vs-live-dot-warning"}
+        right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.risk}</Badge>}
+      />
+    </div>
   );
 }
 
@@ -642,6 +669,71 @@ export default function CommandCenter() {
         { label: "Actions", value: `${actions.length} queued`, dotClass: "vs-live-dot-success" }
       ]}
     >
+      <style>{`
+        .vs-command-section-intro {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        .vs-command-section-intro h3 {
+          margin: 0;
+          font-size: 1.02rem;
+          line-height: 1.2;
+          letter-spacing: -0.01em;
+        }
+
+        .vs-command-section-intro p {
+          margin: 6px 0 0;
+          color: var(--vs-muted, rgba(226, 232, 240, 0.68));
+          font-size: 0.9rem;
+          line-height: 1.45;
+        }
+
+        .vs-command-eyebrow {
+          margin-bottom: 6px;
+          color: var(--vs-accent, #60a5fa);
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .vs-premium-row-card {
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 18px;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.48));
+          box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18);
+          overflow: hidden;
+          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .vs-premium-row-card:hover {
+          transform: translateY(-1px);
+          border-color: rgba(96, 165, 250, 0.32);
+          box-shadow: 0 18px 42px rgba(2, 6, 23, 0.24);
+        }
+
+        .vs-premium-row-card.is-elevated {
+          border-color: rgba(248, 113, 113, 0.32);
+          background: linear-gradient(135deg, rgba(127, 29, 29, 0.22), rgba(15, 23, 42, 0.68));
+        }
+
+        .vs-premium-row-card.is-live {
+          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28), 0 18px 46px rgba(37, 99, 235, 0.16);
+        }
+
+        .vs-premium-row-card.is-action {
+          border-color: rgba(34, 197, 94, 0.18);
+        }
+
+        .vs-premium-row-card .vs-responsive-row {
+          border: 0;
+          background: transparent;
+        }
+      `}</style>
       {error && !demoMode ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
 
