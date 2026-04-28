@@ -476,6 +476,12 @@ export const publicApi = {
     unwrap(http.post("/public/enterprise-leads", payload)),
 };
 
+export const tasksApi = {
+  list: (params = {}) => tryGet(["/tasks"], { params }),
+  create: (payload) => tryPost(["/tasks"], payload),
+  update: (taskId, payload) => tryPatch([`/tasks/${taskId}`], payload)
+};
+
 export const api = {
   get: (...args) => http.get(...args),
   post: (...args) => http.post(...args),
@@ -547,6 +553,10 @@ export const api = {
   mailOpsEvents: mailOpsApi.events,
   createMailOpsEvent: mailOpsApi.createEvent,
   updateMailOpsEvent: mailOpsApi.updateEvent,
+  
+  tasks: tasksApi.list,
+  createTask: tasksApi.create,
+  updateTask: tasksApi.update,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
