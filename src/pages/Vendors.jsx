@@ -33,10 +33,15 @@ function getActionKey(action = {}, fallback = "") {
   return String(action.id || `${action.state || "National"}-${action.title || fallback || "vendor-action"}`);
 }
 
-function getInitialStateFromUrl() {
-  if (typeof window === "undefined") return "";
+function getInitialUrlParams() {
+  if (typeof window === "undefined") return { state: "", source: "" };
+
   const params = new URLSearchParams(window.location.search);
-  return params.get("state") || "";
+
+  return {
+    state: params.get("state") || "",
+    source: params.get("source") || ""
+  };
 }
 
 function updateUrlState(state) {
@@ -50,7 +55,9 @@ function updateUrlState(state) {
     url.searchParams.delete("state");
   }
 
-  url.searchParams.set("source", url.searchParams.get("source") || "vendor-network");
+  if (!url.searchParams.get("source")) {
+    url.searchParams.set("source", "vendor-network");
+  }
 
   window.history.replaceState({}, "", `${url.pathname}${url.search}`);
 }
@@ -132,6 +139,8 @@ function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
 }
 
 export default function Vendors() {
+  const initialUrl = getInitialUrlParams();
+
   const [rows, setRows] = useState([]);
   const [states, setStates] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -146,14 +155,18 @@ export default function Vendors() {
   const [creatingTaskId, setCreatingTaskId] = useState("");
   const [existingTaskIds, setExistingTaskIds] = useState(() => new Set());
 
+  const [sourceContext] = useState(initialUrl.source);
+
   const [filters, setFilters] = useState({
     q: "",
-    state: getInitialStateFromUrl(),
+    state: initialUrl.state,
     category: "",
     status: "",
     page: 1,
     limit: 12
   });
+
+  const isFromExecutionBoard = sourceContext === "execution-board";
 
   useEffect(() => {
     updateUrlState(filters.state);
@@ -346,6 +359,13 @@ export default function Vendors() {
           background: transparent;
         }
       `}</style>
+
+      {isFromExecutionBoard ? (
+        <div className="vs-banner vs-live-banner-pulse">
+          Filtered from Execution Board — showing vendor coverage connected to this task
+          {filters.state ? ` in ${filters.state}` : ""}.
+        </div>
+      ) : null}
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {dispatchMessage ? <div className="vs-banner">{dispatchMessage}</div> : null}
