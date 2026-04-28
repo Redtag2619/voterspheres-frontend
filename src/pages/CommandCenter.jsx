@@ -8,6 +8,7 @@ import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import DemoOnboarding from "../components/demo/DemoOnboarding.jsx";
 import LiveActivityStream from "../components/demo/LiveActivityStream.jsx";
+import ExecutionBoard from "../components/tasks/ExecutionBoard.jsx";
 import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useRealtimeStream from "../hooks/useRealtimeStream";
@@ -120,6 +121,26 @@ function getActionClass(action) {
   if (value.includes("verify") || value.includes("refresh")) return "vs-decision-btn verify";
 
   return "vs-decision-btn";
+}
+
+function getTaskOwner(action) {
+  const value = String(action || "").toLowerCase();
+
+  if (value.includes("mail") || value.includes("delivery") || value.includes("usps")) return "MailOps";
+  if (value.includes("vendor") || value.includes("coverage") || value.includes("operations")) return "Operations";
+  if (value.includes("candidate") || value.includes("profile") || value.includes("contact")) return "Candidate Intelligence";
+  if (value.includes("surrogate") || value.includes("message") || value.includes("media")) return "War Room";
+
+  return "Command Team";
+}
+
+function getTaskPriority(action, risk) {
+  const value = String(action || "").toLowerCase();
+  const riskValue = String(risk || "").toLowerCase();
+
+  if (value.includes("escalate") || riskValue === "elevated" || riskValue === "critical") return "high";
+  if (value.includes("audit") || value.includes("verify")) return "medium";
+  return "medium";
 }
 
 function buildExecutiveDecision({ feed = [] }) {
@@ -241,6 +262,7 @@ export default function CommandCenter() {
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [liveFeedIds, setLiveFeedIds] = useState([]);
   const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
+  const [executionTasks, setExecutionTasks] = useState([]);
 
   const { filters } = useExecutiveFilters();
 
@@ -283,6 +305,27 @@ export default function CommandCenter() {
       active = false;
     };
   }, [demoMode]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadTasks() {
+      try {
+        const response = await api.tasks?.({ limit: 25 });
+        if (!active) return;
+        setExecutionTasks(response?.results || []);
+      } catch {
+        if (!active) return;
+        setExecutionTasks([]);
+      }
+    }
+
+    loadTasks();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useLiveChannel("intelligence:command-center", (event) => {
     if (!event?.type) return;
@@ -403,8 +446,68 @@ export default function CommandCenter() {
     ].slice(0, 8));
   }
 
+  async function createExecutionTask(action, context = {}) {
+    const priority = getTaskPriority(action, context.risk);
+
+    const payload = {
+      title: action,
+      description: "Generated from the Command Center decision engine.",
+      source: "command_center",
+      state: context.state || "National",
+      office: context.office || "Statewide",
+      priority,
+      status: "open",
+      assigned_to: getTaskOwner(action),
+      due_label: priority === "high" ? "Now" : "Today",
+      metadata: {
+        ...context,
+        action
+      }
+    };
+
+    try {
+      const response = await api.createTask?.(payload);
+      const task = response?.task || response || payload;
+      setExecutionTasks((prev) => [task, ...prev].slice(0, 25));
+      return task;
+    } catch {
+      const localId = `local-task-${Date.now()}`;
+      const fallbackTask = {
+        ...payload,
+        id: localId,
+        local_id: localId,
+        created_at: new Date().toISOString()
+      };
+
+      setExecutionTasks((prev) => [fallbackTask, ...prev].slice(0, 25));
+      return fallbackTask;
+    }
+  }
+
+  async function updateExecutionTaskStatus(task, status) {
+    if (!task) return;
+
+    setExecutionTasks((prev) =>
+      prev.map((item) =>
+        String(item.id || item.local_id) === String(task.id || task.local_id)
+          ? { ...item, status }
+          : item
+      )
+    );
+
+    if (String(task.id || "").startsWith("local-task")) return;
+
+    try {
+      await api.updateTask?.(task.id, { status });
+    } catch {
+      // Keep local status update even if backend is unavailable.
+    }
+  }
+
   async function handleActionClick(action, context = {}) {
     const text = String(action || "").toLowerCase();
+
+    await createExecutionTask(action, context);
 
     if (text.includes("candidate") || text.includes("profile") || text.includes("contact")) {
       injectLocalSignal({
@@ -578,6 +681,8 @@ export default function CommandCenter() {
           <StatCard key={`${metric.label}-${index}`} label={metric.label} value={metric.value} delta={metric.delta} tone={metric.tone} />
         ))}
       </div>
+
+      <ExecutionBoard tasks={executionTasks} onStatusChange={updateExecutionTaskStatus} />
 
       <SectionCard
         title="Cross-Signal Priority Layer"
