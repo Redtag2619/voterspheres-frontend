@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -62,7 +62,14 @@ function updateUrlState(state) {
   window.history.replaceState({}, "", `${url.pathname}${url.search}`);
 }
 
-function VendorRow({ vendor }) {
+function statesMatch(a, b) {
+  const left = String(a || "").trim().toLowerCase();
+  const right = String(b || "").trim().toLowerCase();
+  if (!left || !right) return false;
+  return left === right;
+}
+
+function VendorRow({ vendor, highlighted = false }) {
   const name = vendor.name || vendor.vendor_name || "Unnamed Vendor";
   const category = vendor.category || "Campaign Vendor";
   const state = vendor.state || vendor.primary_state || "Unknown";
@@ -73,7 +80,7 @@ function VendorRow({ vendor }) {
     "Campaign operations and political services";
 
   return (
-    <div className="vs-premium-row-card">
+    <div className={`vs-premium-row-card ${highlighted ? "is-highlighted-vendor" : ""}`}>
       <ResponsiveRow
         title={name}
         subtitle={`${state} • ${category}`}
@@ -82,7 +89,12 @@ function VendorRow({ vendor }) {
           { label: "Contract", value: fmtMoney(vendor.contract_value) },
           { label: "Services", value: services }
         ]}
-        right={<Badge tone="accent">{vendor.status || "active"}</Badge>}
+        right={
+          <div className="vs-inline-actions">
+            {highlighted ? <Badge tone="demo">Task Match</Badge> : null}
+            <Badge tone="accent">{vendor.status || "active"}</Badge>
+          </div>
+        }
       />
     </div>
   );
@@ -140,6 +152,7 @@ function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
 
 export default function Vendors() {
   const initialUrl = getInitialUrlParams();
+  const vendorDirectoryRef = useRef(null);
 
   const [rows, setRows] = useState([]);
   const [states, setStates] = useState([]);
@@ -167,6 +180,7 @@ export default function Vendors() {
   });
 
   const isFromExecutionBoard = sourceContext === "execution-board";
+  const highlightedState = isFromExecutionBoard ? filters.state : "";
 
   useEffect(() => {
     updateUrlState(filters.state);
@@ -253,6 +267,19 @@ export default function Vendors() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isFromExecutionBoard || loading || !rows.length) return;
+
+    const timer = setTimeout(() => {
+      vendorDirectoryRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [isFromExecutionBoard, loading, rows.length]);
+
   async function dispatchVendorAlerts() {
     try {
       setDispatchMessage("Dispatching vendor alerts...");
@@ -318,6 +345,11 @@ export default function Vendors() {
 
   const gapCount = Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
 
+  const highlightedRowsCount = useMemo(() => {
+    if (!highlightedState) return 0;
+    return rows.filter((row) => statesMatch(row.state || row.primary_state, highlightedState)).length;
+  }, [rows, highlightedState]);
+
   return (
     <PageShell
       eyebrow="Vendor Intelligence"
@@ -354,6 +386,12 @@ export default function Vendors() {
           border-color: rgba(34, 197, 94, 0.18);
         }
 
+        .vs-premium-row-card.is-highlighted-vendor {
+          border-color: rgba(34, 197, 94, 0.55);
+          background: linear-gradient(135deg, rgba(22, 101, 52, 0.26), rgba(15, 23, 42, 0.72));
+          box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.28), 0 18px 46px rgba(22, 163, 74, 0.14);
+        }
+
         .vs-premium-row-card .vs-responsive-row {
           border: 0;
           background: transparent;
@@ -362,8 +400,9 @@ export default function Vendors() {
 
       {isFromExecutionBoard ? (
         <div className="vs-banner vs-live-banner-pulse">
-          Filtered from Execution Board — showing vendor coverage connected to this task
+          Filtered from Execution Board — highlighting vendor coverage connected to this task
           {filters.state ? ` in ${filters.state}` : ""}.
+          {highlightedRowsCount ? ` ${highlightedRowsCount} matching vendor${highlightedRowsCount === 1 ? "" : "s"} highlighted.` : ""}
         </div>
       ) : null}
 
@@ -446,30 +485,40 @@ export default function Vendors() {
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard
-          title="Live Vendor Directory"
-          subtitle={
-            filters.state
-              ? `Database-backed vendor network filtered to ${filters.state}.`
-              : "Database-backed vendor network with operating coverage and status."
-          }
-          right={<Badge tone="accent">{rows.length} shown</Badge>}
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading vendors..." />
-            ) : rows.length === 0 ? (
-              <EmptyState text="No vendors found." />
-            ) : (
-              rows.map((vendor, index) => (
-                <VendorRow
-                  key={vendor.id ?? vendor.vendor_id ?? `${vendor.name || vendor.vendor_name}-${index}`}
-                  vendor={vendor}
-                />
-              ))
-            )}
-          </div>
-        </SectionCard>
+        <div ref={vendorDirectoryRef}>
+          <SectionCard
+            title="Live Vendor Directory"
+            subtitle={
+              filters.state
+                ? `Database-backed vendor network filtered to ${filters.state}.`
+                : "Database-backed vendor network with operating coverage and status."
+            }
+            right={<Badge tone="accent">{rows.length} shown</Badge>}
+          >
+            <div className="vs-stack">
+              {loading ? (
+                <EmptyState text="Loading vendors..." />
+              ) : rows.length === 0 ? (
+                <EmptyState text="No vendors found." />
+              ) : (
+                rows.map((vendor, index) => {
+                  const highlighted =
+                    isFromExecutionBoard &&
+                    filters.state &&
+                    statesMatch(vendor.state || vendor.primary_state, filters.state);
+
+                  return (
+                    <VendorRow
+                      key={vendor.id ?? vendor.vendor_id ?? `${vendor.name || vendor.vendor_name}-${index}`}
+                      vendor={vendor}
+                      highlighted={highlighted}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </SectionCard>
+        </div>
 
         <div className="vs-stack">
           <SectionCard
