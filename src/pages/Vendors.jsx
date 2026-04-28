@@ -69,6 +69,10 @@ function statesMatch(a, b) {
   return left === right;
 }
 
+function goToCommandCenter() {
+  window.location.href = "/command-center";
+}
+
 function VendorRow({ vendor, highlighted = false }) {
   const name = vendor.name || vendor.vendor_name || "Unnamed Vendor";
   const category = vendor.category || "Campaign Vendor";
@@ -396,13 +400,36 @@ export default function Vendors() {
           border: 0;
           background: transparent;
         }
+
+        .vs-execution-filter-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .vs-execution-filter-banner-copy {
+          min-width: 220px;
+          flex: 1;
+        }
       `}</style>
 
       {isFromExecutionBoard ? (
-        <div className="vs-banner vs-live-banner-pulse">
-          Filtered from Execution Board — highlighting vendor coverage connected to this task
-          {filters.state ? ` in ${filters.state}` : ""}.
-          {highlightedRowsCount ? ` ${highlightedRowsCount} matching vendor${highlightedRowsCount === 1 ? "" : "s"} highlighted.` : ""}
+        <div className="vs-banner vs-live-banner-pulse vs-execution-filter-banner">
+          <div className="vs-execution-filter-banner-copy">
+            Filtered from Execution Board — highlighting vendor coverage connected to this task
+            {filters.state ? ` in ${filters.state}` : ""}.
+            {highlightedRowsCount ? ` ${highlightedRowsCount} matching vendor${highlightedRowsCount === 1 ? "" : "s"} highlighted.` : ""}
+          </div>
+
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={goToCommandCenter}
+          >
+            Back to Command Center
+          </button>
         </div>
       ) : null}
 
