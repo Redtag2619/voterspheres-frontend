@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import Badge from "../ui/Badge";
 
 function statusTone(status) {
@@ -14,13 +15,44 @@ function priorityTone(priority) {
   return "default";
 }
 
+function isSameTask(task, focusedTaskId) {
+  if (!focusedTaskId) return false;
+
+  return (
+    String(task.id || "") === String(focusedTaskId) ||
+    String(task.local_id || "") === String(focusedTaskId)
+  );
+}
+
 export default function ExecutionBoard({
   tasks = [],
   onStatusChange,
   focusedTaskId = null
 }) {
+  const focusedTaskRef = useRef(null);
+
   const open = tasks.filter((task) => task.status !== "complete");
   const complete = tasks.filter((task) => task.status === "complete");
+
+  useEffect(() => {
+    if (!focusedTaskId || !focusedTaskRef.current) return;
+
+    const timer = setTimeout(() => {
+      const element = focusedTaskRef.current;
+      const rect = element.getBoundingClientRect();
+
+      const absoluteTop = rect.top + window.scrollY;
+      const viewportCenterOffset = window.innerHeight / 2 - rect.height / 2;
+      const scrollTarget = Math.max(0, absoluteTop - viewportCenterOffset);
+
+      window.scrollTo({
+        top: scrollTarget,
+        behavior: "smooth"
+      });
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [focusedTaskId, tasks.length]);
 
   return (
     <section className="vs-section-card">
@@ -43,13 +75,12 @@ export default function ExecutionBoard({
         ) : (
           <>
             {open.map((task) => {
-              const isFocused =
-                String(task.id) === String(focusedTaskId) ||
-                String(task.local_id) === String(focusedTaskId);
+              const isFocused = isSameTask(task, focusedTaskId);
 
               return (
                 <div
                   key={task.id || task.local_id}
+                  ref={isFocused ? focusedTaskRef : null}
                   className={`vs-card-muted ${isFocused ? "vs-task-focus-pulse" : ""}`}
                   style={{
                     border: isFocused
@@ -79,12 +110,14 @@ export default function ExecutionBoard({
                             {task.assigned_to || "Command Team"}
                           </div>
                         </div>
+
                         <div className="vs-meta-block">
                           <div className="vs-meta-label">State</div>
                           <div className="vs-meta-value">
                             {task.state || "National"}
                           </div>
                         </div>
+
                         <div className="vs-meta-block">
                           <div className="vs-meta-label">Due</div>
                           <div className="vs-meta-value">
@@ -99,6 +132,7 @@ export default function ExecutionBoard({
                         <Badge tone={priorityTone(task.priority)}>
                           {task.priority || "medium"}
                         </Badge>
+
                         <Badge tone={statusTone(task.status)}>
                           {task.status || "open"}
                         </Badge>
@@ -106,9 +140,7 @@ export default function ExecutionBoard({
                         <button
                           type="button"
                           className="vs-button vs-button-secondary"
-                          onClick={() =>
-                            onStatusChange?.(task, "in_progress")
-                          }
+                          onClick={() => onStatusChange?.(task, "in_progress")}
                         >
                           Start
                         </button>
@@ -116,9 +148,7 @@ export default function ExecutionBoard({
                         <button
                           type="button"
                           className="vs-button"
-                          onClick={() =>
-                            onStatusChange?.(task, "complete")
-                          }
+                          onClick={() => onStatusChange?.(task, "complete")}
                         >
                           Complete
                         </button>
@@ -131,24 +161,39 @@ export default function ExecutionBoard({
 
             {complete.length ? (
               <details className="vs-card-muted">
-                <summary
-                  style={{ cursor: "pointer", fontWeight: 800 }}
-                >
+                <summary style={{ cursor: "pointer", fontWeight: 800 }}>
                   Completed tasks ({complete.length})
                 </summary>
 
                 <div className="vs-stack" style={{ marginTop: 12 }}>
-                  {complete.map((task) => (
-                    <div
-                      key={task.id || task.local_id}
-                      className="vs-card-muted"
-                    >
-                      <div className="vs-row-title">{task.title}</div>
-                      <div className="vs-row-subtitle">
-                        Completed • {task.assigned_to || "Command Team"}
+                  {complete.map((task) => {
+                    const isFocused = isSameTask(task, focusedTaskId);
+
+                    return (
+                      <div
+                        key={task.id || task.local_id}
+                        ref={isFocused ? focusedTaskRef : null}
+                        className={`vs-card-muted ${isFocused ? "vs-task-focus-pulse" : ""}`}
+                        style={{
+                          border: isFocused
+                            ? "1px solid rgba(34,197,94,0.6)"
+                            : undefined
+                        }}
+                      >
+                        <div className="vs-row-title">{task.title}</div>
+
+                        {isFocused ? (
+                          <div style={{ marginTop: 6 }}>
+                            <Badge tone="success">Focused from Feed</Badge>
+                          </div>
+                        ) : null}
+
+                        <div className="vs-row-subtitle">
+                          Completed • {task.assigned_to || "Command Team"}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </details>
             ) : null}
@@ -156,20 +201,25 @@ export default function ExecutionBoard({
         )}
       </div>
 
-      {/* Pulse animation */}
-      <style>
-        {`
-          .vs-task-focus-pulse {
-            animation: vsTaskPulse 1.8s ease-out 3;
-          }
+      <style>{`
+        .vs-task-focus-pulse {
+          animation: vsTaskPulse 1.8s ease-out 3;
+          scroll-margin-top: 120px;
+          scroll-margin-bottom: 120px;
+        }
 
-          @keyframes vsTaskPulse {
-            0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
-            70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
-            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        @keyframes vsTaskPulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
           }
-        `}
-      </style>
+          70% {
+            box-shadow: 0 0 0 10px rgba(34,197,94,0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(34,197,94,0);
+          }
+        }
+      `}</style>
     </section>
   );
 }
