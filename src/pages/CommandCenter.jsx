@@ -882,30 +882,47 @@ export default function CommandCenter() {
   }
 
   .vs-premium-row-card .vs-responsive-row {
-    border: 0;
-    background: transparent;
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-  }
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
 
-  /* 🔥 CRITICAL FIXES FOR YOUR ISSUE */
+.vs-premium-row-card .vs-responsive-left,
+.vs-premium-row-card .vs-responsive-right {
+  min-width: 0;
+  max-width: 100%;
+}
 
-  .vs-premium-row-card,
-  .vs-premium-row-card * {
-    min-width: 0;
-  }
+.vs-premium-row-card .vs-responsive-right {
+  justify-self: end;
+  overflow: hidden;
+}
 
-  .vs-premium-row-card .vs-responsive-left {
-    min-width: 0;
-    max-width: 100%;
-  }
+.vs-premium-row-card .vs-inline-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
+}
 
-  .vs-premium-row-card .vs-row-title,
-  .vs-premium-row-card .vs-row-subtitle {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
+.vs-premium-row-card .vs-responsive-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  width: 100%;
+  max-width: 100%;
+}
+
+.vs-premium-row-card .vs-meta-block,
+.vs-premium-row-card .vs-meta-value,
+.vs-premium-row-card .vs-row-title,
+.vs-premium-row-card .vs-row-subtitle {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
   .vs-premium-row-card .vs-responsive-meta {
     display: flex;
