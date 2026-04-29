@@ -204,7 +204,7 @@ function BattlegroundRow({ row, active = false }) {
   );
 }
 
-function FeedRow({ item, live = false, expanded = false, onToggle }) {
+function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask }) {
   const severity = String(item.severity || "").toLowerCase();
 
   return (
@@ -212,7 +212,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
       <ResponsiveRow
         live={live}
         title={item.title}
-        subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
+        subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
         meta={[
           { label: "Time", value: item.time || "Now" },
           { label: "Severity", value: item.severity || "Info" },
@@ -233,6 +233,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
       {expanded ? (
         <div className="vs-feed-expanded">
           <div className="vs-feed-expanded-title">Briefing Detail</div>
+
           <div className="vs-feed-expanded-body">
             {item.detail || item.description || item.title || "No additional detail available."}
           </div>
@@ -242,14 +243,22 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
               <div className="vs-meta-label">Signal Type</div>
               <div className="vs-meta-value">{item.type || "intelligence.signal"}</div>
             </div>
+
             <div className="vs-meta-block">
               <div className="vs-meta-label">Risk</div>
               <div className="vs-meta-value">{item.risk || "Watch"}</div>
             </div>
+
             <div className="vs-meta-block">
               <div className="vs-meta-label">Source</div>
               <div className="vs-meta-value">{item.source || "Command Center"}</div>
             </div>
+          </div>
+
+          <div className="vs-inline-actions" style={{ marginTop: 14 }}>
+            <button type="button" className="vs-decision-btn deploy" onClick={onCreateTask}>
+              Create Task
+            </button>
           </div>
         </div>
       ) : null}
@@ -515,6 +524,30 @@ export default function CommandCenter() {
       ...prev
     ].slice(0, 8));
   }
+
+  async function createTaskFromFeed(item = {}) {
+  const title = `Review signal: ${item.title || "Command Center signal"}`;
+
+  await createExecutionTask(title, {
+    source: "command_center",
+    state: item.state || "National",
+    office: item.office || "Statewide",
+    risk: item.risk || "Watch",
+    signal_type: item.type || "intelligence.signal",
+    feed_id: item.id || null,
+    detail: item.detail || item.description || item.title || "Review this Command Center signal."
+  });
+
+  injectLocalSignal({
+    title: `Task created from feed: ${item.title || "Command Center signal"}`,
+    severity: item.severity || "Medium",
+    source: "Execution Engine",
+    type: "feed.task_created",
+    state: item.state || "National",
+    office: item.office || "Statewide",
+    risk: item.risk || "Watch"
+  });
+}
 
   function injectLocalSignal(signal = {}) {
     const liveId = `exec-${Date.now()}`;
@@ -1118,19 +1151,19 @@ export default function CommandCenter() {
               <EmptyState text="No live command feed items for the current filters." />
             ) : (
               feed.map((item) => {
-                const id = getFeedKey(item);
+  const id = getFeedKey(item);
 
-                return (
-                  <FeedRow
-                    key={id}
-                    item={item}
-                    live={liveFeedIds.includes(item.id)}
-                    expanded={expandedFeedIds.has(id)}
-                    onToggle={() => toggleFeed(id)}
-                  />
-                );
-              })
-            )}
+  return (
+    <FeedRow
+      key={id}
+      item={item}
+      live={liveFeedIds.includes(item.id)}
+      expanded={expandedFeedIds.has(id)}
+      onToggle={() => toggleFeed(id)}
+      onCreateTask={() => createTaskFromFeed(item)}
+    />
+  );
+})
           </div>
         </SectionCard>
 
