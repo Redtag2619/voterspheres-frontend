@@ -8,6 +8,12 @@ export default function ResponsiveRow({
   live = false,
   className = "",
 }) {
+  const normalizedMeta = [...meta];
+
+  while (normalizedMeta.length < 4) {
+    normalizedMeta.push({ label: "", value: "" });
+  }
+
   return (
     <div
       className={[
@@ -85,15 +91,12 @@ export default function ResponsiveRow({
             </div>
           ) : null}
 
-          {meta.length ? (
+          {normalizedMeta.length ? (
             <div
               className="vs-responsive-meta"
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  meta.length >= 4
-                    ? "repeat(4, minmax(0, 1fr))"
-                    : `repeat(${meta.length}, minmax(0, 1fr))`,
+                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                 gap: "12px",
                 width: "100%",
                 maxWidth: "100%",
@@ -102,19 +105,18 @@ export default function ResponsiveRow({
                 marginTop: "12px",
               }}
             >
-              {meta.map((item, index) => (
+              {normalizedMeta.slice(0, 4).map((item, index) => (
                 <div
-                  key={`${item.label}-${index}`}
+                  key={`${item.label || "empty"}-${index}`}
                   className="vs-meta-block"
                   style={{
                     minWidth: 0,
                     maxWidth: "100%",
                     overflow: "hidden",
-                    paddingRight: index < meta.length - 1 ? "10px" : 0,
+                    paddingRight: index < 3 ? "10px" : 0,
                     borderRight:
-                      index < meta.length - 1
-                        ? "1px solid rgba(148, 163, 184, 0.12)"
-                        : "0",
+                      index < 3 ? "1px solid rgba(148, 163, 184, 0.12)" : 0,
+                    opacity: item.label ? 1 : 0,
                   }}
                 >
                   <div
