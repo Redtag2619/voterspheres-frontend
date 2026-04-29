@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -190,7 +190,7 @@ function BattlegroundRow({ row, active = false }) {
       <ResponsiveRow
         active={active}
         title={row.race}
-        subtitle={`${row.state || "Statewide"} • ${row.office || "Race"}`}
+        subtitle={`${row.state || "Statewide"} â€¢ ${row.office || "Race"}`}
         meta={[
           { label: "Win Prob.", value: row.probability },
           { label: "Momentum", value: row.momentum },
@@ -212,7 +212,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
       <ResponsiveRow
         live={live}
         title={item.title}
-        subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+        subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
         meta={[
           { label: "Time", value: item.time || "Now" },
           { label: "Severity", value: item.severity || "Info" },
@@ -280,12 +280,12 @@ function PriorityRow({ item, index }) {
   return (
     <div className={`vs-premium-row-card ${isUrgent ? "is-elevated" : ""}`}>
       <ResponsiveRow
-        title={`#${index + 1} ${item.state} — ${item.severity}`}
+        title={`#${index + 1} ${item.state} â€” ${item.severity}`}
         subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
         meta={[
           { label: "Score", value: item.priority_score },
           { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-          { label: "Vendors", value: item.vendors?.coverage_status || "—" },
+          { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
           { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
         ]}
         alert={isUrgent ? "vs-live-dot" : "vs-live-dot-warning"}
@@ -303,7 +303,7 @@ function ResolvedVendorRow({ gap }) {
         subtitle="Completed execution task removed this vendor gap from active priorities."
         meta={[
           { label: "Task", value: gap.resolved_by_task_id ? `#${gap.resolved_by_task_id}` : "Completed" },
-          { label: "Score", value: gap.coverage_score ?? "—" }
+          { label: "Score", value: gap.coverage_score ?? "â€”" }
         ]}
         alert="vs-live-dot-success"
         right={<Badge tone="active">Resolved</Badge>}
@@ -1149,3 +1149,4 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
