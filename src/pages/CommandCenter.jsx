@@ -281,6 +281,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
     </div>
   );
 }
+
   const severity = String(item.severity || "").toLowerCase();
 
   return (
