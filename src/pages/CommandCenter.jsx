@@ -684,7 +684,7 @@ export default function CommandCenter() {
         setVendorIntel(refreshed || null);
       }
     } catch {
-      // Keep local status update even if backend is unavailable.
+      
     }
   }
 
@@ -724,7 +724,7 @@ export default function CommandCenter() {
       try {
         await api.dispatchAlerts?.({ limit: 1 });
       } catch {
-        // Local execution still succeeds if backend dispatch is unavailable.
+        
       }
 
       injectLocalSignal({
