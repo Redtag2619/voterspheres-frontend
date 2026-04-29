@@ -298,7 +298,8 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
         right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
       />
     </div>
-  );
+   );
+}
 
 function ActionRow({ item }) {
   return (
