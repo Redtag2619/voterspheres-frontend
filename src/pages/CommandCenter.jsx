@@ -297,9 +297,9 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
         alert={severity === "high" || severity === "critical" ? "vs-live-dot" : "vs-live-dot-warning"}
         right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity}</Badge>}
       />
-    </div>
-   );
- } 
+       </div>
+  );
+}
 
 function ActionRow({ item }) {
   return (
