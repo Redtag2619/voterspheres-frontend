@@ -54,9 +54,14 @@ function ThreatRow({ item }) {
       meta={[
         { label: "Severity", value: item.severity },
         { label: "Source", value: item.source },
-        { label: "Velocity", value: item.velocity }
+        { label: "Velocity", value: item.velocity },
+        { label: "Risk", value: item.risk || "Watch" } // 👈 NEW (fix alignment)
       ]}
-      alert={String(item.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
+      alert={
+        String(item.severity || "").toLowerCase() === "high"
+          ? "vs-live-dot"
+          : "vs-live-dot-warning"
+      }
       right={<Badge tone={severityTone(item.severity)}>{item.severity}</Badge>}
     />
   );
