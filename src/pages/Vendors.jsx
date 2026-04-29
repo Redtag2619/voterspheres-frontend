@@ -14,11 +14,9 @@ function fmtMoney(value) {
 
 function normalizeList(data, keys = []) {
   if (Array.isArray(data)) return data;
-
   for (const key of keys) {
     if (Array.isArray(data?.[key])) return data[key];
   }
-
   return data?.results || data?.vendors || data?.rows || [];
 }
 
@@ -35,9 +33,7 @@ function getActionKey(action = {}, fallback = "") {
 
 function getInitialUrlParams() {
   if (typeof window === "undefined") return { state: "", source: "" };
-
   const params = new URLSearchParams(window.location.search);
-
   return {
     state: params.get("state") || "",
     source: params.get("source") || ""
@@ -46,14 +42,10 @@ function getInitialUrlParams() {
 
 function updateUrlState(state) {
   if (typeof window === "undefined") return;
-
   const url = new URL(window.location.href);
 
-  if (state) {
-    url.searchParams.set("state", state);
-  } else {
-    url.searchParams.delete("state");
-  }
+  if (state) url.searchParams.set("state", state);
+  else url.searchParams.delete("state");
 
   if (!url.searchParams.get("source")) {
     url.searchParams.set("source", "vendor-network");
@@ -65,8 +57,7 @@ function updateUrlState(state) {
 function statesMatch(a, b) {
   const left = String(a || "").trim().toLowerCase();
   const right = String(b || "").trim().toLowerCase();
-  if (!left || !right) return false;
-  return left === right;
+  return Boolean(left && right && left === right);
 }
 
 function goToCommandCenter() {
@@ -122,6 +113,23 @@ function RiskRow({ item }) {
   );
 }
 
+function ResolvedGapRow({ item }) {
+  return (
+    <div className="vs-premium-row-card is-resolved-gap">
+      <ResponsiveRow
+        title={item.title || `${item.state || "State"} vendor gap resolved`}
+        subtitle={item.detail || "This vendor coverage gap has been resolved by a completed task."}
+        meta={[
+          { label: "State", value: item.state || "National" },
+          { label: "Score", value: item.coverage_score ?? "—" },
+          { label: "Status", value: "Resolved" }
+        ]}
+        right={<Badge tone="active">Resolved by Task</Badge>}
+      />
+    </div>
+  );
+}
+
 function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
   const severity = action.priority || action.severity || "Medium";
 
@@ -169,6 +177,7 @@ export default function Vendors() {
   const [error, setError] = useState("");
   const [dispatchMessage, setDispatchMessage] = useState("");
   const [taskMessage, setTaskMessage] = useState("");
+  const [resolutionMessage, setResolutionMessage] = useState("");
   const [creatingTaskId, setCreatingTaskId] = useState("");
   const [existingTaskIds, setExistingTaskIds] = useState(() => new Set());
 
@@ -226,7 +235,6 @@ export default function Vendors() {
       try {
         setLoading(true);
         setError("");
-
         const data = await api.vendors(filters);
 
         if (!active) return;
@@ -247,28 +255,30 @@ export default function Vendors() {
     };
   }, [filters]);
 
-  useEffect(() => {
-    let active = true;
+  async function loadIntel() {
+    setIntelLoading(true);
+    try {
+      const data = await api.vendorScoring?.();
+      setIntel(data || null);
 
-    async function loadIntel() {
-      try {
-        setIntelLoading(true);
-        const data = await api.vendorScoring?.();
-        if (!active) return;
-        setIntel(data || null);
-      } catch {
-        if (!active) return;
-        setIntel(null);
-      } finally {
-        if (active) setIntelLoading(false);
+      const resolvedCount = data?.resolved_gaps?.length || 0;
+      if (resolvedCount) {
+        setResolutionMessage(
+          `${resolvedCount} vendor gap${resolvedCount === 1 ? "" : "s"} resolved by completed task.`
+        );
+      } else {
+        setResolutionMessage("");
       }
+    } catch {
+      setIntel(null);
+      setResolutionMessage("");
+    } finally {
+      setIntelLoading(false);
     }
+  }
 
+  useEffect(() => {
     loadIntel();
-
-    return () => {
-      active = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -343,11 +353,13 @@ export default function Vendors() {
       states_covered: new Set(rows.map((row) => row.state).filter(Boolean)).size,
       categories_covered: new Set(rows.map((row) => row.category).filter(Boolean)).size,
       high_gap_states: 0,
-      medium_gap_states: 0
+      medium_gap_states: 0,
+      resolved_gap_states: 0
     };
   }, [intel, rows]);
 
   const gapCount = Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
+  const resolvedGapCount = Number(summary.resolved_gap_states || intel?.resolved_gaps?.length || 0);
 
   const highlightedRowsCount = useMemo(() => {
     if (!highlightedState) return 0;
@@ -362,7 +374,8 @@ export default function Vendors() {
       tickerItems={[
         { label: "Vendors", value: `${summary.total_vendors || 0} live`, dotClass: "vs-live-dot-success" },
         { label: "Coverage", value: `${summary.states_covered || 0} states`, dotClass: "vs-live-dot-warning" },
-        { label: "Gaps", value: `${gapCount} flagged`, dotClass: gapCount ? "vs-live-dot" : "vs-live-dot-success" }
+        { label: "Gaps", value: `${gapCount} active`, dotClass: gapCount ? "vs-live-dot" : "vs-live-dot-success" },
+        { label: "Resolved", value: `${resolvedGapCount} closed`, dotClass: "vs-live-dot-success" }
       ]}
     >
       <style>{`
@@ -372,7 +385,8 @@ export default function Vendors() {
           background: linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.48));
           box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18);
           overflow: hidden;
-          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, opacity 220ms ease;
+          animation: vsGapIn 260ms ease both;
         }
 
         .vs-premium-row-card:hover {
@@ -396,6 +410,12 @@ export default function Vendors() {
           box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.28), 0 18px 46px rgba(22, 163, 74, 0.14);
         }
 
+        .vs-premium-row-card.is-resolved-gap {
+          border-color: rgba(34, 197, 94, 0.42);
+          background: linear-gradient(135deg, rgba(20, 83, 45, 0.28), rgba(15, 23, 42, 0.62));
+          animation: vsResolvedPulse 680ms ease both;
+        }
+
         .vs-premium-row-card .vs-responsive-row {
           border: 0;
           background: transparent;
@@ -413,6 +433,35 @@ export default function Vendors() {
           min-width: 220px;
           flex: 1;
         }
+
+        @keyframes vsGapIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes vsResolvedPulse {
+          0% {
+            opacity: 0;
+            transform: translateY(8px) scale(0.985);
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.0);
+          }
+          45% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.22), 0 18px 46px rgba(22, 163, 74, 0.10);
+          }
+        }
       `}</style>
 
       {isFromExecutionBoard ? (
@@ -423,16 +472,13 @@ export default function Vendors() {
             {highlightedRowsCount ? ` ${highlightedRowsCount} matching vendor${highlightedRowsCount === 1 ? "" : "s"} highlighted.` : ""}
           </div>
 
-          <button
-            type="button"
-            className="vs-button vs-button-secondary"
-            onClick={goToCommandCenter}
-          >
+          <button type="button" className="vs-button vs-button-secondary" onClick={goToCommandCenter}>
             Back to Command Center
           </button>
         </div>
       ) : null}
 
+      {resolutionMessage ? <div className="vs-banner vs-live-banner-pulse">{resolutionMessage}</div> : null}
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {dispatchMessage ? <div className="vs-banner">{dispatchMessage}</div> : null}
       {taskMessage ? <div className="vs-banner vs-live-banner-pulse">{taskMessage}</div> : null}
@@ -440,8 +486,8 @@ export default function Vendors() {
       <div className="vs-grid-4">
         <StatCard label="Total Vendors" value={summary.total_vendors || 0} delta="Live vendor records" tone="up" />
         <StatCard label="Active Vendors" value={summary.active_vendors || 0} delta="Ready capacity" tone="up" />
-        <StatCard label="States Covered" value={summary.states_covered || 0} delta="Covered markets" tone="up" />
-        <StatCard label="Gap States" value={gapCount} delta="Coverage pressure" tone={gapCount ? "down" : "up"} />
+        <StatCard label="Active Gaps" value={gapCount} delta="Open coverage pressure" tone={gapCount ? "down" : "up"} />
+        <StatCard label="Resolved Gaps" value={resolvedGapCount} delta="Closed by completed task" tone="up" />
       </div>
 
       <SectionCard
@@ -549,15 +595,15 @@ export default function Vendors() {
 
         <div className="vs-stack">
           <SectionCard
-            title="Coverage Gaps"
-            subtitle="States where vendor bench strength is thin or missing."
-            right={<Badge tone={gapCount ? "danger" : "accent"}>{gapCount} gaps</Badge>}
+            title="Active Coverage Gaps"
+            subtitle="Open vendor coverage gaps that still require operational action."
+            right={<Badge tone={gapCount ? "danger" : "accent"}>{gapCount} active</Badge>}
           >
             <div className="vs-stack">
               {intelLoading ? (
                 <EmptyState text="Loading vendor intelligence..." />
               ) : !intel?.gaps?.length ? (
-                <EmptyState text="No vendor coverage gaps detected." />
+                <EmptyState text="No active vendor coverage gaps." />
               ) : (
                 intel.gaps.slice(0, 6).map((gap, index) => (
                   <RiskRow key={`${gap.state}-${index}`} item={gap} />
@@ -567,8 +613,26 @@ export default function Vendors() {
           </SectionCard>
 
           <SectionCard
+            title="Resolved Gap History"
+            subtitle="Vendor coverage gaps closed through completed execution tasks."
+            right={<Badge tone="active">{resolvedGapCount} resolved</Badge>}
+          >
+            <div className="vs-stack">
+              {intelLoading ? (
+                <EmptyState text="Loading resolved vendor history..." />
+              ) : !intel?.resolved_gaps?.length ? (
+                <EmptyState text="No resolved vendor gaps yet." />
+              ) : (
+                intel.resolved_gaps.slice(0, 6).map((gap, index) => (
+                  <ResolvedGapRow key={`${gap.state}-${index}`} item={gap} />
+                ))
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
             title="Recommended Actions"
-            subtitle="Create execution tasks directly from vendor intelligence."
+            subtitle="Create execution tasks directly from active vendor intelligence."
             right={<Badge tone="demo">{intel?.recommended_actions?.length || 0} actions</Badge>}
           >
             <div className="vs-stack">
