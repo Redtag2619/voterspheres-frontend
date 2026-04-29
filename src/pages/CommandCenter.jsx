@@ -1175,8 +1175,6 @@ export default function CommandCenter() {
     ) : (
       feed.map((item) => {
         const id = getFeedKey(item);
-<<<<<<< HEAD
-=======
 
         return (
           <FeedRow
@@ -1192,7 +1190,6 @@ export default function CommandCenter() {
     )}
   </div>
 </SectionCard>
->>>>>>> 0359f12 (fix command center feed map syntax)
 
         return (
           <FeedRow
