@@ -1,5 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../services/api"; 
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
@@ -34,7 +34,9 @@ const fallbackData = {
   feed: [
     { id: 1, time: "08:12", title: "Opposition affordability attack accelerating", source: "War Room", severity: "High", type: "warroom.threat_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
     { id: 2, time: "08:41", title: "Mail delay detected at Atlanta NDC", source: "Mail Intelligence", severity: "High", type: "mail.delay_detected", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" }
+    { id: 3, time: "09:05", title: "Forecast updated for PA Senate", source: "Forecast Engine", severity: "Medium", type: "forecast.updated", state: "Pennsylvania", office: "Senate", risk: "Watch" },
+    { id: 4, time: "09:22", title: "Vendor coverage gap flagged in AZ", source: "Vendor Intelligence", severity: "High", type: "vendor.coverage_gap", state: "Arizona", office: "Senate", risk: "Elevated" },
+    { id: 5, time: "09:37", title: "Candidate contact gap requires verification", source: "Candidate Intelligence", severity: "Medium", type: "candidate.contact_gap", state: "Pennsylvania", office: "Senate", risk: "Watch" }
   ]
 };
 
@@ -65,6 +67,16 @@ const fallbackCrossSignal = {
       finance: { receipts: 9400000 },
       vendors: { coverage_status: "Gap" },
       mailops: { mail_risks: 1 }
+    },
+    {
+      state: "Pennsylvania",
+      severity: "Medium",
+      risk: "Watch",
+      priority_score: 76,
+      recommended_actions: ["Verify candidate contacts.", "Refresh surrogate memo."],
+      finance: { receipts: 11100000 },
+      vendors: { coverage_status: "Stable" },
+      mailops: { mail_risks: 0 }
     }
   ],
   results: []
@@ -99,41 +111,33 @@ function matchesFilters(item, filters) {
   return true;
 }
 
-function isVendorDrivenPriority(item = {}) {
-  const coverage = String(item.vendors?.coverage_status || "").toLowerCase();
-  const actions = (item.recommended_actions || []).join(" ").toLowerCase();
-
-  return (
-    coverage === "gap" ||
-    coverage === "thin" ||
-    actions.includes("vendor") ||
-    actions.includes("coverage") ||
-    actions.includes("backup vendor")
-  );
-}
-
 function getActionClass(action) {
   const value = String(action || "").toLowerCase();
+
   if (value.includes("escalate")) return "vs-decision-btn escalate";
   if (value.includes("audit")) return "vs-decision-btn audit";
   if (value.includes("deploy")) return "vs-decision-btn deploy";
   if (value.includes("activate")) return "vs-decision-btn activate";
   if (value.includes("verify") || value.includes("refresh")) return "vs-decision-btn verify";
+
   return "vs-decision-btn";
 }
 
 function getTaskOwner(action) {
   const value = String(action || "").toLowerCase();
+
   if (value.includes("mail") || value.includes("delivery") || value.includes("usps")) return "MailOps";
   if (value.includes("vendor") || value.includes("coverage") || value.includes("operations")) return "Operations";
   if (value.includes("candidate") || value.includes("profile") || value.includes("contact")) return "Candidate Intelligence";
   if (value.includes("surrogate") || value.includes("message") || value.includes("media")) return "War Room";
+
   return "Command Team";
 }
 
 function getTaskPriority(action, risk) {
   const value = String(action || "").toLowerCase();
   const riskValue = String(risk || "").toLowerCase();
+
   if (value.includes("escalate") || riskValue === "elevated" || riskValue === "critical") return "high";
   if (value.includes("audit") || value.includes("verify")) return "medium";
   return "medium";
@@ -182,6 +186,19 @@ function buildExecutiveDecision({ feed = [] }) {
   };
 }
 
+function CommandSectionIntro({ eyebrow, title, description, badge }) {
+  return (
+    <div className="vs-command-section-intro">
+      <div>
+        {eyebrow ? <div className="vs-command-eyebrow">{eyebrow}</div> : null}
+        <h3>{title}</h3>
+        {description ? <p>{description}</p> : null}
+      </div>
+      {badge ? <div>{badge}</div> : null}
+    </div>
+  );
+}
+
 function BattlegroundRow({ row, active = false }) {
   const isElevated = String(row.risk || "").toLowerCase() === "elevated";
 
@@ -191,12 +208,12 @@ function BattlegroundRow({ row, active = false }) {
         active={active}
         title={row.race}
         subtitle={`${row.state || "Statewide"} â€¢ ${row.office || "Race"}`}
-        meta={[
-          { label: "Win Prob.", value: row.probability },
-          { label: "Momentum", value: row.momentum },
-          { label: "Risk", value: row.risk },
-          { label: "Priority", value: row.priority }
-        ]}
+      meta={[
+        { label: "Win Prob.", value: row.probability },
+        { label: "Momentum", value: row.momentum },
+        { label: "Risk", value: row.risk },
+        { label: "Priority", value: row.priority }
+      ]}
         alert={isElevated ? "vs-live-dot" : "vs-live-dot-warning"}
         right={<Badge tone={isElevated ? "danger" : "demo"}>{row.risk}</Badge>}
       />
@@ -204,15 +221,24 @@ function BattlegroundRow({ row, active = false }) {
   );
 }
 
-function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask }) {
+function FeedRow({
+  item,
+  live = false,
+  expanded = false,
+  onToggle,
+  onCreateTask,
+  taskState = "idle"
+}) {
   const severity = String(item.severity || "").toLowerCase();
+  const taskCreated = taskState === "created" || taskState === "exists";
+  const taskCreating = taskState === "creating";
 
   return (
     <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
       <ResponsiveRow
         live={live}
         title={item.title}
-        subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+        subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
         meta={[
           { label: "Time", value: item.time || "Now" },
           { label: "Severity", value: item.severity || "Info" },
@@ -223,6 +249,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask 
         right={
           <div className="vs-inline-actions">
             <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>
+            {taskCreated ? <Badge tone="active">{taskState === "exists" ? "Task Exists" : "Task Created"}</Badge> : null}
             <button type="button" className="vs-button vs-button-secondary" onClick={onToggle}>
               {expanded ? "Collapse" : "Expand"}
             </button>
@@ -233,7 +260,6 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask 
       {expanded ? (
         <div className="vs-feed-expanded">
           <div className="vs-feed-expanded-title">Briefing Detail</div>
-
           <div className="vs-feed-expanded-body">
             {item.detail || item.description || item.title || "No additional detail available."}
           </div>
@@ -243,12 +269,10 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask 
               <div className="vs-meta-label">Signal Type</div>
               <div className="vs-meta-value">{item.type || "intelligence.signal"}</div>
             </div>
-
             <div className="vs-meta-block">
               <div className="vs-meta-label">Risk</div>
               <div className="vs-meta-value">{item.risk || "Watch"}</div>
             </div>
-
             <div className="vs-meta-block">
               <div className="vs-meta-label">Source</div>
               <div className="vs-meta-value">{item.source || "Command Center"}</div>
@@ -256,26 +280,34 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask 
           </div>
 
           <div className="vs-inline-actions" style={{ marginTop: 14 }}>
-            <button type="button" className="vs-decision-btn deploy" onClick={onCreateTask}>
-              Create Task
-            </button>
+            {taskCreated ? (
+              <Badge tone="active">{taskState === "exists" ? "Task Exists" : "Task Created"}</Badge>
+            ) : (
+              <button
+                type="button"
+                className="vs-decision-btn deploy"
+                disabled={taskCreating}
+                onClick={onCreateTask}
+              >
+                {taskCreating ? "Creating..." : "Create Task"}
+              </button>
+            )}
           </div>
         </div>
       ) : null}
     </div>
   );
 }
-
 function ActionRow({ item }) {
   return (
     <div className="vs-premium-row-card is-action">
       <ResponsiveRow
-        title={item.title}
-        subtitle={item.detail}
-        meta={[
-          { label: "Owner", value: item.owner },
-          { label: "Due", value: item.due }
-        ]}
+      title={item.title}
+      subtitle={item.detail}
+      meta={[
+        { label: "Owner", value: item.owner },
+        { label: "Due", value: item.due }
+      ]}
         alert="vs-live-dot-success"
         right={<Badge tone="accent">{item.due}</Badge>}
       />
@@ -289,33 +321,16 @@ function PriorityRow({ item, index }) {
   return (
     <div className={`vs-premium-row-card ${isUrgent ? "is-elevated" : ""}`}>
       <ResponsiveRow
-        title={`#${index + 1} ${item.state} â€” ${item.severity}`}
-        subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
-        meta={[
-          { label: "Score", value: item.priority_score },
-          { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-          { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
-          { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
-        ]}
+      title={`#${index + 1} ${item.state} â€” ${item.severity}`}
+      subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
+      meta={[
+        { label: "Score", value: item.priority_score },
+        { label: "Receipts", value: formatMoney(item.finance?.receipts) },
+        { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
+        { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
+      ]}
         alert={isUrgent ? "vs-live-dot" : "vs-live-dot-warning"}
         right={<Badge tone={badgeToneFromSeverity(item.severity)}>{item.risk}</Badge>}
-      />
-    </div>
-  );
-}
-
-function ResolvedVendorRow({ gap }) {
-  return (
-    <div className="vs-premium-row-card is-resolved-gap">
-      <ResponsiveRow
-        title={`${gap.state} vendor gap resolved`}
-        subtitle="Completed execution task removed this vendor gap from active priorities."
-        meta={[
-          { label: "Task", value: gap.resolved_by_task_id ? `#${gap.resolved_by_task_id}` : "Completed" },
-          { label: "Score", value: gap.coverage_score ?? "â€”" }
-        ]}
-        alert="vs-live-dot-success"
-        right={<Badge tone="active">Resolved</Badge>}
       />
     </div>
   );
@@ -327,16 +342,14 @@ export default function CommandCenter() {
 
   const [crossSignal, setCrossSignal] = useState(fallbackCrossSignal);
   const [crossLoading, setCrossLoading] = useState(true);
-  const [vendorIntel, setVendorIntel] = useState(null);
-  const [vendorLoading, setVendorLoading] = useState(true);
   const [liveBanner, setLiveBanner] = useState("");
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [liveFeedIds, setLiveFeedIds] = useState([]);
   const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
   const [executionTasks, setExecutionTasks] = useState([]);
   const [expandedFeedIds, setExpandedFeedIds] = useState(() => new Set());
+  const [feedTaskStates, setFeedTaskStates] = useState(() => ({}));
 
-  const autoVendorTaskIds = useRef(new Set());
   const { filters } = useExecutiveFilters();
 
   const demoMode =
@@ -377,41 +390,6 @@ export default function CommandCenter() {
     return () => {
       active = false;
     };
-  }, [demoMode]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadVendorIntel() {
-      if (demoMode) {
-        setVendorIntel(null);
-        setVendorLoading(false);
-        return;
-      }
-
-      try {
-        setVendorLoading(true);
-        const response = await api.vendorScoring?.();
-        if (!active) return;
-        setVendorIntel(response || null);
-      } catch {
-        if (!active) return;
-        setVendorIntel(null);
-      } finally {
-        if (active) setVendorLoading(false);
-      }
-    }
-
-    loadVendorIntel();
-
-    return () => {
-      active = false;
-    };
-  }, [demoMode]);
-
-  useEffect(() => {
-    if (demoMode) return;
-    api.dispatchVendorAlerts?.().catch(() => {});
   }, [demoMode]);
 
   useEffect(() => {
@@ -525,30 +503,6 @@ export default function CommandCenter() {
     ].slice(0, 8));
   }
 
-  async function createTaskFromFeed(item = {}) {
-  const title = `Review signal: ${item.title || "Command Center signal"}`;
-
-  await createExecutionTask(title, {
-    source: "command_center",
-    state: item.state || "National",
-    office: item.office || "Statewide",
-    risk: item.risk || "Watch",
-    signal_type: item.type || "intelligence.signal",
-    feed_id: item.id || null,
-    detail: item.detail || item.description || item.title || "Review this Command Center signal."
-  });
-
-  injectLocalSignal({
-    title: `Task created from feed: ${item.title || "Command Center signal"}`,
-    severity: item.severity || "Medium",
-    source: "Execution Engine",
-    type: "feed.task_created",
-    state: item.state || "National",
-    office: item.office || "Statewide",
-    risk: item.risk || "Watch"
-  });
-}
-
   function injectLocalSignal(signal = {}) {
     const liveId = `exec-${Date.now()}`;
 
@@ -584,7 +538,7 @@ export default function CommandCenter() {
     const payload = {
       title: action,
       description: context.detail || "Generated from the Command Center decision engine.",
-      source: context.source || "command_center",
+      source: "command_center",
       state: context.state || "National",
       office: context.office || "Statewide",
       priority,
@@ -616,50 +570,6 @@ export default function CommandCenter() {
     }
   }
 
-  useEffect(() => {
-    if (demoMode) return;
-    if (!vendorIntel?.recommended_actions?.length) return;
-
-    const existingIds = new Set(
-      executionTasks
-        .map((task) => task?.metadata?.vendor_action_id)
-        .filter(Boolean)
-        .map(String)
-    );
-
-    async function createVendorGapTasks() {
-      for (const action of vendorIntel.recommended_actions.slice(0, 5)) {
-        const vendorActionId = String(action.id || `${action.state || "National"}-${action.title || "vendor-gap"}`);
-
-        if (existingIds.has(vendorActionId)) continue;
-        if (autoVendorTaskIds.current.has(vendorActionId)) continue;
-
-        autoVendorTaskIds.current.add(vendorActionId);
-
-        await createExecutionTask(action.title || "Close vendor coverage gap", {
-          vendor_action_id: vendorActionId,
-          state: action.state || "National",
-          office: "Statewide",
-          risk: action.priority === "High" ? "Elevated" : "Watch",
-          source: "vendor_intelligence",
-          detail: action.detail || "Review vendor bench strength and assign backup capacity."
-        });
-
-        injectLocalSignal({
-          title: `Vendor task created: ${action.title || "Close vendor coverage gap"}`,
-          severity: action.priority === "High" ? "High" : "Medium",
-          source: "Vendor Intelligence",
-          type: "vendor.task_created",
-          state: action.state || "National",
-          office: "Statewide",
-          risk: action.priority === "High" ? "Elevated" : "Watch"
-        });
-      }
-    }
-
-    createVendorGapTasks();
-  }, [demoMode, vendorIntel, executionTasks]);
-
   async function updateExecutionTaskStatus(task, status) {
     if (!task) return;
 
@@ -675,25 +585,17 @@ export default function CommandCenter() {
 
     try {
       await api.updateTask?.(task.id, { status });
-
-      if (
-        status === "complete" &&
-        ["vendor_network", "vendor_intelligence"].includes(String(task.source || "").toLowerCase())
-      ) {
-        const refreshed = await api.vendorScoring?.();
-        setVendorIntel(refreshed || null);
-      }
     } catch {
       // Keep local status update even if backend is unavailable.
     }
   }
 
   async function handleActionClick(action, context = {}) {
-    const value = String(action || "").toLowerCase();
+    const text = String(action || "").toLowerCase();
 
     await createExecutionTask(action, context);
 
-    if (value.includes("candidate") || value.includes("profile") || value.includes("contact")) {
+    if (text.includes("candidate") || text.includes("profile") || text.includes("contact")) {
       injectLocalSignal({
         title: `Candidate action queued: ${action}`,
         severity: "Medium",
@@ -707,20 +609,7 @@ export default function CommandCenter() {
       return;
     }
 
-    if (value.includes("vendor") || value.includes("coverage") || value.includes("operations")) {
-      injectLocalSignal({
-        title: `Vendor action queued: ${action}`,
-        severity: context.risk === "Elevated" ? "High" : "Medium",
-        source: "Vendor Intelligence",
-        type: "vendor.action_queued",
-        state: context.state,
-        office: context.office || "Statewide",
-        risk: context.risk || "Watch"
-      });
-      return;
-    }
-
-    if (value.includes("alert") || value.includes("escalate")) {
+    if (text.includes("alert") || text.includes("escalate")) {
       try {
         await api.dispatchAlerts?.({ limit: 1 });
       } catch {
@@ -738,7 +627,7 @@ export default function CommandCenter() {
       return;
     }
 
-    if (value.includes("assign") || value.includes("deploy") || value.includes("activate")) {
+    if (text.includes("assign") || text.includes("deploy") || text.includes("activate")) {
       injectLocalSignal({
         title: `Task assigned: ${action}`,
         severity: "Medium",
@@ -790,103 +679,81 @@ export default function CommandCenter() {
     });
   }
 
+  function findExistingFeedTask(item = {}) {
+    const feedId = String(item.id || "");
+    const title = `Review signal: ${item.title || "Command Center signal"}`;
+
+    return executionTasks.find((task) => {
+      const taskFeedId = String(task?.metadata?.feed_id || "");
+      const taskTitle = String(task?.title || "");
+      return (feedId && taskFeedId === feedId) || taskTitle === title;
+    });
+  }
+
+  function getFeedTaskState(item = {}) {
+    const id = getFeedKey(item);
+    if (feedTaskStates[id]) return feedTaskStates[id];
+    return findExistingFeedTask(item) ? "exists" : "idle";
+  }
+
+  async function createTaskFromFeed(item = {}) {
+    const id = getFeedKey(item);
+
+    if (findExistingFeedTask(item)) {
+      setFeedTaskStates((prev) => ({ ...prev, [id]: "exists" }));
+      return;
+    }
+
+    setFeedTaskStates((prev) => ({ ...prev, [id]: "creating" }));
+
+    await createExecutionTask(`Review signal: ${item.title || "Command Center signal"}`, {
+      source: "command_center",
+      state: item.state || "National",
+      office: item.office || "Statewide",
+      risk: item.risk || "Watch",
+      signal_type: item.type || "intelligence.signal",
+      feed_id: item.id || null,
+      detail: item.detail || item.description || item.title || "Review this Command Center signal."
+    });
+
+    setFeedTaskStates((prev) => ({ ...prev, [id]: "created" }));
+
+    injectLocalSignal({
+      title: `Task created from feed: ${item.title || "Command Center signal"}`,
+      severity: item.severity || "Medium",
+      source: "Execution Engine",
+      type: "feed.task_created",
+      state: item.state || "National",
+      office: item.office || "Statewide",
+      risk: item.risk || "Watch"
+    });
+  }
+
   const battlegrounds = useMemo(
     () => (effectiveData?.battlegrounds || []).filter((item) => matchesFilters(item, filters)),
     [effectiveData, filters]
   );
 
-  const resolvedVendorGapStates = useMemo(() => {
-    return new Set((vendorIntel?.resolved_gaps || []).map((gap) => gap.state).filter(Boolean));
-  }, [vendorIntel]);
-
-  const vendorFeed = useMemo(() => {
-    const riskSignals = (vendorIntel?.risk_signals || []).map((item) => ({
-      id: `vendor-risk-${item.id}`,
-      time: "Now",
-      title: item.title || `${item.vendor_name || "Vendor"} requires review`,
-      source: "Vendor Intelligence",
-      severity: item.severity || "Medium",
-      type: "vendor.coverage_gap",
-      state: item.state || "National",
-      office: "Statewide",
-      risk: String(item.status || "").toLowerCase() === "active" ? "Watch" : "Elevated"
-    }));
-
-    const gapSignals = (vendorIntel?.gaps || []).map((gap, index) => ({
-      id: `vendor-gap-${gap.state || index}`,
-      time: "Now",
-      title: gap.title || `${gap.state || "State"} vendor coverage gap`,
-      source: "Vendor Intelligence",
-      severity: gap.severity || "Medium",
-      type: "vendor.coverage_gap",
-      state: gap.state || "National",
-      office: "Statewide",
-      risk: gap.severity === "High" ? "Elevated" : "Watch"
-    }));
-
-    return dedupeFeed([...gapSignals, ...riskSignals]).slice(0, 8);
-  }, [vendorIntel]);
-
   const feed = useMemo(
     () =>
-      dedupeFeed([...(vendorFeed || []), ...(liveAlerts || []), ...(effectiveData?.feed || [])]).filter((item) =>
+      dedupeFeed([...(liveAlerts || []), ...(effectiveData?.feed || [])]).filter((item) =>
         matchesFilters(item, filters)
       ),
-    [effectiveData, liveAlerts, vendorFeed, filters]
+    [effectiveData, liveAlerts, filters]
   );
 
-  const vendorActions = useMemo(() => {
-    return (vendorIntel?.recommended_actions || []).map((item) => ({
-      title: item.title || "Review vendor coverage",
-      owner: item.owner || "Vendor Intelligence",
-      due: item.due || "Today",
-      detail: item.detail || "Review vendor bench strength and assign backup capacity.",
-      state: item.state || "National",
-      office: "Statewide",
-      risk: item.priority === "High" ? "Elevated" : "Watch"
-    }));
-  }, [vendorIntel]);
-
   const actions = useMemo(
-    () =>
-      [...vendorActions, ...(effectiveData?.actions || [])].filter((item) =>
-        matchesFilters(item, filters)
-      ),
-    [effectiveData, vendorActions, filters]
+    () => (effectiveData?.actions || []).filter((item) => matchesFilters(item, filters)),
+    [effectiveData, filters]
   );
 
   const topPriorities = useMemo(() => {
-    const base = (effectiveCrossSignal?.top_priorities || []).filter((item) => {
+    return (effectiveCrossSignal?.top_priorities || []).filter((item) => {
       if (filters.state && item.state !== filters.state) return false;
       if (filters.risk && item.risk !== filters.risk && item.severity !== filters.risk) return false;
-
-      if (resolvedVendorGapStates.has(item.state) && isVendorDrivenPriority(item)) {
-        return false;
-      }
-
       return true;
     });
-
-    const vendorPriorities = (vendorIntel?.gaps || []).map((gap) => {
-      const score = Number(gap.coverage_score || 50);
-      const priorityScore = Math.max(1, 100 - score);
-
-      return {
-        state: gap.state,
-        severity: gap.severity || "Medium",
-        risk: gap.severity === "High" ? "Elevated" : "Watch",
-        priority_score: priorityScore,
-        recommended_actions: [gap.detail || "Close vendor coverage gap and assign backup capacity."],
-        finance: { receipts: 0 },
-        vendors: { coverage_status: score < 30 ? "Gap" : "Thin" },
-        mailops: { mail_risks: 0 }
-      };
-    });
-
-    return [...vendorPriorities, ...base]
-      .sort((a, b) => Number(b.priority_score || 0) - Number(a.priority_score || 0))
-      .slice(0, 6);
-  }, [effectiveCrossSignal, vendorIntel, filters, resolvedVendorGapStates]);
+  }, [effectiveCrossSignal, filters]);
 
   const highSeverityCount = feed.filter((item) =>
     ["high", "critical"].includes(String(item.severity || "").toLowerCase())
@@ -902,17 +769,14 @@ export default function CommandCenter() {
 
   const crossMetrics = useMemo(() => {
     const summary = effectiveCrossSignal?.summary || {};
-    const vendorSummary = vendorIntel?.summary || {};
-    const activeVendorGaps =
-      Number(vendorSummary.high_gap_states || 0) + Number(vendorSummary.medium_gap_states || 0);
 
     return [
-      { label: "Tracked States", value: summary.states_tracked || vendorSummary.states_covered || 0, delta: "Cross-signal engine", tone: "up" },
+      { label: "Tracked States", value: summary.states_tracked || 0, delta: "Cross-signal engine", tone: "up" },
       { label: "Critical States", value: summary.critical_states || 0, delta: "Immediate review", tone: summary.critical_states ? "down" : "up" },
-      { label: "Active Vendor Gaps", value: activeVendorGaps, delta: "Unresolved coverage pressure", tone: activeVendorGaps ? "down" : "up" },
-      { label: "Resolved Vendor Gaps", value: vendorSummary.resolved_gap_states || 0, delta: "Closed by tasks", tone: "up" }
+      { label: "High States", value: summary.high_states || 0, delta: "Priority markets", tone: summary.high_states ? "down" : "up" },
+      { label: "Vendor Gap States", value: summary.vendor_gap_states || 0, delta: "Coverage pressure", tone: summary.vendor_gap_states ? "down" : "up" }
     ];
-  }, [effectiveCrossSignal, vendorIntel]);
+  }, [effectiveCrossSignal]);
 
   return (
     <PageShell
@@ -928,6 +792,37 @@ export default function CommandCenter() {
       ]}
     >
       <style>{`
+        .vs-command-section-intro {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        .vs-command-section-intro h3 {
+          margin: 0;
+          font-size: 1.02rem;
+          line-height: 1.2;
+          letter-spacing: -0.01em;
+        }
+
+        .vs-command-section-intro p {
+          margin: 6px 0 0;
+          color: var(--vs-muted, rgba(226, 232, 240, 0.68));
+          font-size: 0.9rem;
+          line-height: 1.45;
+        }
+
+        .vs-command-eyebrow {
+          margin-bottom: 6px;
+          color: var(--vs-accent, #60a5fa);
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
         .vs-premium-row-card {
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 18px;
@@ -956,71 +851,9 @@ export default function CommandCenter() {
           border-color: rgba(34, 197, 94, 0.18);
         }
 
-        .vs-premium-row-card.is-resolved-gap {
-          border-color: rgba(34, 197, 94, 0.42);
-          background: linear-gradient(135deg, rgba(20, 83, 45, 0.28), rgba(15, 23, 42, 0.62));
-        }
-
         .vs-premium-row-card .vs-responsive-row {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          width: 100%;
-          max-width: 100%;
-          overflow: hidden;
-        }
-
-        .vs-premium-row-card .vs-responsive-left,
-        .vs-premium-row-card .vs-responsive-right {
-          min-width: 0;
-          max-width: 100%;
-        }
-
-        .vs-premium-row-card .vs-responsive-right {
-          justify-self: end;
-          overflow: hidden;
-        }
-
-        .vs-premium-row-card .vs-inline-actions {
-          flex-wrap: wrap;
-          justify-content: flex-end;
-          max-width: 100%;
-        }
-
-        .vs-premium-row-card .vs-responsive-meta {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 10px;
-          max-width: 100%;
-        }
-
-        .vs-premium-row-card .vs-meta-block {
-          min-width: 0;
-          max-width: 100%;
-        }
-
-        .vs-premium-row-card .vs-meta-label,
-        .vs-premium-row-card .vs-meta-value {
-          display: block;
-          width: 100%;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .vs-premium-row-card .vs-meta-block {
-          min-width: 100px;
-          max-width: 100%;
-          flex: 1 1 120px;
-        }
-
-        .vs-premium-row-card .vs-meta-value,
-        .vs-premium-row-card .vs-row-title,
-        .vs-premium-row-card .vs-row-subtitle {
-          min-width: 0;
-          max-width: 100%;
-          white-space: normal;
-          overflow-wrap: anywhere;
-          word-break: break-word;
+          border: 0;
+          background: transparent;
         }
 
         .vs-feed-expanded {
@@ -1056,7 +889,6 @@ export default function CommandCenter() {
           }
         }
       `}</style>
-
       {error && !demoMode ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
 
@@ -1101,7 +933,7 @@ export default function CommandCenter() {
 
       <SectionCard
         title="Cross-Signal Priority Layer"
-        subtitle="Highest-pressure states ranked from fundraising, unresolved vendor coverage, MailOps risk, and executive feed signals."
+        subtitle="Highest-pressure states ranked from fundraising, vendor coverage, MailOps risk, and executive feed signals."
         right={<Badge tone="danger">{topPriorities.length} ranked</Badge>}
       >
         <div className="vs-grid-4" style={{ marginBottom: 16 }}>
@@ -1111,24 +943,16 @@ export default function CommandCenter() {
         </div>
 
         <div className="vs-stack">
-          {!demoMode && (crossLoading || vendorLoading) ? (
+          {!demoMode && crossLoading ? (
             <EmptyState text="Loading cross-signal priority engine..." />
           ) : !topPriorities.length ? (
-            <EmptyState text="No unresolved cross-signal priorities available for the current filters." />
+            <EmptyState text="No cross-signal priorities available for the current filters." />
           ) : (
             topPriorities.slice(0, 6).map((item, index) => (
               <PriorityRow key={`${item.state}-${index}`} item={item} index={index} />
             ))
           )}
         </div>
-
-        {vendorIntel?.resolved_gaps?.length ? (
-          <div className="vs-stack" style={{ marginTop: 16 }}>
-            {vendorIntel.resolved_gaps.slice(0, 3).map((gap) => (
-              <ResolvedVendorRow key={gap.id || gap.state} gap={gap} />
-            ))}
-          </div>
-        ) : null}
       </SectionCard>
 
       <SectionCard
@@ -1157,7 +981,7 @@ export default function CommandCenter() {
       </SectionCard>
 
       <div className="vs-grid-2">
-                        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the executive terminal.">
+        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, and alert signals entering the executive terminal.">
           <div className="vs-stack">
             {!demoMode && loading ? (
               <EmptyState text="Loading command feed..." />
@@ -1175,6 +999,7 @@ export default function CommandCenter() {
                     expanded={expandedFeedIds.has(id)}
                     onToggle={() => toggleFeed(id)}
                     onCreateTask={() => createTaskFromFeed(item)}
+                    taskState={getFeedTaskState(item)}
                   />
                 );
               })
@@ -1197,9 +1022,3 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
-
-
-
-
-
-
