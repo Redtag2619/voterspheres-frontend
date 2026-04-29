@@ -299,7 +299,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
       />
     </div>
    );
-}
+ } 
 
 function ActionRow({ item }) {
   return (
