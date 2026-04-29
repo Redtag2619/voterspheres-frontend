@@ -102,6 +102,24 @@ function matchesFilters(item, filters) {
 function isVendorDrivenPriority(item = {}) {
   const coverage = String(item.vendors?.coverage_status || "").toLowerCase();
   const actions = (item.recommended_actions || []).join(" ").toLowerCase();
+  
+  function getFeedKey(item) {
+  return String(item.id || `${item.time || "now"}-${item.title || "feed"}`);
+}
+
+function toggleFeed(id) {
+  setExpandedFeedIds((prev) => {
+    const next = new Set(prev);
+
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+
+    return next;
+  });
+}
 
   return (
     coverage === "gap" ||
