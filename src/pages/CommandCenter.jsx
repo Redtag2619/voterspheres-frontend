@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -227,12 +227,21 @@ function FeedRow({
   expanded = false,
   onToggle,
   onCreateTask,
-  taskState = "idle"
+  onViewTask,
+  taskState = "idle",
+  taskInfo = null
 }) {
   const severity = String(item.severity || "").toLowerCase();
   const taskCreated = ["created", "exists", "in_progress", "complete"].includes(taskState);
   const taskCreating = taskState === "creating";
-  const taskLabel = taskState === "complete" ? "Task Complete" : taskState === "in_progress" ? "In Progress" : taskState === "exists" ? "Task Exists" : "Task Created";
+  const taskLabel =
+    taskState === "complete"
+      ? "Task Complete"
+      : taskState === "in_progress"
+        ? "In Progress"
+        : taskState === "exists"
+          ? "Task Exists"
+          : "Task Created";
 
   return (
     <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
@@ -278,11 +287,27 @@ function FeedRow({
               <div className="vs-meta-label">Source</div>
               <div className="vs-meta-value">{item.source || "Command Center"}</div>
             </div>
+            {taskInfo?.id ? (
+              <div className="vs-meta-block">
+                <div className="vs-meta-label">Task</div>
+                <div className="vs-meta-value">#{taskInfo.id}</div>
+              </div>
+            ) : null}
           </div>
 
           <div className="vs-inline-actions" style={{ marginTop: 14 }}>
             {taskCreated ? (
-              <Badge tone="active">{taskLabel}</Badge>
+              <>
+                <Badge tone="active">{taskLabel}</Badge>
+                <button
+                  type="button"
+                  className="vs-decision-btn verify"
+                  onClick={onViewTask}
+                  title={taskInfo?.id ? `View task #${taskInfo.id}` : "View matching task"}
+                >
+                  View Task
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -299,6 +324,7 @@ function FeedRow({
     </div>
   );
 }
+
 function ActionRow({ item }) {
   return (
     <div className="vs-premium-row-card is-action">
@@ -348,9 +374,11 @@ export default function CommandCenter() {
   const [liveFeedIds, setLiveFeedIds] = useState([]);
   const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
   const [executionTasks, setExecutionTasks] = useState([]);
+  const [focusedTaskId, setFocusedTaskId] = useState("");
   const [expandedFeedIds, setExpandedFeedIds] = useState(() => new Set());
   const [feedTaskStates, setFeedTaskStates] = useState(() => ({}));
 
+  const executionBoardRef = useRef(null);
   const { filters } = useExecutiveFilters();
 
   const demoMode =
@@ -723,7 +751,7 @@ export default function CommandCenter() {
         ...prev,
         [id]: status === "complete" ? "complete" : status === "in_progress" ? "in_progress" : "exists"
       }));
-      return;
+      return existingTask;
     }
 
     setFeedTaskStates((prev) => ({ ...prev, [id]: "creating" }));
@@ -741,7 +769,7 @@ export default function CommandCenter() {
 
     if (result?.duplicate) {
       setFeedTaskStates((prev) => ({ ...prev, [id]: "exists" }));
-      return;
+      return result?.task || result;
     }
 
     setFeedTaskStates((prev) => ({ ...prev, [id]: "created" }));
@@ -755,6 +783,33 @@ export default function CommandCenter() {
       office: item.office || "Statewide",
       risk: item.risk || "Watch"
     });
+
+    return result;
+  }
+
+  async function viewTaskFromFeed(item = {}) {
+    let task = findExistingFeedTask(item);
+
+    if (!task) {
+      task = await createTaskFromFeed(item);
+    }
+
+    if (!task) return;
+
+    const taskId = String(task.id || task.local_id || "");
+    setFocusedTaskId(taskId);
+    setLiveBanner(`Viewing execution task: ${task.title || "Command Center task"}`);
+
+    window.setTimeout(() => {
+      executionBoardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 50);
+
+    window.setTimeout(() => {
+      setFocusedTaskId("");
+    }, 4500);
   }
 
   const battlegrounds = useMemo(
@@ -884,6 +939,11 @@ export default function CommandCenter() {
           background: transparent;
         }
 
+        .vs-execution-board-focus {
+          border-radius: 22px;
+          animation: vsExecutionFocus 900ms ease both;
+        }
+
         .vs-feed-expanded {
           border-top: 1px solid rgba(148, 163, 184, 0.14);
           padding: 14px 16px 16px;
@@ -904,6 +964,18 @@ export default function CommandCenter() {
           font-size: 0.92rem;
           line-height: 1.55;
           overflow-wrap: anywhere;
+        }
+
+        @keyframes vsExecutionFocus {
+          0% {
+            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+          }
+          40% {
+            box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.24);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+          }
         }
 
         @keyframes vsFeedExpand {
@@ -957,7 +1029,13 @@ export default function CommandCenter() {
         ))}
       </div>
 
-      <ExecutionBoard tasks={executionTasks} onStatusChange={updateExecutionTaskStatus} />
+      <div
+        ref={executionBoardRef}
+        id="execution-board"
+        className={focusedTaskId ? "vs-execution-board-focus" : ""}
+      >
+        <ExecutionBoard tasks={executionTasks} onStatusChange={updateExecutionTaskStatus} />
+      </div>
 
       <SectionCard
         title="Cross-Signal Priority Layer"
@@ -1027,7 +1105,9 @@ export default function CommandCenter() {
                     expanded={expandedFeedIds.has(id)}
                     onToggle={() => toggleFeed(id)}
                     onCreateTask={() => createTaskFromFeed(item)}
+                    onViewTask={() => viewTaskFromFeed(item)}
                     taskState={getFeedTaskState(item)}
+                    taskInfo={findExistingFeedTask(item)}
                   />
                 );
               })
