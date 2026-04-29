@@ -848,45 +848,85 @@ export default function CommandCenter() {
       ]}
     >
       <style>{`
-        .vs-premium-row-card {
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 18px;
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.48));
-          box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18);
-          overflow: hidden;
-          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-        }
+  .vs-premium-row-card {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.48));
+    box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18);
+    overflow: hidden;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
 
-        .vs-premium-row-card:hover {
-          transform: translateY(-1px);
-          border-color: rgba(96, 165, 250, 0.32);
-          box-shadow: 0 18px 42px rgba(2, 6, 23, 0.24);
-        }
+  .vs-premium-row-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.32);
+    box-shadow: 0 18px 42px rgba(2, 6, 23, 0.24);
+  }
 
-        .vs-premium-row-card.is-elevated {
-          border-color: rgba(248, 113, 113, 0.32);
-          background: linear-gradient(135deg, rgba(127, 29, 29, 0.22), rgba(15, 23, 42, 0.68));
-        }
+  .vs-premium-row-card.is-elevated {
+    border-color: rgba(248, 113, 113, 0.32);
+    background: linear-gradient(135deg, rgba(127, 29, 29, 0.22), rgba(15, 23, 42, 0.68));
+  }
 
-        .vs-premium-row-card.is-live {
-          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28), 0 18px 46px rgba(37, 99, 235, 0.16);
-        }
+  .vs-premium-row-card.is-live {
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28), 0 18px 46px rgba(37, 99, 235, 0.16);
+  }
 
-        .vs-premium-row-card.is-action {
-          border-color: rgba(34, 197, 94, 0.18);
-        }
+  .vs-premium-row-card.is-action {
+    border-color: rgba(34, 197, 94, 0.18);
+  }
 
-        .vs-premium-row-card.is-resolved-gap {
-          border-color: rgba(34, 197, 94, 0.42);
-          background: linear-gradient(135deg, rgba(20, 83, 45, 0.28), rgba(15, 23, 42, 0.62));
-        }
+  .vs-premium-row-card.is-resolved-gap {
+    border-color: rgba(34, 197, 94, 0.42);
+    background: linear-gradient(135deg, rgba(20, 83, 45, 0.28), rgba(15, 23, 42, 0.62));
+  }
 
-        .vs-premium-row-card .vs-responsive-row {
-          border: 0;
-          background: transparent;
-        }
-      `}</style>
+  .vs-premium-row-card .vs-responsive-row {
+    border: 0;
+    background: transparent;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
 
+  /* 🔥 CRITICAL FIXES FOR YOUR ISSUE */
+
+  .vs-premium-row-card,
+  .vs-premium-row-card * {
+    min-width: 0;
+  }
+
+  .vs-premium-row-card .vs-responsive-left {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .vs-premium-row-card .vs-row-title,
+  .vs-premium-row-card .vs-row-subtitle {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .vs-premium-row-card .vs-responsive-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-width: 100%;
+  }
+
+  .vs-premium-row-card .vs-meta-block {
+    min-width: 100px;
+    max-width: 100%;
+    flex: 1 1 120px;
+  }
+
+  .vs-premium-row-card .vs-meta-value {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+`}</style>
+      
       {error && !demoMode ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
 
