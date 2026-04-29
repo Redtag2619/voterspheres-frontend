@@ -329,14 +329,16 @@ function ActionRow({ item }) {
   return (
     <div className="vs-premium-row-card is-action">
       <ResponsiveRow
-      title={item.title}
-      subtitle={item.detail}
-      meta={[
-        { label: "Owner", value: item.owner },
-        { label: "Due", value: item.due }
-      ]}
+        title={item.title}
+        subtitle={item.detail}
+        meta={[
+          { label: "Owner", value: item.owner || "Command Team" },
+          { label: "State", value: item.state || "National" },
+          { label: "Due", value: item.due || "Today" },
+          { label: "Risk", value: item.risk || "Watch" }
+        ]}
         alert="vs-live-dot-success"
-        right={<Badge tone="accent">{item.due}</Badge>}
+        right={<Badge tone="accent">{item.due || "Today"}</Badge>}
       />
     </div>
   );
