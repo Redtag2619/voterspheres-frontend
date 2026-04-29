@@ -987,25 +987,25 @@ export default function CommandCenter() {
         }
 
         .vs-premium-row-card .vs-responsive-meta {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  max-width: 100%;
-}
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          max-width: 100%;
+        }
 
-.vs-premium-row-card .vs-meta-block {
-  min-width: 0;
-  max-width: 100%;
-}
+        .vs-premium-row-card .vs-meta-block {
+          min-width: 0;
+          max-width: 100%;
+        }
 
-.vs-premium-row-card .vs-meta-label,
-.vs-premium-row-card .vs-meta-value {
-  display: block;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+        .vs-premium-row-card .vs-meta-label,
+        .vs-premium-row-card .vs-meta-value {
+          display: block;
+          width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
 
         .vs-premium-row-card .vs-meta-block {
           min-width: 100px;
