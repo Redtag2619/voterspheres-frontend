@@ -230,8 +230,9 @@ function FeedRow({
   taskState = "idle"
 }) {
   const severity = String(item.severity || "").toLowerCase();
-  const taskCreated = taskState === "created" || taskState === "exists";
+  const taskCreated = ["created", "exists", "in_progress", "complete"].includes(taskState);
   const taskCreating = taskState === "creating";
+  const taskLabel = taskState === "complete" ? "Task Complete" : taskState === "in_progress" ? "In Progress" : taskState === "exists" ? "Task Exists" : "Task Created";
 
   return (
     <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
@@ -249,7 +250,7 @@ function FeedRow({
         right={
           <div className="vs-inline-actions">
             <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>
-            {taskCreated ? <Badge tone="active">{taskState === "exists" ? "Task Exists" : "Task Created"}</Badge> : null}
+            {taskCreated ? <Badge tone="active">{taskLabel}</Badge> : null}
             <button type="button" className="vs-button vs-button-secondary" onClick={onToggle}>
               {expanded ? "Collapse" : "Expand"}
             </button>
@@ -281,7 +282,7 @@ function FeedRow({
 
           <div className="vs-inline-actions" style={{ marginTop: 14 }}>
             {taskCreated ? (
-              <Badge tone="active">{taskState === "exists" ? "Task Exists" : "Task Created"}</Badge>
+              <Badge tone="active">{taskLabel}</Badge>
             ) : (
               <button
                 type="button"
@@ -397,7 +398,7 @@ export default function CommandCenter() {
 
     async function loadTasks() {
       try {
-        const response = await api.tasks?.({ limit: 25 });
+        const response = await api.tasks?.({ limit: 100 });
         if (!active) return;
         setExecutionTasks(response?.results || []);
       } catch {
@@ -538,7 +539,7 @@ export default function CommandCenter() {
     const payload = {
       title: action,
       description: context.detail || "Generated from the Command Center decision engine.",
-      source: "command_center",
+      source: context.source || "command_center",
       state: context.state || "National",
       office: context.office || "Statewide",
       priority,
@@ -679,42 +680,69 @@ export default function CommandCenter() {
     });
   }
 
+  function getStableFeedId(item = {}) {
+    return String(item.id || `${item.type || "signal"}-${item.time || "now"}-${item.title || "feed"}`);
+  }
+
   function findExistingFeedTask(item = {}) {
-    const feedId = String(item.id || "");
+    const feedId = getStableFeedId(item);
     const title = `Review signal: ${item.title || "Command Center signal"}`;
 
     return executionTasks.find((task) => {
       const taskFeedId = String(task?.metadata?.feed_id || "");
+      const taskSignalId = String(task?.metadata?.signal_id || "");
       const taskTitle = String(task?.title || "");
-      return (feedId && taskFeedId === feedId) || taskTitle === title;
+      return (
+        (feedId && (taskFeedId === feedId || taskSignalId === feedId)) ||
+        taskTitle === title
+      );
     });
   }
 
   function getFeedTaskState(item = {}) {
     const id = getFeedKey(item);
     if (feedTaskStates[id]) return feedTaskStates[id];
-    return findExistingFeedTask(item) ? "exists" : "idle";
+
+    const existingTask = findExistingFeedTask(item);
+    if (!existingTask) return "idle";
+
+    const status = String(existingTask.status || "open").toLowerCase();
+    if (status === "complete") return "complete";
+    if (status === "in_progress") return "in_progress";
+    return "exists";
   }
 
   async function createTaskFromFeed(item = {}) {
     const id = getFeedKey(item);
+    const feedId = getStableFeedId(item);
+    const existingTask = findExistingFeedTask(item);
 
-    if (findExistingFeedTask(item)) {
-      setFeedTaskStates((prev) => ({ ...prev, [id]: "exists" }));
+    if (existingTask) {
+      const status = String(existingTask.status || "open").toLowerCase();
+      setFeedTaskStates((prev) => ({
+        ...prev,
+        [id]: status === "complete" ? "complete" : status === "in_progress" ? "in_progress" : "exists"
+      }));
       return;
     }
 
     setFeedTaskStates((prev) => ({ ...prev, [id]: "creating" }));
 
-    await createExecutionTask(`Review signal: ${item.title || "Command Center signal"}`, {
-      source: "command_center",
+    const result = await createExecutionTask(`Review signal: ${item.title || "Command Center signal"}`, {
+      source: "command_center_feed",
       state: item.state || "National",
       office: item.office || "Statewide",
       risk: item.risk || "Watch",
       signal_type: item.type || "intelligence.signal",
-      feed_id: item.id || null,
+      feed_id: feedId,
+      signal_id: feedId,
       detail: item.detail || item.description || item.title || "Review this Command Center signal."
     });
+
+    if (result?.duplicate) {
+      setFeedTaskStates((prev) => ({ ...prev, [id]: "exists" }));
+      return;
+    }
 
     setFeedTaskStates((prev) => ({ ...prev, [id]: "created" }));
 
