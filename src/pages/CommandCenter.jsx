@@ -204,7 +204,85 @@ function BattlegroundRow({ row, active = false }) {
   );
 }
 
-function FeedRow({ item, live = false }) {
+function FeedRow({ item, live = false, expanded = false, onToggle }) {
+  const severity = String(item.severity || "").toLowerCase();
+
+  return (
+    <div
+      className={`vs-premium-row-card ${live ? "is-live" : ""} ${
+        severity === "high" || severity === "critical" ? "is-elevated" : ""
+      }`}
+    >
+      <ResponsiveRow
+        live={live}
+        title={item.title}
+        subtitle={`${item.source}${item.type ? ` • ${item.type}` : ""}`}
+        meta={[
+          { label: "Time", value: item.time || "Now" },
+          { label: "Severity", value: item.severity || "Info" },
+          { label: "State", value: item.state || "National" },
+          { label: "Office", value: item.office || "Statewide" }
+        ]}
+        alert={
+          severity === "high" || severity === "critical"
+            ? "vs-live-dot"
+            : "vs-live-dot-warning"
+        }
+        right={
+          <div className="vs-inline-actions">
+            <Badge tone={badgeToneFromSeverity(item.severity)}>
+              {item.severity}
+            </Badge>
+
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={onToggle}
+            >
+              {expanded ? "Collapse" : "Expand"}
+            </button>
+          </div>
+        }
+      />
+
+      {expanded && (
+        <div className="vs-feed-expanded">
+          <div className="vs-feed-expanded-title">Briefing Detail</div>
+
+          <div className="vs-feed-expanded-body">
+            {item.detail ||
+              item.description ||
+              item.title ||
+              "No additional detail available."}
+          </div>
+
+          <div className="vs-responsive-meta" style={{ marginTop: 12 }}>
+            <div className="vs-meta-block">
+              <div className="vs-meta-label">Signal Type</div>
+              <div className="vs-meta-value">
+                {item.type || "intelligence.signal"}
+              </div>
+            </div>
+
+            <div className="vs-meta-block">
+              <div className="vs-meta-label">Risk</div>
+              <div className="vs-meta-value">
+                {item.risk || "Watch"}
+              </div>
+            </div>
+
+            <div className="vs-meta-block">
+              <div className="vs-meta-label">Source</div>
+              <div className="vs-meta-value">
+                {item.source || "Command Center"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
   const severity = String(item.severity || "").toLowerCase();
 
   return (
