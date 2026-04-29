@@ -52,17 +52,17 @@ function ThreatRow({ item }) {
       title={item.title}
       subtitle={item.recommendation}
       meta={[
-        { label: "Severity", value: item.severity },
-        { label: "Source", value: item.source },
-        { label: "Velocity", value: item.velocity },
-        { label: "Risk", value: item.risk || "Watch" } // 👈 NEW (fix alignment)
+        { label: "Severity", value: item.severity || "Info" },
+        { label: "Source", value: item.source || "—" },
+        { label: "Velocity", value: item.velocity || "—" },
+        { label: "Risk", value: item.risk || "Watch" }
       ]}
       alert={
         String(item.severity || "").toLowerCase() === "high"
           ? "vs-live-dot"
           : "vs-live-dot-warning"
       }
-      right={<Badge tone={severityTone(item.severity)}>{item.severity}</Badge>}
+      right={<Badge tone={severityTone(item.severity)}>{item.severity || "Info"}</Badge>}
     />
   );
 }
@@ -73,11 +73,38 @@ function QueueRow({ item }) {
       title={item.item}
       subtitle={`Owner: ${item.owner}`}
       meta={[
-        { label: "Priority", value: item.priority },
-        { label: "ETA", value: item.eta }
+        { label: "Priority", value: item.priority || "—" },
+        { label: "Owner", value: item.owner || "—" },
+        { label: "ETA", value: item.eta || "—" },
+        { label: "Risk", value: item.risk || "Watch" }
       ]}
-      alert={String(item.priority || "").toLowerCase() === "p1" ? "vs-live-dot" : "vs-live-dot-warning"}
-      right={<Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>{item.priority}</Badge>}
+      alert={
+        String(item.priority || "").toLowerCase() === "p1"
+          ? "vs-live-dot"
+          : "vs-live-dot-warning"
+      }
+      right={
+        <Badge tone={String(item.priority || "").toLowerCase() === "p1" ? "danger" : "accent"}>
+          {item.priority || "P2"}
+        </Badge>
+      }
+    />
+  );
+}
+
+function SignalRow({ item }) {
+  return (
+    <ResponsiveRow
+      title={item.channel}
+      subtitle={item.text}
+      meta={[
+        { label: "Time", value: item.time || "Now" },
+        { label: "Channel", value: item.channel || "—" },
+        { label: "State", value: item.state || "National" },
+        { label: "Risk", value: item.risk || "Watch" }
+      ]}
+      alert="vs-live-dot-success"
+      right={<Badge tone="info">{item.channel || "Signal"}</Badge>}
     />
   );
 }
