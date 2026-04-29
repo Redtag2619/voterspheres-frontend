@@ -102,24 +102,6 @@ function matchesFilters(item, filters) {
 function isVendorDrivenPriority(item = {}) {
   const coverage = String(item.vendors?.coverage_status || "").toLowerCase();
   const actions = (item.recommended_actions || []).join(" ").toLowerCase();
-  
-  function getFeedKey(item) {
-  return String(item.id || `${item.time || "now"}-${item.title || "feed"}`);
-}
-
-function toggleFeed(id) {
-  setExpandedFeedIds((prev) => {
-    const next = new Set(prev);
-
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-
-    return next;
-  });
-}
 
   return (
     coverage === "gap" ||
@@ -249,7 +231,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
         right={
           <div className="vs-inline-actions">
             <Badge tone={badgeToneFromSeverity(item.severity)}>
-              {item.severity}
+              {item.severity || "Info"}
             </Badge>
 
             <button
@@ -263,7 +245,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
         }
       />
 
-      {expanded && (
+      {expanded ? (
         <div className="vs-feed-expanded">
           <div className="vs-feed-expanded-title">Briefing Detail</div>
 
@@ -284,9 +266,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
 
             <div className="vs-meta-block">
               <div className="vs-meta-label">Risk</div>
-              <div className="vs-meta-value">
-                {item.risk || "Watch"}
-              </div>
+              <div className="vs-meta-value">{item.risk || "Watch"}</div>
             </div>
 
             <div className="vs-meta-block">
@@ -297,7 +277,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle }) {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
