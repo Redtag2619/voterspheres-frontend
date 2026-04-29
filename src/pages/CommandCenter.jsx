@@ -1034,7 +1034,11 @@ export default function CommandCenter() {
         id="execution-board"
         className={focusedTaskId ? "vs-execution-board-focus" : ""}
       >
-        <ExecutionBoard tasks={executionTasks} onStatusChange={updateExecutionTaskStatus} />
+        <ExecutionBoard
+          tasks={executionTasks}
+          onStatusChange={updateExecutionTaskStatus}
+          highlightedTaskId={focusedTaskId}
+        />
       </div>
 
       <SectionCard
