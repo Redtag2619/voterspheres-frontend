@@ -30,7 +30,7 @@ export default function ResponsiveRow({
         style={{
           display: "grid",
           gridTemplateColumns: right ? "minmax(0, 1fr) auto" : "minmax(0, 1fr)",
-          gap: "14px",
+          gap: "16px",
           alignItems: "center",
           width: "100%",
           maxWidth: "100%",
@@ -90,12 +90,16 @@ export default function ResponsiveRow({
               className="vs-responsive-meta"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))",
-                gap: "10px",
+                gridTemplateColumns:
+                  meta.length >= 4
+                    ? "repeat(4, minmax(0, 1fr))"
+                    : `repeat(${meta.length}, minmax(0, 1fr))`,
+                gap: "12px",
                 width: "100%",
                 maxWidth: "100%",
                 minWidth: 0,
                 overflow: "hidden",
+                marginTop: "12px",
               }}
             >
               {meta.map((item, index) => (
@@ -106,20 +110,46 @@ export default function ResponsiveRow({
                     minWidth: 0,
                     maxWidth: "100%",
                     overflow: "hidden",
+                    paddingRight: index < meta.length - 1 ? "10px" : 0,
+                    borderRight:
+                      index < meta.length - 1
+                        ? "1px solid rgba(148, 163, 184, 0.12)"
+                        : "0",
                   }}
                 >
-                  <div className="vs-meta-label">{item.label}</div>
                   <div
-                    className="vs-meta-value"
+                    className="vs-meta-label"
                     style={{
+                      display: "block",
+                      width: "100%",
                       minWidth: 0,
-                      maxWidth: "100%",
-                      whiteSpace: "normal",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
                     }}
                   >
-                    {item.value}
+                    {item.label}
+                  </div>
+
+                  <div
+                    className="vs-meta-value"
+                    title={
+                      typeof item.value === "string" || typeof item.value === "number"
+                        ? String(item.value)
+                        : undefined
+                    }
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      minWidth: 0,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.value ?? "—"}
                   </div>
                 </div>
               ))}
