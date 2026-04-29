@@ -1143,30 +1143,31 @@ export default function CommandCenter() {
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the executive terminal.">
-          <div className="vs-stack">
-            {!demoMode && loading ? (
-              <EmptyState text="Loading command feed..." />
-            ) : !feed.length ? (
-              <EmptyState text="No live command feed items for the current filters." />
-            ) : (
-              feed.map((item) => {
-  const id = getFeedKey(item);
+       <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the executive terminal.">
+  <div className="vs-stack">
+    {!demoMode && loading ? (
+      <EmptyState text="Loading command feed..." />
+    ) : !feed.length ? (
+      <EmptyState text="No live command feed items for the current filters." />
+    ) : (
+      feed.map((item) => {
+        const id = getFeedKey(item);
 
-  return (
-    <FeedRow
-      key={id}
-      item={item}
-      live={liveFeedIds.includes(item.id)}
-      expanded={expandedFeedIds.has(id)}
-      onToggle={() => toggleFeed(id)}
-      onCreateTask={() => createTaskFromFeed(item)}
-    />
-  );
-})
-          </div>
-        </SectionCard>
-
+        return (
+          <FeedRow
+            key={id}
+            item={item}
+            live={liveFeedIds.includes(item.id)}
+            expanded={expandedFeedIds.has(id)}
+            onToggle={() => toggleFeed(id)}
+            onCreateTask={() => createTaskFromFeed(item)}
+          />
+        );
+      })
+    )}
+  </div>
+</SectionCard>
+        
         <SectionCard title="Executive Action Queue" subtitle="Highest-leverage next steps across active intelligence inputs.">
           <div className="vs-stack">
             {!demoMode && loading ? (
