@@ -18,16 +18,70 @@ const fallbackData = {
     { label: "Signal Confidence", value: "92%", delta: "+ live fusion", tone: "up" }
   ],
   threats: [
-    { id: 1, title: "Cost-of-living attack cluster accelerating in Atlanta media buy", severity: "High", source: "Ad monitoring", velocity: "+44%", recommendation: "Push affordability rebuttal package immediately.", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 2, title: "Education narrative gaining traction in local press", severity: "Medium", source: "Media monitoring", velocity: "+21%", recommendation: "Deploy validator-driven education contrast.", state: "Pennsylvania", office: "Senate", risk: "Watch" }
+    {
+      id: 1,
+      title: "Cost-of-living attack cluster accelerating in Atlanta media buy",
+      severity: "High",
+      source: "Ad monitoring",
+      velocity: "+44%",
+      recommendation: "Push affordability rebuttal package immediately.",
+      state: "Georgia",
+      office: "Senate",
+      risk: "Elevated"
+    },
+    {
+      id: 2,
+      title: "Education narrative gaining traction in local press",
+      severity: "Medium",
+      source: "Media monitoring",
+      velocity: "+21%",
+      recommendation: "Deploy validator-driven education contrast.",
+      state: "Pennsylvania",
+      office: "Senate",
+      risk: "Watch"
+    }
   ],
   queue: [
-    { id: 1, priority: "P1", owner: "Rapid Response", item: "Draft affordability contrast memo", eta: "30 min", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 2, priority: "P2", owner: "Comms", item: "Refresh surrogate talking points", eta: "2 hrs", state: "Pennsylvania", office: "Senate", risk: "Watch" }
+    {
+      id: 1,
+      priority: "P1",
+      owner: "Rapid Response",
+      item: "Draft affordability contrast memo",
+      eta: "30 min",
+      state: "Georgia",
+      office: "Senate",
+      risk: "Elevated"
+    },
+    {
+      id: 2,
+      priority: "P2",
+      owner: "Comms",
+      item: "Refresh surrogate talking points",
+      eta: "2 hrs",
+      state: "Pennsylvania",
+      office: "Senate",
+      risk: "Watch"
+    }
   ],
   signals: [
-    { id: 1, time: "09:14", channel: "Local TV", text: "Opposition narrative crossed persuadable voter threshold.", state: "Georgia", office: "Senate", risk: "Elevated" },
-    { id: 2, time: "09:26", channel: "Digital Monitoring", text: "Education attack language repeating across paid and organic channels.", state: "Pennsylvania", office: "Senate", risk: "Watch" }
+    {
+      id: 1,
+      time: "09:14",
+      channel: "Local TV",
+      text: "Opposition narrative crossed persuadable voter threshold.",
+      state: "Georgia",
+      office: "Senate",
+      risk: "Elevated"
+    },
+    {
+      id: 2,
+      time: "09:26",
+      channel: "Digital Monitoring",
+      text: "Education attack language repeating across paid and organic channels.",
+      state: "Pennsylvania",
+      office: "Senate",
+      risk: "Watch"
+    }
   ]
 };
 
@@ -71,7 +125,7 @@ function QueueRow({ item }) {
   return (
     <ResponsiveRow
       title={item.item}
-      subtitle={`Owner: ${item.owner}`}
+      subtitle={`Owner: ${item.owner || "Command Team"}`}
       meta={[
         { label: "Priority", value: item.priority || "—" },
         { label: "Owner", value: item.owner || "—" },
@@ -105,18 +159,6 @@ function SignalRow({ item }) {
       ]}
       alert="vs-live-dot-success"
       right={<Badge tone="info">{item.channel || "Signal"}</Badge>}
-    />
-  );
-}
-
-function SignalRow({ item }) {
-  return (
-    <ResponsiveRow
-      title={item.channel}
-      subtitle={item.text}
-      meta={[{ label: "Time", value: item.time }]}
-      alert="vs-live-dot-success"
-      right={<Badge tone="info">{item.channel}</Badge>}
     />
   );
 }
@@ -175,13 +217,26 @@ export default function AIWarRoom() {
 
   useEffect(() => {
     if (!liveBanner) return;
+
     const timer = setTimeout(() => setLiveBanner(""), 5000);
+
     return () => clearTimeout(timer);
   }, [liveBanner]);
 
-  const threats = useMemo(() => (data?.threats || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
-  const queue = useMemo(() => (data?.queue || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
-  const signals = useMemo(() => (data?.signals || []).filter((item) => matchesFilters(item, filters)), [data, filters]);
+  const threats = useMemo(
+    () => (data?.threats || []).filter((item) => matchesFilters(item, filters)),
+    [data, filters]
+  );
+
+  const queue = useMemo(
+    () => (data?.queue || []).filter((item) => matchesFilters(item, filters)),
+    [data, filters]
+  );
+
+  const signals = useMemo(
+    () => (data?.signals || []).filter((item) => matchesFilters(item, filters)),
+    [data, filters]
+  );
 
   const highThreats = threats.filter(
     (item) => String(item.severity || "").toLowerCase() === "high"
@@ -205,26 +260,56 @@ export default function AIWarRoom() {
 
       <div className="vs-grid-4">
         {(data?.metrics || []).map((metric, index) => (
-          <StatCard key={`${metric.label}-${index}`} label={metric.label} value={metric.value} delta={metric.delta} tone={metric.tone} />
+          <StatCard
+            key={`${metric.label}-${index}`}
+            label={metric.label}
+            value={metric.value}
+            delta={metric.delta}
+            tone={metric.tone}
+          />
         ))}
       </div>
 
-      <SectionCard title="Live Threat Board" subtitle="Highest-priority attacks and adverse narrative acceleration." right={<Badge tone="danger">{threats.length} threats</Badge>}>
+      <SectionCard
+        title="Live Threat Board"
+        subtitle="Highest-priority attacks and adverse narrative acceleration."
+        right={<Badge tone="danger">{threats.length} threats</Badge>}
+      >
         <div className="vs-stack">
-          {loading ? <EmptyState text="Loading threat board..." /> : !threats.length ? <EmptyState text="No active threats available for the current filters." /> : threats.map((item) => <ThreatRow key={item.id || item.title} item={item} />)}
+          {loading ? (
+            <EmptyState text="Loading threat board..." />
+          ) : !threats.length ? (
+            <EmptyState text="No active threats available for the current filters." />
+          ) : (
+            threats.map((item) => <ThreatRow key={item.id || item.title} item={item} />)
+          )}
         </div>
       </SectionCard>
 
       <div className="vs-grid-2">
         <SectionCard title="Response Queue" subtitle="Immediate tactical moves for the next cycle.">
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading response queue..." /> : !queue.length ? <EmptyState text="No response queue items available for the current filters." /> : queue.map((item) => <QueueRow key={item.id || item.item} item={item} />)}
+            {loading ? (
+              <EmptyState text="Loading response queue..." />
+            ) : !queue.length ? (
+              <EmptyState text="No response queue items available for the current filters." />
+            ) : (
+              queue.map((item) => <QueueRow key={item.id || item.item} item={item} />)
+            )}
           </div>
         </SectionCard>
 
         <SectionCard title="Signal Stream" subtitle="Cross-channel intelligence entering the terminal.">
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading signal stream..." /> : !signals.length ? <EmptyState text="No live signals available for the current filters." /> : signals.map((item) => <SignalRow key={item.id || `${item.time}-${item.channel}`} item={item} />)}
+            {loading ? (
+              <EmptyState text="Loading signal stream..." />
+            ) : !signals.length ? (
+              <EmptyState text="No live signals available for the current filters." />
+            ) : (
+              signals.map((item) => (
+                <SignalRow key={item.id || `${item.time}-${item.channel}`} item={item} />
+              ))
+            )}
           </div>
         </SectionCard>
       </div>
