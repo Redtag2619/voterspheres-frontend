@@ -225,7 +225,7 @@ function BattlegroundRow({ row, active = false }) {
       <ResponsiveRow
         active={active}
         title={row.race}
-        subtitle={`${row.state || "Statewide"} Ã¢â‚¬Â¢ ${row.office || "Race"}`}
+        subtitle={`${row.state || "Statewide"} â€¢ ${row.office || "Race"}`}
         meta={[
           { label: "Win Prob.", value: row.probability },
           { label: "Momentum", value: row.momentum },
@@ -249,7 +249,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask,
       <ResponsiveRow
         live={live}
         title={item.title}
-        subtitle={`${item.source}${item.type ? ` Ã¢â‚¬Â¢ ${item.type}` : ""}`}
+        subtitle={`${item.source}${item.type ? ` â€¢ ${item.type}` : ""}`}
         meta={[
           { label: "Time", value: item.time || "Now" },
           { label: "Severity", value: item.severity || "Info" },
@@ -348,12 +348,12 @@ function PriorityRow({ item, index }) {
   return (
     <div className={`vs-premium-row-card ${isUrgent ? "is-elevated" : ""}`}>
       <ResponsiveRow
-        title={`#${index + 1} ${item.state} Ã¢â‚¬â€ ${item.severity}`}
+        title={`#${index + 1} ${item.state} â€” ${item.severity}`}
         subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
         meta={[
           { label: "Score", value: item.priority_score },
           { label: "Receipts", value: formatMoney(item.finance?.receipts) },
-          { label: "Vendors", value: item.vendors?.coverage_status || "Ã¢â‚¬â€" },
+          { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
           { label: "Mail Risk", value: item.mailops?.mail_risks || 0 }
         ]}
         alert={isUrgent ? "vs-live-dot" : "vs-live-dot-warning"}
@@ -498,7 +498,7 @@ function ResolvedVendorRow({ gap }) {
         meta={[
           { label: "Task", value: gap.resolved_by_task_id ? `#${gap.resolved_by_task_id}` : "Completed" },
           { label: "State", value: gap.state || "National" },
-          { label: "Score", value: gap.coverage_score ?? "Ã¢â‚¬â€" },
+          { label: "Score", value: gap.coverage_score ?? "â€”" },
           { label: "Status", value: "Resolved" }
         ]}
         alert="vs-live-dot-success"
@@ -812,44 +812,6 @@ export default function CommandCenter() {
   });
 
   useRealtimeStream(null, (event) => {
-    const eventType = event?.type || event?.payload?.type || "";
-    const payload = event?.payload || {};
-
-    if (eventType === "task.created" && payload.task) {
-      setExecutionTasks((prev) => {
-        const exists = prev.some(
-          (item) => String(item.id || item.local_id) === String(payload.task.id)
-        );
-
-        if (exists) return prev;
-        return [payload.task, ...prev].slice(0, 100);
-      });
-
-      setLiveBanner(`Realtime task created: ${payload.task.title || "New execution task"}`);
-      return;
-    }
-
-    if (eventType === "task.updated" && payload.task) {
-      setExecutionTasks((prev) =>
-        prev.map((item) =>
-          String(item.id || item.local_id) === String(payload.task.id)
-            ? { ...item, ...payload.task }
-            : item
-        )
-      );
-
-      setLiveBanner(`Realtime task updated: ${payload.task.title || "Execution task"}`);
-      return;
-    }
-
-    if (eventType === "task.comment_created") {
-      setLiveBanner("Realtime task comment added");
-      return;
-    }
-
-    if (eventType === "task.activity_created") {
-      return;
-    }
     const alert = event?.payload?.alert || event?.payload?.event || null;
     if (!alert) return;
 
@@ -1456,8 +1418,8 @@ export default function CommandCenter() {
   return (
     <PageShell
       eyebrow="Executive Command Center"
-      title="Campaign control, race velocity, and strategic response in one operating view."
-      description="Monitor battleground pressure, fundraising movement, narrative threats, vendor gaps, MailOps risk, and next-best actions across one executive command surface."
+      title="Campaign control, race velocity, and strategic response."
+      description="Monitor battleground pressure, fundraising movement, narrative threats, vendor gaps, MailOps risk, and next-best actions in one command surface."
       demo={demoMode}
       demoText="Demo campaign is live: battleground movement, threat pressure, and execution signals are simulated for presentation."
       tickerItems={[
@@ -1770,7 +1732,7 @@ export default function CommandCenter() {
 
       <SectionCard
         title="Cross-Signal Priority Layer"
-        subtitle="Highest-pressure states ranked from fundraising, unresolved vendor coverage, MailOps risk, and executive feed signals."
+        subtitle="Highest-pressure states ranked by fundraising, vendor coverage, MailOps risk, and executive feed signals."
         right={<Badge tone="danger">{topPriorities.length} ranked</Badge>}
       >
         <div className="vs-grid-4" style={{ marginBottom: 16 }}>
@@ -1826,7 +1788,7 @@ export default function CommandCenter() {
       </SectionCard>
 
       <div className="vs-grid-2">
-        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the executive terminal.">
+        <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the command feed.">
           <div className="vs-stack">
             {!demoMode && loading ? (
               <EmptyState text="Loading command feed..." />
@@ -1855,7 +1817,7 @@ export default function CommandCenter() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Executive Action Queue" subtitle="Highest-leverage next steps across active intelligence inputs.">
+        <SectionCard title="Executive Action Queue" subtitle="Highest-leverage next steps from active intelligence inputs.">
           <div className="vs-stack">
             {!demoMode && loading ? (
               <EmptyState text="Loading action queue..." />
@@ -1870,3 +1832,4 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
