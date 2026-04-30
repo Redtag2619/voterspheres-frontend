@@ -204,16 +204,17 @@ function buildExecutiveDecision({ feed = [] }) {
   };
 }
 
-function AssigneeAvatar({ taskState, item, fallback = "WR" }) {
+function AssigneeAvatar({ taskState, item, fallback = "WR", onClick }) {
   const name = taskState?.assigned_to || item?.assigned_to || item?.owner || "War Room";
   const initials = taskState?.assignee_initials || item?.assignee_initials || initialsFromName(name) || fallback;
   const avatar = taskState?.assignee_avatar || item?.assignee_avatar || "";
+  const title = `Filter workload for ${name}`;
 
-  if (avatar) {
-    return <img className="vs-avatar" src={avatar} alt={`${name} avatar`} />;
-  }
-
-  return <div className="vs-avatar">{initials}</div>;
+  return (
+    <button type="button" className="vs-avatar-button" onClick={onClick} title={title}>
+      {avatar ? <img className="vs-avatar" src={avatar} alt={`${name} avatar`} /> : <span className="vs-avatar">{initials}</span>}
+    </button>
+  );
 }
 
 function BattlegroundRow({ row, active = false }) {
@@ -238,7 +239,7 @@ function BattlegroundRow({ row, active = false }) {
   );
 }
 
-function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask, onViewTask, taskState }) {
+function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask, onViewTask, onAssigneeClick, taskState }) {
   const severity = String(item.severity || "").toLowerCase();
   const hasTask = Boolean(taskState?.exists || taskState?.task_id);
   const status = taskState?.status || "open";
@@ -270,7 +271,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask,
       {expanded ? (
         <div className="vs-feed-expanded">
           <div className="vs-feed-expanded-header">
-            <AssigneeAvatar taskState={taskState} item={item} />
+            <AssigneeAvatar taskState={taskState} item={item} onClick={onAssigneeClick} />
             <div className="vs-feed-expanded-header-copy">
               <div className="vs-feed-expanded-title">Briefing Detail</div>
               <div className="vs-feed-expanded-owner">
@@ -362,6 +363,80 @@ function PriorityRow({ item, index }) {
   );
 }
 
+function taskMatchesAssignee(task = {}, assignee = null) {
+  if (!assignee) return true;
+
+  const taskUserId = String(task.assigned_to_user_id || "");
+  const taskEmail = String(task.assigned_to_email || "").toLowerCase();
+  const taskName = String(task.assigned_to || "Command Team").toLowerCase();
+
+  if (assignee.user_id && taskUserId && taskUserId === String(assignee.user_id)) return true;
+  if (assignee.email && taskEmail && taskEmail === String(assignee.email).toLowerCase()) return true;
+  return taskName === String(assignee.name || "Command Team").toLowerCase();
+}
+
+function UserWorkloadPanel({ assignee, tasks = [], onClear }) {
+  if (!assignee) return null;
+
+  const openTasks = tasks.filter((task) => String(task.status || "open").toLowerCase() !== "complete");
+  const completeTasks = tasks.filter((task) => String(task.status || "open").toLowerCase() === "complete");
+  const highTasks = tasks.filter((task) => ["high", "critical"].includes(String(task.priority || "").toLowerCase()));
+
+  return (
+    <SectionCard
+      title="User Workload"
+      subtitle="Filtered execution load for the selected feed owner."
+      right={
+        <button type="button" className="vs-button vs-button-secondary" onClick={onClear}>
+          Clear Filter
+        </button>
+      }
+    >
+      <div className="vs-workload-head">
+        <div className="vs-avatar-static">
+          {assignee.avatar ? <img className="vs-avatar" src={assignee.avatar} alt={`${assignee.name} avatar`} /> : <span className="vs-avatar">{assignee.initials || initialsFromName(assignee.name)}</span>}
+        </div>
+
+        <div className="vs-workload-copy">
+          <div className="vs-row-title">{assignee.name || "Command Team"}</div>
+          <div className="vs-row-subtitle">
+            {assignee.email || assignee.user_id || "Assigned workload across Command Center tasks"}
+          </div>
+        </div>
+      </div>
+
+      <div className="vs-grid-4" style={{ marginTop: 14 }}>
+        <StatCard label="Open" value={openTasks.length} delta="Needs action" tone={openTasks.length ? "down" : "up"} />
+        <StatCard label="High Priority" value={highTasks.length} delta="Escalation load" tone={highTasks.length ? "down" : "up"} />
+        <StatCard label="Complete" value={completeTasks.length} delta="Closed tasks" tone="up" />
+        <StatCard label="Total" value={tasks.length} delta="Assigned tasks" tone="neutral" />
+      </div>
+
+      <div className="vs-stack" style={{ marginTop: 16 }}>
+        {!tasks.length ? (
+          <EmptyState text="No tasks assigned to this user yet." />
+        ) : (
+          tasks.slice(0, 6).map((task) => (
+            <div key={task.id || task.local_id || task.title} className="vs-card-muted">
+              <ResponsiveRow
+                title={task.title}
+                subtitle={task.description || "Assigned execution task."}
+                meta={[
+                  { label: "Status", value: task.status || "open" },
+                  { label: "Priority", value: task.priority || "medium" },
+                  { label: "State", value: task.state || "National" },
+                  { label: "Due", value: task.due_label || "Today" }
+                ]}
+                right={<Badge tone={statusTone(task.status)}>{task.status || "open"}</Badge>}
+              />
+            </div>
+          ))
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
 function ResolvedVendorRow({ gap }) {
   return (
     <div className="vs-premium-row-card is-resolved-gap">
@@ -397,6 +472,7 @@ export default function CommandCenter() {
   const [expandedFeedIds, setExpandedFeedIds] = useState(() => new Set());
   const [feedTaskState, setFeedTaskState] = useState({});
   const [focusedTaskId, setFocusedTaskId] = useState(null);
+  const [selectedAssignee, setSelectedAssignee] = useState(null);
 
   const executionBoardRef = useRef(null);
   const autoVendorTaskIds = useRef(new Set());
@@ -1010,6 +1086,29 @@ export default function CommandCenter() {
     ];
   }, [effectiveCrossSignal, vendorIntel]);
 
+  const workloadTasks = useMemo(
+    () => executionTasks.filter((task) => taskMatchesAssignee(task, selectedAssignee)),
+    [executionTasks, selectedAssignee]
+  );
+
+  function selectAssigneeFromFeed(item = {}, taskState = null) {
+    const name = taskState?.assigned_to || item.assigned_to || item.owner || "War Room";
+
+    setSelectedAssignee({
+      name,
+      user_id: taskState?.assigned_to_user_id || item.assigned_to_user_id || "",
+      email: taskState?.assigned_to_email || item.assigned_to_email || "",
+      avatar: taskState?.assignee_avatar || item.assignee_avatar || "",
+      initials: taskState?.assignee_initials || item.assignee_initials || initialsFromName(name)
+    });
+
+    setLiveBanner(`Filtered workload for ${name}`);
+
+    setTimeout(() => {
+      executionBoardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+  }
+
   function toggleFeed(id) {
     setExpandedFeedIds((prev) => {
       const next = new Set(prev);
@@ -1239,6 +1338,35 @@ export default function CommandCenter() {
           flex: 0 0 auto;
         }
 
+
+        .vs-avatar-button,
+        .vs-avatar-static {
+          appearance: none;
+          border: 0;
+          padding: 0;
+          margin: 0;
+          background: transparent;
+          border-radius: 999px;
+          display: inline-grid;
+          place-items: center;
+          cursor: pointer;
+          flex: 0 0 auto;
+        }
+
+        .vs-avatar-button:hover .vs-avatar {
+          transform: translateY(-1px) scale(1.03);
+          box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.32), 0 12px 28px rgba(2, 6, 23, 0.3);
+        }
+
+        .vs-workload-head {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .vs-workload-copy {
+          min-width: 0;
+        }
         @keyframes vsFeedExpand {
           from {
             opacity: 0;
@@ -1293,11 +1421,17 @@ export default function CommandCenter() {
 
       <div ref={executionBoardRef}>
         <ExecutionBoard
-          tasks={executionTasks}
+          tasks={selectedAssignee ? workloadTasks : executionTasks}
           onStatusChange={updateExecutionTaskStatus}
           focusedTaskId={focusedTaskId}
         />
       </div>
+
+      <UserWorkloadPanel
+        assignee={selectedAssignee}
+        tasks={workloadTasks}
+        onClear={() => setSelectedAssignee(null)}
+      />
 
       <SectionCard
         title="Cross-Signal Priority Layer"
@@ -1378,6 +1512,7 @@ export default function CommandCenter() {
                     onToggle={() => toggleFeed(id)}
                     onCreateTask={() => createTaskFromFeed(item)}
                     onViewTask={() => viewTaskFromFeed(item)}
+                    onAssigneeClick={() => selectAssigneeFromFeed(item, taskState)}
                   />
                 );
               })
