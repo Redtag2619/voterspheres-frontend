@@ -508,6 +508,146 @@ function ResolvedVendorRow({ gap }) {
   );
 }
 
+
+function assigneeKeyFromTask(task = {}) {
+  return (
+    String(task.assigned_to_user_id || "") ||
+    String(task.assigned_to_email || "") ||
+    String(task.assigned_to || "Command Team")
+  ).toLowerCase();
+}
+
+function buildAssigneeProfiles(tasks = []) {
+  const map = new Map();
+
+  for (const task of tasks) {
+    const name = task.assigned_to || "Command Team";
+    const key = assigneeKeyFromTask(task);
+    const isOpen = String(task.status || "open").toLowerCase() !== "complete";
+    const isHigh = ["high", "critical"].includes(String(task.priority || "").toLowerCase());
+
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name,
+        user_id: task.assigned_to_user_id || "",
+        email: task.assigned_to_email || "",
+        avatar: task.assignee_avatar || "",
+        initials: task.assignee_initials || initialsFromName(name),
+        open_count: 0,
+        high_count: 0,
+        complete_count: 0,
+        total_count: 0
+      });
+    }
+
+    const profile = map.get(key);
+    profile.total_count += 1;
+    if (isOpen) profile.open_count += 1;
+    else profile.complete_count += 1;
+    if (isOpen && isHigh) profile.high_count += 1;
+  }
+
+  return Array.from(map.values()).map((profile) => ({
+    ...profile,
+    pressure: workloadPressure(profile.open_count, profile.high_count)
+  }));
+}
+
+function selectedAssigneeKey(assignee = null) {
+  if (!assignee) return "";
+  return String(assignee.user_id || assignee.email || assignee.name || "").toLowerCase();
+}
+
+function buildReassignmentSuggestions(tasks = [], selectedAssignee = null) {
+  const profiles = buildAssigneeProfiles(tasks);
+  const selectedKey = selectedAssigneeKey(selectedAssignee);
+
+  const overloaded = profiles
+    .filter((profile) => ["overloaded", "pressure"].includes(profile.pressure.key))
+    .filter((profile) => !selectedKey || profile.key === selectedKey)
+    .sort((a, b) => b.open_count - a.open_count || b.high_count - a.high_count);
+
+  const capacity = profiles
+    .filter((profile) => profile.pressure.key === "balanced")
+    .sort((a, b) => a.open_count - b.open_count || a.high_count - b.high_count);
+
+  if (!overloaded.length || !capacity.length) return [];
+
+  const suggestions = [];
+
+  for (const from of overloaded) {
+    const sourceTasks = tasks
+      .filter((task) => {
+        const taskKey = assigneeKeyFromTask(task);
+        const isOpen = String(task.status || "open").toLowerCase() !== "complete";
+        return taskKey === from.key && isOpen;
+      })
+      .sort((a, b) => {
+        const aHigh = ["high", "critical"].includes(String(a.priority || "").toLowerCase()) ? 1 : 0;
+        const bHigh = ["high", "critical"].includes(String(b.priority || "").toLowerCase()) ? 1 : 0;
+        return bHigh - aHigh;
+      });
+
+    const to = capacity.find((candidate) => candidate.key !== from.key);
+    if (!to) continue;
+
+    for (const task of sourceTasks.slice(0, 2)) {
+      suggestions.push({
+        id: `${task.id || task.local_id || task.title}-${from.key}-${to.key}`,
+        task,
+        from,
+        to,
+        reason:
+          from.pressure.key === "overloaded"
+            ? `${from.name} is overloaded; ${to.name} has available capacity.`
+            : `${from.name} is approaching capacity; ${to.name} can absorb this task.`
+      });
+    }
+  }
+
+  return suggestions.slice(0, 4);
+}
+
+function ReassignmentSuggestionsPanel({ suggestions = [], onApply }) {
+  if (!suggestions.length) return null;
+
+  return (
+    <SectionCard
+      title="AI Reassignment Suggestions"
+      subtitle="Recommended task moves based on workload pressure, priority, and available team capacity."
+      right={<Badge tone="info">{suggestions.length} suggested</Badge>}
+    >
+      <div className="vs-stack">
+        {suggestions.map((suggestion) => (
+          <div key={suggestion.id} className="vs-card-muted vs-ai-reassign-card">
+            <ResponsiveRow
+              title={suggestion.task.title}
+              subtitle={suggestion.reason}
+              meta={[
+                { label: "From", value: suggestion.from.name },
+                { label: "To", value: suggestion.to.name },
+                { label: "Priority", value: suggestion.task.priority || "medium" },
+                { label: "State", value: suggestion.task.state || "National" }
+              ]}
+              alert="vs-live-dot-warning"
+              right={
+                <button
+                  type="button"
+                  className="vs-decision-btn deploy"
+                  onClick={() => onApply?.(suggestion)}
+                >
+                  Reassign
+                </button>
+              }
+            />
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 export default function CommandCenter() {
   const fetcher = useCallback(() => api.commandCenter(), []);
   const { data, loading, error, setData } = useApiResource(fetcher, fallbackData);
@@ -525,6 +665,7 @@ export default function CommandCenter() {
   const [feedTaskState, setFeedTaskState] = useState({});
   const [focusedTaskId, setFocusedTaskId] = useState(null);
   const [selectedAssignee, setSelectedAssignee] = useState(null);
+  const [reassignmentMessage, setReassignmentMessage] = useState("");
 
   const executionBoardRef = useRef(null);
   const autoVendorTaskIds = useRef(new Set());
@@ -1143,6 +1284,46 @@ export default function CommandCenter() {
     [executionTasks, selectedAssignee]
   );
 
+  const reassignmentSuggestions = useMemo(
+    () => buildReassignmentSuggestions(executionTasks, selectedAssignee),
+    [executionTasks, selectedAssignee]
+  );
+
+  async function applyReassignmentSuggestion(suggestion) {
+    if (!suggestion?.task || !suggestion?.to) return;
+
+    const taskId = suggestion.task.id || suggestion.task.local_id;
+    const patch = {
+      assigned_to: suggestion.to.name,
+      assigned_to_user_id: suggestion.to.user_id || "",
+      assigned_to_email: suggestion.to.email || "",
+      assignee_avatar: suggestion.to.avatar || "",
+      assignee_initials: suggestion.to.initials || initialsFromName(suggestion.to.name)
+    };
+
+    setExecutionTasks((prev) =>
+      prev.map((task) =>
+        String(task.id || task.local_id) === String(taskId)
+          ? { ...task, ...patch }
+          : task
+      )
+    );
+
+    try {
+      if (taskId && !String(taskId).startsWith("local-task")) {
+        await api.updateTask?.(taskId, patch);
+      }
+
+      await loadTasks();
+      setReassignmentMessage(
+        `Reassigned "${suggestion.task.title}" from ${suggestion.from.name} to ${suggestion.to.name}.`
+      );
+      setLiveBanner(`AI reassignment applied: ${suggestion.to.name} now owns the task.`);
+    } catch {
+      setReassignmentMessage("Reassignment saved locally, but backend update failed.");
+    }
+  }
+
   function selectAssigneeFromFeed(item = {}, taskState = null) {
     const name = taskState?.assigned_to || item.assigned_to || item.owner || "War Room";
 
@@ -1466,6 +1647,11 @@ export default function CommandCenter() {
           color: rgba(226, 232, 240, 0.7);
         }
 
+        .vs-ai-reassign-card {
+          border-color: rgba(96, 165, 250, 0.24);
+          background: linear-gradient(135deg, rgba(30, 64, 175, 0.14), rgba(15, 23, 42, 0.58));
+        }
+
         @keyframes vsWorkloadPressurePulse {
           0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.44); }
           70% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); }
@@ -1486,6 +1672,7 @@ export default function CommandCenter() {
 
       {error && !demoMode ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner vs-live-banner-pulse">{liveBanner}</div> : null}
+      {reassignmentMessage ? <div className="vs-banner">{reassignmentMessage}</div> : null}
 
       <DemoOnboarding />
       <LiveActivityStream onSignal={handleDemoSignal} />
@@ -1536,6 +1723,11 @@ export default function CommandCenter() {
         assignee={selectedAssignee}
         tasks={workloadTasks}
         onClear={() => setSelectedAssignee(null)}
+      />
+
+      <ReassignmentSuggestionsPanel
+        suggestions={reassignmentSuggestions}
+        onApply={applyReassignmentSuggestion}
       />
 
       <SectionCard
