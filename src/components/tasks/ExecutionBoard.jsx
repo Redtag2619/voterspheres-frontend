@@ -18,6 +18,7 @@ function priorityTone(priority) {
 
 function isSameTask(task, focusedTaskId) {
   if (!focusedTaskId) return false;
+
   return (
     String(task.id || "") === String(focusedTaskId) ||
     String(task.local_id || "") === String(focusedTaskId)
@@ -30,27 +31,35 @@ function getTaskId(task) {
 
 function normalizeStatus(status) {
   const value = String(status || "").toLowerCase();
+
   if (["complete", "completed", "done"].includes(value)) return "complete";
   if (["in_progress", "in progress", "started", "active"].includes(value)) return "in_progress";
   if (["blocked", "paused", "hold"].includes(value)) return "blocked";
+
   return "open";
 }
 
 function formatStatusLabel(status) {
   const value = normalizeStatus(status);
+
   if (value === "in_progress") return "In Progress";
   if (value === "complete") return "Complete";
   if (value === "blocked") return "Blocked";
+
   return "Open";
 }
 
 function hoursOld(task) {
-  const raw = task.updated_at || task.created_at || task.createdAt || task.created_at;
-  const date = raw ? new Date(raw) : null;
+  const raw = task.updated_at || task.created_at || task.createdAt;
 
-  if (!date || Number.isNaN(date.getTime())) return 0;
+  if (!raw) return 0;
+
+  const date = new Date(raw);
+
+  if (Number.isNaN(date.getTime())) return 0;
 
   const diffMs = Date.now() - date.getTime();
+
   return Math.max(0, diffMs / 36e5);
 }
 
@@ -124,12 +133,7 @@ function TaskAvatar({ task }) {
   return <div className="vs-task-avatar">{initials}</div>;
 }
 
-function TaskCard({
-  task,
-  isFocused,
-  onStatusChange,
-  onDragStart
-}) {
+function TaskCard({ task, isFocused, onStatusChange, onDragStart }) {
   const sla = slaInfo(task);
 
   return (
@@ -276,14 +280,18 @@ export default function ExecutionBoard({
 
   function handleDragStart(event, task) {
     const id = getTaskId(task);
+
     setDraggingTaskId(id);
+
     event.dataTransfer.setData("text/plain", id);
     event.dataTransfer.effectAllowed = "move";
   }
 
   function handleDragOver(event, laneId) {
     event.preventDefault();
+
     setDragOverLane(laneId);
+
     event.dataTransfer.dropEffect = "move";
   }
 
@@ -379,13 +387,17 @@ export default function ExecutionBoard({
       <style>{`
         .vs-execution-lanes {
           display: grid;
-          grid-template-columns: repeat(4, minmax(240px, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 14px;
-          align-items: start;
+          align-items: stretch;
         }
 
         .vs-execution-lane {
-          min-height: 220px;
+          min-height: 260px;
+          height: 100%;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 18px;
           background: rgba(15, 23, 42, 0.42);
@@ -400,6 +412,7 @@ export default function ExecutionBoard({
         }
 
         .vs-execution-lane-head {
+          min-height: 58px;
           display: flex;
           justify-content: space-between;
           gap: 10px;
@@ -419,8 +432,10 @@ export default function ExecutionBoard({
         }
 
         .vs-execution-lane-stack {
+          flex: 1;
           display: grid;
           gap: 12px;
+          align-content: start;
         }
 
         .vs-execution-lane-empty {
@@ -434,6 +449,7 @@ export default function ExecutionBoard({
         }
 
         .vs-task-card {
+          min-width: 0;
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 16px;
           background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.54));
@@ -523,7 +539,7 @@ export default function ExecutionBoard({
 
         @media (max-width: 1180px) {
           .vs-execution-lanes {
-            grid-template-columns: repeat(2, minmax(240px, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
