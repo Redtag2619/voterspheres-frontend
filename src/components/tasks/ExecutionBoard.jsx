@@ -107,18 +107,15 @@ function slaInfo(task) {
   };
 }
 
-function initialsFor(taskOrName) {
-  const name =
-    typeof taskOrName === "string"
-      ? taskOrName
-      : taskOrName?.assignee_initials ||
-        taskOrName?.assigned_to ||
-        taskOrName?.created_by ||
-        "Command Team";
-
-  if (typeof taskOrName !== "string" && taskOrName?.assignee_initials) {
-    return taskOrName.assignee_initials;
+function initialsFor(value) {
+  if (typeof value !== "string" && value?.assignee_initials) {
+    return value.assignee_initials;
   }
+
+  const name =
+    typeof value === "string"
+      ? value
+      : value?.assigned_to || value?.created_by || "Command Team";
 
   return (
     String(name || "Command Team")
@@ -130,57 +127,254 @@ function initialsFor(taskOrName) {
   );
 }
 
-function commentAuthor(task) {
-  return task?.assigned_to || task?.created_by || "Command Team";
-}
-
-function TaskAvatar({ task, onClick }) {
+function TaskAvatar({ task }) {
   if (task?.assignee_avatar) {
     return (
-      <button type="button" className="vs-task-avatar-button" onClick={onClick}>
-        <img
-          src={task.assignee_avatar}
-          alt={task.assigned_to || "Assignee"}
-          className="vs-task-avatar"
-        />
-      </button>
+      <img
+        src={task.assignee_avatar}
+        alt={task.assigned_to || "Assignee"}
+        className="vs-task-avatar"
+      />
     );
   }
 
+  return <div className="vs-task-avatar">{initialsFor(task)}</div>;
+}
+
+function DetailRow({ label, value }) {
   return (
-    <button type="button" className="vs-task-avatar-button" onClick={onClick}>
-      <div className="vs-task-avatar">{initialsFor(task)}</div>
-    </button>
+    <div className="vs-detail-row">
+      <div className="vs-meta-label">{label}</div>
+      <div className="vs-detail-value">{value || "—"}</div>
+    </div>
   );
 }
 
-function TaskCard({ task, isFocused, isSelected, onStatusChange, onDragStart, onOpen }) {
+function CommentItem({ comment }) {
+  return (
+    <div className="vs-comment-item">
+      <div className="vs-comment-avatar">{comment.initials || initialsFor(comment.author)}</div>
+      <div className="vs-comment-body">
+        <div className="vs-comment-head">
+          <span className="vs-comment-author">{comment.author || "Command Team"}</span>
+          <span className="vs-comment-time">{comment.created_at || "Now"}</span>
+        </div>
+        <div className="vs-comment-text">{comment.text}</div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityItem({ title, subtitle, initials = "VS", tone = "default" }) {
+  return (
+    <div className="vs-activity-item">
+      <span className={`vs-activity-dot ${tone === "danger" ? "is-danger" : ""}`} />
+      <div>
+        <div className="vs-activity-title">{title}</div>
+        <div className="vs-activity-subtitle">{subtitle}</div>
+      </div>
+      <div className="vs-activity-avatar">{initials}</div>
+    </div>
+  );
+}
+
+function TaskExpandedPanel({
+  task,
+  comments = [],
+  onAddComment,
+  onStatusChange
+}) {
+  const [assigneeName, setAssigneeName] = useState(task?.assigned_to || "");
+  const [commentText, setCommentText] = useState("");
+  const sla = slaInfo(task);
+
+  useEffect(() => {
+    setAssigneeName(task?.assigned_to || "");
+    setCommentText("");
+  }, [task]);
+
+  function updateAssignee() {
+    const value = assigneeName.trim();
+    if (!value) return;
+
+    onStatusChange?.(task, normalizeStatus(task.status), {
+      assigned_to: value,
+      assignee_initials: initialsFor(value)
+    });
+  }
+
+  function submitComment(event) {
+    event.preventDefault();
+
+    const value = commentText.trim();
+    if (!value) return;
+
+    onAddComment?.(task, {
+      id: `comment-${Date.now()}`,
+      text: value,
+      author: task?.assigned_to || task?.created_by || "Command Team",
+      initials: initialsFor(task?.assigned_to || task?.created_by || "Command Team"),
+      created_at: nowLabel()
+    });
+
+    setCommentText("");
+  }
+
+  const timelineItems = [
+    {
+      title: "Task created",
+      subtitle: formatDateTime(task.created_at),
+      initials: initialsFor(task.created_by || "VS")
+    },
+    {
+      title: `Status: ${formatStatusLabel(task.status)}`,
+      subtitle: `Last updated ${formatDateTime(task.updated_at)}`,
+      initials: initialsFor(task.assigned_to || "CT"),
+      tone: normalizeStatus(task.status) === "blocked" ? "danger" : "default"
+    },
+    ...(task.metadata?.feed_id
+      ? [{ title: "Created from feed signal", subtitle: task.metadata.feed_id, initials: "FI" }]
+      : []),
+    ...(task.metadata?.vendor_action_id
+      ? [{ title: "Connected to vendor action", subtitle: task.metadata.vendor_action_id, initials: "VI" }]
+      : []),
+    ...comments.map((comment) => ({
+      title: `Comment by ${comment.author || "Command Team"}`,
+      subtitle: `${comment.created_at || "Now"} • ${comment.text}`,
+      initials: comment.initials || initialsFor(comment.author)
+    }))
+  ];
+
+  return (
+    <div className="vs-task-expanded">
+      <div className="vs-task-expanded-section">
+        <div className="vs-task-expanded-title">Full Detail</div>
+        <div className="vs-task-expanded-description">
+          {task.description || "No task description available."}
+        </div>
+      </div>
+
+      <div className="vs-detail-grid">
+        <DetailRow label="Owner" value={task.assigned_to || "Command Team"} />
+        <DetailRow label="State" value={task.state || "National"} />
+        <DetailRow label="Office" value={task.office || "Statewide"} />
+        <DetailRow label="Due" value={task.due_label || "Now"} />
+        <DetailRow label="Age" value={sla.detail} />
+        <DetailRow label="Source" value={task.source || "command_center"} />
+        <DetailRow label="Created" value={formatDateTime(task.created_at)} />
+        <DetailRow label="Updated" value={formatDateTime(task.updated_at)} />
+      </div>
+
+      <div className="vs-task-expanded-section">
+        <div className="vs-task-expanded-title">Reassign Owner</div>
+        <div className="vs-drawer-reassign">
+          <input
+            className="vs-input"
+            value={assigneeName}
+            onChange={(event) => setAssigneeName(event.target.value)}
+            placeholder="Assign to..."
+          />
+          <button type="button" className="vs-button" onClick={updateAssignee}>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <div className="vs-task-expanded-section">
+        <div className="vs-task-expanded-title">Status Controls</div>
+        <div className="vs-inline-actions">
+          <button type="button" className="vs-button vs-button-secondary" onClick={() => onStatusChange?.(task, "open")}>
+            Open
+          </button>
+          <button type="button" className="vs-button vs-button-secondary" onClick={() => onStatusChange?.(task, "in_progress")}>
+            Start
+          </button>
+          <button type="button" className="vs-button vs-button-secondary" onClick={() => onStatusChange?.(task, "blocked")}>
+            Block
+          </button>
+          <button type="button" className="vs-button" onClick={() => onStatusChange?.(task, "complete")}>
+            Complete
+          </button>
+        </div>
+      </div>
+
+      <div className="vs-task-expanded-section">
+        <div className="vs-task-expanded-title">Comments</div>
+
+        <form className="vs-comment-form" onSubmit={submitComment}>
+          <textarea
+            className="vs-comment-input"
+            value={commentText}
+            onChange={(event) => setCommentText(event.target.value)}
+            placeholder="Add an internal note, update, or handoff..."
+            rows={3}
+          />
+          <div className="vs-comment-actions">
+            <span>{comments.length} comment{comments.length === 1 ? "" : "s"}</span>
+            <button type="submit" className="vs-button" disabled={!commentText.trim()}>
+              Add Comment
+            </button>
+          </div>
+        </form>
+
+        <div className="vs-comment-list">
+          {!comments.length ? (
+            <div className="vs-empty-mini">No comments yet.</div>
+          ) : (
+            comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
+          )}
+        </div>
+      </div>
+
+      <div className="vs-task-expanded-section">
+        <div className="vs-task-expanded-title">Activity History</div>
+        <div className="vs-activity-list">
+          {timelineItems.map((item, index) => (
+            <ActivityItem
+              key={`${item.title}-${index}`}
+              title={item.title}
+              subtitle={item.subtitle}
+              initials={item.initials}
+              tone={item.tone}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskCard({
+  task,
+  isFocused,
+  isExpanded,
+  comments = [],
+  onAddComment,
+  onStatusChange,
+  onDragStart,
+  onToggle
+}) {
   const sla = slaInfo(task);
 
   return (
     <div
       draggable
       onDragStart={(event) => onDragStart(event, task)}
-      onClick={() => onOpen(task)}
-      className={`vs-task-card ${isFocused ? "vs-task-focus-pulse" : ""} ${isSelected ? "is-selected" : ""}`}
+      className={`vs-task-card ${isFocused ? "vs-task-focus-pulse" : ""} ${isExpanded ? "is-expanded" : ""}`}
       style={{
-        border: isFocused || isSelected ? "1px solid rgba(34,197,94,0.62)" : undefined
+        border: isFocused || isExpanded ? "1px solid rgba(34,197,94,0.62)" : undefined
       }}
     >
-      <div className="vs-task-card-head">
-        <TaskAvatar
-          task={task}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen(task);
-          }}
-        />
-
+      <div className="vs-task-card-top" onClick={() => onToggle(task)}>
         <div className="vs-task-card-title-wrap">
           <div className="vs-task-card-title">{task.title}</div>
           <div className="vs-task-card-subtitle">
             {task.description || "Execution task generated from Command Center."}
           </div>
+        </div>
+
+        <div className="vs-task-card-avatar-wrap">
+          <TaskAvatar task={task} />
         </div>
       </div>
 
@@ -218,14 +412,13 @@ function TaskCard({ task, isFocused, isSelected, onStatusChange, onDragStart, on
         <Badge tone={sla.tone}>{sla.label}</Badge>
       </div>
 
-      <div className="vs-task-card-actions" onClick={(event) => event.stopPropagation()}>
+      <div className="vs-task-card-actions">
         <button
           type="button"
           className="vs-button vs-button-secondary"
-          onClick={() => onStatusChange?.(task, "in_progress")}
-          disabled={normalizeStatus(task.status) === "in_progress"}
+          onClick={() => onToggle(task)}
         >
-          Start
+          {isExpanded ? "Collapse" : "Details"}
         </button>
 
         <button
@@ -246,263 +439,16 @@ function TaskCard({ task, isFocused, isSelected, onStatusChange, onDragStart, on
           Complete
         </button>
       </div>
+
+      {isExpanded ? (
+        <TaskExpandedPanel
+          task={task}
+          comments={comments}
+          onAddComment={onAddComment}
+          onStatusChange={onStatusChange}
+        />
+      ) : null}
     </div>
-  );
-}
-
-function DetailRow({ label, value }) {
-  return (
-    <div className="vs-detail-row">
-      <div className="vs-meta-label">{label}</div>
-      <div className="vs-detail-value">{value || "—"}</div>
-    </div>
-  );
-}
-
-function ActivityItem({ title, subtitle, initials = "VS", tone = "default" }) {
-  return (
-    <div className="vs-activity-item">
-      <span className={`vs-activity-dot ${tone === "danger" ? "is-danger" : ""}`} />
-      <div>
-        <div className="vs-activity-title">{title}</div>
-        <div className="vs-activity-subtitle">{subtitle}</div>
-      </div>
-      <div className="vs-activity-avatar">{initials}</div>
-    </div>
-  );
-}
-
-function CommentItem({ comment }) {
-  return (
-    <div className="vs-comment-item">
-      <div className="vs-comment-avatar">{comment.initials || initialsFor(comment.author)}</div>
-      <div className="vs-comment-body">
-        <div className="vs-comment-head">
-          <span className="vs-comment-author">{comment.author || "Command Team"}</span>
-          <span className="vs-comment-time">{comment.created_at || "Now"}</span>
-        </div>
-        <div className="vs-comment-text">{comment.text}</div>
-      </div>
-    </div>
-  );
-}
-
-function TaskDetailDrawer({
-  task,
-  comments = [],
-  onAddComment,
-  onClose,
-  onStatusChange
-}) {
-  const [assigneeName, setAssigneeName] = useState(task?.assigned_to || "");
-  const [commentText, setCommentText] = useState("");
-  const sla = slaInfo(task);
-
-  useEffect(() => {
-    setAssigneeName(task?.assigned_to || "");
-    setCommentText("");
-  }, [task]);
-
-  if (!task) return null;
-
-  function updateAssignee() {
-    const value = assigneeName.trim();
-    if (!value) return;
-
-    onStatusChange?.(task, normalizeStatus(task.status), {
-      assigned_to: value,
-      assignee_initials: initialsFor(value)
-    });
-  }
-
-  function submitComment(event) {
-    event.preventDefault();
-
-    const value = commentText.trim();
-    if (!value) return;
-
-    onAddComment?.(task, {
-      id: `comment-${Date.now()}`,
-      text: value,
-      author: commentAuthor(task),
-      initials: initialsFor(commentAuthor(task)),
-      created_at: nowLabel()
-    });
-
-    setCommentText("");
-  }
-
-  const timelineItems = [
-    {
-      title: "Task created",
-      subtitle: formatDateTime(task.created_at),
-      initials: initialsFor(task.created_by || "VS")
-    },
-    {
-      title: `Status: ${formatStatusLabel(task.status)}`,
-      subtitle: `Last updated ${formatDateTime(task.updated_at)}`,
-      initials: initialsFor(task.assigned_to || "CT"),
-      tone: normalizeStatus(task.status) === "blocked" ? "danger" : "default"
-    },
-    ...(task.metadata?.feed_id
-      ? [
-          {
-            title: "Created from feed signal",
-            subtitle: task.metadata.feed_id,
-            initials: "FI"
-          }
-        ]
-      : []),
-    ...(task.metadata?.vendor_action_id
-      ? [
-          {
-            title: "Connected to vendor action",
-            subtitle: task.metadata.vendor_action_id,
-            initials: "VI"
-          }
-        ]
-      : []),
-    ...comments.map((comment) => ({
-      title: `Comment by ${comment.author || "Command Team"}`,
-      subtitle: `${comment.created_at || "Now"} • ${comment.text}`,
-      initials: comment.initials || initialsFor(comment.author)
-    }))
-  ];
-
-  return (
-    <aside className="vs-task-drawer" aria-label="Task details">
-      <div className="vs-task-drawer-head">
-        <div className="vs-task-drawer-person">
-          <TaskAvatar task={task} onClick={() => {}} />
-          <div>
-            <div className="vs-task-drawer-kicker">Task Detail</div>
-            <div className="vs-task-drawer-owner">{task.assigned_to || "Command Team"}</div>
-          </div>
-        </div>
-
-        <button type="button" className="vs-drawer-close" onClick={onClose}>
-          ×
-        </button>
-      </div>
-
-      <div className="vs-task-drawer-body">
-        <div>
-          <h3 className="vs-task-drawer-title">{task.title}</h3>
-          <p className="vs-task-drawer-description">
-            {task.description || "No task description available."}
-          </p>
-        </div>
-
-        <div className="vs-drawer-badges">
-          <Badge tone={priorityTone(task.priority)}>{task.priority || "medium"}</Badge>
-          <Badge tone={statusTone(task.status)}>{formatStatusLabel(task.status)}</Badge>
-          <Badge tone={sla.tone}>{sla.label}</Badge>
-        </div>
-
-        <div className="vs-detail-grid">
-          <DetailRow label="Owner" value={task.assigned_to || "Command Team"} />
-          <DetailRow label="State" value={task.state || "National"} />
-          <DetailRow label="Office" value={task.office || "Statewide"} />
-          <DetailRow label="Due" value={task.due_label || "Now"} />
-          <DetailRow label="Age" value={sla.detail} />
-          <DetailRow label="Source" value={task.source || "command_center"} />
-          <DetailRow label="Created" value={formatDateTime(task.created_at)} />
-          <DetailRow label="Updated" value={formatDateTime(task.updated_at)} />
-        </div>
-
-        <div className="vs-drawer-section">
-          <div className="vs-drawer-section-title">Reassign Owner</div>
-          <div className="vs-drawer-reassign">
-            <input
-              className="vs-input"
-              value={assigneeName}
-              onChange={(event) => setAssigneeName(event.target.value)}
-              placeholder="Assign to..."
-            />
-            <button type="button" className="vs-button" onClick={updateAssignee}>
-              Save
-            </button>
-          </div>
-        </div>
-
-        <div className="vs-drawer-section">
-          <div className="vs-drawer-section-title">Status Controls</div>
-          <div className="vs-inline-actions">
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={() => onStatusChange?.(task, "open")}
-            >
-              Open
-            </button>
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={() => onStatusChange?.(task, "in_progress")}
-            >
-              Start
-            </button>
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={() => onStatusChange?.(task, "blocked")}
-            >
-              Block
-            </button>
-            <button
-              type="button"
-              className="vs-button"
-              onClick={() => onStatusChange?.(task, "complete")}
-            >
-              Complete
-            </button>
-          </div>
-        </div>
-
-        <div className="vs-drawer-section">
-          <div className="vs-drawer-section-title">Comments</div>
-
-          <form className="vs-comment-form" onSubmit={submitComment}>
-            <textarea
-              className="vs-comment-input"
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              placeholder="Add an internal note, update, or handoff..."
-              rows={3}
-            />
-            <div className="vs-comment-actions">
-              <span>{comments.length} comment{comments.length === 1 ? "" : "s"}</span>
-              <button type="submit" className="vs-button" disabled={!commentText.trim()}>
-                Add Comment
-              </button>
-            </div>
-          </form>
-
-          <div className="vs-comment-list">
-            {!comments.length ? (
-              <div className="vs-empty-mini">No comments yet.</div>
-            ) : (
-              comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
-            )}
-          </div>
-        </div>
-
-        <div className="vs-drawer-section">
-          <div className="vs-drawer-section-title">Activity History</div>
-          <div className="vs-activity-list">
-            {timelineItems.map((item, index) => (
-              <ActivityItem
-                key={`${item.title}-${index}`}
-                title={item.title}
-                subtitle={item.subtitle}
-                initials={item.initials}
-                tone={item.tone}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </aside>
   );
 }
 
@@ -514,18 +460,8 @@ export default function ExecutionBoard({
   const focusedTaskRef = useRef(null);
   const [draggingTaskId, setDraggingTaskId] = useState("");
   const [dragOverLane, setDragOverLane] = useState("");
-  const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [expandedTaskIds, setExpandedTaskIds] = useState(() => new Set());
   const [commentsByTaskId, setCommentsByTaskId] = useState({});
-
-  const selectedTask = useMemo(() => {
-    if (!selectedTaskId) return null;
-    return tasks.find((task) => getTaskId(task) === selectedTaskId) || null;
-  }, [tasks, selectedTaskId]);
-
-  const selectedComments = useMemo(() => {
-    if (!selectedTask) return [];
-    return commentsByTaskId[getTaskId(selectedTask)] || [];
-  }, [commentsByTaskId, selectedTask]);
 
   const laneTasks = useMemo(() => {
     const grouped = {
@@ -561,14 +497,26 @@ export default function ExecutionBoard({
       const scrollTarget = Math.max(0, absoluteTop - viewportCenterOffset);
 
       window.scrollTo({ top: scrollTarget, behavior: "smooth" });
-      setSelectedTaskId(String(focusedTaskId));
+
+      setExpandedTaskIds((prev) => {
+        const next = new Set(prev);
+        next.add(String(focusedTaskId));
+        return next;
+      });
     }, 120);
 
     return () => clearTimeout(timer);
   }, [focusedTaskId, tasks.length]);
 
-  function handleStatusChange(task, status, extra = {}) {
-    onStatusChange?.(task, status, extra);
+  function handleToggle(task) {
+    const id = getTaskId(task);
+
+    setExpandedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function handleAddComment(task, comment) {
@@ -605,16 +553,16 @@ export default function ExecutionBoard({
     if (!task) return;
     if (normalizeStatus(task.status) === laneId) return;
 
-    handleStatusChange(task, laneId);
+    onStatusChange?.(task, laneId);
   }
 
   return (
-    <section className={`vs-section-card ${selectedTask ? "has-task-drawer" : ""}`}>
+    <section className="vs-section-card">
       <div className="vs-section-head">
         <div className="vs-section-title-wrap">
           <h3 className="vs-section-title">Executive Execution Board</h3>
           <div className="vs-section-subtitle">
-            Drag tasks between lanes, monitor SLA pressure, collaborate in comments, and convert intelligence into closed work.
+            Drag tasks between lanes, expand blocks for details, collaborate in comments, and convert intelligence into closed work.
           </div>
         </div>
 
@@ -629,100 +577,75 @@ export default function ExecutionBoard({
         </div>
       </div>
 
-      <div className="vs-execution-layout">
-        <div className="vs-execution-main">
-          {!tasks.length ? (
-            <div className="vs-empty-state">
-              No execution tasks yet. Click a Command Center action to create one.
-            </div>
-          ) : (
-            <div className="vs-execution-lanes">
-              {LANES.map((lane) => (
-                <div
-                  key={lane.id}
-                  className={`vs-execution-lane ${dragOverLane === lane.id ? "is-drag-over" : ""}`}
-                  onDragOver={(event) => handleDragOver(event, lane.id)}
-                  onDragLeave={() => setDragOverLane("")}
-                  onDrop={(event) => handleDrop(event, lane.id)}
-                >
-                  <div className="vs-execution-lane-head">
-                    <div>
-                      <div className="vs-execution-lane-title">{lane.title}</div>
-                      <div className="vs-execution-lane-subtitle">{lane.subtitle}</div>
-                    </div>
-
-                    <Badge tone={lane.id === "complete" ? "active" : "accent"}>
-                      {laneTasks[lane.id]?.length || 0}
-                    </Badge>
-                  </div>
-
-                  <div className="vs-execution-lane-stack">
-                    {!laneTasks[lane.id]?.length ? (
-                      <div className="vs-execution-lane-empty">Drop task here</div>
-                    ) : (
-                      laneTasks[lane.id].map((task) => {
-                        const isFocused = isSameTask(task, focusedTaskId);
-                        const isSelected = getTaskId(task) === selectedTaskId;
-
-                        return (
-                          <div
-                            key={task.id || task.local_id}
-                            ref={isFocused ? focusedTaskRef : null}
-                          >
-                            <TaskCard
-                              task={task}
-                              isFocused={isFocused}
-                              isSelected={isSelected}
-                              onStatusChange={handleStatusChange}
-                              onDragStart={handleDragStart}
-                              onOpen={(picked) => setSelectedTaskId(getTaskId(picked))}
-                            />
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {!tasks.length ? (
+        <div className="vs-empty-state">
+          No execution tasks yet. Click a Command Center action to create one.
         </div>
+      ) : (
+        <div className="vs-execution-lanes">
+          {LANES.map((lane) => (
+            <div
+              key={lane.id}
+              className={`vs-execution-lane ${dragOverLane === lane.id ? "is-drag-over" : ""}`}
+              onDragOver={(event) => handleDragOver(event, lane.id)}
+              onDragLeave={() => setDragOverLane("")}
+              onDrop={(event) => handleDrop(event, lane.id)}
+            >
+              <div className="vs-execution-lane-head">
+                <div>
+                  <div className="vs-execution-lane-title">{lane.title}</div>
+                  <div className="vs-execution-lane-subtitle">{lane.subtitle}</div>
+                </div>
 
-        <TaskDetailDrawer
-          task={selectedTask}
-          comments={selectedComments}
-          onAddComment={handleAddComment}
-          onClose={() => setSelectedTaskId("")}
-          onStatusChange={handleStatusChange}
-        />
-      </div>
+                <Badge tone={lane.id === "complete" ? "active" : "accent"}>
+                  {laneTasks[lane.id]?.length || 0}
+                </Badge>
+              </div>
+
+              <div className="vs-execution-lane-stack">
+                {!laneTasks[lane.id]?.length ? (
+                  <div className="vs-execution-lane-empty">Drop task here</div>
+                ) : (
+                  laneTasks[lane.id].map((task) => {
+                    const id = getTaskId(task);
+                    const isFocused = isSameTask(task, focusedTaskId);
+                    const isExpanded = expandedTaskIds.has(id);
+
+                    return (
+                      <div
+                        key={task.id || task.local_id}
+                        ref={isFocused ? focusedTaskRef : null}
+                      >
+                        <TaskCard
+                          task={task}
+                          isFocused={isFocused}
+                          isExpanded={isExpanded}
+                          comments={commentsByTaskId[id] || []}
+                          onAddComment={handleAddComment}
+                          onStatusChange={onStatusChange}
+                          onDragStart={handleDragStart}
+                          onToggle={handleToggle}
+                        />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <style>{`
-        .vs-execution-layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 16px;
-          align-items: start;
-        }
-
-        .has-task-drawer .vs-execution-layout {
-          grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
-        }
-
-        .vs-execution-main {
-          min-width: 0;
-        }
-
         .vs-execution-lanes {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 14px;
-          align-items: stretch;
+          align-items: start;
         }
 
         .vs-execution-lane {
           min-height: 320px;
-          height: 100%;
           min-width: 0;
           display: flex;
           flex-direction: column;
@@ -760,7 +683,6 @@ export default function ExecutionBoard({
         }
 
         .vs-execution-lane-stack {
-          flex: 1;
           display: grid;
           gap: 12px;
           align-content: start;
@@ -777,9 +699,7 @@ export default function ExecutionBoard({
         }
 
         .vs-task-card {
-          height: 285px;
           min-height: 285px;
-          max-height: 285px;
           min-width: 0;
           display: flex;
           flex-direction: column;
@@ -793,8 +713,15 @@ export default function ExecutionBoard({
           transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
         }
 
-        .vs-task-card.is-selected {
-          box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.28), 0 18px 46px rgba(22, 163, 74, 0.12);
+        .vs-task-card:not(.is-expanded) {
+          height: 285px;
+          max-height: 285px;
+        }
+
+        .vs-task-card.is-expanded {
+          height: auto;
+          max-height: none;
+          cursor: default;
         }
 
         .vs-task-card:active {
@@ -807,11 +734,13 @@ export default function ExecutionBoard({
           box-shadow: 0 18px 42px rgba(2, 6, 23, 0.24);
         }
 
-        .vs-task-card-head {
+        .vs-task-card-top {
           display: flex;
+          justify-content: space-between;
           gap: 12px;
           align-items: flex-start;
           min-height: 76px;
+          cursor: pointer;
         }
 
         .vs-task-card-title-wrap {
@@ -839,12 +768,7 @@ export default function ExecutionBoard({
           overflow: hidden;
         }
 
-        .vs-task-avatar-button {
-          border: 0;
-          padding: 0;
-          margin: 0;
-          background: transparent;
-          cursor: pointer;
+        .vs-task-card-avatar-wrap {
           flex: 0 0 auto;
         }
 
@@ -899,94 +823,29 @@ export default function ExecutionBoard({
           min-height: 34px;
         }
 
-        .vs-task-drawer {
-          position: sticky;
-          top: 96px;
-          max-height: calc(100vh - 120px);
-          overflow: auto;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          border-radius: 20px;
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.78));
-          box-shadow: 0 22px 60px rgba(2, 6, 23, 0.32);
-        }
-
-        .vs-task-drawer-head {
-          position: sticky;
-          top: 0;
-          z-index: 2;
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          align-items: center;
-          padding: 16px;
-          background: rgba(15, 23, 42, 0.96);
-          border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-        }
-
-        .vs-task-drawer-person {
-          display: flex;
-          gap: 12px;
-          align-items: center;
-          min-width: 0;
-        }
-
-        .vs-task-drawer-kicker {
-          font-size: 0.72rem;
-          font-weight: 900;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: rgba(96, 165, 250, 0.95);
-        }
-
-        .vs-task-drawer-owner {
-          margin-top: 2px;
-          color: rgba(226, 232, 240, 0.88);
-          font-weight: 800;
-        }
-
-        .vs-drawer-close {
-          width: 34px;
-          height: 34px;
-          border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          color: rgba(248, 250, 252, 0.86);
-          background: rgba(15, 23, 42, 0.62);
-          cursor: pointer;
-          font-size: 1.3rem;
-          line-height: 1;
-        }
-
-        .vs-task-drawer-body {
+        .vs-task-expanded {
+          margin-top: 14px;
+          border-top: 1px solid rgba(148, 163, 184, 0.14);
+          padding-top: 14px;
           display: grid;
-          gap: 16px;
-          padding: 16px;
+          gap: 14px;
+          animation: vsTaskExpand 180ms ease both;
         }
 
-        .vs-task-drawer-title {
-          margin: 0;
-          color: rgba(248, 250, 252, 0.96);
-          font-size: 1.05rem;
-          line-height: 1.35;
+        .vs-task-expanded-section {
+          display: grid;
+          gap: 10px;
         }
 
-        .vs-task-drawer-description {
-          margin: 8px 0 0;
-          color: rgba(203, 213, 225, 0.82);
+        .vs-task-expanded-title {
+          color: rgba(248, 250, 252, 0.94);
+          font-weight: 900;
+        }
+
+        .vs-task-expanded-description {
+          color: rgba(203, 213, 225, 0.84);
           line-height: 1.55;
           overflow-wrap: anywhere;
-        }
-
-        .vs-drawer-badges,
-        .vs-drawer-reassign {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          align-items: center;
-        }
-
-        .vs-drawer-reassign .vs-input {
-          flex: 1;
-          min-width: 180px;
         }
 
         .vs-detail-grid {
@@ -1010,15 +869,16 @@ export default function ExecutionBoard({
           overflow-wrap: anywhere;
         }
 
-        .vs-drawer-section {
-          border-top: 1px solid rgba(148, 163, 184, 0.12);
-          padding-top: 14px;
+        .vs-drawer-reassign {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
         }
 
-        .vs-drawer-section-title {
-          margin-bottom: 10px;
-          color: rgba(248, 250, 252, 0.94);
-          font-weight: 900;
+        .vs-drawer-reassign .vs-input {
+          flex: 1;
+          min-width: 160px;
         }
 
         .vs-comment-form {
@@ -1039,11 +899,6 @@ export default function ExecutionBoard({
           font: inherit;
         }
 
-        .vs-comment-input:focus {
-          border-color: rgba(96, 165, 250, 0.42);
-          box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.08);
-        }
-
         .vs-comment-actions {
           display: flex;
           justify-content: space-between;
@@ -1053,10 +908,10 @@ export default function ExecutionBoard({
           font-size: 0.82rem;
         }
 
-        .vs-comment-list {
+        .vs-comment-list,
+        .vs-activity-list {
           display: grid;
           gap: 10px;
-          margin-top: 12px;
         }
 
         .vs-comment-item {
@@ -1121,11 +976,6 @@ export default function ExecutionBoard({
           text-align: center;
         }
 
-        .vs-activity-list {
-          display: grid;
-          gap: 12px;
-        }
-
         .vs-activity-item {
           display: grid;
           grid-template-columns: 12px minmax(0, 1fr) 30px;
@@ -1171,15 +1021,14 @@ export default function ExecutionBoard({
           100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
 
-        @media (max-width: 1280px) {
-          .has-task-drawer .vs-execution-layout {
-            grid-template-columns: minmax(0, 1fr);
+        @keyframes vsTaskExpand {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
           }
-
-          .vs-task-drawer {
-            position: relative;
-            top: auto;
-            max-height: none;
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
@@ -1195,15 +1044,10 @@ export default function ExecutionBoard({
             grid-template-columns: 1fr;
           }
 
-          .vs-task-card {
+          .vs-task-card:not(.is-expanded) {
             height: auto;
             min-height: 260px;
             max-height: none;
-          }
-
-          .vs-comment-head {
-            display: grid;
-            justify-content: start;
           }
         }
       `}</style>
