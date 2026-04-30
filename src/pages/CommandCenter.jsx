@@ -776,6 +776,54 @@ export default function CommandCenter() {
     };
   }, []);
 
+    useRealtimeStream("tasks", (event) => {
+    if (!event?.type) return;
+
+    const payload = event.payload || {};
+    const task = payload.task || null;
+
+    if (event.type === "task.created" && task) {
+      setExecutionTasks((prev) => {
+        const exists = prev.some(
+          (item) => String(item.id || item.local_id) === String(task.id)
+        );
+
+        if (exists) return prev;
+        return [task, ...prev].slice(0, 100);
+      });
+
+      setLiveBanner(`New task created: ${task.title || "Execution task"}`);
+      return;
+    }
+
+    if (event.type === "task.updated" && task) {
+      setExecutionTasks((prev) =>
+        prev.map((item) =>
+          String(item.id || item.local_id) === String(task.id)
+            ? { ...item, ...task }
+            : item
+        )
+      );
+
+      setLiveBanner(`Task updated: ${task.title || "Execution task"}`);
+      return;
+    }
+
+    if (event.type === "task.comment_created") {
+      setLiveBanner("New task comment added.");
+
+      if (payload.task_id) {
+        setFocusedTaskId((current) => current || payload.task_id);
+      }
+
+      return;
+    }
+
+    if (event.type === "task.activity_created") {
+      return;
+    }
+  });
+
   useLiveChannel("intelligence:command-center", (event) => {
     if (!event?.type) return;
 
