@@ -375,41 +375,93 @@ function taskMatchesAssignee(task = {}, assignee = null) {
   return taskName === String(assignee.name || "Command Team").toLowerCase();
 }
 
+
+function workloadPressure(openCount = 0, highCount = 0) {
+  if (openCount >= 8 || highCount >= 3) {
+    return {
+      key: "overloaded",
+      label: "Overloaded",
+      tone: "danger",
+      detail: "Reassign or reduce load",
+      className: "is-overloaded"
+    };
+  }
+
+  if (openCount >= 5 || highCount >= 2) {
+    return {
+      key: "pressure",
+      label: "Pressure",
+      tone: "demo",
+      detail: "Approaching capacity",
+      className: "is-pressure"
+    };
+  }
+
+  return {
+    key: "balanced",
+    label: "Balanced",
+    tone: "active",
+    detail: "Capacity available",
+    className: "is-balanced"
+  };
+}
+
 function UserWorkloadPanel({ assignee, tasks = [], onClear }) {
   if (!assignee) return null;
 
   const openTasks = tasks.filter((task) => String(task.status || "open").toLowerCase() !== "complete");
   const completeTasks = tasks.filter((task) => String(task.status || "open").toLowerCase() === "complete");
   const highTasks = tasks.filter((task) => ["high", "critical"].includes(String(task.priority || "").toLowerCase()));
+  const pressure = workloadPressure(openTasks.length, highTasks.length);
 
   return (
     <SectionCard
       title="User Workload"
       subtitle="Filtered execution load for the selected feed owner."
       right={
-        <button type="button" className="vs-button vs-button-secondary" onClick={onClear}>
-          Clear Filter
-        </button>
+        <div className="vs-inline-actions">
+          <Badge tone={pressure.tone}>{pressure.label}</Badge>
+          <button type="button" className="vs-button vs-button-secondary" onClick={onClear}>
+            Clear Filter
+          </button>
+        </div>
       }
     >
-      <div className="vs-workload-head">
-        <div className="vs-avatar-static">
-          {assignee.avatar ? <img className="vs-avatar" src={assignee.avatar} alt={`${assignee.name} avatar`} /> : <span className="vs-avatar">{assignee.initials || initialsFromName(assignee.name)}</span>}
+      <div className={`vs-workload-pressure ${pressure.className}`}>
+        <div className="vs-workload-head">
+          <div className="vs-avatar-static">
+            {assignee.avatar ? <img className="vs-avatar" src={assignee.avatar} alt={`${assignee.name} avatar`} /> : <span className="vs-avatar">{assignee.initials || initialsFromName(assignee.name)}</span>}
+          </div>
+
+          <div className="vs-workload-copy">
+            <div className="vs-row-title">{assignee.name || "Command Team"}</div>
+            <div className="vs-row-subtitle">
+              {assignee.email || assignee.user_id || "Assigned workload across Command Center tasks"}
+            </div>
+          </div>
         </div>
 
-        <div className="vs-workload-copy">
-          <div className="vs-row-title">{assignee.name || "Command Team"}</div>
-          <div className="vs-row-subtitle">
-            {assignee.email || assignee.user_id || "Assigned workload across Command Center tasks"}
-          </div>
+        <div className="vs-workload-pressure-right">
+          <div className="vs-workload-pressure-label">{pressure.label}</div>
+          <div className="vs-workload-pressure-detail">{pressure.detail}</div>
         </div>
       </div>
 
       <div className="vs-grid-4" style={{ marginTop: 14 }}>
-        <StatCard label="Open" value={openTasks.length} delta="Needs action" tone={openTasks.length ? "down" : "up"} />
-        <StatCard label="High Priority" value={highTasks.length} delta="Escalation load" tone={highTasks.length ? "down" : "up"} />
+        <StatCard
+          label="Open"
+          value={openTasks.length}
+          delta={openTasks.length >= 8 ? "Over capacity" : openTasks.length >= 5 ? "Approaching limit" : "Within range"}
+          tone={openTasks.length >= 8 ? "down" : openTasks.length >= 5 ? "neutral" : "up"}
+        />
+        <StatCard
+          label="High Priority"
+          value={highTasks.length}
+          delta={highTasks.length >= 3 ? "Escalate now" : highTasks.length >= 2 ? "Monitor closely" : "Controlled"}
+          tone={highTasks.length >= 3 ? "down" : highTasks.length >= 2 ? "neutral" : "up"}
+        />
         <StatCard label="Complete" value={completeTasks.length} delta="Closed tasks" tone="up" />
-        <StatCard label="Total" value={tasks.length} delta="Assigned tasks" tone="neutral" />
+        <StatCard label="Pressure" value={pressure.label} delta={pressure.detail} tone={pressure.key === "overloaded" ? "down" : pressure.key === "pressure" ? "neutral" : "up"} />
       </div>
 
       <div className="vs-stack" style={{ marginTop: 16 }}>
@@ -1367,6 +1419,59 @@ export default function CommandCenter() {
         .vs-workload-copy {
           min-width: 0;
         }
+
+
+        .vs-workload-pressure {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 14px;
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.76), rgba(15, 23, 42, 0.46));
+          box-shadow: 0 14px 34px rgba(2, 6, 23, 0.14);
+        }
+
+        .vs-workload-pressure.is-balanced {
+          border-color: rgba(34, 197, 94, 0.34);
+          background: linear-gradient(135deg, rgba(20, 83, 45, 0.24), rgba(15, 23, 42, 0.62));
+        }
+
+        .vs-workload-pressure.is-pressure {
+          border-color: rgba(234, 179, 8, 0.36);
+          background: linear-gradient(135deg, rgba(113, 63, 18, 0.25), rgba(15, 23, 42, 0.62));
+        }
+
+        .vs-workload-pressure.is-overloaded {
+          border-color: rgba(248, 113, 113, 0.46);
+          background: linear-gradient(135deg, rgba(127, 29, 29, 0.28), rgba(15, 23, 42, 0.62));
+          animation: vsWorkloadPressurePulse 1.9s ease-out 3;
+        }
+
+        .vs-workload-pressure-right {
+          min-width: 126px;
+          text-align: right;
+        }
+
+        .vs-workload-pressure-label {
+          font-size: 0.82rem;
+          font-weight: 900;
+          color: rgba(248, 250, 252, 0.95);
+        }
+
+        .vs-workload-pressure-detail {
+          margin-top: 2px;
+          font-size: 0.75rem;
+          color: rgba(226, 232, 240, 0.7);
+        }
+
+        @keyframes vsWorkloadPressurePulse {
+          0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.44); }
+          70% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+        }
+
         @keyframes vsFeedExpand {
           from {
             opacity: 0;
