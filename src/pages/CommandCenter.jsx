@@ -70,14 +70,6 @@ const fallbackCrossSignal = {
   results: []
 };
 
-const defaultAssignees = [
-  { id: null, name: "Command Team", initials: "CT" },
-  { id: null, name: "War Room", initials: "WR" },
-  { id: null, name: "MailOps", initials: "MO" },
-  { id: null, name: "Vendor Intelligence", initials: "VI" },
-  { id: null, name: "Operations", initials: "OP" }
-];
-
 function badgeToneFromSeverity(value) {
   const v = String(value || "").toLowerCase();
   if (v === "critical" || v === "high" || v === "elevated" || v === "severe") return "danger";
@@ -95,6 +87,16 @@ function statusTone(status) {
 
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
+}
+
+function initialsFromName(name = "Command Team") {
+  return String(name || "Command Team")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "CT";
 }
 
 function dedupeFeed(items) {
@@ -155,41 +157,13 @@ function getTaskPriority(action, risk) {
   return "medium";
 }
 
-function initialsFor(name = "Command Team") {
-  return String(name || "Command Team")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "CT";
-}
-
-function normalizeAssignee(value, fallbackName = "Command Team") {
-  if (!value || typeof value !== "object") {
-    return {
-      id: null,
-      name: fallbackName,
-      initials: initialsFor(fallbackName),
-      email: "",
-      avatar_url: ""
-    };
-  }
-
-  const name = value.name || fallbackName;
-  return {
-    id: value.id || null,
-    name,
-    initials: value.initials || initialsFor(name),
-    email: value.email || "",
-    avatar_url: value.avatar_url || ""
-  };
-}
-
 function getFeedKey(item) {
   return String(item.id || `${item.time || "now"}-${item.title || "feed"}`);
 }
 
 function buildExecutiveDecision({ feed = [] }) {
+  if (!feed.length) return null;
+
   const high = feed.find((item) =>
     ["high", "critical"].includes(String(item.severity || "").toLowerCase())
   );
@@ -215,6 +189,14 @@ function buildExecutiveDecision({ feed = [] }) {
     };
   }
 
+  if (type.includes("candidate")) {
+    return {
+      level: "HIGH",
+      title: `${state} candidate intelligence gap`,
+      actions: ["Refresh candidate profile", "Verify contact records", "Assign analyst review"]
+    };
+  }
+
   return {
     level: "HIGH",
     title: `${state} campaign pressure rising`,
@@ -222,22 +204,16 @@ function buildExecutiveDecision({ feed = [] }) {
   };
 }
 
-function AssigneeAvatar({ assignee, size = 30 }) {
-  const safeAssignee = normalizeAssignee(assignee);
+function AssigneeAvatar({ taskState, item, fallback = "WR" }) {
+  const name = taskState?.assigned_to || item?.assigned_to || item?.owner || "War Room";
+  const initials = taskState?.assignee_initials || item?.assignee_initials || initialsFromName(name) || fallback;
+  const avatar = taskState?.assignee_avatar || item?.assignee_avatar || "";
 
-  return (
-    <div
-      className="vs-mini-avatar"
-      title={safeAssignee.email ? `${safeAssignee.name} â€¢ ${safeAssignee.email}` : safeAssignee.name}
-      style={{ width: size, height: size, minWidth: size, minHeight: size }}
-    >
-      {safeAssignee.avatar_url ? (
-        <img src={safeAssignee.avatar_url} alt={safeAssignee.name} />
-      ) : (
-        <span>{safeAssignee.initials}</span>
-      )}
-    </div>
-  );
+  if (avatar) {
+    return <img className="vs-avatar" src={avatar} alt={`${name} avatar`} />;
+  }
+
+  return <div className="vs-avatar">{initials}</div>;
 }
 
 function BattlegroundRow({ row, active = false }) {
@@ -262,21 +238,10 @@ function BattlegroundRow({ row, active = false }) {
   );
 }
 
-function FeedRow({
-  item,
-  live = false,
-  expanded = false,
-  onToggle,
-  onCreateTask,
-  onViewTask,
-  taskState,
-  selectedAssignee,
-  assignees,
-  onAssigneeChange
-}) {
+function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask, onViewTask, taskState }) {
   const severity = String(item.severity || "").toLowerCase();
-  const hasTask = Boolean(taskState?.task_id);
-  const assignee = normalizeAssignee(taskState?.assigned_user || selectedAssignee, selectedAssignee?.name || "Command Team");
+  const hasTask = Boolean(taskState?.exists || taskState?.task_id);
+  const status = taskState?.status || "open";
 
   return (
     <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
@@ -287,15 +252,14 @@ function FeedRow({
         meta={[
           { label: "Time", value: item.time || "Now" },
           { label: "Severity", value: item.severity || "Info" },
-          { label: "Assigned", value: assignee.name },
-          { label: "Status", value: hasTask ? taskState.status || "open" : "Unassigned" }
+          { label: "State", value: item.state || "National" },
+          { label: "Office", value: item.office || "Statewide" }
         ]}
         alert={severity === "high" || severity === "critical" ? "vs-live-dot" : "vs-live-dot-warning"}
         right={
           <div className="vs-inline-actions">
-            <AssigneeAvatar assignee={assignee} />
-            {hasTask ? <Badge tone={statusTone(taskState.status)}>{taskState.status || "open"}</Badge> : null}
             <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>
+            {hasTask ? <Badge tone={statusTone(status)}>{status}</Badge> : null}
             <button type="button" className="vs-button vs-button-secondary" onClick={onToggle}>
               {expanded ? "Collapse" : "Expand"}
             </button>
@@ -305,28 +269,21 @@ function FeedRow({
 
       {expanded ? (
         <div className="vs-feed-expanded">
-          <div className="vs-feed-expanded-title">Briefing Detail</div>
+          <div className="vs-feed-expanded-header">
+            <AssigneeAvatar taskState={taskState} item={item} />
+            <div className="vs-feed-expanded-header-copy">
+              <div className="vs-feed-expanded-title">Briefing Detail</div>
+              <div className="vs-feed-expanded-owner">
+                {taskState?.assigned_to || item.assigned_to || item.owner || "War Room"}
+              </div>
+            </div>
+          </div>
+
           <div className="vs-feed-expanded-body">
             {item.detail || item.description || item.title || "No additional detail available."}
           </div>
 
-          <div className="vs-feed-assignment-row">
-            <label className="vs-feed-assignment-label">Assign to</label>
-            <select
-              className="vs-input"
-              value={selectedAssignee?.name || "Command Team"}
-              onChange={(event) => onAssigneeChange?.(event.target.value)}
-              disabled={hasTask}
-            >
-              {assignees.map((assigneeOption) => (
-                <option key={`${assigneeOption.id || ""}-${assigneeOption.name}`} value={assigneeOption.name}>
-                  {assigneeOption.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="vs-responsive-meta" style={{ marginTop: 12 }}>
+          <div className="vs-responsive-meta vs-feed-expanded-meta" style={{ marginTop: 12 }}>
             <div className="vs-meta-block">
               <div className="vs-meta-label">Signal Type</div>
               <div className="vs-meta-value">{item.type || "intelligence.signal"}</div>
@@ -341,18 +298,21 @@ function FeedRow({
             </div>
             <div className="vs-meta-block">
               <div className="vs-meta-label">Task</div>
-              <div className="vs-meta-value">{hasTask ? `#${taskState.task_id}` : "Not created"}</div>
+              <div className="vs-meta-value">{hasTask ? status : "Not Created"}</div>
             </div>
           </div>
 
           <div className="vs-inline-actions" style={{ marginTop: 14 }}>
             {hasTask ? (
-              <button type="button" className="vs-button" onClick={onViewTask}>
-                View Task
-              </button>
+              <>
+                <button type="button" className="vs-decision-btn deploy" onClick={onViewTask}>
+                  View Task
+                </button>
+                <Badge tone={statusTone(status)}>Task {status}</Badge>
+              </>
             ) : (
               <button type="button" className="vs-decision-btn deploy" onClick={onCreateTask}>
-                Create Assigned Task
+                Create Task
               </button>
             )}
           </div>
@@ -410,8 +370,8 @@ function ResolvedVendorRow({ gap }) {
         subtitle="Completed execution task removed this vendor gap from active priorities."
         meta={[
           { label: "Task", value: gap.resolved_by_task_id ? `#${gap.resolved_by_task_id}` : "Completed" },
-          { label: "Score", value: gap.coverage_score ?? "â€”" },
           { label: "State", value: gap.state || "National" },
+          { label: "Score", value: gap.coverage_score ?? "â€”" },
           { label: "Status", value: "Resolved" }
         ]}
         alert="vs-live-dot-success"
@@ -435,9 +395,10 @@ export default function CommandCenter() {
   const [liveBattlegroundStates, setLiveBattlegroundStates] = useState([]);
   const [executionTasks, setExecutionTasks] = useState([]);
   const [expandedFeedIds, setExpandedFeedIds] = useState(() => new Set());
+  const [feedTaskState, setFeedTaskState] = useState({});
   const [focusedTaskId, setFocusedTaskId] = useState(null);
-  const [selectedAssignees, setSelectedAssignees] = useState({});
 
+  const executionBoardRef = useRef(null);
   const autoVendorTaskIds = useRef(new Set());
   const { filters } = useExecutiveFilters();
 
@@ -447,74 +408,6 @@ export default function CommandCenter() {
 
   const effectiveData = demoMode ? fallbackData : data || fallbackData;
   const effectiveCrossSignal = demoMode ? fallbackCrossSignal : crossSignal || fallbackCrossSignal;
-
-  const assignees = useMemo(() => {
-    const fromTasks = executionTasks.map((task) =>
-      normalizeAssignee(task.assigned_user, task.assigned_to || "Command Team")
-    );
-
-    const seen = new Set();
-    return [...defaultAssignees, ...fromTasks].filter((assignee) => {
-      const key = `${assignee.id || ""}-${assignee.name}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [executionTasks]);
-
-  function getSelectedAssignee(feedId, fallbackName = "Command Team") {
-    const current = selectedAssignees[feedId];
-    if (current) return current;
-
-    return assignees.find((assignee) => assignee.name === fallbackName) || assignees[0] || normalizeAssignee(null);
-  }
-
-  function setFeedAssignee(feedId, assigneeName) {
-    const assignee =
-      assignees.find((item) => item.name === assigneeName) ||
-      normalizeAssignee(null, assigneeName);
-
-    setSelectedAssignees((prev) => ({
-      ...prev,
-      [feedId]: assignee
-    }));
-  }
-
-  function taskStateForFeed(item) {
-    const feedId = getFeedKey(item);
-    const task = executionTasks.find((candidate) => {
-      const meta = candidate.metadata || {};
-      return String(meta.feed_id || meta.signal_id || "") === String(feedId);
-    });
-
-    if (!task) return null;
-
-    return {
-      exists: true,
-      task_id: task.id,
-      status: task.status || "open",
-      title: task.title,
-      assigned_user: task.assigned_user || normalizeAssignee(null, task.assigned_to || "Command Team")
-    };
-  }
-
-  function toggleFeed(id) {
-    setExpandedFeedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  async function refreshTasks() {
-    try {
-      const response = await api.tasks?.({ limit: 100 });
-      setExecutionTasks(response?.results || []);
-    } catch {
-      setExecutionTasks([]);
-    }
-  }
 
   useEffect(() => {
     let active = true;
@@ -584,8 +477,34 @@ export default function CommandCenter() {
     api.dispatchVendorAlerts?.().catch(() => {});
   }, [demoMode]);
 
+  async function loadTasks() {
+    try {
+      const response = await api.tasks?.({ limit: 100 });
+      setExecutionTasks(response?.results || []);
+    } catch {
+      setExecutionTasks([]);
+    }
+  }
+
   useEffect(() => {
-    refreshTasks();
+    let active = true;
+
+    async function run() {
+      try {
+        const response = await api.tasks?.({ limit: 100 });
+        if (!active) return;
+        setExecutionTasks(response?.results || []);
+      } catch {
+        if (!active) return;
+        setExecutionTasks([]);
+      }
+    }
+
+    run();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useLiveChannel("intelligence:command-center", (event) => {
@@ -707,9 +626,9 @@ export default function CommandCenter() {
     ].slice(0, 8));
   }
 
-  async function createExecutionTask(action, context = {}, assignedUserOverride = null) {
+  async function createExecutionTask(action, context = {}) {
     const priority = getTaskPriority(action, context.risk);
-    const assignedUser = normalizeAssignee(assignedUserOverride, context.assigned_to || getTaskOwner(action));
+    const assignedTo = context.assigned_to || getTaskOwner(action);
 
     const payload = {
       title: action,
@@ -719,12 +638,8 @@ export default function CommandCenter() {
       office: context.office || "Statewide",
       priority,
       status: "open",
-      assigned_to: assignedUser.name,
-      assigned_to_user_id: assignedUser.id,
-      assigned_to_name: assignedUser.name,
-      assigned_to_email: assignedUser.email,
-      assigned_to_avatar_url: assignedUser.avatar_url,
-      assigned_user: assignedUser,
+      assigned_to: assignedTo,
+      assignee_initials: context.assignee_initials || initialsFromName(assignedTo),
       due_label: priority === "high" ? "Now" : "Today",
       metadata: {
         ...context,
@@ -735,75 +650,20 @@ export default function CommandCenter() {
     try {
       const response = await api.createTask?.(payload);
       const task = response?.task || response || payload;
-
-      setExecutionTasks((prev) => {
-        const existingKey = task?.metadata?.feed_id || task?.metadata?.signal_id || task?.metadata?.vendor_action_id;
-        const filtered = existingKey
-          ? prev.filter((item) => {
-              const meta = item.metadata || {};
-              return ![meta.feed_id, meta.signal_id, meta.vendor_action_id].includes(existingKey);
-            })
-          : prev;
-
-        return [task, ...filtered].slice(0, 100);
-      });
-
-      return task;
+      setExecutionTasks((prev) => [task, ...prev].slice(0, 100));
+      return { task, duplicate: Boolean(response?.duplicate) };
     } catch {
       const localId = `local-task-${Date.now()}`;
       const fallbackTask = {
         ...payload,
         id: localId,
         local_id: localId,
-        created_at: new Date().toISOString(),
-        assigned_user: assignedUser
+        created_at: new Date().toISOString()
       };
 
       setExecutionTasks((prev) => [fallbackTask, ...prev].slice(0, 100));
-      return fallbackTask;
+      return { task: fallbackTask, duplicate: false };
     }
-  }
-
-  async function createTaskFromFeed(item = {}) {
-    const feedId = getFeedKey(item);
-    const selectedAssignee = getSelectedAssignee(feedId, getTaskOwner(item.title || item.type));
-
-    const existingTask = taskStateForFeed(item);
-    if (existingTask?.task_id) {
-      setFocusedTaskId(existingTask.task_id);
-      return existingTask;
-    }
-
-    const title = `Review signal: ${item.title || "Command Center signal"}`;
-
-    const task = await createExecutionTask(
-      title,
-      {
-        source: "command_center",
-        state: item.state || "National",
-        office: item.office || "Statewide",
-        risk: item.risk || "Watch",
-        signal_type: item.type || "intelligence.signal",
-        feed_id: feedId,
-        signal_id: feedId,
-        detail: item.detail || item.description || item.title || "Review this Command Center signal."
-      },
-      selectedAssignee
-    );
-
-    setFocusedTaskId(task?.id || task?.local_id || null);
-
-    injectLocalSignal({
-      title: `Task assigned to ${selectedAssignee.name}: ${item.title || "Command Center signal"}`,
-      severity: item.severity || "Medium",
-      source: "Execution Engine",
-      type: "feed.task_created",
-      state: item.state || "National",
-      office: item.office || "Statewide",
-      risk: item.risk || "Watch"
-    });
-
-    return task;
   }
 
   useEffect(() => {
@@ -826,18 +686,26 @@ export default function CommandCenter() {
 
         autoVendorTaskIds.current.add(vendorActionId);
 
-        await createExecutionTask(
-          action.title || "Close vendor coverage gap",
-          {
-            vendor_action_id: vendorActionId,
-            state: action.state || "National",
-            office: "Statewide",
-            risk: action.priority === "High" ? "Elevated" : "Watch",
-            source: "vendor_intelligence",
-            detail: action.detail || "Review vendor bench strength and assign backup capacity."
-          },
-          normalizeAssignee(null, "Vendor Intelligence")
-        );
+        await createExecutionTask(action.title || "Close vendor coverage gap", {
+          vendor_action_id: vendorActionId,
+          state: action.state || "National",
+          office: "Statewide",
+          risk: action.priority === "High" ? "Elevated" : "Watch",
+          source: "vendor_intelligence",
+          assigned_to: action.owner || "Vendor Intelligence",
+          assignee_initials: initialsFromName(action.owner || "Vendor Intelligence"),
+          detail: action.detail || "Review vendor bench strength and assign backup capacity."
+        });
+
+        injectLocalSignal({
+          title: `Vendor task created: ${action.title || "Close vendor coverage gap"}`,
+          severity: action.priority === "High" ? "High" : "Medium",
+          source: "Vendor Intelligence",
+          type: "vendor.task_created",
+          state: action.state || "National",
+          office: "Statewide",
+          risk: action.priority === "High" ? "Elevated" : "Watch"
+        });
       }
     }
 
@@ -858,16 +726,8 @@ export default function CommandCenter() {
     if (String(task.id || "").startsWith("local-task")) return;
 
     try {
-      const response = await api.updateTask?.(task.id, { status });
-      const updatedTask = response?.task || { ...task, status };
-
-      setExecutionTasks((prev) =>
-        prev.map((item) =>
-          String(item.id || item.local_id) === String(task.id || task.local_id)
-            ? updatedTask
-            : item
-        )
-      );
+      await api.updateTask?.(task.id, { status });
+      await loadTasks();
 
       if (
         status === "complete" &&
@@ -884,7 +744,7 @@ export default function CommandCenter() {
   async function handleActionClick(action, context = {}) {
     const value = String(action || "").toLowerCase();
 
-    await createExecutionTask(action, context, normalizeAssignee(null, getTaskOwner(action)));
+    await createExecutionTask(action, context);
 
     if (value.includes("candidate") || value.includes("profile") || value.includes("contact")) {
       injectLocalSignal({
@@ -900,9 +760,52 @@ export default function CommandCenter() {
       return;
     }
 
+    if (value.includes("vendor") || value.includes("coverage") || value.includes("operations")) {
+      injectLocalSignal({
+        title: `Vendor action queued: ${action}`,
+        severity: context.risk === "Elevated" ? "High" : "Medium",
+        source: "Vendor Intelligence",
+        type: "vendor.action_queued",
+        state: context.state,
+        office: context.office || "Statewide",
+        risk: context.risk || "Watch"
+      });
+      return;
+    }
+
+    if (value.includes("alert") || value.includes("escalate")) {
+      try {
+        await api.dispatchAlerts?.({ limit: 1 });
+      } catch {
+        // Local execution still succeeds if backend dispatch is unavailable.
+      }
+
+      injectLocalSignal({
+        title: `Alert dispatched: ${action}`,
+        severity: "High",
+        source: "Command Center",
+        state: context.state,
+        office: context.office,
+        risk: "Elevated"
+      });
+      return;
+    }
+
+    if (value.includes("assign") || value.includes("deploy") || value.includes("activate")) {
+      injectLocalSignal({
+        title: `Task assigned: ${action}`,
+        severity: "Medium",
+        source: "Execution Engine",
+        state: context.state,
+        office: context.office,
+        risk: "Watch"
+      });
+      return;
+    }
+
     injectLocalSignal({
       title: `Action executed: ${action}`,
-      severity: value.includes("alert") || value.includes("escalate") ? "High" : "Medium",
+      severity: "Medium",
       source: "Command Center",
       state: context.state,
       office: context.office,
@@ -946,7 +849,9 @@ export default function CommandCenter() {
       type: "vendor.coverage_gap",
       state: item.state || "National",
       office: "Statewide",
-      risk: String(item.status || "").toLowerCase() === "active" ? "Watch" : "Elevated"
+      risk: String(item.status || "").toLowerCase() === "active" ? "Watch" : "Elevated",
+      assigned_to: "Vendor Intelligence",
+      assignee_initials: "VI"
     }));
 
     const gapSignals = (vendorIntel?.gaps || []).map((gap, index) => ({
@@ -958,7 +863,9 @@ export default function CommandCenter() {
       type: "vendor.coverage_gap",
       state: gap.state || "National",
       office: "Statewide",
-      risk: gap.severity === "High" ? "Elevated" : "Watch"
+      risk: gap.severity === "High" ? "Elevated" : "Watch",
+      assigned_to: "Vendor Intelligence",
+      assignee_initials: "VI"
     }));
 
     return dedupeFeed([...gapSignals, ...riskSignals]).slice(0, 8);
@@ -971,6 +878,58 @@ export default function CommandCenter() {
       ),
     [effectiveData, liveAlerts, vendorFeed, filters]
   );
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFeedTaskState() {
+      if (!feed.length) {
+        setFeedTaskState({});
+        return;
+      }
+
+      const localResults = {};
+      for (const item of feed) {
+        const id = getFeedKey(item);
+        const match = executionTasks.find(
+          (task) =>
+            String(task?.metadata?.feed_id || "") === id ||
+            String(task?.metadata?.signal_id || "") === id
+        );
+
+        if (match) {
+          localResults[id] = {
+            exists: true,
+            task_id: match.id || match.local_id,
+            status: match.status || "open",
+            title: match.title,
+            assigned_to: match.assigned_to || "Command Team",
+            assignee_avatar: match.assignee_avatar,
+            assignee_initials: match.assignee_initials || initialsFromName(match.assigned_to)
+          };
+        }
+      }
+
+      try {
+        const ids = feed.map((item) => getFeedKey(item)).join(",");
+        const response = api.feedTaskState
+          ? await api.feedTaskState(ids)
+          : (await api.get(`/tasks/feed-state?ids=${encodeURIComponent(ids)}`)).data;
+
+        if (!active) return;
+        setFeedTaskState({ ...localResults, ...(response?.results || {}) });
+      } catch {
+        if (!active) return;
+        setFeedTaskState(localResults);
+      }
+    }
+
+    loadFeedTaskState();
+
+    return () => {
+      active = false;
+    };
+  }, [feed, executionTasks]);
 
   const vendorActions = useMemo(() => {
     return (vendorIntel?.recommended_actions || []).map((item) => ({
@@ -1051,6 +1010,79 @@ export default function CommandCenter() {
     ];
   }, [effectiveCrossSignal, vendorIntel]);
 
+  function toggleFeed(id) {
+    setExpandedFeedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function createTaskFromFeed(item = {}) {
+    const id = getFeedKey(item);
+    const assignedTo = item.assigned_to || item.owner || "War Room";
+    const title = `Review signal: ${item.title || "Command Center signal"}`;
+
+    const result = await createExecutionTask(title, {
+      source: "command_center",
+      state: item.state || "National",
+      office: item.office || "Statewide",
+      risk: item.risk || "Watch",
+      signal_type: item.type || "intelligence.signal",
+      feed_id: id,
+      signal_id: id,
+      assigned_to: assignedTo,
+      assignee_initials: item.assignee_initials || initialsFromName(assignedTo),
+      detail: item.detail || item.description || item.title || "Review this Command Center signal."
+    });
+
+    const task = result?.task || {};
+
+    setFeedTaskState((prev) => ({
+      ...prev,
+      [id]: {
+        exists: true,
+        task_id: task.id || task.local_id,
+        status: task.status || "open",
+        title: task.title,
+        assigned_to: task.assigned_to || assignedTo,
+        assignee_avatar: task.assignee_avatar,
+        assignee_initials: task.assignee_initials || initialsFromName(task.assigned_to || assignedTo)
+      }
+    }));
+
+    injectLocalSignal({
+      title: result?.duplicate
+        ? `Task exists for feed: ${item.title || "Command Center signal"}`
+        : `Task created from feed: ${item.title || "Command Center signal"}`,
+      severity: item.severity || "Medium",
+      source: "Execution Engine",
+      type: "feed.task_created",
+      state: item.state || "National",
+      office: item.office || "Statewide",
+      risk: item.risk || "Watch"
+    });
+
+    await loadTasks();
+  }
+
+  function viewTaskFromFeed(item = {}) {
+    const id = getFeedKey(item);
+    const taskId = feedTaskState[id]?.task_id;
+
+    if (!taskId) return;
+
+    setFocusedTaskId(taskId);
+
+    setTimeout(() => {
+      executionBoardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }, 80);
+  }
+
   return (
     <PageShell
       eyebrow="Executive Command Center"
@@ -1098,27 +1130,56 @@ export default function CommandCenter() {
           background: linear-gradient(135deg, rgba(20, 83, 45, 0.28), rgba(15, 23, 42, 0.62));
         }
 
-        .vs-mini-avatar {
-          border-radius: 999px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
+        .vs-premium-row-card .vs-responsive-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 132px;
+          width: 100%;
+          max-width: 100%;
           overflow: hidden;
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          background:
-            radial-gradient(circle at 30% 20%, rgba(96, 165, 250, 0.35), transparent 36%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85));
-          color: rgba(226, 232, 240, 0.95);
-          font-size: 0.7rem;
-          font-weight: 900;
-          letter-spacing: 0.04em;
         }
 
-        .vs-mini-avatar img {
+        .vs-premium-row-card .vs-responsive-left,
+        .vs-premium-row-card .vs-responsive-right {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .vs-premium-row-card .vs-responsive-right {
+          justify-self: end;
+          overflow: hidden;
+        }
+
+        .vs-premium-row-card .vs-inline-actions {
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          max-width: 100%;
+        }
+
+        .vs-premium-row-card .vs-responsive-meta,
+        .vs-feed-expanded-meta {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
           width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
+          max-width: 100%;
+        }
+
+        .vs-premium-row-card .vs-meta-block,
+        .vs-feed-expanded-meta .vs-meta-block {
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+        }
+
+        .vs-premium-row-card .vs-meta-value,
+        .vs-premium-row-card .vs-row-title,
+        .vs-premium-row-card .vs-row-subtitle,
+        .vs-feed-expanded-meta .vs-meta-value {
+          min-width: 0;
+          max-width: 100%;
+          white-space: normal;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
 
         .vs-feed-expanded {
@@ -1127,13 +1188,31 @@ export default function CommandCenter() {
           animation: vsFeedExpand 180ms ease both;
         }
 
+        .vs-feed-expanded-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+
+        .vs-feed-expanded-header-copy {
+          min-width: 0;
+        }
+
         .vs-feed-expanded-title {
           font-size: 0.72rem;
           font-weight: 900;
           letter-spacing: 0.14em;
           text-transform: uppercase;
           color: rgba(96, 165, 250, 0.95);
-          margin-bottom: 8px;
+          margin-bottom: 4px;
+        }
+
+        .vs-feed-expanded-owner {
+          color: rgba(226, 232, 240, 0.72);
+          font-size: 0.84rem;
+          font-weight: 700;
+          overflow-wrap: anywhere;
         }
 
         .vs-feed-expanded-body {
@@ -1143,20 +1222,21 @@ export default function CommandCenter() {
           overflow-wrap: anywhere;
         }
 
-        .vs-feed-assignment-row {
+        .vs-avatar {
+          width: 34px;
+          height: 34px;
+          min-width: 34px;
+          border-radius: 999px;
           display: grid;
-          grid-template-columns: 88px minmax(0, 1fr);
-          gap: 10px;
-          align-items: center;
-          margin-top: 14px;
-        }
-
-        .vs-feed-assignment-label {
+          place-items: center;
           font-size: 0.72rem;
           font-weight: 900;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: rgba(148, 163, 184, 0.82);
+          color: rgba(240, 253, 250, 0.95);
+          background: linear-gradient(135deg, rgba(14, 165, 233, 0.9), rgba(34, 197, 94, 0.75));
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          box-shadow: 0 10px 22px rgba(2, 6, 23, 0.24);
+          object-fit: cover;
+          flex: 0 0 auto;
         }
 
         @keyframes vsFeedExpand {
@@ -1211,11 +1291,13 @@ export default function CommandCenter() {
         ))}
       </div>
 
-      <ExecutionBoard
-        tasks={executionTasks}
-        onStatusChange={updateExecutionTaskStatus}
-        focusedTaskId={focusedTaskId}
-      />
+      <div ref={executionBoardRef}>
+        <ExecutionBoard
+          tasks={executionTasks}
+          onStatusChange={updateExecutionTaskStatus}
+          focusedTaskId={focusedTaskId}
+        />
+      </div>
 
       <SectionCard
         title="Cross-Signal Priority Layer"
@@ -1284,8 +1366,7 @@ export default function CommandCenter() {
             ) : (
               feed.map((item) => {
                 const id = getFeedKey(item);
-                const taskState = taskStateForFeed(item);
-                const selectedAssignee = getSelectedAssignee(id, getTaskOwner(item.title || item.type));
+                const taskState = feedTaskState[id] || null;
 
                 return (
                   <FeedRow
@@ -1293,13 +1374,10 @@ export default function CommandCenter() {
                     item={item}
                     live={liveFeedIds.includes(item.id)}
                     expanded={expandedFeedIds.has(id)}
+                    taskState={taskState}
                     onToggle={() => toggleFeed(id)}
                     onCreateTask={() => createTaskFromFeed(item)}
-                    onViewTask={() => setFocusedTaskId(taskState?.task_id)}
-                    taskState={taskState}
-                    selectedAssignee={selectedAssignee}
-                    assignees={assignees}
-                    onAssigneeChange={(name) => setFeedAssignee(id, name)}
+                    onViewTask={() => viewTaskFromFeed(item)}
                   />
                 );
               })
