@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Badge from "../ui/Badge";
 
-const API_BASE =
+const RAW_API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "http://127.0.0.1:10000";
+  "http://127.0.0.1:10000/api";
+
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "").endsWith("/api")
+  ? RAW_API_BASE.replace(/\/+$/, "")
+  : `${RAW_API_BASE.replace(/\/+$/, "")}/api`;
+
+function apiUrl(path = "") {
+  const normalizedPath = String(path || "").replace(/^\/api(?=\/)/, "");
+  return `${API_BASE}${normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`}`;
+}
 
 const LANES = [
   { id: "open", title: "Open", subtitle: "Needs owner action" },
@@ -142,7 +151,7 @@ function authHeaders() {
 }
 
 async function requestJson(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     headers: {
       "Content-Type": "application/json",
