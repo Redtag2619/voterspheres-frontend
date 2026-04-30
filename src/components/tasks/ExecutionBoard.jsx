@@ -591,7 +591,7 @@ export default function ExecutionBoard({
     setTimelineErrors((prev) => ({ ...prev, [id]: "" }));
 
     try {
-      const data = await requestJson(`/api/tasks/${id}/timeline`);
+      const data = await requestJson(`/tasks/${id}/timeline`);
       setCommentsByTaskId((prev) => ({
         ...prev,
         [id]: (data.comments || []).map(normalizeComment)
@@ -652,7 +652,7 @@ export default function ExecutionBoard({
     }));
 
     try {
-      const data = await requestJson(`/api/tasks/${id}/comments`, {
+      const data = await requestJson(`/tasks/${id}/comments`, {
         method: "POST",
         body: JSON.stringify({
           body: comment.text,
