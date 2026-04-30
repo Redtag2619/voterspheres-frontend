@@ -71,6 +71,15 @@ function formatDateTime(value) {
   });
 }
 
+function nowLabel() {
+  return new Date().toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
 function slaInfo(task) {
   const ageHours = hoursOld(task);
   const priority = String(task?.priority || "").toLowerCase();
@@ -98,17 +107,31 @@ function slaInfo(task) {
   };
 }
 
-function initialsFor(task) {
+function initialsFor(taskOrName) {
+  const name =
+    typeof taskOrName === "string"
+      ? taskOrName
+      : taskOrName?.assignee_initials ||
+        taskOrName?.assigned_to ||
+        taskOrName?.created_by ||
+        "Command Team";
+
+  if (typeof taskOrName !== "string" && taskOrName?.assignee_initials) {
+    return taskOrName.assignee_initials;
+  }
+
   return (
-    task?.assignee_initials ||
-    String(task?.assigned_to || "Command Team")
+    String(name || "Command Team")
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
-      .join("") ||
-    "CT"
+      .join("") || "CT"
   );
+}
+
+function commentAuthor(task) {
+  return task?.assigned_to || task?.created_by || "Command Team";
 }
 
 function TaskAvatar({ task, onClick }) {
@@ -145,10 +168,13 @@ function TaskCard({ task, isFocused, isSelected, onStatusChange, onDragStart, on
       }}
     >
       <div className="vs-task-card-head">
-        <TaskAvatar task={task} onClick={(event) => {
-          event.stopPropagation();
-          onOpen(task);
-        }} />
+        <TaskAvatar
+          task={task}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(task);
+          }}
+        />
 
         <div className="vs-task-card-title-wrap">
           <div className="vs-task-card-title">{task.title}</div>
@@ -233,12 +259,48 @@ function DetailRow({ label, value }) {
   );
 }
 
-function TaskDetailDrawer({ task, onClose, onStatusChange }) {
+function ActivityItem({ title, subtitle, initials = "VS", tone = "default" }) {
+  return (
+    <div className="vs-activity-item">
+      <span className={`vs-activity-dot ${tone === "danger" ? "is-danger" : ""}`} />
+      <div>
+        <div className="vs-activity-title">{title}</div>
+        <div className="vs-activity-subtitle">{subtitle}</div>
+      </div>
+      <div className="vs-activity-avatar">{initials}</div>
+    </div>
+  );
+}
+
+function CommentItem({ comment }) {
+  return (
+    <div className="vs-comment-item">
+      <div className="vs-comment-avatar">{comment.initials || initialsFor(comment.author)}</div>
+      <div className="vs-comment-body">
+        <div className="vs-comment-head">
+          <span className="vs-comment-author">{comment.author || "Command Team"}</span>
+          <span className="vs-comment-time">{comment.created_at || "Now"}</span>
+        </div>
+        <div className="vs-comment-text">{comment.text}</div>
+      </div>
+    </div>
+  );
+}
+
+function TaskDetailDrawer({
+  task,
+  comments = [],
+  onAddComment,
+  onClose,
+  onStatusChange
+}) {
   const [assigneeName, setAssigneeName] = useState(task?.assigned_to || "");
+  const [commentText, setCommentText] = useState("");
   const sla = slaInfo(task);
 
   useEffect(() => {
     setAssigneeName(task?.assigned_to || "");
+    setCommentText("");
   }, [task]);
 
   if (!task) return null;
@@ -249,14 +311,63 @@ function TaskDetailDrawer({ task, onClose, onStatusChange }) {
 
     onStatusChange?.(task, normalizeStatus(task.status), {
       assigned_to: value,
-      assignee_initials: value
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("")
+      assignee_initials: initialsFor(value)
     });
   }
+
+  function submitComment(event) {
+    event.preventDefault();
+
+    const value = commentText.trim();
+    if (!value) return;
+
+    onAddComment?.(task, {
+      id: `comment-${Date.now()}`,
+      text: value,
+      author: commentAuthor(task),
+      initials: initialsFor(commentAuthor(task)),
+      created_at: nowLabel()
+    });
+
+    setCommentText("");
+  }
+
+  const timelineItems = [
+    {
+      title: "Task created",
+      subtitle: formatDateTime(task.created_at),
+      initials: initialsFor(task.created_by || "VS")
+    },
+    {
+      title: `Status: ${formatStatusLabel(task.status)}`,
+      subtitle: `Last updated ${formatDateTime(task.updated_at)}`,
+      initials: initialsFor(task.assigned_to || "CT"),
+      tone: normalizeStatus(task.status) === "blocked" ? "danger" : "default"
+    },
+    ...(task.metadata?.feed_id
+      ? [
+          {
+            title: "Created from feed signal",
+            subtitle: task.metadata.feed_id,
+            initials: "FI"
+          }
+        ]
+      : []),
+    ...(task.metadata?.vendor_action_id
+      ? [
+          {
+            title: "Connected to vendor action",
+            subtitle: task.metadata.vendor_action_id,
+            initials: "VI"
+          }
+        ]
+      : []),
+    ...comments.map((comment) => ({
+      title: `Comment by ${comment.author || "Command Team"}`,
+      subtitle: `${comment.created_at || "Now"} • ${comment.text}`,
+      initials: comment.initials || initialsFor(comment.author)
+    }))
+  ];
 
   return (
     <aside className="vs-task-drawer" aria-label="Task details">
@@ -349,33 +460,45 @@ function TaskDetailDrawer({ task, onClose, onStatusChange }) {
         </div>
 
         <div className="vs-drawer-section">
-          <div className="vs-drawer-section-title">Activity Timeline</div>
+          <div className="vs-drawer-section-title">Comments</div>
+
+          <form className="vs-comment-form" onSubmit={submitComment}>
+            <textarea
+              className="vs-comment-input"
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              placeholder="Add an internal note, update, or handoff..."
+              rows={3}
+            />
+            <div className="vs-comment-actions">
+              <span>{comments.length} comment{comments.length === 1 ? "" : "s"}</span>
+              <button type="submit" className="vs-button" disabled={!commentText.trim()}>
+                Add Comment
+              </button>
+            </div>
+          </form>
+
+          <div className="vs-comment-list">
+            {!comments.length ? (
+              <div className="vs-empty-mini">No comments yet.</div>
+            ) : (
+              comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
+            )}
+          </div>
+        </div>
+
+        <div className="vs-drawer-section">
+          <div className="vs-drawer-section-title">Activity History</div>
           <div className="vs-activity-list">
-            <div className="vs-activity-item">
-              <span className="vs-activity-dot" />
-              <div>
-                <div className="vs-activity-title">Task created</div>
-                <div className="vs-activity-subtitle">{formatDateTime(task.created_at)}</div>
-              </div>
-            </div>
-
-            <div className="vs-activity-item">
-              <span className="vs-activity-dot" />
-              <div>
-                <div className="vs-activity-title">Last updated</div>
-                <div className="vs-activity-subtitle">{formatDateTime(task.updated_at)}</div>
-              </div>
-            </div>
-
-            {task.metadata?.feed_id ? (
-              <div className="vs-activity-item">
-                <span className="vs-activity-dot" />
-                <div>
-                  <div className="vs-activity-title">Created from feed signal</div>
-                  <div className="vs-activity-subtitle">{task.metadata.feed_id}</div>
-                </div>
-              </div>
-            ) : null}
+            {timelineItems.map((item, index) => (
+              <ActivityItem
+                key={`${item.title}-${index}`}
+                title={item.title}
+                subtitle={item.subtitle}
+                initials={item.initials}
+                tone={item.tone}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -392,11 +515,17 @@ export default function ExecutionBoard({
   const [draggingTaskId, setDraggingTaskId] = useState("");
   const [dragOverLane, setDragOverLane] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [commentsByTaskId, setCommentsByTaskId] = useState({});
 
   const selectedTask = useMemo(() => {
     if (!selectedTaskId) return null;
     return tasks.find((task) => getTaskId(task) === selectedTaskId) || null;
   }, [tasks, selectedTaskId]);
+
+  const selectedComments = useMemo(() => {
+    if (!selectedTask) return [];
+    return commentsByTaskId[getTaskId(selectedTask)] || [];
+  }, [commentsByTaskId, selectedTask]);
 
   const laneTasks = useMemo(() => {
     const grouped = {
@@ -442,6 +571,15 @@ export default function ExecutionBoard({
     onStatusChange?.(task, status, extra);
   }
 
+  function handleAddComment(task, comment) {
+    const id = getTaskId(task);
+
+    setCommentsByTaskId((prev) => ({
+      ...prev,
+      [id]: [comment, ...(prev[id] || [])]
+    }));
+  }
+
   function handleDragStart(event, task) {
     const id = getTaskId(task);
     setDraggingTaskId(id);
@@ -476,7 +614,7 @@ export default function ExecutionBoard({
         <div className="vs-section-title-wrap">
           <h3 className="vs-section-title">Executive Execution Board</h3>
           <div className="vs-section-subtitle">
-            Drag tasks between lanes, monitor SLA pressure, and convert intelligence into closed work.
+            Drag tasks between lanes, monitor SLA pressure, collaborate in comments, and convert intelligence into closed work.
           </div>
         </div>
 
@@ -552,6 +690,8 @@ export default function ExecutionBoard({
 
         <TaskDetailDrawer
           task={selectedTask}
+          comments={selectedComments}
+          onAddComment={handleAddComment}
           onClose={() => setSelectedTaskId("")}
           onStatusChange={handleStatusChange}
         />
@@ -881,6 +1021,106 @@ export default function ExecutionBoard({
           font-weight: 900;
         }
 
+        .vs-comment-form {
+          display: grid;
+          gap: 10px;
+        }
+
+        .vs-comment-input {
+          width: 100%;
+          min-width: 0;
+          resize: vertical;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 14px;
+          background: rgba(15, 23, 42, 0.62);
+          color: rgba(248, 250, 252, 0.92);
+          padding: 10px 12px;
+          outline: none;
+          font: inherit;
+        }
+
+        .vs-comment-input:focus {
+          border-color: rgba(96, 165, 250, 0.42);
+          box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.08);
+        }
+
+        .vs-comment-actions {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          align-items: center;
+          color: rgba(148, 163, 184, 0.88);
+          font-size: 0.82rem;
+        }
+
+        .vs-comment-list {
+          display: grid;
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .vs-comment-item {
+          display: grid;
+          grid-template-columns: 32px minmax(0, 1fr);
+          gap: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          border-radius: 14px;
+          padding: 10px;
+          background: rgba(15, 23, 42, 0.42);
+        }
+
+        .vs-comment-avatar,
+        .vs-activity-avatar {
+          width: 30px;
+          height: 30px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          font-size: 0.68rem;
+          font-weight: 900;
+          color: rgba(240, 253, 250, 0.95);
+          background: linear-gradient(135deg, rgba(14, 165, 233, 0.86), rgba(34, 197, 94, 0.68));
+          border: 1px solid rgba(255, 255, 255, 0.16);
+        }
+
+        .vs-comment-body {
+          min-width: 0;
+        }
+
+        .vs-comment-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          align-items: center;
+        }
+
+        .vs-comment-author {
+          color: rgba(248, 250, 252, 0.92);
+          font-weight: 900;
+        }
+
+        .vs-comment-time {
+          color: rgba(148, 163, 184, 0.78);
+          font-size: 0.76rem;
+          white-space: nowrap;
+        }
+
+        .vs-comment-text {
+          margin-top: 6px;
+          color: rgba(203, 213, 225, 0.86);
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+        }
+
+        .vs-empty-mini {
+          border: 1px dashed rgba(148, 163, 184, 0.18);
+          border-radius: 14px;
+          padding: 12px;
+          color: rgba(148, 163, 184, 0.78);
+          font-size: 0.86rem;
+          text-align: center;
+        }
+
         .vs-activity-list {
           display: grid;
           gap: 12px;
@@ -888,7 +1128,7 @@ export default function ExecutionBoard({
 
         .vs-activity-item {
           display: grid;
-          grid-template-columns: 12px minmax(0, 1fr);
+          grid-template-columns: 12px minmax(0, 1fr) 30px;
           gap: 10px;
           align-items: start;
         }
@@ -900,6 +1140,11 @@ export default function ExecutionBoard({
           margin-top: 5px;
           background: rgba(34, 197, 94, 0.95);
           box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+        }
+
+        .vs-activity-dot.is-danger {
+          background: rgba(248, 113, 113, 0.95);
+          box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
         }
 
         .vs-activity-title {
@@ -954,6 +1199,11 @@ export default function ExecutionBoard({
             height: auto;
             min-height: 260px;
             max-height: none;
+          }
+
+          .vs-comment-head {
+            display: grid;
+            justify-content: start;
           }
         }
       `}</style>
