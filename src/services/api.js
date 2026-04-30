@@ -479,7 +479,11 @@ export const publicApi = {
 export const tasksApi = {
   list: (params = {}) => tryGet(["/tasks"], { params }),
   create: (payload) => tryPost(["/tasks"], payload),
-  update: (taskId, payload) => tryPatch([`/tasks/${taskId}`], payload)
+  update: (taskId, payload) => tryPatch([`/tasks/${taskId}`], payload),
+  comments: (taskId) => tryGet([`/tasks/${taskId}/comments`]),
+  addComment: (taskId, payload) => tryPost([`/tasks/${taskId}/comments`], payload),
+  activity: (taskId) => tryGet([`/tasks/${taskId}/activity`]),
+  timeline: (taskId) => tryGet([`/tasks/${taskId}/timeline`])
 };
 
 export const api = {
@@ -557,6 +561,10 @@ export const api = {
   tasks: tasksApi.list,
   createTask: tasksApi.create,
   updateTask: tasksApi.update,
+  taskComments: tasksApi.comments,
+  addTaskComment: tasksApi.addComment,
+  taskActivity: tasksApi.activity,
+  taskTimeline: tasksApi.timeline,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
