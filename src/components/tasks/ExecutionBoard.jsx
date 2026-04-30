@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Badge from "../ui/Badge";
 
+const API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "http://127.0.0.1:10000";
+
 const LANES = [
   { id: "open", title: "Open", subtitle: "Needs owner action" },
   { id: "in_progress", title: "In Progress", subtitle: "Being handled now" },
@@ -127,6 +131,57 @@ function initialsFor(value) {
   );
 }
 
+function authHeaders() {
+  const token =
+    localStorage.getItem("vs_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    "";
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function requestJson(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...(options.headers || {})
+    }
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || `Request failed: ${response.status}`);
+  }
+
+  return data;
+}
+
+function normalizeComment(row = {}) {
+  return {
+    id: row.id || `comment-${Date.now()}`,
+    text: row.body || row.text || row.comment || "",
+    author: row.author_name || row.author || "Command Team",
+    initials: row.author_initials || initialsFor(row.author_name || row.author),
+    created_at: formatDateTime(row.created_at) || row.created_at || "Now",
+    raw_created_at: row.created_at
+  };
+}
+
+function normalizeActivity(row = {}) {
+  return {
+    id: row.id || `activity-${Date.now()}`,
+    title: row.title || row.event_type || "Task updated",
+    subtitle: row.detail || formatDateTime(row.created_at),
+    initials: row.actor_initials || initialsFor(row.actor_name || "System"),
+    created_at: row.created_at,
+    tone: String(row.event_type || "").includes("blocked") ? "danger" : "default"
+  };
+}
+
 function TaskAvatar({ task }) {
   if (task?.assignee_avatar) {
     return (
@@ -181,11 +236,15 @@ function ActivityItem({ title, subtitle, initials = "VS", tone = "default" }) {
 function TaskExpandedPanel({
   task,
   comments = [],
+  activity = [],
+  loadingTimeline = false,
+  timelineError = "",
   onAddComment,
   onStatusChange
 }) {
   const [assigneeName, setAssigneeName] = useState(task?.assigned_to || "");
   const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
   const sla = slaInfo(task);
 
   useEffect(() => {
@@ -193,7 +252,7 @@ function TaskExpandedPanel({
     setCommentText("");
   }, [task]);
 
-  function updateAssignee() {
+  async function updateAssignee() {
     const value = assigneeName.trim();
     if (!value) return;
 
@@ -203,24 +262,29 @@ function TaskExpandedPanel({
     });
   }
 
-  function submitComment(event) {
+  async function submitComment(event) {
     event.preventDefault();
 
     const value = commentText.trim();
-    if (!value) return;
+    if (!value || submittingComment) return;
 
-    onAddComment?.(task, {
-      id: `comment-${Date.now()}`,
-      text: value,
-      author: task?.assigned_to || task?.created_by || "Command Team",
-      initials: initialsFor(task?.assigned_to || task?.created_by || "Command Team"),
-      created_at: nowLabel()
-    });
+    setSubmittingComment(true);
 
-    setCommentText("");
+    try {
+      await onAddComment?.(task, {
+        text: value,
+        author: task?.assigned_to || task?.created_by || "Command Team",
+        initials: initialsFor(task?.assigned_to || task?.created_by || "Command Team"),
+        created_at: nowLabel()
+      });
+
+      setCommentText("");
+    } finally {
+      setSubmittingComment(false);
+    }
   }
 
-  const timelineItems = [
+  const defaultTimelineItems = [
     {
       title: "Task created",
       subtitle: formatDateTime(task.created_at),
@@ -237,13 +301,10 @@ function TaskExpandedPanel({
       : []),
     ...(task.metadata?.vendor_action_id
       ? [{ title: "Connected to vendor action", subtitle: task.metadata.vendor_action_id, initials: "VI" }]
-      : []),
-    ...comments.map((comment) => ({
-      title: `Comment by ${comment.author || "Command Team"}`,
-      subtitle: `${comment.created_at || "Now"} • ${comment.text}`,
-      initials: comment.initials || initialsFor(comment.author)
-    }))
+      : [])
   ];
+
+  const timelineItems = activity.length ? activity : defaultTimelineItems;
 
   return (
     <div className="vs-task-expanded">
@@ -311,13 +372,14 @@ function TaskExpandedPanel({
           />
           <div className="vs-comment-actions">
             <span>{comments.length} comment{comments.length === 1 ? "" : "s"}</span>
-            <button type="submit" className="vs-button" disabled={!commentText.trim()}>
-              Add Comment
+            <button type="submit" className="vs-button" disabled={!commentText.trim() || submittingComment}>
+              {submittingComment ? "Saving..." : "Add Comment"}
             </button>
           </div>
         </form>
 
         <div className="vs-comment-list">
+          {timelineError ? <div className="vs-empty-mini">{timelineError}</div> : null}
           {!comments.length ? (
             <div className="vs-empty-mini">No comments yet.</div>
           ) : (
@@ -329,15 +391,19 @@ function TaskExpandedPanel({
       <div className="vs-task-expanded-section">
         <div className="vs-task-expanded-title">Activity History</div>
         <div className="vs-activity-list">
-          {timelineItems.map((item, index) => (
-            <ActivityItem
-              key={`${item.title}-${index}`}
-              title={item.title}
-              subtitle={item.subtitle}
-              initials={item.initials}
-              tone={item.tone}
-            />
-          ))}
+          {loadingTimeline ? (
+            <div className="vs-empty-mini">Loading activity...</div>
+          ) : (
+            timelineItems.map((item, index) => (
+              <ActivityItem
+                key={`${item.id || item.title}-${index}`}
+                title={item.title}
+                subtitle={item.subtitle}
+                initials={item.initials}
+                tone={item.tone}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -349,6 +415,9 @@ function TaskCard({
   isFocused,
   isExpanded,
   comments = [],
+  activity = [],
+  loadingTimeline = false,
+  timelineError = "",
   onAddComment,
   onStatusChange,
   onDragStart,
@@ -444,6 +513,9 @@ function TaskCard({
         <TaskExpandedPanel
           task={task}
           comments={comments}
+          activity={activity}
+          loadingTimeline={loadingTimeline}
+          timelineError={timelineError}
           onAddComment={onAddComment}
           onStatusChange={onStatusChange}
         />
@@ -462,6 +534,9 @@ export default function ExecutionBoard({
   const [dragOverLane, setDragOverLane] = useState("");
   const [expandedTaskIds, setExpandedTaskIds] = useState(() => new Set());
   const [commentsByTaskId, setCommentsByTaskId] = useState({});
+  const [activityByTaskId, setActivityByTaskId] = useState({});
+  const [loadingTaskIds, setLoadingTaskIds] = useState(() => new Set());
+  const [timelineErrors, setTimelineErrors] = useState({});
 
   const laneTasks = useMemo(() => {
     const grouped = {
@@ -508,8 +583,40 @@ export default function ExecutionBoard({
     return () => clearTimeout(timer);
   }, [focusedTaskId, tasks.length]);
 
+  async function loadTimeline(task) {
+    const id = getTaskId(task);
+    if (!id || String(id).startsWith("local-")) return;
+
+    setLoadingTaskIds((prev) => new Set(prev).add(id));
+    setTimelineErrors((prev) => ({ ...prev, [id]: "" }));
+
+    try {
+      const data = await requestJson(`/api/tasks/${id}/timeline`);
+      setCommentsByTaskId((prev) => ({
+        ...prev,
+        [id]: (data.comments || []).map(normalizeComment)
+      }));
+      setActivityByTaskId((prev) => ({
+        ...prev,
+        [id]: (data.activity || []).map(normalizeActivity)
+      }));
+    } catch (err) {
+      setTimelineErrors((prev) => ({
+        ...prev,
+        [id]: err.message || "Could not load comments/activity."
+      }));
+    } finally {
+      setLoadingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
   function handleToggle(task) {
     const id = getTaskId(task);
+    const willOpen = !expandedTaskIds.has(id);
 
     setExpandedTaskIds((prev) => {
       const next = new Set(prev);
@@ -517,15 +624,71 @@ export default function ExecutionBoard({
       else next.add(id);
       return next;
     });
+
+    if (willOpen && !commentsByTaskId[id] && !activityByTaskId[id]) {
+      loadTimeline(task);
+    }
   }
 
-  function handleAddComment(task, comment) {
+  async function handleAddComment(task, comment) {
     const id = getTaskId(task);
+
+    if (!id || String(id).startsWith("local-")) {
+      setCommentsByTaskId((prev) => ({
+        ...prev,
+        [id]: [comment, ...(prev[id] || [])]
+      }));
+      return;
+    }
+
+    const optimistic = {
+      id: `comment-local-${Date.now()}`,
+      ...comment
+    };
 
     setCommentsByTaskId((prev) => ({
       ...prev,
-      [id]: [comment, ...(prev[id] || [])]
+      [id]: [optimistic, ...(prev[id] || [])]
     }));
+
+    try {
+      const data = await requestJson(`/api/tasks/${id}/comments`, {
+        method: "POST",
+        body: JSON.stringify({
+          body: comment.text,
+          author_name: comment.author,
+          author_initials: comment.initials
+        })
+      });
+
+      setCommentsByTaskId((prev) => ({
+        ...prev,
+        [id]: [normalizeComment(data.comment), ...(prev[id] || []).filter((item) => item.id !== optimistic.id)]
+      }));
+
+      if (data.activity) {
+        setActivityByTaskId((prev) => ({
+          ...prev,
+          [id]: [normalizeActivity(data.activity), ...(prev[id] || [])]
+        }));
+      }
+    } catch (err) {
+      setTimelineErrors((prev) => ({
+        ...prev,
+        [id]: err.message || "Comment saved locally only."
+      }));
+    }
+  }
+
+  function handleStatusChange(task, status, extra = {}) {
+    onStatusChange?.(task, status, extra);
+
+    const id = getTaskId(task);
+    if (!id) return;
+
+    setTimeout(() => {
+      loadTimeline(task);
+    }, 450);
   }
 
   function handleDragStart(event, task) {
@@ -553,7 +716,7 @@ export default function ExecutionBoard({
     if (!task) return;
     if (normalizeStatus(task.status) === laneId) return;
 
-    onStatusChange?.(task, laneId);
+    handleStatusChange(task, laneId);
   }
 
   return (
@@ -562,7 +725,7 @@ export default function ExecutionBoard({
         <div className="vs-section-title-wrap">
           <h3 className="vs-section-title">Executive Execution Board</h3>
           <div className="vs-section-subtitle">
-            Drag tasks between lanes, expand blocks for details, collaborate in comments, and convert intelligence into closed work.
+            Drag tasks between lanes, expand blocks for persisted comments/activity, and convert intelligence into closed work.
           </div>
         </div>
 
@@ -621,8 +784,11 @@ export default function ExecutionBoard({
                           isFocused={isFocused}
                           isExpanded={isExpanded}
                           comments={commentsByTaskId[id] || []}
+                          activity={activityByTaskId[id] || []}
+                          loadingTimeline={loadingTaskIds.has(id)}
+                          timelineError={timelineErrors[id] || ""}
                           onAddComment={handleAddComment}
-                          onStatusChange={onStatusChange}
+                          onStatusChange={handleStatusChange}
                           onDragStart={handleDragStart}
                           onToggle={handleToggle}
                         />
@@ -1054,3 +1220,4 @@ export default function ExecutionBoard({
     </section>
   );
 }
+
