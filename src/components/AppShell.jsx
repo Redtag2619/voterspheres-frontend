@@ -164,23 +164,23 @@ export default function AppShell() {
               >
                 + Workspace
               <button
-  type="button"
-  className="vs-button vs-button-secondary"
-  onClick={() => {
-    setForm({
-      name: activeWorkspace?.name || "",
-      candidate_name: activeWorkspace?.candidate_name || "",
-      state: activeWorkspace?.state || "",
-      office: activeWorkspace?.office || "",
-      cycle: activeWorkspace?.cycle || "2026",
-      description: activeWorkspace?.description || ""
-    });
-    setShowEditModal(true);
-  }}
-  disabled={!activeWorkspaceId}
->
-  Settings
-</button>
+               type="button"
+               className="vs-button vs-button-secondary"
+               onClick={() => {
+            setForm({
+               name: activeWorkspace?.name || "",
+               candidate_name: activeWorkspace?.candidate_name || "",
+               state: activeWorkspace?.state || "",
+               office: activeWorkspace?.office || "",
+               cycle: activeWorkspace?.cycle || "2026",
+               description: activeWorkspace?.description || ""
+           });
+            setShowEditModal(true);
+           }}
+            disabled={!activeWorkspaceId}
+        >
+           Settings
+           </button>
 
               <span className="vs-brand-live">
                 <span className="vs-live-dot-success" />
