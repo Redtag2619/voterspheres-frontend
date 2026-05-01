@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Badge from "../ui/Badge";
 
 const RAW_API_BASE =
@@ -72,9 +72,9 @@ function hoursOld(task) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleString([], {
     month: "short",
@@ -137,6 +137,58 @@ function initialsFor(value) {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join("") || "CT"
+  );
+}
+
+function sourceLabel(source = "") {
+  const value = String(source || "").toLowerCase();
+
+  if (value.includes("vendor")) return "Vendor Intelligence";
+  if (value.includes("warroom") || value.includes("war_room") || value.includes("war room")) return "War Room";
+  if (value.includes("mail")) return "MailOps";
+  if (value.includes("candidate")) return "Candidate Intelligence";
+  if (value.includes("feed")) return "Executive Feed";
+  if (value.includes("command")) return "Command Center";
+
+  return source ? String(source).replace(/_/g, " ") : "Command Center";
+}
+
+function sourceTone(source = "") {
+  const value = String(source || "").toLowerCase();
+
+  if (value.includes("vendor")) return "info";
+  if (value.includes("war")) return "danger";
+  if (value.includes("mail")) return "demo";
+  if (value.includes("candidate")) return "accent";
+  return "accent";
+}
+
+function getSignalMetadata(task = {}) {
+  const metadata = task?.metadata || {};
+
+  return {
+    feedId: metadata.feed_id || "",
+    signalId: metadata.signal_id || "",
+    vendorActionId: metadata.vendor_action_id || "",
+    actionId: metadata.action_id || "",
+    signalType: metadata.signal_type || metadata.type || "",
+    risk: metadata.risk || task.risk || "",
+    action: metadata.action || "",
+    state: metadata.state || task.state || "",
+    office: metadata.office || task.office || "",
+    source: sourceLabel(task.source || metadata.source || "command_center")
+  };
+}
+
+function hasLinkedSignal(task = {}) {
+  const signal = getSignalMetadata(task);
+  return Boolean(
+    signal.feedId ||
+      signal.signalId ||
+      signal.vendorActionId ||
+      signal.actionId ||
+      signal.signalType ||
+      signal.action
   );
 }
 
@@ -208,7 +260,7 @@ function TaskAvatar({ task }) {
 function DetailRow({ label, value }) {
   const isSource = String(label || "").toLowerCase() === "source";
   const displayValue = isSource
-    ? String(value || "Command Center").replace(/_/g, " ")
+    ? sourceLabel(value || "Command Center")
     : value || "—";
 
   return (
@@ -216,6 +268,19 @@ function DetailRow({ label, value }) {
       <div className="vs-meta-label">{label}</div>
       <div className="vs-detail-value" title={String(displayValue)}>
         {displayValue}
+      </div>
+    </div>
+  );
+}
+
+function SignalRow({ label, value }) {
+  if (!value) return null;
+
+  return (
+    <div className="vs-signal-row">
+      <div className="vs-meta-label">{label}</div>
+      <div className="vs-signal-value" title={String(value)}>
+        {value}
       </div>
     </div>
   );
@@ -262,6 +327,9 @@ function TaskExpandedPanel({
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const sla = slaInfo(task);
+  const signal = getSignalMetadata(task);
+  const linkedSignal = hasLinkedSignal(task);
+  const isComplete = normalizeStatus(task.status) === "complete";
 
   useEffect(() => {
     setAssigneeName(task?.assigned_to || "");
@@ -312,11 +380,11 @@ function TaskExpandedPanel({
       initials: initialsFor(task.assigned_to || "CT"),
       tone: normalizeStatus(task.status) === "blocked" ? "danger" : "default"
     },
-    ...(task.metadata?.feed_id
-      ? [{ title: "Created from feed signal", subtitle: task.metadata.feed_id, initials: "FI" }] 
+    ...(signal.feedId
+      ? [{ title: "Created from feed signal", subtitle: signal.feedId, initials: "FI" }]
       : []),
-    ...(task.metadata?.vendor_action_id
-      ? [{ title: "Connected to vendor action", subtitle: task.metadata.vendor_action_id, initials: "VI" }]
+    ...(signal.vendorActionId
+      ? [{ title: "Connected to vendor action", subtitle: signal.vendorActionId, initials: "VI" }]
       : [])
   ];
 
@@ -337,10 +405,48 @@ function TaskExpandedPanel({
         <DetailRow label="Office" value={task.office || "Statewide"} />
         <DetailRow label="Due" value={task.due_label || "Now"} />
         <DetailRow label="Age" value={sla.detail} />
-        <DetailRow label="Source" value={task.source || "command_center"} />
+        <DetailRow label="Source" value={task.source || "Command Center"} />
         <DetailRow label="Created" value={formatDateTime(task.created_at)} />
         <DetailRow label="Updated" value={formatDateTime(task.updated_at)} />
       </div>
+
+      {linkedSignal ? (
+        <div className={`vs-linked-signal ${isComplete ? "is-resolved" : ""}`}>
+          <div className="vs-linked-signal-head">
+            <div>
+              <div className="vs-task-expanded-title">Linked Signal</div>
+              <div className="vs-linked-signal-subtitle">
+                This task is connected to the intelligence signal that created it.
+              </div>
+            </div>
+
+            <div className="vs-inline-actions">
+              <Badge tone={sourceTone(task.source)}>{signal.source}</Badge>
+              <Badge tone={isComplete ? "active" : "demo"}>
+                {isComplete ? "Resolved" : "Actioned"}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="vs-signal-grid">
+            <SignalRow label="Signal Type" value={signal.signalType || "intelligence.signal"} />
+            <SignalRow label="Feed ID" value={signal.feedId} />
+            <SignalRow label="Signal ID" value={signal.signalId} />
+            <SignalRow label="Vendor Action" value={signal.vendorActionId} />
+            <SignalRow label="Action ID" value={signal.actionId} />
+            <SignalRow label="Risk" value={signal.risk || "Watch"} />
+            <SignalRow label="State" value={signal.state || "National"} />
+            <SignalRow label="Office" value={signal.office || "Statewide"} />
+          </div>
+
+          {signal.action ? (
+            <div className="vs-linked-signal-action">
+              <div className="vs-meta-label">Originating Action</div>
+              <div className="vs-linked-signal-action-text">{signal.action}</div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="vs-task-expanded-section">
         <div className="vs-task-expanded-title">Reassign Owner</div>
@@ -440,6 +546,9 @@ function TaskCard({
   onToggle
 }) {
   const sla = slaInfo(task);
+  const linkedSignal = hasLinkedSignal(task);
+  const isComplete = normalizeStatus(task.status) === "complete";
+  const origin = sourceLabel(task.source || task.metadata?.source || "command_center");
 
   return (
     <div
@@ -492,9 +601,15 @@ function TaskCard({
       </div>
 
       <div className="vs-task-card-badges">
+        <Badge tone={sourceTone(task.source)}>{origin}</Badge>
         <Badge tone={priorityTone(task.priority)}>{task.priority || "medium"}</Badge>
         <Badge tone={statusTone(task.status)}>{formatStatusLabel(task.status)}</Badge>
         <Badge tone={sla.tone}>{sla.label}</Badge>
+        {linkedSignal ? (
+          <Badge tone={isComplete ? "active" : "demo"}>
+            {isComplete ? "Signal Resolved" : "Signal Linked"}
+          </Badge>
+        ) : null}
       </div>
 
       <div className="vs-task-card-actions">
@@ -573,8 +688,9 @@ export default function ExecutionBoard({
     const active = tasks.filter((task) => normalizeStatus(task.status) !== "complete");
     const risk = active.filter((task) => slaInfo(task).label === "SLA Risk").length;
     const aging = active.filter((task) => slaInfo(task).label === "Aging").length;
+    const linked = active.filter((task) => hasLinkedSignal(task)).length;
 
-    return { active: active.length, risk, aging };
+    return { active: active.length, risk, aging, linked };
   }, [tasks]);
 
   useEffect(() => {
@@ -741,12 +857,15 @@ export default function ExecutionBoard({
         <div className="vs-section-title-wrap">
           <h3 className="vs-section-title">Executive Execution Board</h3>
           <div className="vs-section-subtitle">
-            Drag tasks between lanes, expand blocks for persisted comments/activity, and convert intelligence into closed work.
+            Drag tasks between lanes, expand blocks for linked signals, persisted comments/activity, and closed-loop execution.
           </div>
         </div>
 
         <div className="vs-inline-actions">
           <Badge tone="accent">{tasks.length} tasks</Badge>
+          <Badge tone={slaSummary.linked ? "info" : "default"}>
+            {slaSummary.linked} linked
+          </Badge>
           <Badge tone={slaSummary.risk ? "danger" : "active"}>
             {slaSummary.risk} SLA risk
           </Badge>
@@ -1034,19 +1153,19 @@ export default function ExecutionBoard({
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
-       }
+        }
 
         .vs-detail-row {
-          min-width: 0;
           border: 1px solid rgba(148, 163, 184, 0.12);
           border-radius: 14px;
           padding: 10px;
           background: rgba(15, 23, 42, 0.45);
-       }
+          min-width: 0;
+        }
 
         .vs-detail-row.is-source {
           grid-column: 1 / -1;
-       }
+        }
 
         .vs-detail-value {
           margin-top: 4px;
@@ -1059,7 +1178,77 @@ export default function ExecutionBoard({
           text-overflow: ellipsis;
           word-break: keep-all;
           overflow-wrap: normal;
-       }
+        }
+
+        .vs-linked-signal {
+          border: 1px solid rgba(96, 165, 250, 0.18);
+          border-radius: 16px;
+          padding: 12px;
+          background: linear-gradient(135deg, rgba(30, 64, 175, 0.14), rgba(15, 23, 42, 0.45));
+        }
+
+        .vs-linked-signal.is-resolved {
+          border-color: rgba(34, 197, 94, 0.28);
+          background: linear-gradient(135deg, rgba(20, 83, 45, 0.22), rgba(15, 23, 42, 0.46));
+        }
+
+        .vs-linked-signal-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+          margin-bottom: 12px;
+        }
+
+        .vs-linked-signal-subtitle {
+          margin-top: 3px;
+          color: rgba(148, 163, 184, 0.85);
+          font-size: 0.82rem;
+          line-height: 1.4;
+        }
+
+        .vs-signal-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .vs-signal-row {
+          min-width: 0;
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          border-radius: 14px;
+          padding: 10px;
+          background: rgba(15, 23, 42, 0.38);
+        }
+
+        .vs-signal-value {
+          margin-top: 4px;
+          color: rgba(248, 250, 252, 0.9);
+          font-weight: 800;
+          min-width: 0;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          word-break: keep-all;
+          overflow-wrap: normal;
+        }
+
+        .vs-linked-signal-action {
+          margin-top: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          border-radius: 14px;
+          padding: 10px;
+          background: rgba(15, 23, 42, 0.42);
+        }
+
+        .vs-linked-signal-action-text {
+          margin-top: 4px;
+          color: rgba(226, 232, 240, 0.86);
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+        }
+
         .vs-drawer-reassign {
           display: flex;
           gap: 8px;
@@ -1231,7 +1420,8 @@ export default function ExecutionBoard({
 
         @media (max-width: 720px) {
           .vs-execution-lanes,
-          .vs-detail-grid {
+          .vs-detail-grid,
+          .vs-signal-grid {
             grid-template-columns: 1fr;
           }
 
@@ -1240,10 +1430,12 @@ export default function ExecutionBoard({
             min-height: 260px;
             max-height: none;
           }
+
+          .vs-linked-signal-head {
+            display: grid;
+          }
         }
       `}</style>
     </section>
   );
 }
-
-
