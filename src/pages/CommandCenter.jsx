@@ -239,13 +239,31 @@ function BattlegroundRow({ row, active = false }) {
   );
 }
 
-function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask, onViewTask, onAssigneeClick, taskState }) {
+function FeedRow({
+  item,
+  live = false,
+  expanded = false,
+  onToggle,
+  onCreateTask,
+  onViewTask,
+  onAssigneeClick,
+  taskState
+}) {
   const severity = String(item.severity || "").toLowerCase();
   const hasTask = Boolean(taskState?.exists || taskState?.task_id);
-  const status = taskState?.status || "open";
+  const status = String(taskState?.status || "open").toLowerCase();
+  const isResolved = hasTask && ["complete", "completed", "done"].includes(status);
+  const isActioned = hasTask && !isResolved;
+
+  const loopLabel = isResolved ? "Resolved" : isActioned ? "Actioned" : "No Task";
+  const loopTone = isResolved ? "active" : isActioned ? "info" : "default";
 
   return (
-    <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${severity === "high" || severity === "critical" ? "is-elevated" : ""}`}>
+    <div
+      className={`vs-premium-row-card ${live ? "is-live" : ""} ${
+        severity === "high" || severity === "critical" ? "is-elevated" : ""
+      }`}
+    >
       <ResponsiveRow
         live={live}
         title={item.title}
@@ -260,6 +278,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask,
         right={
           <div className="vs-inline-actions">
             <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>
+            <Badge tone={loopTone}>{loopLabel}</Badge>
             {hasTask ? <Badge tone={statusTone(status)}>{status}</Badge> : null}
             <button type="button" className="vs-button vs-button-secondary" onClick={onToggle}>
               {expanded ? "Collapse" : "Expand"}
@@ -269,14 +288,19 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask,
       />
 
       {expanded ? (
-        <div className="vs-feed-expanded">
+        <div className={`vs-feed-expanded ${isResolved ? "is-resolved" : isActioned ? "is-actioned" : ""}`}>
           <div className="vs-feed-expanded-header">
             <AssigneeAvatar taskState={taskState} item={item} onClick={onAssigneeClick} />
+
             <div className="vs-feed-expanded-header-copy">
               <div className="vs-feed-expanded-title">Briefing Detail</div>
               <div className="vs-feed-expanded-owner">
                 {taskState?.assigned_to || item.assigned_to || item.owner || "War Room"}
               </div>
+            </div>
+
+            <div className="vs-feed-loop-status">
+              <Badge tone={loopTone}>{loopLabel}</Badge>
             </div>
           </div>
 
@@ -289,19 +313,37 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask,
               <div className="vs-meta-label">Signal Type</div>
               <div className="vs-meta-value">{item.type || "intelligence.signal"}</div>
             </div>
+
             <div className="vs-meta-block">
               <div className="vs-meta-label">Risk</div>
               <div className="vs-meta-value">{item.risk || "Watch"}</div>
             </div>
+
             <div className="vs-meta-block">
               <div className="vs-meta-label">Source</div>
               <div className="vs-meta-value">{item.source || "Command Center"}</div>
             </div>
+
             <div className="vs-meta-block">
-              <div className="vs-meta-label">Task</div>
-              <div className="vs-meta-value">{hasTask ? status : "Not Created"}</div>
+              <div className="vs-meta-label">Outcome</div>
+              <div className="vs-meta-value">{loopLabel}</div>
             </div>
           </div>
+
+          {hasTask ? (
+            <div className="vs-feed-loop-card">
+              <div>
+                <div className="vs-feed-loop-title">
+                  {isResolved ? "Signal resolved by execution task" : "Signal actioned into execution"}
+                </div>
+                <div className="vs-feed-loop-subtitle">
+                  {taskState?.title || "Linked execution task"} · Status: {status}
+                </div>
+              </div>
+
+              <Badge tone={loopTone}>{loopLabel}</Badge>
+            </div>
+          ) : null}
 
           <div className="vs-inline-actions" style={{ marginTop: 14 }}>
             {hasTask ? (
@@ -309,7 +351,7 @@ function FeedRow({ item, live = false, expanded = false, onToggle, onCreateTask,
                 <button type="button" className="vs-decision-btn deploy" onClick={onViewTask}>
                   View Task
                 </button>
-                <Badge tone={statusTone(status)}>Task {status}</Badge>
+                <Badge tone={loopTone}>{loopLabel}</Badge>
               </>
             ) : (
               <button type="button" className="vs-decision-btn deploy" onClick={onCreateTask}>
@@ -1600,6 +1642,44 @@ export default function CommandCenter() {
           font-size: 0.92rem;
           line-height: 1.55;
           overflow-wrap: anywhere;
+        }        
+        
+        .vs-feed-expanded.is-actioned {
+          border-top-color: rgba(96, 165, 250, 0.22);
+          background: linear-gradient(135deg, rgba(30, 64, 175, 0.1), rgba(15, 23, 42, 0.18));
+        }
+
+        .vs-feed-expanded.is-resolved {
+          border-top-color: rgba(34, 197, 94, 0.28);
+          background: linear-gradient(135deg, rgba(20, 83, 45, 0.16), rgba(15, 23, 42, 0.18));
+        }
+
+        .vs-feed-loop-status {
+          margin-left: auto;
+          flex: 0 0 auto;
+        }
+
+        .vs-feed-loop-card {
+          margin-top: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px;
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.42);
+        }
+
+        .vs-feed-loop-title {
+          color: rgba(248, 250, 252, 0.94);
+          font-weight: 900;
+        }
+
+        .vs-feed-loop-subtitle {
+          margin-top: 3px;
+          color: rgba(148, 163, 184, 0.86);
+          font-size: 0.82rem;
         }
 
         .vs-avatar {
