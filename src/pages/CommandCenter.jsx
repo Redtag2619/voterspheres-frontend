@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -13,6 +13,7 @@ import { useApiResource } from "../hooks/useApiResource";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useRealtimeStream from "../hooks/useRealtimeStream";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 const fallbackData = {
   metrics: [
@@ -746,6 +747,7 @@ export default function CommandCenter() {
   const executionBoardRef = useRef(null);
   const autoVendorTaskIds = useRef(new Set());
   const { filters } = useExecutiveFilters();
+  const { activeWorkspaceId, activeWorkspace } = useWorkspace();
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -824,7 +826,11 @@ export default function CommandCenter() {
 
   async function loadTasks() {
     try {
-      const response = await api.tasks?.({ limit: 100 });
+      const response = await api.tasks?.({
+        limit: 100,
+        workspace_id: activeWorkspaceId || undefined
+      });
+
       setExecutionTasks(response?.results || []);
     } catch {
       setExecutionTasks([]);
@@ -836,7 +842,11 @@ export default function CommandCenter() {
 
     async function run() {
       try {
-        const response = await api.tasks?.({ limit: 100 });
+        const response = await api.tasks?.({
+          limit: 100,
+          workspace_id: activeWorkspaceId || undefined
+        });
+
         if (!active) return;
         setExecutionTasks(response?.results || []);
       } catch {
@@ -850,9 +860,21 @@ export default function CommandCenter() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeWorkspaceId]);
 
-    useRealtimeStream("tasks", (event) => {
+  useEffect(() => {
+    setExpandedFeedIds(new Set());
+    setFeedTaskState({});
+    setFocusedTaskId(null);
+    setSelectedAssignee(null);
+    setReassignmentMessage("");
+
+    if (activeWorkspace?.name) {
+      setLiveBanner(`Workspace changed: ${activeWorkspace.name}`);
+    }
+  }, [activeWorkspaceId, activeWorkspace?.name]);
+
+  useRealtimeStream("tasks", (event) => {
     if (!event?.type) return;
 
     const payload = event.payload || {};
@@ -1027,6 +1049,7 @@ export default function CommandCenter() {
       title: action,
       description: context.detail || "Generated from the Command Center decision engine.",
       source: context.source || "command_center",
+      workspace_id: activeWorkspaceId || context.workspace_id || null,
       state: context.state || "National",
       office: context.office || "Statewide",
       priority,
@@ -1307,7 +1330,11 @@ export default function CommandCenter() {
         const ids = feed.map((item) => getFeedKey(item)).join(",");
         const response = api.feedTaskState
           ? await api.feedTaskState(ids)
-          : (await api.get(`/tasks/feed-state?ids=${encodeURIComponent(ids)}`)).data;
+          : (
+              await api.get(`/tasks/feed-state?ids=${encodeURIComponent(ids)}`, {
+                params: { workspace_id: activeWorkspaceId || undefined }
+              })
+            ).data;
 
         if (!active) return;
         setFeedTaskState({ ...localResults, ...(response?.results || {}) });
@@ -1322,7 +1349,7 @@ export default function CommandCenter() {
     return () => {
       active = false;
     };
-  }, [feed, executionTasks]);
+  }, [feed, executionTasks, activeWorkspaceId]);
 
   const vendorActions = useMemo(() => {
     return (vendorIntel?.recommended_actions || []).map((item) => ({
