@@ -206,15 +206,17 @@ function TaskAvatar({ task }) {
 }
 
 function DetailRow({ label, value }) {
-  const displayValue =
-    String(label || "").toLowerCase() === "source"
-      ? "Cmd Ctr"
-      : value || "—";
+  const isSource = String(label || "").toLowerCase() === "source";
+  const displayValue = isSource
+    ? String(value || "Command Center").replace(/_/g, " ")
+    : value || "—";
 
   return (
-    <div className="vs-detail-row">
+    <div className={`vs-detail-row ${isSource ? "is-source" : ""}`}>
       <div className="vs-meta-label">{label}</div>
-      <div className="vs-detail-value">{displayValue}</div>
+      <div className="vs-detail-value" title={String(displayValue)}>
+        {displayValue}
+      </div>
     </div>
   );
 }
@@ -1032,23 +1034,32 @@ export default function ExecutionBoard({
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
-        }
+       }
 
         .vs-detail-row {
+          min-width: 0;
           border: 1px solid rgba(148, 163, 184, 0.12);
           border-radius: 14px;
           padding: 10px;
           background: rgba(15, 23, 42, 0.45);
-          min-width: 0;
-        }
+       }
+
+        .vs-detail-row.is-source {
+          grid-column: 1 / -1;
+       }
 
         .vs-detail-value {
           margin-top: 4px;
+          min-width: 0;
+          max-width: 100%;
           color: rgba(248, 250, 252, 0.9);
           font-weight: 800;
-          overflow-wrap: anywhere;
-        }
-
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          word-break: keep-all;
+          overflow-wrap: normal;
+       }
         .vs-drawer-reassign {
           display: flex;
           gap: 8px;
