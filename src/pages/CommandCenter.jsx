@@ -250,19 +250,34 @@ function FeedRow({
   taskState
 }) {
   const severity = String(item.severity || "").toLowerCase();
+  const isHighRisk = ["high", "critical", "severe"].includes(severity);
   const hasTask = Boolean(taskState?.exists || taskState?.task_id);
   const status = String(taskState?.status || "open").toLowerCase();
   const isResolved = hasTask && ["complete", "completed", "done"].includes(status);
   const isActioned = hasTask && !isResolved;
+  const isGap = isHighRisk && !hasTask;
 
-  const loopLabel = isResolved ? "Resolved" : isActioned ? "Actioned" : "No Task";
-  const loopTone = isResolved ? "active" : isActioned ? "info" : "default";
+  const loopLabel = isResolved
+    ? "Resolved"
+    : isActioned
+      ? "Actioned"
+      : isGap
+        ? "Unassigned Gap"
+        : "No Task";
+
+  const loopTone = isResolved
+    ? "active"
+    : isActioned
+      ? "info"
+      : isGap
+        ? "danger"
+        : "default";
 
   return (
     <div
       className={`vs-premium-row-card ${live ? "is-live" : ""} ${
-        severity === "high" || severity === "critical" ? "is-elevated" : ""
-      }`}
+        isHighRisk ? "is-elevated" : ""
+      } ${isGap ? "is-signal-gap" : ""}`}
     >
       <ResponsiveRow
         live={live}
@@ -274,7 +289,7 @@ function FeedRow({
           { label: "State", value: item.state || "National" },
           { label: "Office", value: item.office || "Statewide" }
         ]}
-        alert={severity === "high" || severity === "critical" ? "vs-live-dot" : "vs-live-dot-warning"}
+        alert={isHighRisk ? "vs-live-dot" : "vs-live-dot-warning"}
         right={
           <div className="vs-inline-actions">
             <Badge tone={badgeToneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>
@@ -288,12 +303,18 @@ function FeedRow({
       />
 
       {expanded ? (
-        <div className={`vs-feed-expanded ${isResolved ? "is-resolved" : isActioned ? "is-actioned" : ""}`}>
+        <div
+          className={`vs-feed-expanded ${
+            isResolved ? "is-resolved" : isActioned ? "is-actioned" : ""
+          } ${isGap ? "is-gap" : ""}`}
+        >
           <div className="vs-feed-expanded-header">
             <AssigneeAvatar taskState={taskState} item={item} onClick={onAssigneeClick} />
 
             <div className="vs-feed-expanded-header-copy">
-              <div className="vs-feed-expanded-title">Briefing Detail</div>
+              <div className="vs-feed-expanded-title">
+                {isGap ? "Unassigned Signal Gap" : "Briefing Detail"}
+              </div>
               <div className="vs-feed-expanded-owner">
                 {taskState?.assigned_to || item.assigned_to || item.owner || "War Room"}
               </div>
@@ -303,6 +324,16 @@ function FeedRow({
               <Badge tone={loopTone}>{loopLabel}</Badge>
             </div>
           </div>
+
+          {isGap ? (
+            <div className="vs-signal-gap-alert">
+              <div className="vs-signal-gap-title">High-risk signal has no execution owner.</div>
+              <div className="vs-signal-gap-copy">
+                This signal should be converted into a task so the team can assign ownership,
+                track SLA pressure, and close the loop.
+              </div>
+            </div>
+          ) : null}
 
           <div className="vs-feed-expanded-body">
             {item.detail || item.description || item.title || "No additional detail available."}
@@ -354,8 +385,12 @@ function FeedRow({
                 <Badge tone={loopTone}>{loopLabel}</Badge>
               </>
             ) : (
-              <button type="button" className="vs-decision-btn deploy" onClick={onCreateTask}>
-                Create Task
+              <button
+                type="button"
+                className={`vs-decision-btn ${isGap ? "danger" : "deploy"}`}
+                onClick={onCreateTask}
+              >
+                {isGap ? "Assign Task Now" : "Create Task"}
               </button>
             )}
           </div>
@@ -364,7 +399,6 @@ function FeedRow({
     </div>
   );
 }
-
 function ActionRow({ item }) {
   return (
     <div className="vs-premium-row-card is-action">
@@ -1575,6 +1609,42 @@ export default function CommandCenter() {
           flex-wrap: wrap;
           justify-content: flex-end;
           max-width: 100%;
+        }        
+        
+        .vs-premium-row-card.is-signal-gap {
+          border-color: rgba(248, 113, 113, 0.34);
+          box-shadow: 0 18px 50px rgba(127, 29, 29, 0.18);
+        }
+
+        .vs-feed-expanded.is-gap {
+          border-top-color: rgba(248, 113, 113, 0.32);
+          background: linear-gradient(135deg, rgba(127, 29, 29, 0.18), rgba(15, 23, 42, 0.2));
+        }
+
+        .vs-signal-gap-alert {
+          margin: 12px 0;
+          padding: 12px;
+          border-radius: 14px;
+          border: 1px solid rgba(248, 113, 113, 0.24);
+          background: rgba(127, 29, 29, 0.16);
+        }
+
+        .vs-signal-gap-title {
+          color: rgba(254, 226, 226, 0.96);
+          font-weight: 900;
+        }
+
+        .vs-signal-gap-copy {
+          margin-top: 4px;
+          color: rgba(254, 202, 202, 0.82);
+          font-size: 0.86rem;
+          line-height: 1.45;
+        }
+
+        .vs-decision-btn.danger {
+          border-color: rgba(248, 113, 113, 0.38);
+          background: linear-gradient(135deg, rgba(220, 38, 38, 0.9), rgba(127, 29, 29, 0.9));
+          color: white;
         }
 
         .vs-premium-row-card .vs-responsive-meta,
