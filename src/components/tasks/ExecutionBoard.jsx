@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import Badge from "../ui/Badge";
 
 const RAW_API_BASE =
@@ -72,9 +72,9 @@ function hoursOld(task) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "â€”";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "â€”";
 
   return date.toLocaleString([], {
     month: "short",
@@ -206,10 +206,15 @@ function TaskAvatar({ task }) {
 }
 
 function DetailRow({ label, value }) {
+  const displayValue =
+    String(label || "").toLowerCase() === "source"
+      ? "Cmd Ctr"
+      : value || "—";
+
   return (
     <div className="vs-detail-row">
       <div className="vs-meta-label">{label}</div>
-      <div className="vs-detail-value">{value || "—"}</div>
+      <div className="vs-detail-value">{displayValue}</div>
     </div>
   );
 }
@@ -1229,4 +1234,5 @@ export default function ExecutionBoard({
     </section>
   );
 }
+
 
