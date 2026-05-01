@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useEffect, useState } from "react";
 
 const primaryItems = [
   { label: "Dashboard", to: "/dashboard" },
@@ -37,21 +38,67 @@ function Pill({ item }) {
 
 export default function AppShell() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // 🔥 Workspace state (temporary demo — will connect to API next)
+  const [workspaces, setWorkspaces] = useState([
+    { id: "1", name: "Stephens for Senate" },
+    { id: "2", name: "Georgia Governor Race" }
+  ]);
+
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(
+    () => localStorage.getItem("vs_active_workspace") || "1"
+  );
+
+  useEffect(() => {
+    localStorage.setItem("vs_active_workspace", activeWorkspaceId);
+  }, [activeWorkspaceId]);
+
+  function handleWorkspaceChange(e) {
+    const id = e.target.value;
+    setActiveWorkspaceId(id);
+
+    // 🚀 route into workspace
+    navigate(`/campaign-workspace/${id}`);
+  }
+
+  const activeWorkspace =
+    workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
 
   return (
     <div className="vs-shell">
       <header className="vs-shell-header">
         <div className="vs-shell-inner vs-shell-inner-premium">
+
+          {/* TOP ROW */}
           <div className="vs-shell-topline">
             <NavLink to="/dashboard" className="vs-brand-row">
               <div className="vs-brand-mark">VS</div>
               <div className="vs-brand-copy">
                 <div className="vs-brand-name">VoterSpheres</div>
-                <div className="vs-brand-tagline">Political Intelligence Platform</div>
+                <div className="vs-brand-tagline">
+                  Political Intelligence Platform
+                </div>
               </div>
             </NavLink>
 
             <div className="vs-inline-actions">
+
+              {/* 🔥 WORKSPACE SELECTOR */}
+              <div className="vs-workspace-switcher">
+                <select
+                  value={activeWorkspaceId}
+                  onChange={handleWorkspaceChange}
+                  className="vs-select"
+                >
+                  {workspaces.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <span className="vs-brand-live">
                 <span className="vs-live-dot-success" />
                 Live Intelligence
@@ -59,14 +106,19 @@ export default function AppShell() {
 
               <span className="vs-user-email">{user?.email}</span>
 
-              {typeof logout === "function" ? (
-                <button type="button" className="vs-button vs-button-secondary" onClick={logout}>
+              {typeof logout === "function" && (
+                <button
+                  type="button"
+                  className="vs-button vs-button-secondary"
+                  onClick={logout}
+                >
                   Sign out
                 </button>
-              ) : null}
+              )}
             </div>
           </div>
 
+          {/* NAV */}
           <nav className="vs-shell-nav vs-shell-nav-premium">
             {primaryItems.map((item) => (
               <Pill key={item.to} item={item} />
