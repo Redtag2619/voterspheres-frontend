@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 import { getStoredToken, clearStoredAuth } from "../lib/auth";
 import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
@@ -23,6 +23,45 @@ function resolveApiBaseUrl() {
 const API_BASE = resolveApiBaseUrl();
 
 console.log("[VoterSpheres] API_BASE =", API_BASE);
+
+function getActiveWorkspaceId() {
+  try {
+    return localStorage.getItem("vs_active_workspace") || "";
+  } catch {
+    return "";
+  }
+}
+
+function setActiveWorkspaceId(workspaceId = "") {
+  try {
+    if (workspaceId) {
+      localStorage.setItem("vs_active_workspace", String(workspaceId));
+    } else {
+      localStorage.removeItem("vs_active_workspace");
+    }
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function shouldInjectWorkspace(config = {}) {
+  const url = String(config.url || "");
+
+  if (!url) return false;
+
+  const excludedPrefixes = [
+    "/auth",
+    "/billing",
+    "/public",
+    "/workspaces",
+    "/firm-users",
+    "/firm-invites",
+    "/enterprise-leads-admin",
+    "/beta-admin"
+  ];
+
+  return !excludedPrefixes.some((prefix) => url.startsWith(prefix));
+}
 
 const http = axios.create({
   baseURL: API_BASE,
@@ -160,6 +199,24 @@ function normalizeListResult(data, preferredKeys = []) {
   return [];
 }
 
+function withWorkspaceParams(params = {}) {
+  const workspaceId = getActiveWorkspaceId();
+
+  return {
+    ...params,
+    ...(workspaceId && !params.workspace_id ? { workspace_id: workspaceId } : {})
+  };
+}
+
+function withWorkspacePayload(payload = {}) {
+  const workspaceId = getActiveWorkspaceId();
+
+  return {
+    ...payload,
+    ...(workspaceId && !payload.workspace_id ? { workspace_id: workspaceId } : {})
+  };
+}
+
 function normalizeWarRoomPayload(data) {
   const feed = data?.results || data?.feed || [];
 
@@ -243,6 +300,17 @@ http.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    if (shouldInjectWorkspace(config)) {
+      const workspaceId = getActiveWorkspaceId();
+
+      if (workspaceId) {
+        config.params = config.params || {};
+        if (!config.params.workspace_id) {
+          config.params.workspace_id = workspaceId;
+        }
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -291,6 +359,16 @@ export const authApi = {
   refreshLiveIntelligence: () => unwrap(http.post("/intelligence/refresh", {})),
 };
 
+export const workspacesApi = {
+  list: () => tryGet(["/workspaces"]),
+  default: () => tryGet(["/workspaces/active/default"]),
+  get: (id) => tryGet([`/workspaces/${id}`]),
+  create: (payload) => tryPost(["/workspaces"], payload),
+  update: (id, payload) => tryPatch([`/workspaces/${id}`], payload),
+  getActiveWorkspaceId,
+  setActiveWorkspaceId
+};
+
 export const billingApi = {
   config: () => unwrap(http.get("/billing/config")),
   debugMe: () => unwrap(http.get("/billing/debug/me")),
@@ -302,7 +380,7 @@ export const billingApi = {
 
 export const candidatesApi = {
   list: async (params = {}) => {
-    const data = await tryGet(["/candidates"], { params });
+    const data = await tryGet(["/candidates"], { params: withWorkspaceParams(params) });
     return Array.isArray(data) ? data : data;
   },
 
@@ -335,10 +413,10 @@ export const candidatesApi = {
     tryPost(["/candidates/refresh-profiles"], payload),
 
   scoring: (params = {}) =>
-    tryGet(["/candidates/intelligence/scoring"], { params }),
+    tryGet(["/candidates/intelligence/scoring"], { params: withWorkspaceParams(params) }),
 
   dispatchIntelligenceAlerts: (payload = {}) =>
-    tryPost(["/candidates/intelligence/dispatch-alerts"], payload),
+    tryPost(["/candidates/intelligence/dispatch-alerts"], withWorkspacePayload(payload)),
 };
 
 export const intelligenceApi = {
@@ -349,10 +427,10 @@ export const intelligenceApi = {
   forecast: () => tryGet(["/intelligence/forecast"]),
   rankings: () => tryGet(["/intelligence/rankings"]),
   map: () => tryGet(["/intelligence/map"]),
-  feed: (params = {}) => tryGet(["/intelligence/feed"], { params }),
-  command: () => tryGet(["/intelligence/command"]),
+  feed: (params = {}) => tryGet(["/intelligence/feed"], { params: withWorkspaceParams(params) }),
+  command: () => tryGet(["/intelligence/command", "/platform/command-center"]),
   candidateSummary: (params = {}) =>
-    tryGet(["/intelligence/candidate-summary"], { params }),
+    tryGet(["/intelligence/candidate-summary"], { params: withWorkspaceParams(params) }),
   battlegrounds: () => tryGet(["/intelligence/battlegrounds"]),
   liveFundraising: () =>
     tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
@@ -362,7 +440,6 @@ export const intelligenceApi = {
       "/fec/fundraising/leaderboard",
     ]),
 
-  // Cross-signal intelligence engine
   crossSignal: () => tryGet(["/intelligence/cross-signal"]),
   dispatchCrossSignalAlerts: () =>
     tryPost(["/intelligence/cross-signal/dispatch-alerts"], {}),
@@ -370,7 +447,7 @@ export const intelligenceApi = {
 
 export const platformApi = {
   aiChat: () => tryGet(["/platform/ai-chat"]),
-  postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], payload),
+  postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], withWorkspacePayload(payload)),
 
   warRoom: async () => {
     const data = await tryGet(["/intelligence/feed", "/platform/war-room"]);
@@ -424,7 +501,7 @@ export const vendorsApi = {
   list: async (params = {}) => {
     const data = await tryGet(
       ["/vendors", "/platform/vendors", "/crm/vendors"],
-      { params }
+      { params: withWorkspaceParams(params) }
     );
     return Array.isArray(data) ? { results: data } : data;
   },
@@ -439,7 +516,7 @@ export const donorsApi = {
   network: async (params = {}) => {
     const data = await tryGet(
       ["/donors/network", "/platform/donors/network"],
-      { params }
+      { params: withWorkspaceParams(params) }
     );
     return Array.isArray(data) ? { results: data } : data;
   },
@@ -452,18 +529,18 @@ export const mailOpsApi = {
       "/platform/mailops/dashboard",
       "/mail-ops/dashboard",
     ]),
-  events: (params = {}) => tryGet(["/mailops/events"], { params }),
-  createEvent: (payload) => tryPost(["/mailops/events"], payload),
+  events: (params = {}) => tryGet(["/mailops/events"], { params: withWorkspaceParams(params) }),
+  createEvent: (payload) => tryPost(["/mailops/events"], withWorkspacePayload(payload)),
   updateEvent: (eventId, payload) =>
-    tryPatch([`/mailops/events/${eventId}`], payload),
+    tryPatch([`/mailops/events/${eventId}`], withWorkspacePayload(payload)),
 };
 
 export const alertsApi = {
   list: () => tryGet(["/alerts"]),
   rebuild: () => tryPost(["/alerts/rebuild"], {}),
   rules: () => tryGet(["/alerts/rules"]),
-  deliveries: (params = {}) => tryGet(["/alerts/deliveries"], { params }),
-  dispatch: (payload = { limit: 25 }) => tryPost(["/alerts/dispatch"], payload),
+  deliveries: (params = {}) => tryGet(["/alerts/deliveries"], { params: withWorkspaceParams(params) }),
+  dispatch: (payload = { limit: 25 }) => tryPost(["/alerts/dispatch"], withWorkspacePayload(payload)),
   updateRule: (ruleId, payload) => tryPut([`/alerts/rules/${ruleId}`], payload),
 };
 
@@ -477,13 +554,30 @@ export const publicApi = {
 };
 
 export const tasksApi = {
-  list: (params = {}) => tryGet(["/tasks"], { params }),
-  create: (payload) => tryPost(["/tasks"], payload),
-  update: (taskId, payload) => tryPatch([`/tasks/${taskId}`], payload),
+  list: (params = {}) =>
+    tryGet(["/tasks"], {
+      params: withWorkspaceParams(params),
+    }),
+
+  create: (payload) =>
+    tryPost(["/tasks"], withWorkspacePayload(payload)),
+
+  update: (taskId, payload) =>
+    tryPatch([`/tasks/${taskId}`], withWorkspacePayload(payload)),
+
   comments: (taskId) => tryGet([`/tasks/${taskId}/comments`]),
-  addComment: (taskId, payload) => tryPost([`/tasks/${taskId}/comments`], payload),
+
+  addComment: (taskId, payload) =>
+    tryPost([`/tasks/${taskId}/comments`], withWorkspacePayload(payload)),
+
   activity: (taskId) => tryGet([`/tasks/${taskId}/activity`]),
-  timeline: (taskId) => tryGet([`/tasks/${taskId}/timeline`])
+
+  timeline: (taskId) => tryGet([`/tasks/${taskId}/timeline`]),
+
+  feedState: (ids) =>
+    tryGet(["/tasks/feed-state"], {
+      params: withWorkspaceParams({ ids }),
+    }),
 };
 
 export const api = {
@@ -501,6 +595,14 @@ export const api = {
 
   liveIntelligenceStatus: authApi.liveIntelligenceStatus,
   refreshLiveIntelligence: authApi.refreshLiveIntelligence,
+
+  workspaces: workspacesApi.list,
+  defaultWorkspace: workspacesApi.default,
+  getWorkspace: workspacesApi.get,
+  createWorkspace: workspacesApi.create,
+  updateWorkspace: workspacesApi.update,
+  getActiveWorkspaceId: workspacesApi.getActiveWorkspaceId,
+  setActiveWorkspaceId: workspacesApi.setActiveWorkspaceId,
 
   billingConfig: billingApi.config,
   billingDebug: billingApi.debugMe,
@@ -557,7 +659,7 @@ export const api = {
   mailOpsEvents: mailOpsApi.events,
   createMailOpsEvent: mailOpsApi.createEvent,
   updateMailOpsEvent: mailOpsApi.updateEvent,
-  
+
   tasks: tasksApi.list,
   createTask: tasksApi.create,
   updateTask: tasksApi.update,
@@ -565,6 +667,7 @@ export const api = {
   addTaskComment: tasksApi.addComment,
   taskActivity: tasksApi.activity,
   taskTimeline: tasksApi.timeline,
+  feedTaskState: tasksApi.feedState,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
@@ -578,10 +681,13 @@ export const api = {
   createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
-export { API_BASE, http };
+export {
+  API_BASE,
+  http,
+  getActiveWorkspaceId,
+  setActiveWorkspaceId,
+  withWorkspaceParams,
+  withWorkspacePayload
+};
+
 export default http;
-
-
-
-
-
