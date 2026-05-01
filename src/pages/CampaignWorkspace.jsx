@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
@@ -8,155 +9,130 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-const DEFAULT_CAMPAIGN_ID = "1";
-
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
 function statusTone(value) {
   const v = String(value || "").toLowerCase();
-  if (v.includes("active") || v.includes("done") || v.includes("delivered")) return "active";
-  if (v.includes("risk") || v.includes("delayed") || v.includes("high")) return "danger";
-  if (v.includes("watch") || v.includes("medium") || v.includes("prospect") || v.includes("todo")) return "demo";
+  if (v.includes("active") || v.includes("done") || v.includes("complete") || v.includes("delivered")) return "active";
+  if (v.includes("risk") || v.includes("delayed") || v.includes("high") || v.includes("blocked")) return "danger";
+  if (v.includes("watch") || v.includes("medium") || v.includes("prospect") || v.includes("todo") || v.includes("open")) return "demo";
   return "default";
 }
 
-const demoWorkspace = {
-  campaign: {
-    id: 1,
-    campaign_name: "Stephens for Senate",
-    candidate_name: "Mark Stephens",
-    state: "Georgia",
-    office: "U.S. Senate",
-    stage: "General Election",
-    status: "Active",
-    firm_name: "Red Tag Strategies",
-    owner_name: "Mark Stephens"
-  },
-  metrics: [
-    { label: "Open Tasks", value: "8", subtext: "3 due today" },
-    { label: "Active Vendors", value: "2", subtext: "All on track" },
-    { label: "Cash On Hand", value: "$6.1M", subtext: "Strong reserve" },
-    { label: "Mail Risk", value: "1", subtext: "Atlanta delay" }
-  ],
-  alerts: [
-    {
-      id: 1,
-      title: "Atlanta NDC mail delay detected",
-      message: "Weekend suburban persuasion universe may be exposed if not escalated.",
-      severity: "high",
-      action_status: "open",
-      type: "mail_delay"
+function normalizeStatus(status = "open") {
+  const value = String(status || "").toLowerCase();
+  if (["complete", "completed", "done"].includes(value)) return "complete";
+  if (["in_progress", "in progress", "started", "active"].includes(value)) return "in_progress";
+  if (["blocked", "hold", "paused"].includes(value)) return "blocked";
+  return "open";
+}
+
+function buildWorkspaceModel(workspace = null, tasks = [], summary = {}) {
+  const openTasks = tasks.filter((task) => normalizeStatus(task.status) !== "complete");
+  const completeTasks = tasks.filter((task) => normalizeStatus(task.status) === "complete");
+  const blockedTasks = tasks.filter((task) => normalizeStatus(task.status) === "blocked");
+  const highPriorityTasks = tasks.filter((task) =>
+    ["high", "critical"].includes(String(task.priority || "").toLowerCase())
+  );
+
+  const activeSignals = tasks.filter((task) => task.metadata?.feed_id || task.metadata?.signal_id);
+  const resolvedSignals = activeSignals.filter((task) => normalizeStatus(task.status) === "complete");
+
+  return {
+    campaign: {
+      id: workspace?.id,
+      campaign_name: workspace?.name || "Campaign Workspace",
+      candidate_name: workspace?.candidate_name || workspace?.metadata?.candidate_name || "",
+      state: workspace?.state || "National",
+      office: workspace?.office || "Statewide",
+      stage: workspace?.metadata?.stage || workspace?.cycle || "2026",
+      status: workspace?.status || "active",
+      firm_name: workspace?.firm_name || workspace?.metadata?.firm_name || "VoterSpheres Firm",
+      owner_name: workspace?.metadata?.owner_name || "Command Team",
+      description: workspace?.description || ""
     },
-    {
-      id: 2,
-      title: "Education contrast opportunity rising",
-      message: "Local press narrative is shifting in your favor if reinforced quickly.",
-      severity: "medium",
-      action_status: "open",
-      type: "warroom"
-    }
-  ],
-  tasks: [
-    { id: 1, title: "Approve affordability contrast memo", status: "todo", priority: "high" },
-    { id: 2, title: "Confirm Atlanta mail escalation", status: "in_progress", priority: "high" },
-    { id: 3, title: "Refresh surrogate education packet", status: "todo", priority: "medium" }
-  ],
-  vendors: [
-    { id: 1, vendor_name: "Precision Mail Group", category: "Direct Mail", status: "active", contract_value: 85000 },
-    { id: 2, vendor_name: "Capitol Digital Media", category: "Digital", status: "active", contract_value: 120000 }
-  ],
-  contacts: [
-    { id: 1, full_name: "Sarah Collins", role: "Campaign Manager", email: "sarah@demo.local" },
-    { id: 2, full_name: "David Brooks", role: "Finance Director", email: "david@demo.local" }
-  ],
-  documents: [
-    { id: 1, title: "Weekend Response Brief", document_type: "Memo" },
-    { id: 2, title: "Georgia Suburban Target Universe", document_type: "Targeting Sheet" }
-  ],
-  fundraising: {
-    total_receipts: 12850000,
-    cash_on_hand: 6100000
-  },
-  forecast: {
-    snapshot: {
-      published_at: new Date().toISOString(),
-      race_count: 12,
-      tossup_count: 3,
-      high_confidence_count: 5
+    metrics: [
+      { label: "Open Tasks", value: openTasks.length, subtext: `${highPriorityTasks.length} high priority` },
+      { label: "Completed", value: completeTasks.length, subtext: "Closed execution" },
+      { label: "Blocked", value: blockedTasks.length, subtext: "Needs escalation" },
+      { label: "Linked Signals", value: activeSignals.length, subtext: `${resolvedSignals.length} resolved` }
+    ],
+    alerts: highPriorityTasks.slice(0, 6).map((task) => ({
+      id: task.id,
+      title: task.title,
+      message: task.description || "High-priority execution task needs attention.",
+      severity: task.priority || "high",
+      action_status: task.status || "open",
+      type: task.source || "task"
+    })),
+    tasks,
+    vendors: [],
+    contacts: [],
+    documents: [],
+    fundraising: {
+      total_receipts: summary?.total_receipts || 0,
+      cash_on_hand: summary?.cash_on_hand || 0
     },
-    races: [
-      { id: 1, state: "Georgia", office: "Senate", rating: "Lean D" },
-      { id: 2, state: "Pennsylvania", office: "Senate", rating: "Lean D" }
-    ]
-  },
-  mail: {
-    programs: [{ id: 1, name: "Weekend Persuasion Flight" }],
-    drops: [{ id: 77, drop_date: "2026-04-10", quantity: 250000 }],
-    recent_events: [
-      {
-        id: 1,
-        mail_drop_id: 77,
-        event_type: "delayed",
-        status: "delayed",
-        location_name: "Atlanta NDC",
-        facility_type: "NDC"
-      },
-      {
-        id: 2,
-        mail_drop_id: 77,
-        event_type: "in_transit",
-        status: "in_transit",
-        location_name: "Georgia Network",
-        facility_type: "Regional"
+    forecast: {
+      snapshot: null,
+      races: []
+    },
+    mail: {
+      programs: [],
+      drops: [],
+      recent_events: []
+    },
+    activity: tasks.slice(0, 12).map((task) => ({
+      id: `task-${task.id}`,
+      activity_type: `task_${normalizeStatus(task.status)}`,
+      created_at: task.updated_at || task.created_at,
+      summary: task.title,
+      details: {
+        owner: task.assigned_to || "Command Team",
+        priority: task.priority || "medium",
+        source: task.source || "command_center"
       }
-    ]
-  },
-  activity: [
-    {
-      id: 1,
-      activity_type: "mail_delay_detected",
-      created_at: new Date().toISOString(),
-      summary: "Mail intelligence flagged a delay at Atlanta NDC for drop #77.",
-      details: { actor: "system", severity: "high" }
-    },
-    {
-      id: 2,
-      activity_type: "forecast_updated",
-      created_at: new Date(Date.now() - 1000 * 60 * 26).toISOString(),
-      summary: "Georgia Senate probability improved after overnight update.",
-      details: { actor: "forecast-engine", change: "+2.4" }
-    },
-    {
-      id: 3,
-      activity_type: "vendor_confirmed",
-      created_at: new Date(Date.now() - 1000 * 60 * 54).toISOString(),
-      summary: "Precision Mail Group confirmed weekend handling escalation.",
-      details: { actor: "operations", vendor: "Precision Mail Group" }
-    }
-  ]
-};
+    }))
+  };
+}
 
 export default function CampaignWorkspace() {
   const params = useParams();
-  const campaignId = String(params.id || DEFAULT_CAMPAIGN_ID);
+  const navigate = useNavigate();
+
+  const {
+    activeWorkspaceId,
+    activeWorkspace,
+    setActiveWorkspaceId,
+    refreshWorkspaces
+  } = useWorkspace();
+
+  const routeWorkspaceId = params.id ? String(params.id) : "";
+  const workspaceId = routeWorkspaceId || activeWorkspaceId || "";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [workspace, setWorkspace] = useState(demoWorkspace);
+  const [workspace, setWorkspace] = useState(() => buildWorkspaceModel(activeWorkspace, [], {}));
 
   const demoMode =
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
 
   useEffect(() => {
+    if (routeWorkspaceId && routeWorkspaceId !== activeWorkspaceId) {
+      setActiveWorkspaceId(routeWorkspaceId);
+    }
+  }, [routeWorkspaceId, activeWorkspaceId, setActiveWorkspaceId]);
+
+  useEffect(() => {
     let active = true;
 
     async function loadWorkspace() {
-      if (demoMode) {
-        setWorkspace(demoWorkspace);
+      if (!workspaceId) {
         setLoading(false);
+        setWorkspace(buildWorkspaceModel(null, [], {}));
         return;
       }
 
@@ -164,42 +140,39 @@ export default function CampaignWorkspace() {
         setLoading(true);
         setError("");
 
-        const [workspaceRes, activityRes] = await Promise.allSettled([
-          api.get(`/campaigns/${campaignId}/command-center`, { timeout: 7000 }),
-          api.get(`/campaigns/${campaignId}/activity`, { timeout: 7000 })
+        const [workspaceRes, tasksRes] = await Promise.allSettled([
+          api.getWorkspace(workspaceId),
+          api.tasks({ limit: 250, workspace_id: workspaceId })
         ]);
 
         if (!active) return;
 
         const workspaceData =
-          workspaceRes.status === "fulfilled" ? workspaceRes.value?.data : null;
-        const activityData =
-          activityRes.status === "fulfilled" ? activityRes.value?.data : null;
+          workspaceRes.status === "fulfilled"
+            ? workspaceRes.value?.workspace || workspaceRes.value
+            : activeWorkspace;
 
-        setWorkspace({
-          campaign: workspaceData?.campaign || demoWorkspace.campaign,
-          metrics: workspaceData?.metrics || demoWorkspace.metrics,
-          alerts: workspaceData?.alerts || demoWorkspace.alerts,
-          tasks: workspaceData?.tasks || demoWorkspace.tasks,
-          vendors: workspaceData?.vendors || demoWorkspace.vendors,
-          contacts: workspaceData?.contacts || demoWorkspace.contacts,
-          documents: workspaceData?.documents || demoWorkspace.documents,
-          fundraising: workspaceData?.fundraising || demoWorkspace.fundraising,
-          forecast: workspaceData?.forecast || demoWorkspace.forecast,
-          mail: workspaceData?.mail || demoWorkspace.mail,
-          activity:
-            Array.isArray(activityData) && activityData.length
-              ? activityData
-              : demoWorkspace.activity
-        });
+        const summary =
+          workspaceRes.status === "fulfilled"
+            ? workspaceRes.value?.summary || {}
+            : {};
+
+        const taskRows =
+          tasksRes.status === "fulfilled"
+            ? tasksRes.value?.results || tasksRes.value?.tasks || []
+            : [];
+
+        setWorkspace(buildWorkspaceModel(workspaceData, taskRows, summary));
       } catch (err) {
         if (!active) return;
+
         setError(
           err?.response?.data?.error ||
             err?.message ||
             "Failed to load campaign workspace"
         );
-        setWorkspace(demoWorkspace);
+
+        setWorkspace(buildWorkspaceModel(activeWorkspace, [], {}));
       } finally {
         if (active) setLoading(false);
       }
@@ -210,21 +183,29 @@ export default function CampaignWorkspace() {
     return () => {
       active = false;
     };
-  }, [campaignId, demoMode]);
+  }, [workspaceId, activeWorkspace]);
 
   const campaignTitle = useMemo(() => {
     const campaign = workspace?.campaign;
-    if (!campaign) return `Campaign Workspace #${campaignId}`;
-    return campaign.campaign_name || campaign.candidate_name || `Campaign Workspace #${campaignId}`;
-  }, [workspace, campaignId]);
+    if (!campaign) return `Campaign Workspace #${workspaceId || "—"}`;
+    return campaign.campaign_name || campaign.candidate_name || `Campaign Workspace #${workspaceId || "—"}`;
+  }, [workspace, workspaceId]);
+
+  async function handleRefresh() {
+    await refreshWorkspaces?.();
+
+    if (workspaceId) {
+      navigate(`/campaign-workspace/${workspaceId}`);
+    }
+  }
 
   return (
     <PageShell
       eyebrow="Campaign Operating Workspace"
       title={campaignTitle}
-      description="The live operating workspace for campaign execution, alerts, fundraising context, forecast movement, vendors, and mail intelligence."
+      description="The live workspace for campaign execution, linked signals, task pressure, team ownership, and operational closure."
       demo={demoMode}
-      demoText="Demo campaign workspace is active. Tasks, alerts, vendors, fundraising, and mail intelligence are preloaded for presentation."
+      demoText="Demo mode is active. Workspace data may be simulated."
     >
       {error ? (
         <div
@@ -236,13 +217,22 @@ export default function CampaignWorkspace() {
       ) : null}
 
       <SectionCard
-        title="Campaign Profile"
-        subtitle="High-level operating context for this campaign."
-        right={<Badge tone={statusTone(workspace?.campaign?.status)}>{workspace?.campaign?.status || "Active"}</Badge>}
+        title="Workspace Profile"
+        subtitle="Campaign-level operating context for this client workspace."
+        right={
+          <div className="vs-inline-actions">
+            <Badge tone={statusTone(workspace?.campaign?.status)}>
+              {workspace?.campaign?.status || "Active"}
+            </Badge>
+            <button type="button" className="vs-button vs-button-secondary" onClick={handleRefresh}>
+              Refresh
+            </button>
+          </div>
+        }
       >
         <div className="vs-grid-4">
           <div className="vs-card-muted">
-            <div className="vs-stat-label">Stage</div>
+            <div className="vs-stat-label">Stage / Cycle</div>
             <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>{workspace?.campaign?.stage || "Open"}</div>
           </div>
           <div className="vs-card-muted">
@@ -250,12 +240,12 @@ export default function CampaignWorkspace() {
             <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>{workspace?.campaign?.state || "N/A"}</div>
           </div>
           <div className="vs-card-muted">
-            <div className="vs-stat-label">Firm</div>
-            <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>{workspace?.campaign?.firm_name || "Unassigned"}</div>
+            <div className="vs-stat-label">Office</div>
+            <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>{workspace?.campaign?.office || "Statewide"}</div>
           </div>
           <div className="vs-card-muted">
             <div className="vs-stat-label">Owner</div>
-            <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>{workspace?.campaign?.owner_name || "Unassigned"}</div>
+            <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>{workspace?.campaign?.owner_name || "Command Team"}</div>
           </div>
         </div>
       </SectionCard>
@@ -273,15 +263,15 @@ export default function CampaignWorkspace() {
 
       <div className="vs-grid-2">
         <SectionCard
-          title="Alert Panel"
-          subtitle="What needs executive attention right now."
+          title="Execution Pressure"
+          subtitle="High-priority items and blockers inside this workspace."
           right={<Badge>{(workspace.alerts || []).length} alerts</Badge>}
         >
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading alerts..." />
             ) : !(workspace.alerts || []).length ? (
-              <EmptyState text="No active alerts." />
+              <EmptyState text="No active execution alerts." />
             ) : (
               (workspace.alerts || []).map((alert) => (
                 <ResponsiveRow
@@ -289,193 +279,114 @@ export default function CampaignWorkspace() {
                   title={alert.title}
                   subtitle={alert.message}
                   meta={[
-                    { label: "Type", value: alert.type || "alert" },
+                    { label: "Type", value: alert.type || "task" },
                     { label: "Status", value: alert.action_status || "open" },
-                    { label: "Severity", value: alert.severity }
+                    { label: "Severity", value: alert.severity || "medium" }
                   ]}
-                  right={<Badge tone={statusTone(alert.severity)}>{alert.severity}</Badge>}
+                  right={<Badge tone={statusTone(alert.severity)}>{alert.severity || "medium"}</Badge>}
                 />
               ))
             )}
           </div>
         </SectionCard>
 
-        <SectionCard title="Fundraising Snapshot" subtitle="Live finance context for the campaign.">
-          {loading ? (
-            <EmptyState text="Loading fundraising..." />
-          ) : !workspace.fundraising ? (
-            <EmptyState text="No fundraising data available." />
-          ) : (
-            <div className="vs-stack">
-              <div className="vs-card-muted">
-                <div className="vs-stat-label">Total Receipts</div>
-                <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
-                  {formatMoney(workspace.fundraising.total_receipts || 0)}
+        <SectionCard title="Signal Closure" subtitle="Linked task outcomes for this campaign workspace.">
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading signal closure..." />
+            ) : (
+              <>
+                <div className="vs-card-muted">
+                  <div className="vs-stat-label">Linked Signals</div>
+                  <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
+                    {(workspace.tasks || []).filter((task) => task.metadata?.feed_id || task.metadata?.signal_id).length}
+                  </div>
                 </div>
-              </div>
-              <div className="vs-card-muted">
-                <div className="vs-stat-label">Cash on Hand</div>
-                <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
-                  {formatMoney(workspace.fundraising.cash_on_hand || 0)}
+                <div className="vs-card-muted">
+                  <div className="vs-stat-label">Resolved Signals</div>
+                  <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
+                    {(workspace.tasks || []).filter(
+                      (task) =>
+                        (task.metadata?.feed_id || task.metadata?.signal_id) &&
+                        normalizeStatus(task.status) === "complete"
+                    ).length}
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </SectionCard>
       </div>
 
       <div className="vs-grid-3">
-        <SectionCard title="Open Tasks" subtitle="Execution items moving the campaign.">
+        <SectionCard title="Workspace Tasks" subtitle="Execution items scoped to this campaign.">
           <div className="vs-stack">
             {loading ? (
               <EmptyState text="Loading tasks..." />
             ) : !(workspace.tasks || []).length ? (
-              <EmptyState text="No tasks found." />
+              <EmptyState text="No tasks found for this workspace." />
             ) : (
-              (workspace.tasks || []).map((task) => (
+              (workspace.tasks || []).slice(0, 10).map((task) => (
                 <ResponsiveRow
-                  key={task.id}
+                  key={task.id || task.local_id || task.title}
                   title={task.title}
-                  subtitle="Campaign execution task"
+                  subtitle={task.description || "Campaign execution task"}
                   meta={[
-                    { label: "Status", value: task.status || "todo" },
-                    { label: "Priority", value: task.priority || "medium" }
+                    { label: "Status", value: task.status || "open" },
+                    { label: "Priority", value: task.priority || "medium" },
+                    { label: "Owner", value: task.assigned_to || "Command Team" }
                   ]}
-                  right={<Badge tone={statusTone(task.priority)}>{task.priority || "medium"}</Badge>}
+                  right={<Badge tone={statusTone(task.status)}>{task.status || "open"}</Badge>}
                 />
               ))
             )}
           </div>
         </SectionCard>
 
-        <SectionCard title="Vendors" subtitle="Active campaign partners.">
+        <SectionCard title="Owners" subtitle="Current task ownership in this workspace.">
           <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading vendors..." />
-            ) : !(workspace.vendors || []).length ? (
-              <EmptyState text="No vendors found." />
-            ) : (
-              (workspace.vendors || []).map((vendor) => (
-                <ResponsiveRow
-                  key={vendor.id}
-                  title={vendor.vendor_name}
-                  subtitle={vendor.category || "Vendor"}
-                  meta={[
-                    { label: "Status", value: vendor.status || "active" },
-                    { label: "Contract", value: formatMoney(vendor.contract_value || 0) }
-                  ]}
-                  right={<Badge tone={statusTone(vendor.status)}>{vendor.status || "active"}</Badge>}
-                />
-              ))
-            )}
+            {Array.from(
+              new Map(
+                (workspace.tasks || []).map((task) => [
+                  task.assigned_to || "Command Team",
+                  {
+                    name: task.assigned_to || "Command Team",
+                    count: (workspace.tasks || []).filter(
+                      (item) => (item.assigned_to || "Command Team") === (task.assigned_to || "Command Team")
+                    ).length
+                  }
+                ])
+              ).values()
+            ).map((owner) => (
+              <ResponsiveRow
+                key={owner.name}
+                title={owner.name}
+                subtitle="Workspace assignee"
+                meta={[{ label: "Tasks", value: owner.count }]}
+                right={<Badge tone="accent">{owner.count}</Badge>}
+              />
+            ))}
+            {!(workspace.tasks || []).length ? <EmptyState text="No assigned owners yet." /> : null}
           </div>
         </SectionCard>
 
-        <SectionCard title="Contacts + Documents" subtitle="Team and campaign assets.">
+        <SectionCard title="Workspace Metadata" subtitle="Campaign details and workspace identifiers.">
           <div className="vs-stack">
-            {(workspace.contacts || []).map((contact) => (
-              <ResponsiveRow
-                key={`contact-${contact.id}`}
-                title={contact.full_name}
-                subtitle={contact.role || "Contact"}
-                meta={[
-                  { label: "Email", value: contact.email || "No email" }
-                ]}
-              />
-            ))}
-            {(workspace.documents || []).map((document) => (
-              <ResponsiveRow
-                key={`document-${document.id}`}
-                title={document.title}
-                subtitle={document.document_type || "Document"}
-              />
-            ))}
+            <ResponsiveRow
+              title={workspace?.campaign?.candidate_name || "Candidate not set"}
+              subtitle={workspace?.campaign?.description || "Workspace metadata"}
+              meta={[
+                { label: "Workspace ID", value: workspace?.campaign?.id || workspaceId || "—" },
+                { label: "State", value: workspace?.campaign?.state || "National" },
+                { label: "Office", value: workspace?.campaign?.office || "Statewide" }
+              ]}
+              right={<Badge tone="default">Workspace</Badge>}
+            />
           </div>
         </SectionCard>
       </div>
 
-      <div className="vs-grid-2">
-        <SectionCard title="MailOps Panel" subtitle="Execution visibility across mail activity.">
-          <div className="vs-grid-3">
-            <div className="vs-card-muted">
-              <div className="vs-stat-label">Programs</div>
-              <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
-                {workspace.mail?.programs?.length || 0}
-              </div>
-            </div>
-            <div className="vs-card-muted">
-              <div className="vs-stat-label">Drops</div>
-              <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
-                {workspace.mail?.drops?.length || 0}
-              </div>
-            </div>
-            <div className="vs-card-muted">
-              <div className="vs-stat-label">Recent Events</div>
-              <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700 }}>
-                {workspace.mail?.recent_events?.length || 0}
-              </div>
-            </div>
-          </div>
-
-          <div className="vs-stack" style={{ marginTop: "1rem" }}>
-            {loading ? (
-              <EmptyState text="Loading mail activity..." />
-            ) : !(workspace.mail?.recent_events || []).length ? (
-              <EmptyState text="No mail events available." />
-            ) : (
-              (workspace.mail.recent_events || []).map((event) => (
-                <ResponsiveRow
-                  key={event.id}
-                  title={event.event_type || "event"}
-                  subtitle={`Drop #${event.mail_drop_id}`}
-                  meta={[
-                    { label: "Location", value: event.location_name || event.facility_type || "Network" },
-                    { label: "Status", value: event.status || event.event_type || "event" }
-                  ]}
-                  right={<Badge tone={statusTone(event.status || event.event_type)}>{event.status || event.event_type || "event"}</Badge>}
-                />
-              ))
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Forecast Context" subtitle="What the modeled map is saying now.">
-          <div className="vs-stack">
-            {workspace.forecast?.snapshot ? (
-              <div className="vs-card-muted">
-                <div className="vs-stat-label">Latest Forecast Snapshot</div>
-                <div style={{ marginTop: "0.5rem", fontSize: "0.92rem", color: "var(--vs-text)" }}>
-                  Published:{" "}
-                  {workspace.forecast.snapshot.published_at
-                    ? new Date(workspace.forecast.snapshot.published_at).toLocaleString()
-                    : "Not published"}
-                </div>
-                <div className="vs-grid-3" style={{ marginTop: "0.9rem" }}>
-                  <div className="vs-card-muted" style={{ padding: "0.75rem" }}>Races: {workspace.forecast.snapshot.race_count ?? 0}</div>
-                  <div className="vs-card-muted" style={{ padding: "0.75rem" }}>Toss-ups: {workspace.forecast.snapshot.tossup_count ?? 0}</div>
-                  <div className="vs-card-muted" style={{ padding: "0.75rem" }}>High Confidence: {workspace.forecast.snapshot.high_confidence_count ?? 0}</div>
-                </div>
-              </div>
-            ) : null}
-
-            {loading ? (
-              <EmptyState text="Loading forecast races..." />
-            ) : !(workspace.forecast?.races || []).length ? (
-              <EmptyState text="No forecast race context found." />
-            ) : (
-              (workspace.forecast.races || []).map((race) => (
-                <ResponsiveRow
-                  key={race.id}
-                  title={`${race.state || "State"} • ${race.office || "Race"}`}
-                  subtitle={race.rating || race.category || "Competitive"}
-                />
-              ))
-            )}
-          </div>
-        </SectionCard>
-      </div>
-
-      <SectionCard title="Activity Timeline" subtitle="Recent operational activity across the campaign.">
+      <SectionCard title="Activity Timeline" subtitle="Recent operational activity across this workspace.">
         <div className="vs-stack">
           {loading ? (
             <EmptyState text="Loading activity..." />
