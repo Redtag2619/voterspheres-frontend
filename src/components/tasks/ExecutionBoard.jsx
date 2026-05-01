@@ -313,7 +313,7 @@ function TaskExpandedPanel({
       tone: normalizeStatus(task.status) === "blocked" ? "danger" : "default"
     },
     ...(task.metadata?.feed_id
-      ? [{ title: "Created from feed signal", subtitle: task.metadata.feed_id, initials: "FI" }]
+      ? [{ title: "Created from feed signal", subtitle: task.metadata.feed_id, initials: "FI" }] 
       : []),
     ...(task.metadata?.vendor_action_id
       ? [{ title: "Connected to vendor action", subtitle: task.metadata.vendor_action_id, initials: "VI" }]
