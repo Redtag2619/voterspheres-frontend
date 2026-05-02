@@ -185,6 +185,21 @@ async function tryPatch(paths, body = {}, config = {}) {
   throw lastError;
 }
 
+async function tryDelete(paths, config = {}) {
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      return await unwrap(http.delete(path, config));
+    } catch (error) {
+      lastError = error;
+      if (!isNotFound(error)) break;
+    }
+  }
+
+  throw lastError;
+}
+
 function normalizeListResult(data, preferredKeys = []) {
   if (Array.isArray(data)) return data;
 
@@ -367,6 +382,13 @@ export const workspacesApi = {
   update: (id, payload) => tryPatch([`/workspaces/${id}`], payload),
   getActiveWorkspaceId,
   setActiveWorkspaceId
+};
+
+export const workspaceReportsApi = {
+  list: (workspaceId) => tryGet([`/workspaces/${workspaceId}/reports`]),
+  create: (workspaceId, payload) => tryPost([`/workspaces/${workspaceId}/reports`], payload),
+  delete: (workspaceId, reportId) => tryDelete([`/workspaces/${workspaceId}/reports/${reportId}`]),
+  clear: (workspaceId) => tryDelete([`/workspaces/${workspaceId}/reports`])
 };
 
 export const billingApi = {
@@ -603,6 +625,11 @@ export const api = {
   updateWorkspace: workspacesApi.update,
   getActiveWorkspaceId: workspacesApi.getActiveWorkspaceId,
   setActiveWorkspaceId: workspacesApi.setActiveWorkspaceId,
+  
+  workspaceReports: workspaceReportsApi.list,
+  createWorkspaceReport: workspaceReportsApi.create,
+  deleteWorkspaceReport: workspaceReportsApi.delete,
+  clearWorkspaceReports: workspaceReportsApi.clear,
 
   billingConfig: billingApi.config,
   billingDebug: billingApi.debugMe,
