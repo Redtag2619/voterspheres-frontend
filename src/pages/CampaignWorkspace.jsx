@@ -86,6 +86,37 @@ function safeFileName(value = "workspace-report") {
   );
 }
 
+function buildClientEmailDraft(workspace = {}, report = null) {
+  const campaign = workspace.campaign || {};
+  const analytics = workspace.analytics || {};
+  const title = campaign.campaign_name || "Workspace";
+  const generatedDate = new Date().toLocaleDateString();
+  const reportName = report?.filename || `${safeFileName(title)}-report.html`;
+
+  const subject = `${title} Workspace Report - ${generatedDate}`;
+  const body = [
+    `Hi,`,
+    ``,
+    `Attached is the latest VoterSpheres workspace report for ${title}.`,
+    ``,
+    `Executive summary:`,
+    `- Open tasks: ${analytics.open || 0}`,
+    `- Completed tasks: ${analytics.complete || 0}`,
+    `- Blocked tasks: ${analytics.blocked || 0}`,
+    `- SLA risk items: ${analytics.slaRisk || 0}`,
+    `- Signal closure rate: ${analytics.signalClosureRate || 0}%`,
+    ``,
+    `Report file: ${reportName}`,
+    ``,
+    `Recommended next step: review any blocked or SLA-risk items first, then confirm ownership for remaining open work.`,
+    ``,
+    `Best,`,
+    `Command Team`
+  ].join("\n");
+
+  return { subject, body };
+}
+
 function reportHistoryKey(workspaceId = "") {
   return `vs_workspace_reports_${workspaceId || "default"}`;
 }
@@ -369,6 +400,9 @@ export default function CampaignWorkspace() {
   const [reportHistory, setReportHistory] = useState(() =>
     loadReportHistory(workspaceId)
   );
+  const [clientEmail, setClientEmail] = useState("");
+  const [emailDraftMessage, setEmailDraftMessage] = useState("");
+  const [emailCopied, setEmailCopied] = useState(false);
 
   const demoMode =
     typeof window !== "undefined" &&
@@ -502,6 +536,65 @@ export default function CampaignWorkspace() {
   function handleClearReports() {
     setReportHistory([]);
     saveReportHistory(workspaceId, []);
+  }
+
+  function ensureLatestReportRecord() {
+    if (reportHistory[0]) return reportHistory[0];
+
+    const html = buildReportHtml(workspace);
+    const campaignName = workspace?.campaign?.campaign_name || "workspace";
+    const stamp = new Date().toISOString().slice(0, 10);
+    const filename = `${safeFileName(campaignName)}-report-${stamp}.html`;
+    const report = {
+      id: `report-${Date.now()}`,
+      title: `${workspace?.campaign?.campaign_name || "Workspace"} Report`,
+      filename,
+      generated_at: new Date().toISOString(),
+      generated_by: "Command Team",
+      workspace_id: workspaceId,
+      summary: {
+        open: workspace.analytics.open,
+        complete: workspace.analytics.complete,
+        blocked: workspace.analytics.blocked,
+        slaRisk: workspace.analytics.slaRisk,
+        signalClosureRate: workspace.analytics.signalClosureRate
+      },
+      html
+    };
+
+    const nextReports = [report, ...reportHistory].slice(0, 20);
+    setReportHistory(nextReports);
+    saveReportHistory(workspaceId, nextReports);
+    return report;
+  }
+
+  async function handleCopyEmailDraft() {
+    const report = ensureLatestReportRecord();
+    const draft = buildClientEmailDraft(workspace, report);
+    const text = `Subject: ${draft.subject}\n\n${draft.body}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setEmailCopied(true);
+      setEmailDraftMessage("Email draft copied. Attach the downloaded report before sending.");
+      setTimeout(() => setEmailCopied(false), 1800);
+    } catch {
+      setEmailDraftMessage("Could not copy automatically. Select and copy the draft text manually.");
+    }
+  }
+
+  function handleOpenEmailDraft() {
+    if (!clientEmail.trim()) {
+      setEmailDraftMessage("Enter a client email address first.");
+      return;
+    }
+
+    const report = ensureLatestReportRecord();
+    const draft = buildClientEmailDraft(workspace, report);
+    const mailto = `mailto:${encodeURIComponent(clientEmail.trim())}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+
+    setEmailDraftMessage("Email draft opened. Attach the downloaded report before sending.");
+    window.location.href = mailto;
   }
 
   return (
@@ -667,6 +760,69 @@ export default function CampaignWorkspace() {
           {!reportHistory.length ? <EmptyState text="No saved reports yet. Click Export Report to generate the first client-ready report." /> : reportHistory.map((report) => (
             <ResponsiveRow key={report.id} title={report.title} subtitle={`Generated ${new Date(report.generated_at).toLocaleString()} by ${report.generated_by || "Command Team"}`} meta={[{ label: "Open", value: report.summary?.open ?? 0 }, { label: "Complete", value: report.summary?.complete ?? 0 }, { label: "Blocked", value: report.summary?.blocked ?? 0 }, { label: "SLA Risk", value: report.summary?.slaRisk ?? 0 }, { label: "Signal Closure", value: `${report.summary?.signalClosureRate ?? 0}%` }]} right={<div className="vs-inline-actions"><button type="button" className="vs-button vs-button-secondary" onClick={() => handleOpenSavedReport(report)}>Open</button><button type="button" className="vs-button" onClick={() => handleDownloadSavedReport(report)}>Download</button></div>} />
           ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Send Report to Client"
+        subtitle="Prepare a client-ready email draft using the latest workspace analytics report."
+        right={<Badge tone={clientEmail.trim() ? "active" : "demo"}>{clientEmail.trim() ? "Ready" : "Draft"}</Badge>}
+      >
+        <div className="vs-stack">
+          <div className="vs-card-muted">
+            <div className="vs-stat-label">Client Email</div>
+            <input
+              value={clientEmail}
+              onChange={(event) => setClientEmail(event.target.value)}
+              placeholder="client@example.com"
+              style={{
+                marginTop: "0.65rem",
+                width: "100%",
+                borderRadius: 12,
+                border: "1px solid rgba(148, 163, 184, 0.22)",
+                background: "rgba(15, 23, 42, 0.48)",
+                color: "inherit",
+                padding: "0.75rem 0.85rem",
+                outline: "none"
+              }}
+            />
+          </div>
+
+          <ResponsiveRow
+            title={`${workspace?.campaign?.campaign_name || "Workspace"} Client Report Email`}
+            subtitle="Copies or opens a polished client email draft. Download the report from Report Center and attach it before sending."
+            meta={[
+              { label: "Open", value: workspace.analytics.open },
+              { label: "Complete", value: workspace.analytics.complete },
+              { label: "Blocked", value: workspace.analytics.blocked },
+              { label: "SLA Risk", value: workspace.analytics.slaRisk },
+              { label: "Signal Closure", value: `${workspace.analytics.signalClosureRate}%` }
+            ]}
+            right={
+              <div className="vs-inline-actions">
+                <button
+                  type="button"
+                  className="vs-button vs-button-secondary"
+                  onClick={handleCopyEmailDraft}
+                >
+                  {emailCopied ? "Copied" : "Copy Draft"}
+                </button>
+                <button
+                  type="button"
+                  className="vs-button"
+                  onClick={handleOpenEmailDraft}
+                >
+                  Open Email
+                </button>
+              </div>
+            }
+          />
+
+          {emailDraftMessage ? (
+            <div className="vs-banner" style={{ borderColor: "rgba(96,165,250,0.25)", background: "rgba(30,64,175,0.12)", color: "rgba(191,219,254,0.96)" }}>
+              {emailDraftMessage}
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 
