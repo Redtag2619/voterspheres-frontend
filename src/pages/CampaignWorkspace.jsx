@@ -511,6 +511,48 @@ function buildReportHtml(workspace = {}) {
 </html>`;
 }
 
+
+function buildClientEmailDraft(workspace = {}, reportHistory = []) {
+  const campaign = workspace.campaign || {};
+  const analytics = workspace.analytics || {};
+  const latestReport = reportHistory?.[0];
+
+  const subject = `${campaign.campaign_name || "Workspace"} — VoterSpheres Execution Report`;
+
+  const body = [
+    `Hi,`,
+    ``,
+    `Attached/downloaded is the latest VoterSpheres workspace report for ${campaign.campaign_name || "this campaign workspace"}.`,
+    ``,
+    `Executive snapshot:`,
+    `• Open tasks: ${analytics.open || 0}`,
+    `• Completed tasks: ${analytics.complete || 0}`,
+    `• Blocked tasks: ${analytics.blocked || 0}`,
+    `• SLA risk items: ${analytics.slaRisk || 0}`,
+    `• Signal closure rate: ${analytics.signalClosureRate || 0}%`,
+    ``,
+    latestReport?.filename
+      ? `Latest report file: ${latestReport.filename}`
+      : `Please download the latest report from the Workspace Report Center before sending.`,
+    ``,
+    `Recommended next step: review any open SLA risk items and blocked execution work.`,
+    ``,
+    `Best,`,
+    `Command Team`
+  ].join("\n");
+
+  return { subject, body };
+}
+
+async function copyToClipboard(text = "") {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function downloadWorkspaceReport(workspace = {}, existingReport = null) {
   const html = existingReport?.html || buildReportHtml(workspace);
   const campaignName =
@@ -552,6 +594,8 @@ export default function CampaignWorkspace() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [reportError, setReportError] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [draftCopied, setDraftCopied] = useState(false);
   const [workspace, setWorkspace] = useState(() =>
     buildWorkspaceModel(activeWorkspace, [], {})
   );
@@ -757,6 +801,26 @@ export default function CampaignWorkspace() {
     const nextReports = reportHistory.filter((item) => String(item.id) !== String(reportId));
     setReportHistory(nextReports);
     saveReportHistory(workspaceId, nextReports);
+  }
+
+  async function handleCopyClientDraft() {
+    const draft = buildClientEmailDraft(workspace, reportHistory);
+    const fullDraft = `To: ${clientEmail || "[client email]"}\nSubject: ${draft.subject}\n\n${draft.body}`;
+    const copied = await copyToClipboard(fullDraft);
+
+    setDraftCopied(copied);
+
+    if (!copied) {
+      setReportError("Could not copy automatically. Select the draft text and copy it manually.");
+    }
+
+    setTimeout(() => setDraftCopied(false), 2200);
+  }
+
+  function handleOpenMailDraft() {
+    const draft = buildClientEmailDraft(workspace, reportHistory);
+    const mailto = `mailto:${encodeURIComponent(clientEmail || "")}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+    window.location.href = mailto;
   }
 
   return (
@@ -1001,6 +1065,97 @@ export default function CampaignWorkspace() {
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard
+        title="Send Report to Client"
+        subtitle="Prepare a client-ready email draft using the latest workspace analytics and saved report."
+        right={
+          <div className="vs-inline-actions">
+            <Badge tone={reportHistory.length ? "active" : "demo"}>
+              {reportHistory.length ? "Report ready" : "Export first"}
+            </Badge>
+          </div>
+        }
+      >
+        <div className="vs-stack">
+          <div className="vs-grid-2">
+            <div className="vs-card-muted">
+              <div className="vs-stat-label">Client Email</div>
+              <input
+                value={clientEmail}
+                onChange={(event) => setClientEmail(event.target.value)}
+                placeholder="client@example.com"
+                style={{
+                  width: "100%",
+                  marginTop: "0.65rem",
+                  borderRadius: 12,
+                  border: "1px solid rgba(148, 163, 184, 0.22)",
+                  background: "rgba(15, 23, 42, 0.45)",
+                  color: "inherit",
+                  padding: "0.75rem 0.85rem",
+                  outline: "none"
+                }}
+              />
+            </div>
+
+            <div className="vs-card-muted">
+              <div className="vs-stat-label">Latest Saved Report</div>
+              <div style={{ marginTop: "0.65rem", fontWeight: 800 }}>
+                {reportHistory?.[0]?.filename || "No report saved yet"}
+              </div>
+              <div style={{ marginTop: "0.35rem", color: "rgba(148, 163, 184, 0.9)", fontSize: "0.86rem" }}>
+                Export a report first, then copy or open the client email draft.
+              </div>
+            </div>
+          </div>
+
+          <div className="vs-card-muted">
+            <div className="vs-stat-label">Email Draft Preview</div>
+            <pre
+              style={{
+                margin: "0.75rem 0 0",
+                whiteSpace: "pre-wrap",
+                fontFamily: "inherit",
+                fontSize: "0.9rem",
+                lineHeight: 1.55,
+                color: "inherit"
+              }}
+            >
+{`To: ${clientEmail || "[client email]"}
+Subject: ${buildClientEmailDraft(workspace, reportHistory).subject}
+
+${buildClientEmailDraft(workspace, reportHistory).body}`}
+            </pre>
+          </div>
+
+          <div className="vs-inline-actions">
+            <button
+              type="button"
+              className="vs-button"
+              onClick={handleCopyClientDraft}
+            >
+              {draftCopied ? "Copied" : "Copy Email Draft"}
+            </button>
+
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={handleOpenMailDraft}
+            >
+              Open Email Draft
+            </button>
+
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={handleExportReport}
+              disabled={loading || exporting}
+            >
+              {exporting ? "Exporting..." : "Export Latest Report"}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Workspace Report Center"
