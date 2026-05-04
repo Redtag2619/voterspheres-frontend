@@ -391,6 +391,20 @@ export const workspaceReportsApi = {
   clear: (workspaceId) => tryDelete([`/workspaces/${workspaceId}/reports`])
 };
 
+export const workspaceContactsApi = {
+  list: (workspaceId) =>
+    tryGet([`/workspace-contacts/${workspaceId}`]),
+
+  create: (workspaceId, payload) =>
+    tryPost([`/workspace-contacts/${workspaceId}`], payload),
+
+  update: (workspaceId, contactId, payload) =>
+    tryPatch([`/workspace-contacts/${workspaceId}/${contactId}`], payload),
+
+  delete: (workspaceId, contactId) =>
+    tryDelete([`/workspace-contacts/${workspaceId}/${contactId}`]),
+};
+
 export const billingApi = {
   config: () => unwrap(http.get("/billing/config")),
   debugMe: () => unwrap(http.get("/billing/debug/me")),
@@ -630,6 +644,11 @@ export const api = {
   createWorkspaceReport: workspaceReportsApi.create,
   deleteWorkspaceReport: workspaceReportsApi.delete,
   clearWorkspaceReports: workspaceReportsApi.clear,
+
+  workspaceClientContacts: workspaceContactsApi.list,
+  createWorkspaceClientContact: workspaceContactsApi.create,
+  updateWorkspaceClientContact: workspaceContactsApi.update,
+  deleteWorkspaceClientContact: workspaceContactsApi.delete,
 
   billingConfig: billingApi.config,
   billingDebug: billingApi.debugMe,
