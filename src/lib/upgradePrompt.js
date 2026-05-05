@@ -1,7 +1,7 @@
 const STORAGE_KEY = "vs_upgrade_prompt";
 
 function normalizePlan(plan = "pro") {
-  return String(plan || "pro").toLowerCase();
+  return String(plan || "pro").toLowerCase(); 
 }
 
 function safeJson(value) {
