@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../../services/api"; 
+import { api } from "../../services/api";
 import SectionCard from "../ui/SectionCard";
 import Badge from "../ui/Badge";
 import EmptyState from "../ui/EmptyState";
@@ -66,6 +66,18 @@ function normalizeRecipientString(value = "") {
   return String(value || "");
 }
 
+function upgradeMessage(error) {
+  const data = error?.response?.data || {};
+  if (error?.response?.status === 403) {
+    return (
+      data.message ||
+      "Upgrade required. Scheduled reports are available on Pro and Enterprise plans."
+    );
+  }
+
+  return data.error || error?.message || "Something went wrong.";
+}
+
 export default function ScheduledReportsPanel({
   workspaceId,
   workspaceName = "Workspace",
@@ -122,11 +134,7 @@ export default function ScheduledReportsPanel({
       } catch (error) {
         if (!active) return;
         setSchedules([]);
-        setScheduleError(
-          error?.response?.data?.error ||
-            error?.message ||
-            "Failed to load scheduled reports."
-        );
+        setScheduleError(upgradeMessage(error) || "Failed to load scheduled reports.");
       } finally {
         if (active) setLoadingSchedules(false);
       }
@@ -154,6 +162,9 @@ export default function ScheduledReportsPanel({
 
   function editSchedule(schedule) {
     setEditingId(String(schedule.id));
+    setScheduleError("");
+    setScheduleMessage("");
+
     setForm({
       name: schedule.name || `${workspaceName || "Workspace"} Scheduled Report`,
       recipients: normalizeRecipientString(schedule.recipients),
@@ -163,6 +174,13 @@ export default function ScheduledReportsPanel({
       timezone: schedule.timezone || "America/Chicago",
       enabled: Boolean(schedule.enabled)
     });
+  }
+
+  async function refreshSchedules() {
+    if (!workspaceId) return;
+
+    const data = await api.workspaceReportSchedules(workspaceId);
+    setSchedules(normalizeSchedules(data));
   }
 
   async function saveSchedule(event) {
@@ -219,11 +237,7 @@ export default function ScheduledReportsPanel({
       setScheduleMessage(editingId ? "Schedule updated." : "Schedule created.");
       resetForm();
     } catch (error) {
-      setScheduleError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to save scheduled report."
-      );
+      setScheduleError(upgradeMessage(error) || "Failed to save scheduled report.");
     } finally {
       setSavingSchedule(false);
     }
@@ -238,15 +252,9 @@ export default function ScheduledReportsPanel({
       await api.runWorkspaceReportSchedule(schedule.id);
 
       setScheduleMessage(`Scheduled report sent for ${schedule.name}.`);
-
-      const data = await api.workspaceReportSchedules(workspaceId);
-      setSchedules(normalizeSchedules(data));
+      await refreshSchedules();
     } catch (error) {
-      setScheduleError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to run scheduled report."
-      );
+      setScheduleError(upgradeMessage(error) || "Failed to run scheduled report.");
     } finally {
       setRunningId("");
     }
@@ -275,11 +283,7 @@ export default function ScheduledReportsPanel({
 
       setScheduleMessage(saved.enabled ? "Schedule enabled." : "Schedule disabled.");
     } catch (error) {
-      setScheduleError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to update schedule."
-      );
+      setScheduleError(upgradeMessage(error) || "Failed to update schedule.");
     }
   }
 
@@ -298,11 +302,7 @@ export default function ScheduledReportsPanel({
 
       setScheduleMessage("Schedule deleted.");
     } catch (error) {
-      setScheduleError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to delete schedule."
-      );
+      setScheduleError(upgradeMessage(error) || "Failed to delete schedule.");
     }
   }
 
@@ -312,6 +312,7 @@ export default function ScheduledReportsPanel({
       subtitle="Automatically send workspace reports to clients on a daily or weekly cadence."
       right={
         <div className="vs-inline-actions">
+          <Badge tone="active">Pro Feature</Badge>
           <Badge tone={enabledCount ? "active" : "demo"}>
             {enabledCount} active
           </Badge>
@@ -338,6 +339,19 @@ export default function ScheduledReportsPanel({
         ) : null}
 
         <div className="vs-card-muted">
+          <div
+            style={{
+              marginBottom: "0.85rem",
+              color: "rgba(148, 163, 184, 0.92)",
+              fontSize: "0.92rem",
+              lineHeight: 1.5
+            }}
+          >
+            Automate client reporting and retain campaigns with zero manual
+            report work. Pro includes up to 3 active schedules. Enterprise
+            unlocks unlimited scheduled reports.
+          </div>
+
           <form onSubmit={saveSchedule} style={{ display: "grid", gap: "0.85rem" }}>
             <div className="vs-grid-2">
               <label style={{ display: "grid", gap: "0.4rem" }}>
@@ -463,12 +477,21 @@ export default function ScheduledReportsPanel({
           schedules.map((schedule) => (
             <ResponsiveRow
               key={schedule.id}
-              title={schedule.name}
-              subtitle={`${schedule.frequency || "weekly"} â€¢ next run ${formatDateTime(schedule.next_run_at)}`}
+              title={schedule.name || "Scheduled Report"}
+              subtitle={`${schedule.frequency || "weekly"} • next run ${formatDateTime(schedule.next_run_at)}`}
               meta={[
-                { label: "Recipients", value: normalizeRecipientString(schedule.recipients) || "â€”" },
-                { label: "Last Sent", value: formatDateTime(schedule.last_sent_at) },
-                { label: "Status", value: schedule.enabled ? "Enabled" : "Disabled" }
+                {
+                  label: "Recipients",
+                  value: normalizeRecipientString(schedule.recipients) || "—"
+                },
+                {
+                  label: "Last Sent",
+                  value: formatDateTime(schedule.last_sent_at)
+                },
+                {
+                  label: "Status",
+                  value: schedule.enabled ? "Enabled" : "Disabled"
+                }
               ]}
               right={
                 <div className="vs-inline-actions">
@@ -517,4 +540,3 @@ export default function ScheduledReportsPanel({
     </SectionCard>
   );
 }
-
