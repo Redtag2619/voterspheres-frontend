@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../../services/api";
+import { api } from "../../services/api"; 
 import SectionCard from "../ui/SectionCard";
 import Badge from "../ui/Badge";
 import EmptyState from "../ui/EmptyState";
