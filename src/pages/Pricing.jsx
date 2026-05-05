@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Badge from "../components/ui/Badge";
 import PublicPageShell from "../components/layout/PublicPageShell.jsx";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 const tiers = [
   {
@@ -69,6 +68,7 @@ const tiers = [
 
 function getUpgradeParams(search = "") {
   const params = new URLSearchParams(search);
+
   return {
     upgrade: String(params.get("upgrade") || "").toLowerCase(),
     source: params.get("source") || "",
@@ -127,6 +127,7 @@ function PricingCard({
           >
             {tier.name}
           </div>
+
           <div
             style={{
               marginTop: "6px",
@@ -164,6 +165,7 @@ function PricingCard({
           >
             {tier.price}
           </div>
+
           <div
             style={{
               fontSize: "13px",
@@ -229,9 +231,7 @@ function PricingCard({
 
 export default function Pricing() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { activeWorkspaceId } = useWorkspace();
 
   const [checkoutBusy, setCheckoutBusy] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
@@ -259,9 +259,7 @@ export default function Pricing() {
       }
 
       const origin = window.location.origin;
-      const returnPath = activeWorkspaceId
-        ? `/campaign-workspace/${activeWorkspaceId}`
-        : "/dashboard";
+      const returnPath = "/dashboard";
 
       const successUrl = `${origin}${returnPath}?checkout=success&plan=${encodeURIComponent(tier.key)}`;
       const cancelUrl = `${origin}/pricing?upgrade=${encodeURIComponent(tier.key)}&checkout=cancelled`;
