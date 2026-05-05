@@ -1,14 +1,20 @@
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Badge from "../components/ui/Badge";
 import PublicPageShell from "../components/layout/PublicPageShell.jsx";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 const tiers = [
   {
+    key: "starter",
     name: "Starter",
     price: "$99",
     period: "/month",
     tone: "default",
     cta: "Start with Starter",
+    priceKey: "starter",
     description:
       "For emerging firms and smaller campaigns that need a clear command layer, visibility, and a professional operating system.",
     includes: [
@@ -21,43 +27,75 @@ const tiers = [
     ],
   },
   {
+    key: "pro",
     name: "Pro",
     price: "$149",
     period: "/month",
     tone: "accent",
     featured: true,
     cta: "Upgrade to Pro",
+    priceKey: "pro",
     description:
-      "For active consulting firms that need tighter execution, more intelligence depth, and stronger operating rhythm across clients and campaigns.",
+      "For active consulting firms that need tighter execution, more intelligence depth, and automated client reporting.",
     includes: [
       "Everything in Starter",
       "Command Center and AI War Room workflows",
       "Advanced fundraising and rankings visibility",
+      "Scheduled workspace reports",
       "Operational MailOps composer and live event updates",
-      "Broader internal coordination across execution teams",
       "Higher-value intelligence workflows for campaign management",
     ],
   },
   {
+    key: "enterprise",
     name: "Enterprise",
     price: "$499",
     period: "/month",
     tone: "danger",
     cta: "Go Enterprise",
+    priceKey: "enterprise",
     description:
       "For high-volume firms and serious campaign operators who need a premium control layer, live operations, and full-platform execution support.",
     includes: [
       "Everything in Pro",
+      "Unlimited scheduled reports",
       "Full platform access for multi-workstream operations",
       "Live intelligence fusion across dashboard, map, war room, and MailOps",
       "Enterprise-grade workflow support for campaign execution",
-      "Operational visibility for leadership, vendors, and delivery risk",
       "Best fit for top-tier political consulting organizations",
     ],
   },
 ];
 
-function PricingCard({ tier }) {
+function getUpgradeParams(search = "") {
+  const params = new URLSearchParams(search);
+  return {
+    upgrade: String(params.get("upgrade") || "").toLowerCase(),
+    source: params.get("source") || "",
+    message: params.get("message") || "",
+  };
+}
+
+function getPriceId(config = {}, tier = {}) {
+  const key = tier.priceKey || tier.key;
+
+  return (
+    config?.prices?.[key] ||
+    config?.priceIds?.[key] ||
+    config?.[`price_${key}`] ||
+    config?.[`stripe_price_${key}`] ||
+    config?.[key] ||
+    ""
+  );
+}
+
+function PricingCard({
+  tier,
+  recommended,
+  authenticated,
+  checkoutBusy,
+  onCheckout,
+}) {
   return (
     <div
       className="vs-card"
@@ -66,12 +104,16 @@ function PricingCard({ tier }) {
         gap: "14px",
         padding: "18px",
         position: "relative",
-        borderColor: tier.featured
-          ? "rgba(245,158,11,0.42)"
-          : "var(--vs-border)",
-        boxShadow: tier.featured
-          ? "0 12px 32px rgba(245,158,11,0.12)"
-          : "var(--vs-shadow)",
+        borderColor: recommended
+          ? "rgba(37,99,235,0.56)"
+          : tier.featured
+            ? "rgba(245,158,11,0.42)"
+            : "var(--vs-border)",
+        boxShadow: recommended
+          ? "0 18px 42px rgba(37,99,235,0.18)"
+          : tier.featured
+            ? "0 12px 32px rgba(245,158,11,0.12)"
+            : "var(--vs-shadow)",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
@@ -97,7 +139,10 @@ function PricingCard({ tier }) {
           </div>
         </div>
 
-        {tier.featured ? <Badge tone="accent">Most Popular</Badge> : null}
+        <div style={{ display: "flex", gap: "6px", alignItems: "flex-start", flexWrap: "wrap" }}>
+          {recommended ? <Badge tone="active">Recommended</Badge> : null}
+          {tier.featured && !recommended ? <Badge tone="accent">Most Popular</Badge> : null}
+        </div>
       </div>
 
       <div>
@@ -159,34 +204,156 @@ function PricingCard({ tier }) {
         ))}
       </div>
 
-      <Link
-        to="/signup"
-        className="vs-button vs-button-primary"
-        style={{ width: "100%", justifyContent: "center" }}
-      >
-        {tier.cta}
-      </Link>
+      {authenticated ? (
+        <button
+          type="button"
+          className="vs-button vs-button-primary"
+          style={{ width: "100%", justifyContent: "center" }}
+          onClick={() => onCheckout(tier)}
+          disabled={checkoutBusy === tier.key}
+        >
+          {checkoutBusy === tier.key ? "Opening checkout..." : tier.cta}
+        </button>
+      ) : (
+        <Link
+          to={`/signup?plan=${encodeURIComponent(tier.key)}`}
+          className="vs-button vs-button-primary"
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          {tier.cta}
+        </Link>
+      )}
     </div>
   );
 }
 
 export default function Pricing() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { activeWorkspaceId } = useWorkspace();
+
+  const [checkoutBusy, setCheckoutBusy] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+
+  const upgradeContext = useMemo(
+    () => getUpgradeParams(location.search),
+    [location.search]
+  );
+
+  const requiredPlan =
+    upgradeContext.upgrade && tiers.some((tier) => tier.key === upgradeContext.upgrade)
+      ? upgradeContext.upgrade
+      : "";
+
+  async function handleCheckout(tier) {
+    try {
+      setCheckoutBusy(tier.key);
+      setCheckoutError("");
+
+      const config = await api.billingConfig();
+      const priceId = getPriceId(config, tier);
+
+      if (!priceId) {
+        throw new Error(`Missing Stripe price ID for ${tier.name}.`);
+      }
+
+      const origin = window.location.origin;
+      const returnPath = activeWorkspaceId
+        ? `/campaign-workspace/${activeWorkspaceId}`
+        : "/dashboard";
+
+      const successUrl = `${origin}${returnPath}?checkout=success&plan=${encodeURIComponent(tier.key)}`;
+      const cancelUrl = `${origin}/pricing?upgrade=${encodeURIComponent(tier.key)}&checkout=cancelled`;
+
+      const response = await api.createCheckoutSession({
+        priceId,
+        plan: tier.key,
+        successUrl,
+        cancelUrl,
+      });
+
+      const url =
+        response?.url ||
+        response?.checkout_url ||
+        response?.session?.url ||
+        "";
+
+      if (!url) {
+        throw new Error("Checkout session did not return a URL.");
+      }
+
+      window.location.href = url;
+    } catch (error) {
+      setCheckoutError(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Unable to start checkout."
+      );
+    } finally {
+      setCheckoutBusy("");
+    }
+  }
+
   return (
     <PublicPageShell
       eyebrow="Pricing"
       title="Choose the operating package that fits your firm."
-      description="Every plan is built around a professional campaign operating system. The difference is how much intelligence depth, execution support, MailOps visibility, and leadership control your team needs."
-      announcement="Enterprise onboarding is now available for firms that need a white-glove rollout across leadership, operations, command workflows, and MailOps."
-      announcementTone="info"
+      description="Every plan is built around a professional campaign operating system. The difference is how much intelligence depth, execution support, MailOps visibility, automated reporting, and leadership control your team needs."
+      announcement={
+        requiredPlan
+          ? `Upgrade recommended: ${requiredPlan.toUpperCase()}`
+          : "Enterprise onboarding is now available for firms that need a white-glove rollout across leadership, operations, command workflows, and MailOps."
+      }
+      announcementTone={requiredPlan ? "success" : "info"}
       announcementAction={
-        <Link to="/signup" className="vs-button vs-button-secondary">
-          Start Onboarding
+        <Link to={isAuthenticated ? "/billing" : "/signup"} className="vs-button vs-button-secondary">
+          {isAuthenticated ? "Manage Billing" : "Start Onboarding"}
         </Link>
       }
     >
+      {upgradeContext.message ? (
+        <div
+          className="vs-card"
+          style={{
+            padding: "16px 18px",
+            borderColor: "rgba(37,99,235,0.34)",
+            background:
+              "linear-gradient(135deg, rgba(37,99,235,0.10), rgba(15,23,42,0.04))",
+          }}
+        >
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <Badge tone="active">Upgrade Required</Badge>
+            <div style={{ color: "var(--vs-text-muted)", fontSize: "13px", lineHeight: 1.6 }}>
+              {upgradeContext.message}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {checkoutError ? (
+        <div
+          className="vs-card"
+          style={{
+            padding: "14px 16px",
+            borderColor: "rgba(239,68,68,0.34)",
+            color: "#b91c1c",
+          }}
+        >
+          {checkoutError}
+        </div>
+      ) : null}
+
       <div className="vs-grid-3">
         {tiers.map((tier) => (
-          <PricingCard key={tier.name} tier={tier} />
+          <PricingCard
+            key={tier.name}
+            tier={tier}
+            recommended={requiredPlan === tier.key}
+            authenticated={Boolean(isAuthenticated)}
+            checkoutBusy={checkoutBusy}
+            onCheckout={handleCheckout}
+          />
         ))}
       </div>
 
@@ -209,10 +376,10 @@ export default function Pricing() {
           }}
         >
           Starter gives a firm a clean professional system for campaign visibility.
-          Pro adds more serious execution and intelligence workflows. Enterprise is
-          built for top consulting organizations that need the full platform as a
-          live control surface across leadership, operations, MailOps, fundraising,
-          and campaign decision-making.
+          Pro adds serious execution workflows, scheduled reporting, and stronger
+          intelligence operations. Enterprise is built for top consulting organizations
+          that need the full platform as a live control surface across leadership,
+          operations, MailOps, fundraising, reporting, and campaign decision-making.
         </div>
       </div>
     </PublicPageShell>
