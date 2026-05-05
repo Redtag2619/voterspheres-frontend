@@ -54,6 +54,7 @@ function shouldInjectWorkspace(config = {}) {
     "/billing",
     "/public",
     "/workspaces",
+    "/scheduled-reports",
     "/firm-users",
     "/firm-invites",
     "/enterprise-leads-admin",
@@ -388,7 +389,29 @@ export const workspaceReportsApi = {
   list: (workspaceId) => tryGet([`/workspaces/${workspaceId}/reports`]),
   create: (workspaceId, payload) => tryPost([`/workspaces/${workspaceId}/reports`], payload),
   delete: (workspaceId, reportId) => tryDelete([`/workspaces/${workspaceId}/reports/${reportId}`]),
-  clear: (workspaceId) => tryDelete([`/workspaces/${workspaceId}/reports`])
+  clear: (workspaceId) => tryDelete([`/workspaces/${workspaceId}/reports`]),
+  send: (workspaceId, reportId, payload) =>
+    tryPost([`/workspaces/${workspaceId}/reports/${reportId}/send`], payload),
+};
+
+export const scheduledReportsApi = {
+  listByWorkspace: (workspaceId) =>
+    tryGet([`/scheduled-reports/workspace/${workspaceId}`]),
+
+  create: (workspaceId, payload) =>
+    tryPost([`/scheduled-reports/workspace/${workspaceId}`], payload),
+
+  update: (scheduleId, payload) =>
+    tryPatch([`/scheduled-reports/${scheduleId}`], payload),
+
+  runNow: (scheduleId) =>
+    tryPost([`/scheduled-reports/${scheduleId}/run-now`], {}),
+
+  runDue: (payload = { limit: 10 }) =>
+    tryPost(["/scheduled-reports/run-due"], payload),
+
+  delete: (scheduleId) =>
+    tryDelete([`/scheduled-reports/${scheduleId}`])
 };
 
 export const workspaceContactsApi = {
@@ -639,11 +662,19 @@ export const api = {
   updateWorkspace: workspacesApi.update,
   getActiveWorkspaceId: workspacesApi.getActiveWorkspaceId,
   setActiveWorkspaceId: workspacesApi.setActiveWorkspaceId,
-  
+
   workspaceReports: workspaceReportsApi.list,
   createWorkspaceReport: workspaceReportsApi.create,
   deleteWorkspaceReport: workspaceReportsApi.delete,
   clearWorkspaceReports: workspaceReportsApi.clear,
+  sendWorkspaceReport: workspaceReportsApi.send,
+
+  workspaceReportSchedules: scheduledReportsApi.listByWorkspace,
+  createWorkspaceReportSchedule: scheduledReportsApi.create,
+  updateWorkspaceReportSchedule: scheduledReportsApi.update,
+  runWorkspaceReportSchedule: scheduledReportsApi.runNow,
+  runDueWorkspaceReportSchedules: scheduledReportsApi.runDue,
+  deleteWorkspaceReportSchedule: scheduledReportsApi.delete,
 
   workspaceClientContacts: workspaceContactsApi.list,
   createWorkspaceClientContact: workspaceContactsApi.create,
