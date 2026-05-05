@@ -8,6 +8,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import ScheduledReportsPanel from "../components/workspaces/ScheduledReportsPanel.jsx";
 
 function statusTone(value) {
   const v = String(value || "").toLowerCase();
@@ -1156,6 +1157,13 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
           </div>
         </div>
       </SectionCard>
+
+      <ScheduledReportsPanel
+        workspaceId={workspaceId}
+        workspaceName={workspace?.campaign?.campaign_name || campaignTitle}
+        defaultRecipient={clientEmail}
+        onRecipientChange={setClientEmail}
+      />
 
       <SectionCard
         title="Workspace Report Center"
