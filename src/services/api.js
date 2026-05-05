@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getStoredToken, clearStoredAuth } from "../lib/auth";
+import { getStoredToken, clearStoredAuth } from "../lib/auth"; 
 import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
 function normalizeApiBaseUrl(rawValue) {
