@@ -10,7 +10,6 @@ import { useAuth } from "./context/AuthContext.jsx";
 import { PERMISSIONS } from "./lib/permissions.js";
 import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 import AdminAlerts from "./pages/AdminAlerts";
-import Billing from "./pages/Billing.jsx";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -111,8 +110,7 @@ function AppRoutes() {
         <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/billing" element={<Billing />} />
-
+        
         <Route element={<PublicOnly />}>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
