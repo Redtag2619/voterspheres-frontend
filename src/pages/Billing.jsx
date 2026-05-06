@@ -1,403 +1,516 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
-import {
-  getBillingConfig,
-  getBillingDebug,
-  createCheckoutSession,
-  createPortalSession
-} from "../api/billing";
-import { useAuth } from "../context/AuthContext";
-import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
+import { Link } from "react-router-dom";
 import Badge from "../components/ui/Badge";
+import SectionCard from "../components/ui/SectionCard";
 import EmptyState from "../components/ui/EmptyState";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext.jsx";
 
-function formatPlan(plan) {
-  const value = String(plan || "starter").toLowerCase();
-  if (value === "enterprise") return "Enterprise";
-  if (value === "pro") return "Pro";
-  return "Starter";
-}
-
-function BillingInfoCard({ title, value, subtitle }) {
-  return (
-    <div className="vs-card-muted">
-      <div className="vs-stat-label">{title}</div>
-      <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 700, color: "var(--vs-text)" }}>
-        {value}
-      </div>
-      {subtitle ? (
-        <div style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "var(--vs-text-muted)" }}>
-          {subtitle}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-const PLAN_META = {
-  starter: {
+const PLANS = [
+  {
     key: "starter",
     name: "Starter",
     price: "$99/mo",
-    description: "Professional entry point for campaign operations.",
-    priceIdFallback: "starter"
+    description: "Core campaign operating system for smaller teams.",
+    features: [
+      "Executive dashboard",
+      "Core workspaces",
+      "Candidate and vendor visibility",
+      "Basic MailOps tracking",
+    ],
   },
-  pro: {
+  {
     key: "pro",
     name: "Pro",
     price: "$149/mo",
-    description: "Expanded intelligence and execution visibility.",
-    priceIdFallback: "pro"
+    description: "Advanced execution, reporting, and intelligence workflows.",
+    features: [
+      "Everything in Starter",
+      "Scheduled reports",
+      "Command Center workflows",
+      "AI War Room access",
+    ],
   },
-  enterprise: {
+  {
     key: "enterprise",
     name: "Enterprise",
     price: "$499/mo",
-    description: "Full campaign operating system and executive control.",
-    priceIdFallback: "enterprise"
-  }
-};
+    description: "Premium multi-workstream control layer for serious firms.",
+    features: [
+      "Everything in Pro",
+      "Unlimited scheduled reports",
+      "Enterprise workflow support",
+      "Full-platform operations visibility",
+    ],
+  },
+];
+
+function normalizePlan(value = "starter") {
+  const plan = String(value || "starter").toLowerCase();
+  if (plan === "enterprise") return "enterprise";
+  if (plan === "pro") return "pro";
+  return "starter";
+}
+
+function formatDate(value) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getPriceId(config = {}, planKey = "") {
+  return (
+    config?.prices?.[planKey] ||
+    config?.priceIds?.[planKey] ||
+    config?.[`price_${planKey}`] ||
+    config?.[`stripe_price_${planKey}`] ||
+    config?.[planKey] ||
+    ""
+  );
+}
+
+function statusTone(status = "") {
+  const value = String(status || "").toLowerCase();
+
+  if (value === "active" || value === "trialing") return "active";
+  if (value === "past_due" || value === "unpaid") return "danger";
+  if (value === "canceled" || value === "inactive") return "default";
+
+  return "demo";
+}
 
 export default function Billing() {
-  const location = useLocation();
-  const { user, firmId, isAuthenticated, loading: authLoading } = useAuth();
+  const { refreshMe } = useAuth();
 
-  const [config, setConfig] = useState(null);
-  const [loadingConfig, setLoadingConfig] = useState(true);
-  const [loadingCheckout, setLoadingCheckout] = useState("");
-  const [loadingPortal, setLoadingPortal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busyPlan, setBusyPlan] = useState("");
+  const [portalBusy, setPortalBusy] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [config, setConfig] = useState(null);
+  const [debug, setDebug] = useState(null);
 
-  const [debugData, setDebugData] = useState(null);
-  const [loadingDebug, setLoadingDebug] = useState(false);
-  const [debugError, setDebugError] = useState("");
+  async function loadBilling() {
+    try {
+      setLoading(true);
+      setError("");
 
-  const params = new URLSearchParams(location.search);
-  const isTestModeFromUrl = params.get("test_mode") === "1";
-  const checkoutSuccess = params.get("checkout") === "success";
-  const planFromUrl = params.get("plan");
+      const [billingConfig, billingDebug] = await Promise.all([
+        api.billingConfig(),
+        api.billingDebug(),
+      ]);
+
+      setConfig(billingConfig || {});
+      setDebug(billingDebug || {});
+
+      await refreshMe?.();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Unable to load billing information."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (isTestModeFromUrl) {
-      localStorage.setItem("vs_demo_mode", "1");
-    }
-  }, [isTestModeFromUrl]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadConfig() {
-      try {
-        setLoadingConfig(true);
-        setError("");
-        const data = await getBillingConfig();
-        if (!active) return;
-        setConfig(data);
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load billing config"
-        );
-      } finally {
-        if (active) setLoadingConfig(false);
-      }
-    }
-
-    loadConfig();
-
-    return () => {
-      active = false;
-    };
+    loadBilling();
   }, []);
 
-  useEffect(() => {
-    let active = true;
+  const firm = debug?.firm || debug || {};
+  const currentPlan = normalizePlan(
+    firm?.plan_tier ||
+      firm?.planTier ||
+      debug?.auth?.planTier ||
+      debug?.plan_tier ||
+      "starter"
+  );
 
-    async function loadDebug() {
-      if (!isAuthenticated) return;
+  const subscriptionStatus =
+    firm?.subscription_status || firm?.status || debug?.status || "active";
 
-      try {
-        setLoadingDebug(true);
-        setDebugError("");
-        const data = await getBillingDebug();
-        if (!active) return;
-        setDebugData(data);
-      } catch (err) {
-        if (!active) return;
-        setDebugError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load billing debug info"
-        );
-      } finally {
-        if (active) setLoadingDebug(false);
-      }
-    }
+  const currentPlanDetails = useMemo(
+    () => PLANS.find((plan) => plan.key === currentPlan) || PLANS[0],
+    [currentPlan]
+  );
 
-    loadDebug();
-
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated]);
-
-  const currentPlan =
-    debugData?.plan_tier || user?.plan_tier || user?.planTier || "starter";
-
-  const demoModeActive =
-    Boolean(config?.billing_test_mode) ||
-    localStorage.getItem("vs_demo_mode") === "1";
-
-  const plans = useMemo(() => {
-    return ["starter", "pro", "enterprise"].map((key) => ({
-      ...PLAN_META[key],
-      priceId: config?.prices?.[key] || PLAN_META[key].priceIdFallback
-    }));
-  }, [config]);
-
-  async function refreshDebug() {
+  async function startCheckout(plan) {
     try {
-      setLoadingDebug(true);
-      setDebugError("");
-      const data = await getBillingDebug();
-      setDebugData(data);
-    } catch (err) {
-      setDebugError(
-        err?.response?.data?.error ||
-          err?.message ||
-          "Failed to refresh billing debug"
-      );
-    } finally {
-      setLoadingDebug(false);
-    }
-  }
-
-  async function handleCheckout(priceId, planKey) {
-    try {
-      setLoadingCheckout(planKey);
+      setBusyPlan(plan.key);
       setError("");
+      setMessage("");
 
-      const result = await createCheckoutSession({ priceId });
+      const priceId = getPriceId(config, plan.key);
 
-      if (result?.url) {
-        window.location.href = result.url;
-        return;
+      if (!priceId) {
+        throw new Error(`Missing Stripe price ID for ${plan.name}.`);
       }
 
-      throw new Error("Checkout session did not return a URL");
+      const origin = window.location.origin;
+      const successUrl = `${origin}/dashboard?checkout=success&plan=${encodeURIComponent(
+        plan.key
+      )}`;
+      const cancelUrl = `${origin}/billing?checkout=cancelled`;
+
+      const response = await api.createCheckoutSession({
+        priceId,
+        plan: plan.key,
+        successUrl,
+        cancelUrl,
+      });
+
+      const url =
+        response?.url ||
+        response?.checkout_url ||
+        response?.session?.url ||
+        "";
+
+      if (!url) {
+        throw new Error("Checkout session did not return a URL.");
+      }
+
+      window.location.href = url;
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Failed to create checkout session"
+          "Unable to start checkout."
       );
     } finally {
-      setLoadingCheckout("");
+      setBusyPlan("");
     }
   }
 
-  async function handlePortal() {
+  async function openPortal() {
     try {
-      setLoadingPortal(true);
+      setPortalBusy(true);
       setError("");
+      setMessage("");
 
-      const result = await createPortalSession();
+      const origin = window.location.origin;
 
-      if (result?.url) {
-        window.location.href = result.url;
-        return;
+      const response = await api.createPortalSession({
+        returnUrl: `${origin}/billing`,
+      });
+
+      const url =
+        response?.url ||
+        response?.portal_url ||
+        response?.session?.url ||
+        "";
+
+      if (!url) {
+        throw new Error("Billing portal did not return a URL.");
       }
 
-      throw new Error("Portal session did not return a URL");
+      window.location.href = url;
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
-          "Failed to create portal session"
+          "Unable to open billing portal."
       );
     } finally {
-      setLoadingPortal(false);
+      setPortalBusy(false);
     }
   }
 
-  if (authLoading) {
+  if (loading) {
     return (
-      <PageShell
-        eyebrow="Billing & Subscription"
-        title="Billing Overview"
-        description="Manage your subscription, billing status, and plan access."
-      >
-        <EmptyState text="Loading billing..." />
-      </PageShell>
+      <div className="vs-page">
+        <div className="vs-page-header">
+          <div>
+            <h1 className="vs-page-title">Billing</h1>
+            <p className="vs-page-subtitle">Loading subscription details...</p>
+          </div>
+        </div>
+
+        <EmptyState text="Loading billing center..." />
+      </div>
     );
   }
 
   return (
-    <PageShell
-      eyebrow="Billing & Subscription"
-      title="Billing Overview"
-      description="Manage your subscription, billing status, and plan access."
-      demo={demoModeActive}
-      demoText="Demo mode is active. No real Stripe checkout occurs in this environment."
-    >
-      {checkoutSuccess ? (
-        <div
-          className="vs-banner"
-          style={{ borderColor: "#bbf7d0", background: "#ecfdf5", color: "#047857" }}
-        >
-          {demoModeActive
-            ? `Demo checkout successful. Your plan has been upgraded to ${formatPlan(planFromUrl || currentPlan)}.`
-            : "Checkout successful. Your subscription has been activated."}
+    <div className="vs-page">
+      <div className="vs-page-header">
+        <div>
+          <h1 className="vs-page-title">Billing Management Center</h1>
+          <p className="vs-page-subtitle">
+            Manage plan access, Stripe billing, subscription status, and upgrade
+            paths for your firm.
+          </p>
         </div>
-      ) : null}
+
+        <div className="vs-inline-actions">
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={loadBilling}
+          >
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            className="vs-button"
+            onClick={openPortal}
+            disabled={portalBusy}
+          >
+            {portalBusy ? "Opening..." : "Open Stripe Portal"}
+          </button>
+        </div>
+      </div>
 
       {error ? (
         <div
           className="vs-banner"
-          style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}
+          style={{
+            borderColor: "#fecaca",
+            background: "#fef2f2",
+            color: "#b91c1c",
+          }}
         >
           {error}
         </div>
       ) : null}
 
-      <div className="vs-grid-4">
-        <BillingInfoCard
-          title="Current Plan"
-          value={formatPlan(currentPlan)}
-          subtitle="Active plan on your firm account"
-        />
-        <BillingInfoCard
-          title="Firm ID"
-          value={firmId || debugData?.firm_id || "N/A"}
-          subtitle="Current authenticated firm"
-        />
-        <BillingInfoCard
-          title="Billing Mode"
-          value={demoModeActive ? "Demo" : "Live"}
-          subtitle={demoModeActive ? "Stripe-free testing enabled" : "Stripe-backed checkout"}
-        />
-        <BillingInfoCard
-          title="Status"
-          value={debugData?.status || "active"}
-          subtitle="Current subscription state"
-        />
+      {message ? (
+        <div
+          className="vs-banner"
+          style={{
+            borderColor: "#bbf7d0",
+            background: "#f0fdf4",
+            color: "#166534",
+          }}
+        >
+          {message}
+        </div>
+      ) : null}
+
+      <div className="vs-grid-2">
+        <SectionCard
+          title="Current Subscription"
+          subtitle="Your active firm plan and Stripe subscription state."
+          right={<Badge tone={statusTone(subscriptionStatus)}>{subscriptionStatus}</Badge>}
+        >
+          <div className="vs-stack">
+            <div className="vs-card-muted">
+              <div className="vs-stat-label">Current Plan</div>
+              <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+                {currentPlanDetails.name}
+              </div>
+              <div style={{ color: "var(--vs-text-muted)", marginTop: 6 }}>
+                {currentPlanDetails.price}
+              </div>
+            </div>
+
+            <div className="vs-grid-2">
+              <div className="vs-card-muted">
+                <div className="vs-stat-label">Subscription Status</div>
+                <div style={{ marginTop: 6, fontWeight: 800 }}>
+                  {subscriptionStatus || "active"}
+                </div>
+              </div>
+
+              <div className="vs-card-muted">
+                <div className="vs-stat-label">Current Period Ends</div>
+                <div style={{ marginTop: 6, fontWeight: 800 }}>
+                  {formatDate(firm?.current_period_end)}
+                </div>
+              </div>
+            </div>
+
+            <div className="vs-card-muted">
+              <div className="vs-stat-label">Firm</div>
+              <div style={{ marginTop: 6, fontWeight: 800 }}>
+                {firm?.firm_name || firm?.name || "Your Firm"}
+              </div>
+              <div style={{ marginTop: 5, color: "var(--vs-text-muted)" }}>
+                Stripe Customer: {firm?.stripe_customer_id || "Not linked yet"}
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Payment Health"
+          subtitle="Keep the firm’s access in good standing."
+          right={
+            <Badge tone={statusTone(subscriptionStatus)}>
+              {String(subscriptionStatus || "active").toUpperCase()}
+            </Badge>
+          }
+        >
+          <div className="vs-stack">
+            {String(subscriptionStatus).toLowerCase() === "past_due" ? (
+              <div
+                className="vs-banner"
+                style={{
+                  borderColor: "#fecaca",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                }}
+              >
+                Payment is past due. Open the Stripe portal to update payment
+                details.
+              </div>
+            ) : (
+              <div
+                className="vs-banner"
+                style={{
+                  borderColor: "#bbf7d0",
+                  background: "#f0fdf4",
+                  color: "#166534",
+                }}
+              >
+                Billing is active. Your platform access is in good standing.
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="vs-button"
+              onClick={openPortal}
+              disabled={portalBusy}
+            >
+              {portalBusy ? "Opening Portal..." : "Manage Payment Method"}
+            </button>
+
+            <div style={{ color: "var(--vs-text-muted)", fontSize: 13, lineHeight: 1.6 }}>
+              Invoices, payment methods, cancellation, and subscription changes
+              are handled securely through Stripe.
+            </div>
+          </div>
+        </SectionCard>
       </div>
 
       <SectionCard
-        title="Plan Options"
-        subtitle="Choose a plan or manage your current subscription."
-        right={<Badge tone="active">Current plan: {formatPlan(currentPlan)}</Badge>}
+        title="Change Plan"
+        subtitle="Upgrade or manage firm access. Checkout returns to VoterSpheres and refreshes access automatically."
       >
-        {loadingConfig ? (
-          <EmptyState text="Loading plan options..." />
-        ) : (
-          <div className="vs-grid-3">
-            {plans.map((plan) => {
-              const isCurrent = String(currentPlan).toLowerCase() === plan.key;
+        <div className="vs-grid-3">
+          {PLANS.map((plan) => {
+            const isCurrent = plan.key === currentPlan;
+            const isUpgrade =
+              PLANS.findIndex((item) => item.key === plan.key) >
+              PLANS.findIndex((item) => item.key === currentPlan);
 
-              return (
-                <div key={plan.key} className="vs-card-muted">
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start" }}>
-                    <div>
-                      <div className="vs-eyebrow" style={{ marginTop: 0 }}>{plan.name}</div>
-                      <div style={{ marginTop: "0.6rem", fontSize: "2rem", fontWeight: 700, color: "var(--vs-text)" }}>
-                        {plan.price}
-                      </div>
+            return (
+              <div
+                key={plan.key}
+                className="vs-card"
+                style={{
+                  padding: 18,
+                  display: "grid",
+                  gap: 12,
+                  borderColor: isCurrent
+                    ? "rgba(34,197,94,0.45)"
+                    : "var(--vs-border)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>{plan.name}</div>
+                    <div style={{ marginTop: 4, color: "var(--vs-text-muted)" }}>
+                      {plan.price}
                     </div>
-                    {isCurrent ? <Badge tone="active">Current</Badge> : null}
                   </div>
 
-                  <div
-                    style={{
-                      marginTop: "0.85rem",
-                      fontSize: "0.92rem",
-                      lineHeight: 1.7,
-                      color: "var(--vs-text-muted)"
-                    }}
-                  >
-                    {plan.description}
-                  </div>
+                  {isCurrent ? <Badge tone="active">Current</Badge> : null}
+                  {!isCurrent && isUpgrade ? <Badge tone="accent">Upgrade</Badge> : null}
+                </div>
 
+                <div style={{ color: "var(--vs-text-muted)", fontSize: 13, lineHeight: 1.6 }}>
+                  {plan.description}
+                </div>
+
+                <div className="vs-stack">
+                  {plan.features.map((feature) => (
+                    <div
+                      key={feature}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "10px 1fr",
+                        gap: 10,
+                        alignItems: "start",
+                        color: "var(--vs-text-muted)",
+                        fontSize: 12,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      <span className="vs-live-dot-success" style={{ marginTop: 6 }} />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {isCurrent ? (
                   <button
                     type="button"
-                    className={`vs-button ${isCurrent ? "vs-button-secondary" : "vs-button-primary"}`}
-                    style={{ width: "100%", marginTop: "1.25rem" }}
-                    disabled={loadingCheckout === plan.key}
-                    onClick={() => handleCheckout(plan.priceId, plan.key)}
+                    className="vs-button vs-button-secondary"
+                    onClick={openPortal}
                   >
-                    {loadingCheckout === plan.key
-                      ? "Starting..."
-                      : isCurrent
-                      ? "Re-run Checkout"
-                      : `Choose ${plan.name}`}
+                    Manage Current Plan
                   </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                ) : (
+                  <button
+                    type="button"
+                    className="vs-button"
+                    onClick={() => startCheckout(plan)}
+                    disabled={busyPlan === plan.key}
+                  >
+                    {busyPlan === plan.key
+                      ? "Opening checkout..."
+                      : isUpgrade
+                        ? `Upgrade to ${plan.name}`
+                        : `Switch to ${plan.name}`}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </SectionCard>
 
       <SectionCard
-        title="Account Actions"
-        subtitle="Refresh billing state or open the billing portal."
-      >
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        title="Invoice History"
+        subtitle="Stripe manages invoice records and receipts."
+        right={
           <button
             type="button"
             className="vs-button vs-button-secondary"
-            onClick={refreshDebug}
-            disabled={loadingDebug}
+            onClick={openPortal}
+            disabled={portalBusy}
           >
-            {loadingDebug ? "Refreshing..." : "Refresh Billing Debug"}
+            View in Stripe
           </button>
+        }
+      >
+        <EmptyState text="Open the Stripe portal to view receipts, invoices, payment methods, and subscription history." />
+      </SectionCard>
 
-          <button
-            type="button"
-            className="vs-button vs-button-primary"
-            onClick={handlePortal}
-            disabled={loadingPortal}
-          >
-            {loadingPortal ? "Opening..." : "Open Billing Portal"}
-          </button>
+      <SectionCard
+        title="Enterprise Support"
+        subtitle="Need procurement, onboarding, multi-firm operations, or a white-glove rollout?"
+      >
+        <div className="vs-inline-actions">
+          <Link to="/contact" className="vs-button">
+            Contact Enterprise Sales
+          </Link>
+
+          <Link to="/pricing?upgrade=enterprise" className="vs-button vs-button-secondary">
+            Review Enterprise Plan
+          </Link>
         </div>
-
-        {debugError ? (
-          <div
-            className="vs-banner"
-            style={{
-              marginTop: "1rem",
-              borderColor: "#fecaca",
-              background: "#fef2f2",
-              color: "#b91c1c"
-            }}
-          >
-            {debugError}
-          </div>
-        ) : null}
       </SectionCard>
-
-      <SectionCard title="Billing Debug" subtitle="Current backend billing record for your firm.">
-        {loadingDebug ? (
-          <EmptyState text="Loading billing debug..." />
-        ) : (
-          <pre
-            style={{
-              overflow: "auto",
-              borderRadius: "1rem",
-              background: "#0f172a",
-              padding: "1rem",
-              color: "white",
-              fontSize: "0.78rem"
-            }}
-          >
-{JSON.stringify(debugData || {}, null, 2)}
-          </pre>
-        )}
-      </SectionCard>
-    </PageShell>
+    </div>
   );
 }
