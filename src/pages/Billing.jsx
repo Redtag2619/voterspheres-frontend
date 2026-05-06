@@ -502,7 +502,7 @@ export default function Billing() {
         subtitle="Need procurement, onboarding, multi-firm operations, or a white-glove rollout?"
       >
         <div className="vs-inline-actions">
-          <Link to="/contact" className="vs-button">
+          <Link to="/signup?plan=enterprise" className="vs-button">
             Contact Enterprise Sales
           </Link>
 
