@@ -2,6 +2,7 @@ import { NavLink, Outlet, Link } from "react-router-dom";
 import { useDemoMode } from "../../context/DemoModeContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { hasPermission, PERMISSIONS } from "../../lib/permissions.js";
+import CheckoutPlanSync from "../billing/CheckoutPlanSync.jsx";
 
 const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
@@ -70,6 +71,7 @@ export default function AppShell() {
   );
 
   return (
+    <CheckoutPlanSync />
     <div className="vs-shell">
       <header className="vs-shell-header">
         <div className="vs-shell-inner">
