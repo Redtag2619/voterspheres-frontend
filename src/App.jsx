@@ -10,6 +10,8 @@ import { useAuth } from "./context/AuthContext.jsx";
 import { PERMISSIONS } from "./lib/permissions.js";
 import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 import AdminAlerts from "./pages/AdminAlerts";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import PlanProtectedRoute from "./components/PlanProtectedRoute.jsx";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
