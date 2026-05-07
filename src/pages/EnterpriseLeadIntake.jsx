@@ -25,7 +25,7 @@ const emptyForm = {
   states: "",
   cycle: "2026",
   campaign_count: "",
-  team_size: "",
+  team_size: "1",
   budget_range: "",
   timeline: "This month",
   use_case: "",
@@ -47,9 +47,21 @@ function required(value = "") {
   return String(value || "").trim();
 }
 
+async function createEnterpriseLead(payload) {
+  if (api.createEnterpriseLead) {
+    return api.createEnterpriseLead(payload);
+  }
+
+  if (api.post) {
+    const response = await api.post("/enterprise-leads", payload);
+    return response?.data || response;
+  }
+
+  throw new Error("Enterprise lead API helper is missing.");
+}
+
 export default function EnterpriseLeadIntake() {
   const location = useLocation();
-
   const utm = useMemo(() => getUtmParams(location.search), [location.search]);
 
   const [form, setForm] = useState(emptyForm);
@@ -63,7 +75,6 @@ export default function EnterpriseLeadIntake() {
 
   async function submitLead(event) {
     event.preventDefault();
-
     setError("");
 
     if (!required(form.contact_name)) {
@@ -84,8 +95,9 @@ export default function EnterpriseLeadIntake() {
     try {
       setSubmitting(true);
 
-      await api.createEnterpriseLead({
+      await createEnterpriseLead({
         ...form,
+        full_name: form.contact_name,
         states: form.states
           .split(",")
           .map((item) => item.trim())
@@ -113,7 +125,7 @@ export default function EnterpriseLeadIntake() {
     <PublicPageShell
       eyebrow="Enterprise Sales"
       title="Build your firm’s campaign operating system with VoterSpheres."
-      description="Tell us about your consulting operation, target states, campaign volume, and onboarding timeline. We’ll route your inquiry into the VoterSpheres enterprise pipeline."
+      description="Tell us about your consulting operation, target states, campaign volume, and onboarding timeline."
       announcement="For consultants, agencies, campaign operators, and high-volume political organizations."
       announcementTone="success"
       announcementAction={
@@ -131,18 +143,10 @@ export default function EnterpriseLeadIntake() {
 
           <h2 style={{ margin: 0, fontSize: 24 }}>Request enterprise onboarding</h2>
 
-          <p
-            style={{
-              marginTop: 10,
-              color: "var(--vs-text-muted)",
-              lineHeight: 1.7,
-              fontSize: 14,
-            }}
-          >
+          <p style={{ marginTop: 10, color: "var(--vs-text-muted)", lineHeight: 1.7, fontSize: 14 }}>
             VoterSpheres Enterprise is built for political consultants who need
             a command layer across workspaces, scheduled client reporting,
-            MailOps, vendors, fundraising intelligence, and executive campaign
-            operations.
+            MailOps, vendors, fundraising intelligence, and executive campaign operations.
           </p>
 
           <div className="vs-stack" style={{ marginTop: 18 }}>
@@ -175,21 +179,14 @@ export default function EnterpriseLeadIntake() {
           {submitted ? (
             <div className="vs-stack">
               <Badge tone="active">Inquiry Received</Badge>
-
               <h2 style={{ margin: 0, fontSize: 24 }}>We received your request.</h2>
 
               <p style={{ color: "var(--vs-text-muted)", lineHeight: 1.7 }}>
-                Your enterprise inquiry has been added to the VoterSpheres CRM
-                pipeline. A team member can review the lead, assign a stage, add
-                notes, and schedule follow-up from the internal dashboard.
+                Your enterprise inquiry has been added to the VoterSpheres CRM pipeline.
               </p>
 
               <div className="vs-inline-actions">
-                <button
-                  type="button"
-                  className="vs-button"
-                  onClick={() => setSubmitted(false)}
-                >
+                <button type="button" className="vs-button" onClick={() => setSubmitted(false)}>
                   Submit Another Lead
                 </button>
 
