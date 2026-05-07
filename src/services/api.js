@@ -607,6 +607,25 @@ export const realtimeApi = {
   status: () => tryGet(["/realtime/status"]),
 };
 
+export const enterpriseLeadsApi = {
+  create: (payload) => tryPost(["/enterprise-leads"], payload),
+
+  list: (params = {}) =>
+    tryGet(["/enterprise-leads/admin"], {
+      params,
+    }),
+
+  get: (leadId) => tryGet([`/enterprise-leads/admin/${leadId}`]),
+
+  update: (leadId, payload) =>
+    tryPatch([`/enterprise-leads/admin/${leadId}`], payload),
+
+  addNote: (leadId, payload) =>
+    tryPost([`/enterprise-leads/admin/${leadId}/notes`], payload),
+
+  delete: (leadId) => tryDelete([`/enterprise-leads/admin/${leadId}`]),
+};
+
 export const publicApi = {
   createEnterpriseLead: (payload) =>
     unwrap(http.post("/public/enterprise-leads", payload)),
@@ -745,6 +764,13 @@ export const api = {
   taskActivity: tasksApi.activity,
   taskTimeline: tasksApi.timeline,
   feedTaskState: tasksApi.feedState,
+  
+  createEnterpriseLead: enterpriseLeadsApi.create,
+  enterpriseLeads: enterpriseLeadsApi.list,
+  enterpriseLead: enterpriseLeadsApi.get,
+  updateEnterpriseLead: enterpriseLeadsApi.update,
+  addEnterpriseLeadNote: enterpriseLeadsApi.addNote,
+  deleteEnterpriseLead: enterpriseLeadsApi.delete,
 
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
