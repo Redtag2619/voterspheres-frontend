@@ -506,6 +506,14 @@ export default function Billing() {
             Contact Enterprise Sales
           </Link>
 
+          <Link to="/enterprise" className="vs-button">
+            Contact Enterprise Sales
+          </Link>
+
+          <Link to="/enterprise-leads" className="vs-button vs-button-secondary">
+            View Enterprise Pipeline
+          </Link>
+
           <Link to="/pricing?upgrade=enterprise" className="vs-button vs-button-secondary">
             Review Enterprise Plan   
           </Link>
