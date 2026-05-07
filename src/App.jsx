@@ -38,6 +38,7 @@ const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard.jsx"));
+const EnterpriseLeadIntake = lazy(() =>import("./pages/EnterpriseLeadIntake.jsx"));
 
 function LoadingScreen() {
   return (
