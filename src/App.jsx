@@ -146,6 +146,8 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_ENTERPRISE_LEADS]} />}>
               <Route path="/admin/enterprise-leads" element={<EnterpriseLeadsAdmin />} />
+              <Route path="/enterprise" element={<EnterpriseLeadIntake />} />
+              <Route path="/enterpriseleads" element={<ProtectedRoute />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAP]} />}>
