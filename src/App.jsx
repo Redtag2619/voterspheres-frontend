@@ -12,8 +12,6 @@ import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 import AdminAlerts from "./pages/AdminAlerts";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import PlanProtectedRoute from "./components/PlanProtectedRoute.jsx";
-import EnterpriseLeadIntake from "./pages/EnterpriseLeadIntake";
-import EnterpriseLeadsAdmin from "./pages/EnterpriseLeadsAdmin";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
