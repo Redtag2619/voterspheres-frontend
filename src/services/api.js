@@ -623,6 +623,9 @@ export const enterpriseLeadsApi = {
   addNote: (leadId, payload) =>
     tryPost([`/enterprise-leads/admin/${leadId}/notes`], payload),
 
+  provisionWorkspace: (leadId) =>
+    tryPost([`/enterprise-leads/admin/${leadId}/provision-workspace`], {}),
+
   delete: (leadId) => tryDelete([`/enterprise-leads/admin/${leadId}`]),
 };
 
@@ -765,13 +768,14 @@ export const api = {
   taskTimeline: tasksApi.timeline,
   feedTaskState: tasksApi.feedState,
   
-  createEnterpriseLead: enterpriseLeadsApi.create,
+  createEnterpriseLeadAdmin: enterpriseLeadsApi.create,
   enterpriseLeads: enterpriseLeadsApi.list,
   enterpriseLead: enterpriseLeadsApi.get,
   updateEnterpriseLead: enterpriseLeadsApi.update,
   addEnterpriseLeadNote: enterpriseLeadsApi.addNote,
+  provisionEnterpriseLeadWorkspace: enterpriseLeadsApi.provisionWorkspace,
   deleteEnterpriseLead: enterpriseLeadsApi.delete,
-
+  
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
   alertRules: alertsApi.rules,
