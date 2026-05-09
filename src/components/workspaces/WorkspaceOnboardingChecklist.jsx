@@ -1,48 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { api } from "../../services/api";
 
 const DEFAULT_CHECKLIST = [
-  {
-    id: "client-setup",
-    title: "Confirm client setup",
-    description: "Verify firm name, primary contact, state focus, and onboarding goals.",
-    category: "Client",
-    priority: "High",
-  },
-  {
-    id: "campaign-states",
-    title: "Load priority states and campaigns",
-    description: "Add battleground states, key races, candidate targets, and district priorities.",
-    category: "Campaign",
-    priority: "High",
-  },
-  {
-    id: "reporting-template",
-    title: "Create first executive report template",
-    description: "Configure the workspace report layout, recipients, cadence, and delivery rules.",
-    category: "Reports",
-    priority: "High",
-  },
-  {
-    id: "vendor-review",
-    title: "Review vendor coverage",
-    description: "Check field, mail, digital, polling, compliance, data, and fundraising vendor gaps.",
-    category: "Vendors",
-    priority: "Medium",
-  },
-  {
-    id: "mailops-review",
-    title: "Configure MailOps workflow",
-    description: "Confirm mail drops, approvals, production dates, delivery windows, and risk alerts.",
-    category: "MailOps",
-    priority: "Medium",
-  },
-  {
-    id: "command-center-signals",
-    title: "Activate Command Center signals",
-    description: "Review cross-signal priorities, alerts, intelligence feed, and rapid-response tasks.",
-    category: "Command Center",
-    priority: "High",
-  },
+  { id: "client-setup", title: "Confirm client setup", description: "Verify firm name, primary contact, state focus, and onboarding goals.", category: "Client", priority: "High" },
+  { id: "campaign-states", title: "Load priority states and campaigns", description: "Add battleground states, key races, candidate targets, and district priorities.", category: "Campaign", priority: "High" },
+  { id: "reporting-template", title: "Create first executive report template", description: "Configure the workspace report layout, recipients, cadence, and delivery rules.", category: "Reports", priority: "High" },
+  { id: "vendor-review", title: "Review vendor coverage", description: "Check field, mail, digital, polling, compliance, data, and fundraising vendor gaps.", category: "Vendors", priority: "Medium" },
+  { id: "mailops-review", title: "Configure MailOps workflow", description: "Confirm mail drops, approvals, production dates, delivery windows, and risk alerts.", category: "MailOps", priority: "Medium" },
+  { id: "command-center-signals", title: "Activate Command Center signals", description: "Review cross-signal priorities, alerts, intelligence feed, and rapid-response tasks.", category: "Command Center", priority: "High" },
 ];
 
 function getStorageKey(workspaceId) {
@@ -79,12 +44,45 @@ function priorityTone(priority) {
   return styles.priorityDefault;
 }
 
-function buildChecklist(stored = {}) {
+function buildChecklistFromLocal(stored = {}) {
   return DEFAULT_CHECKLIST.map((item) => ({
     ...item,
     complete: Boolean(stored[item.id]?.complete),
     completedAt: stored[item.id]?.completedAt || null,
+    syncSource: "local",
   }));
+}
+
+function normalizeRemoteChecklist(rows = []) {
+  const byId = new Map(rows.map((item) => [String(item.id), item]));
+
+  return DEFAULT_CHECKLIST.map((item) => {
+    const remote = byId.get(item.id) || {};
+
+    return {
+      ...item,
+      ...remote,
+      id: item.id,
+      title: remote.title || item.title,
+      description: remote.description || item.description,
+      category: remote.category || item.category,
+      priority: remote.priority || item.priority,
+      complete: Boolean(remote.complete),
+      completedAt: remote.completedAt || remote.completed_at || null,
+      syncSource: "server",
+    };
+  });
+}
+
+function checklistToStoredState(checklist = []) {
+  return checklist.reduce((acc, item) => {
+    acc[item.id] = {
+      complete: Boolean(item.complete),
+      completedAt: item.completedAt || null,
+    };
+
+    return acc;
+  }, {});
 }
 
 export default function WorkspaceOnboardingChecklist({
@@ -92,35 +90,140 @@ export default function WorkspaceOnboardingChecklist({
   workspaceName = "Workspace",
 }) {
   const [storedState, setStoredState] = useState(() => loadStoredState(workspaceId));
+  const [remoteChecklist, setRemoteChecklist] = useState(null);
+  const [syncError, setSyncError] = useState("");
+  const [syncingItemId, setSyncingItemId] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setStoredState(loadStoredState(workspaceId));
+    setRemoteChecklist(null);
+    setSyncError("");
+
+    let active = true;
+
+    async function loadRemoteChecklist() {
+      if (!workspaceId || !api.workspaceOnboardingChecklist) return;
+
+      try {
+        setLoading(true);
+        const response = await api.workspaceOnboardingChecklist(workspaceId);
+        const checklist = normalizeRemoteChecklist(response?.checklist || []);
+
+        if (!active) return;
+
+        setRemoteChecklist(checklist);
+        const nextStoredState = checklistToStoredState(checklist);
+        setStoredState(nextStoredState);
+        saveStoredState(workspaceId, nextStoredState);
+      } catch (error) {
+        if (!active) return;
+
+        setSyncError(
+          error?.response?.data?.error ||
+            error?.message ||
+            "Checklist is using local fallback sync."
+        );
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadRemoteChecklist();
+
+    return () => {
+      active = false;
+    };
   }, [workspaceId]);
 
-  const checklist = useMemo(() => buildChecklist(storedState), [storedState]);
+  const checklist = useMemo(() => {
+    if (remoteChecklist) return remoteChecklist;
+    return buildChecklistFromLocal(storedState);
+  }, [remoteChecklist, storedState]);
 
   const completedCount = checklist.filter((item) => item.complete).length;
   const completionRate = checklist.length
     ? Math.round((completedCount / checklist.length) * 100)
     : 0;
 
-  function updateItem(itemId, complete) {
-    const nextState = {
-      ...storedState,
-      [itemId]: {
-        complete,
-        completedAt: complete ? new Date().toISOString() : null,
-      },
-    };
+  async function updateItem(itemId, complete) {
+    const optimisticChecklist = checklist.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            complete,
+            completedAt: complete ? new Date().toISOString() : null,
+          }
+        : item
+    );
 
-    setStoredState(nextState);
-    saveStoredState(workspaceId, nextState);
+    const nextStoredState = checklistToStoredState(optimisticChecklist);
+
+    setStoredState(nextStoredState);
+    setRemoteChecklist(optimisticChecklist);
+    saveStoredState(workspaceId, nextStoredState);
+
+    if (!workspaceId || !api.updateWorkspaceOnboardingChecklistItem) return;
+
+    try {
+      setSyncingItemId(itemId);
+      setSyncError("");
+
+      const response = await api.updateWorkspaceOnboardingChecklistItem(
+        workspaceId,
+        itemId,
+        { complete }
+      );
+
+      const serverChecklist = normalizeRemoteChecklist(response?.checklist || optimisticChecklist);
+
+      setRemoteChecklist(serverChecklist);
+
+      const syncedStoredState = checklistToStoredState(serverChecklist);
+      setStoredState(syncedStoredState);
+      saveStoredState(workspaceId, syncedStoredState);
+    } catch (error) {
+      setSyncError(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Checklist saved locally. Server sync failed."
+      );
+    } finally {
+      setSyncingItemId("");
+    }
   }
 
-  function resetChecklist() {
+  async function resetChecklist() {
+    setRemoteChecklist(buildChecklistFromLocal({}));
     setStoredState({});
     saveStoredState(workspaceId, {});
+
+    if (!workspaceId || !api.resetWorkspaceOnboardingChecklist) return;
+
+    try {
+      setLoading(true);
+      setSyncError("");
+
+      const response = await api.resetWorkspaceOnboardingChecklist(workspaceId);
+      const serverChecklist = normalizeRemoteChecklist(response?.checklist || []);
+
+      setRemoteChecklist(serverChecklist);
+    } catch (error) {
+      setSyncError(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Checklist reset locally. Server reset failed."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
+
+  const syncLabel = syncError
+    ? "Local fallback"
+    : remoteChecklist
+      ? "Synced"
+      : "Local";
 
   return (
     <section style={styles.card}>
@@ -138,37 +241,36 @@ export default function WorkspaceOnboardingChecklist({
           <div style={styles.progressLabel}>
             {completedCount} of {checklist.length} complete
           </div>
+          <div style={styles.syncLabel}>{loading ? "Syncing..." : syncLabel}</div>
         </div>
       </div>
 
+      {syncError ? <div style={styles.syncWarning}>{syncError}</div> : null}
+
       <div style={styles.progressBarOuter}>
-        <div
-          style={{
-            ...styles.progressBarInner,
-            width: `${completionRate}%`,
-          }}
-        />
+        <div style={{ ...styles.progressBarInner, width: `${completionRate}%` }} />
       </div>
 
       <div style={styles.list}>
         {checklist.map((item) => (
           <label
             key={item.id}
-            style={{
-              ...styles.item,
-              ...(item.complete ? styles.itemComplete : null),
-            }}
+            style={{ ...styles.item, ...(item.complete ? styles.itemComplete : null) }}
           >
             <input
               type="checkbox"
               checked={item.complete}
+              disabled={syncingItemId === item.id}
               onChange={(event) => updateItem(item.id, event.target.checked)}
               style={styles.checkbox}
             />
 
             <div style={styles.itemBody}>
               <div style={styles.itemTopRow}>
-                <div style={styles.itemTitle}>{item.title}</div>
+                <div style={styles.itemTitle}>
+                  {item.title}
+                  {syncingItemId === item.id ? <span style={styles.inlineSync}> syncing</span> : null}
+                </div>
 
                 <div style={styles.badgeRow}>
                   <span style={styles.categoryBadge}>{item.category}</span>
@@ -196,7 +298,9 @@ export default function WorkspaceOnboardingChecklist({
         </button>
 
         <div style={styles.footerNote}>
-          Stored locally per workspace. Backend sync can be added next.
+          {remoteChecklist
+            ? "Saved to workspace sync and local fallback."
+            : "Stored locally until backend sync is available."}
         </div>
       </div>
     </section>
@@ -253,6 +357,27 @@ const styles = {
     color: "var(--vs-text-muted, #94a3b8)",
     fontSize: "13px",
   },
+  syncLabel: {
+    marginTop: "6px",
+    display: "inline-block",
+    borderRadius: "999px",
+    padding: "4px 8px",
+    fontSize: "11px",
+    fontWeight: 800,
+    color: "#bfdbfe",
+    background: "rgba(37, 99, 235, 0.18)",
+    border: "1px solid rgba(96, 165, 250, 0.28)",
+  },
+  syncWarning: {
+    marginTop: "14px",
+    borderRadius: "12px",
+    padding: "10px 12px",
+    color: "#fde68a",
+    background: "rgba(217, 119, 6, 0.12)",
+    border: "1px solid rgba(251, 191, 36, 0.2)",
+    fontSize: "13px",
+    fontWeight: 700,
+  },
   progressBarOuter: {
     marginTop: "18px",
     height: "10px",
@@ -306,6 +431,11 @@ const styles = {
   itemTitle: {
     fontWeight: 850,
     fontSize: "15px",
+  },
+  inlineSync: {
+    color: "#93c5fd",
+    fontSize: "12px",
+    fontWeight: 700,
   },
   badgeRow: {
     display: "flex",
