@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom"; 
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
 import PageShell from "../components/ui/PageShell";
@@ -13,31 +13,9 @@ import WorkspaceOnboardingChecklist from "../components/workspaces/WorkspaceOnbo
 
 function statusTone(value) {
   const v = String(value || "").toLowerCase();
-  if (
-    v.includes("active") ||
-    v.includes("done") ||
-    v.includes("complete") ||
-    v.includes("resolved")
-  ) {
-    return "active";
-  }
-  if (
-    v.includes("risk") ||
-    v.includes("delayed") ||
-    v.includes("high") ||
-    v.includes("blocked") ||
-    v.includes("critical")
-  ) {
-    return "danger";
-  }
-  if (
-    v.includes("watch") ||
-    v.includes("medium") ||
-    v.includes("open") ||
-    v.includes("progress")
-  ) {
-    return "demo";
-  }
+  if (v.includes("active") || v.includes("done") || v.includes("complete") || v.includes("resolved")) return "active";
+  if (v.includes("risk") || v.includes("delayed") || v.includes("high") || v.includes("blocked") || v.includes("critical")) return "danger";
+  if (v.includes("watch") || v.includes("medium") || v.includes("open") || v.includes("progress")) return "demo";
   return "default";
 }
 
@@ -64,10 +42,8 @@ function isLinkedSignal(task = {}) {
 function hoursOld(task = {}) {
   const raw = task.updated_at || task.created_at;
   if (!raw) return 0;
-
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return 0;
-
   return Math.max(0, Math.round((Date.now() - date.getTime()) / 36e5));
 }
 
@@ -122,7 +98,7 @@ function buildOwnerStats(tasks = []) {
       open: 0,
       complete: 0,
       blocked: 0,
-      high: 0
+      high: 0,
     };
 
     current.total += 1;
@@ -157,15 +133,15 @@ function buildWorkspaceModel(workspace = null, tasks = [], summary = {}) {
   return {
     campaign: {
       id: workspace?.id,
-      campaign_name: workspace?.name || "Campaign Workspace",
+      campaign_name: workspace?.name || workspace?.title || "Campaign Workspace",
       candidate_name: workspace?.candidate_name || workspace?.metadata?.candidate_name || "",
-      state: workspace?.state || "National",
-      office: workspace?.office || "Statewide",
+      state: workspace?.state || workspace?.metadata?.state || "National",
+      office: workspace?.office || workspace?.metadata?.office || "Statewide",
       stage: workspace?.metadata?.stage || workspace?.cycle || "2026",
       status: workspace?.status || "active",
       firm_name: workspace?.firm_name || workspace?.metadata?.firm_name || "VoterSpheres Firm",
       owner_name: workspace?.metadata?.owner_name || "Command Team",
-      description: workspace?.description || ""
+      description: workspace?.description || "",
     },
     analytics: {
       total,
@@ -180,33 +156,13 @@ function buildWorkspaceModel(workspace = null, tasks = [], summary = {}) {
       slaRisk: slaRiskTasks.length,
       completionRate,
       signalClosureRate,
-      owners: buildOwnerStats(tasks)
+      owners: buildOwnerStats(tasks),
     },
     metrics: [
-      {
-        label: "Open Tasks",
-        value: openTasks.length,
-        subtext: `${highPriorityTasks.length} high priority`,
-        tone: openTasks.length ? "neutral" : "up"
-      },
-      {
-        label: "Completion Rate",
-        value: `${completionRate}%`,
-        subtext: `${completeTasks.length} of ${total || 0} closed`,
-        tone: completionRate >= 70 ? "up" : "neutral"
-      },
-      {
-        label: "Signal Closure",
-        value: `${signalClosureRate}%`,
-        subtext: `${resolvedSignals.length} of ${linkedSignals.length} resolved`,
-        tone: signalClosureRate >= 70 ? "up" : "neutral"
-      },
-      {
-        label: "SLA Risk",
-        value: slaRiskTasks.length,
-        subtext: `${agingTasks.length} aging tasks`,
-        tone: slaRiskTasks.length ? "down" : "up"
-      }
+      { label: "Open Tasks", value: openTasks.length, subtext: `${highPriorityTasks.length} high priority`, tone: openTasks.length ? "neutral" : "up" },
+      { label: "Completion Rate", value: `${completionRate}%`, subtext: `${completeTasks.length} of ${total || 0} closed`, tone: completionRate >= 70 ? "up" : "neutral" },
+      { label: "Signal Closure", value: `${signalClosureRate}%`, subtext: `${resolvedSignals.length} of ${linkedSignals.length} resolved`, tone: signalClosureRate >= 70 ? "up" : "neutral" },
+      { label: "SLA Risk", value: slaRiskTasks.length, subtext: `${agingTasks.length} aging tasks`, tone: slaRiskTasks.length ? "down" : "up" },
     ],
     tasks,
     alerts: [...slaRiskTasks, ...blockedTasks, ...highPriorityTasks]
@@ -219,7 +175,7 @@ function buildWorkspaceModel(workspace = null, tasks = [], summary = {}) {
         severity: task.priority || (normalizeStatus(task.status) === "blocked" ? "blocked" : "medium"),
         action_status: task.status || "open",
         type: task.source || "task",
-        age: `${hoursOld(task)}h`
+        age: `${hoursOld(task)}h`,
       })),
     activity: tasks.slice(0, 12).map((task) => ({
       id: `task-${task.id}`,
@@ -229,10 +185,10 @@ function buildWorkspaceModel(workspace = null, tasks = [], summary = {}) {
       details: {
         owner: task.assigned_to || "Command Team",
         priority: task.priority || "medium",
-        source: task.source || "command_center"
-      }
+        source: task.source || "command_center",
+      },
     })),
-    summary
+    summary,
   };
 }
 
@@ -246,9 +202,7 @@ function buildReportHtml(workspace = {}) {
   const generatedAt = new Date().toLocaleString();
 
   const rows = (items, renderer, empty = "No records.") =>
-    items.length
-      ? items.map(renderer).join("")
-      : `<tr><td colspan="5" class="empty">${empty}</td></tr>`;
+    items.length ? items.map(renderer).join("") : `<tr><td colspan="5" class="empty">${empty}</td></tr>`;
 
   return `<!doctype html>
 <html>
@@ -256,139 +210,28 @@ function buildReportHtml(workspace = {}) {
   <meta charset="utf-8" />
   <title>${escapeHtml(campaign.campaign_name)} Workspace Report</title>
   <style>
-    body {
-      margin: 0;
-      padding: 34px;
-      font-family: Arial, Helvetica, sans-serif;
-      color: #0f172a;
-      background: #f8fafc;
-    }
-    .report {
-      max-width: 1040px;
-      margin: 0 auto;
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
-    }
-    .hero {
-      background: linear-gradient(135deg, #0f172a, #1e3a8a);
-      color: white;
-      padding: 30px;
-    }
-    .eyebrow {
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      font-size: 11px;
-      font-weight: 800;
-      color: #93c5fd;
-    }
-    h1 {
-      margin: 8px 0 0;
-      font-size: 30px;
-      line-height: 1.15;
-    }
-    .subtitle {
-      margin-top: 8px;
-      color: #cbd5e1;
-      line-height: 1.5;
-    }
-    .body {
-      padding: 28px 30px 34px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-      margin: 18px 0 26px;
-    }
-    .card {
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 15px;
-      background: #f8fafc;
-    }
-    .label {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      color: #64748b;
-      text-transform: uppercase;
-    }
-    .value {
-      margin-top: 8px;
-      font-size: 24px;
-      font-weight: 900;
-      color: #0f172a;
-    }
-    .sub {
-      margin-top: 4px;
-      font-size: 12px;
-      color: #64748b;
-    }
-    h2 {
-      margin: 28px 0 10px;
-      font-size: 18px;
-      color: #0f172a;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      overflow: hidden;
-      margin-bottom: 18px;
-    }
-    th {
-      background: #f1f5f9;
-      text-align: left;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #475569;
-      padding: 11px;
-    }
-    td {
-      border-top: 1px solid #e2e8f0;
-      padding: 11px;
-      vertical-align: top;
-      font-size: 13px;
-      color: #334155;
-    }
-    .badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #e0f2fe;
-      color: #075985;
-      font-size: 11px;
-      font-weight: 800;
-    }
-    .danger {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-    .active {
-      background: #dcfce7;
-      color: #166534;
-    }
-    .empty {
-      color: #94a3b8;
-      text-align: center;
-      padding: 18px;
-    }
-    .footer {
-      margin-top: 26px;
-      padding-top: 18px;
-      border-top: 1px solid #e2e8f0;
-      color: #64748b;
-      font-size: 12px;
-    }
-    @media print {
-      body { background: white; padding: 0; }
-      .report { box-shadow: none; border-radius: 0; }
-    }
+    body { margin:0; padding:34px; font-family:Arial, Helvetica, sans-serif; color:#0f172a; background:#f8fafc; }
+    .report { max-width:1040px; margin:0 auto; background:white; border:1px solid #e2e8f0; border-radius:20px; overflow:hidden; box-shadow:0 20px 60px rgba(15,23,42,0.08); }
+    .hero { background:linear-gradient(135deg,#0f172a,#1e3a8a); color:white; padding:30px; }
+    .eyebrow { text-transform:uppercase; letter-spacing:0.12em; font-size:11px; font-weight:800; color:#93c5fd; }
+    h1 { margin:8px 0 0; font-size:30px; line-height:1.15; }
+    .subtitle { margin-top:8px; color:#cbd5e1; line-height:1.5; }
+    .body { padding:28px 30px 34px; }
+    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:18px 0 26px; }
+    .card { border:1px solid #e2e8f0; border-radius:16px; padding:15px; background:#f8fafc; }
+    .label { font-size:11px; font-weight:800; letter-spacing:0.06em; color:#64748b; text-transform:uppercase; }
+    .value { margin-top:8px; font-size:24px; font-weight:900; color:#0f172a; }
+    .sub { margin-top:4px; font-size:12px; color:#64748b; }
+    h2 { margin:28px 0 10px; font-size:18px; color:#0f172a; }
+    table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; margin-bottom:18px; }
+    th { background:#f1f5f9; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#475569; padding:11px; }
+    td { border-top:1px solid #e2e8f0; padding:11px; vertical-align:top; font-size:13px; color:#334155; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#075985; font-size:11px; font-weight:800; }
+    .danger { background:#fee2e2; color:#991b1b; }
+    .active { background:#dcfce7; color:#166534; }
+    .empty { color:#94a3b8; text-align:center; padding:18px; }
+    .footer { margin-top:26px; padding-top:18px; border-top:1px solid #e2e8f0; color:#64748b; font-size:12px; }
+    @media print { body { background:white; padding:0; } .report { box-shadow:none; border-radius:0; } }
   </style>
 </head>
 <body>
@@ -401,7 +244,6 @@ function buildReportHtml(workspace = {}) {
         Generated ${escapeHtml(generatedAt)}
       </div>
     </div>
-
     <div class="body">
       <h2>Executive Summary</h2>
       <div class="grid">
@@ -412,107 +254,51 @@ function buildReportHtml(workspace = {}) {
       </div>
 
       <h2>Workspace Profile</h2>
-      <table>
-        <tbody>
-          <tr><th>Candidate</th><td>${escapeHtml(campaign.candidate_name || "Not set")}</td><th>Status</th><td>${escapeHtml(campaign.status || "active")}</td></tr>
-          <tr><th>State</th><td>${escapeHtml(campaign.state || "National")}</td><th>Office</th><td>${escapeHtml(campaign.office || "Statewide")}</td></tr>
-          <tr><th>Owner</th><td>${escapeHtml(campaign.owner_name || "Command Team")}</td><th>Workspace ID</th><td>${escapeHtml(campaign.id || "—")}</td></tr>
-        </tbody>
-      </table>
+      <table><tbody>
+        <tr><th>Candidate</th><td>${escapeHtml(campaign.candidate_name || "Not set")}</td><th>Status</th><td>${escapeHtml(campaign.status || "active")}</td></tr>
+        <tr><th>State</th><td>${escapeHtml(campaign.state || "National")}</td><th>Office</th><td>${escapeHtml(campaign.office || "Statewide")}</td></tr>
+        <tr><th>Owner</th><td>${escapeHtml(campaign.owner_name || "Command Team")}</td><th>Workspace ID</th><td>${escapeHtml(campaign.id || "—")}</td></tr>
+      </tbody></table>
 
       <h2>Execution Pressure</h2>
       <table>
         <thead><tr><th>Item</th><th>Status</th><th>Severity</th><th>Type</th><th>Age</th></tr></thead>
-        <tbody>
-          ${rows(
-            alerts,
-            (alert) => `
-            <tr>
-              <td><strong>${escapeHtml(alert.title)}</strong><br/>${escapeHtml(alert.message)}</td>
-              <td>${escapeHtml(alert.action_status)}</td>
-              <td><span class="badge danger">${escapeHtml(alert.severity)}</span></td>
-              <td>${escapeHtml(alert.type)}</td>
-              <td>${escapeHtml(alert.age)}</td>
-            </tr>
-          `,
-            "No active pressure items."
-          )}
-        </tbody>
+        <tbody>${rows(alerts, (alert) => `
+          <tr><td><strong>${escapeHtml(alert.title)}</strong><br/>${escapeHtml(alert.message)}</td><td>${escapeHtml(alert.action_status)}</td><td><span class="badge danger">${escapeHtml(alert.severity)}</span></td><td>${escapeHtml(alert.type)}</td><td>${escapeHtml(alert.age)}</td></tr>
+        `, "No active pressure items.")}</tbody>
       </table>
 
       <h2>Owner Workload</h2>
       <table>
         <thead><tr><th>Owner</th><th>Open</th><th>Complete</th><th>High Priority</th><th>Blocked</th></tr></thead>
-        <tbody>
-          ${rows(
-            owners,
-            (owner) => `
-            <tr>
-              <td><strong>${escapeHtml(owner.owner)}</strong></td>
-              <td>${owner.open}</td>
-              <td>${owner.complete}</td>
-              <td>${owner.high}</td>
-              <td>${owner.blocked}</td>
-            </tr>
-          `,
-            "No owner workload yet."
-          )}
-        </tbody>
+        <tbody>${rows(owners, (owner) => `
+          <tr><td><strong>${escapeHtml(owner.owner)}</strong></td><td>${owner.open}</td><td>${owner.complete}</td><td>${owner.high}</td><td>${owner.blocked}</td></tr>
+        `, "No owner workload yet.")}</tbody>
       </table>
 
       <h2>Workspace Tasks</h2>
       <table>
         <thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Owner</th><th>Source</th></tr></thead>
-        <tbody>
-          ${rows(
-            tasks.slice(0, 25),
-            (task) => `
-            <tr>
-              <td><strong>${escapeHtml(task.title)}</strong><br/>${escapeHtml(task.description || "")}</td>
-              <td><span class="badge ${normalizeStatus(task.status) === "complete" ? "active" : ""}">${escapeHtml(task.status || "open")}</span></td>
-              <td>${escapeHtml(task.priority || "medium")}</td>
-              <td>${escapeHtml(task.assigned_to || "Command Team")}</td>
-              <td>${escapeHtml(task.source || "command_center")}</td>
-            </tr>
-          `,
-            "No tasks in this workspace."
-          )}
-        </tbody>
+        <tbody>${rows(tasks.slice(0, 25), (task) => `
+          <tr><td><strong>${escapeHtml(task.title)}</strong><br/>${escapeHtml(task.description || "")}</td><td><span class="badge ${normalizeStatus(task.status) === "complete" ? "active" : ""}">${escapeHtml(task.status || "open")}</span></td><td>${escapeHtml(task.priority || "medium")}</td><td>${escapeHtml(task.assigned_to || "Command Team")}</td><td>${escapeHtml(task.source || "command_center")}</td></tr>
+        `, "No tasks in this workspace.")}</tbody>
       </table>
 
       <h2>Recent Activity</h2>
       <table>
         <thead><tr><th>Activity</th><th>Summary</th><th>When</th><th>Details</th></tr></thead>
-        <tbody>
-          ${rows(
-            activity,
-            (item) => {
-              const details = Object.entries(item.details || {})
-                .map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(value)}`)
-                .join("<br/>");
-              return `
-              <tr>
-                <td>${escapeHtml(String(item.activity_type || "").replaceAll("_", " "))}</td>
-                <td>${escapeHtml(item.summary || "")}</td>
-                <td>${escapeHtml(item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown")}</td>
-                <td>${details}</td>
-              </tr>
-            `;
-            },
-            "No recent activity."
-          )}
-        </tbody>
+        <tbody>${rows(activity, (item) => {
+          const details = Object.entries(item.details || {}).map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(value)}`).join("<br/>");
+          return `<tr><td>${escapeHtml(String(item.activity_type || "").replaceAll("_", " "))}</td><td>${escapeHtml(item.summary || "")}</td><td>${escapeHtml(item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown")}</td><td>${details}</td></tr>`;
+        }, "No recent activity.")}</tbody>
       </table>
 
-      <div class="footer">
-        Prepared by VoterSpheres. This report summarizes workspace execution status, signal closure, owner workload, and operational pressure.
-      </div>
+      <div class="footer">Prepared by VoterSpheres. This report summarizes workspace execution status, signal closure, owner workload, and operational pressure.</div>
     </div>
   </div>
 </body>
 </html>`;
 }
-
 
 function buildClientEmailDraft(workspace = {}, reportHistory = []) {
   const campaign = workspace.campaign || {};
@@ -522,25 +308,25 @@ function buildClientEmailDraft(workspace = {}, reportHistory = []) {
   const subject = `${campaign.campaign_name || "Workspace"} — VoterSpheres Execution Report`;
 
   const body = [
-    `Hi,`,
-    ``,
+    "Hi,",
+    "",
     `Attached/downloaded is the latest VoterSpheres workspace report for ${campaign.campaign_name || "this campaign workspace"}.`,
-    ``,
-    `Executive snapshot:`,
+    "",
+    "Executive snapshot:",
     `• Open tasks: ${analytics.open || 0}`,
     `• Completed tasks: ${analytics.complete || 0}`,
     `• Blocked tasks: ${analytics.blocked || 0}`,
     `• SLA risk items: ${analytics.slaRisk || 0}`,
     `• Signal closure rate: ${analytics.signalClosureRate || 0}%`,
-    ``,
+    "",
     latestReport?.filename
       ? `Latest report file: ${latestReport.filename}`
-      : `Please download the latest report from the Workspace Report Center before sending.`,
-    ``,
-    `Recommended next step: review any open SLA risk items and blocked execution work.`,
-    ``,
-    `Best,`,
-    `Command Team`
+      : "Please download the latest report from the Workspace Report Center before sending.",
+    "",
+    "Recommended next step: review any open SLA risk items and blocked execution work.",
+    "",
+    "Best,",
+    "Command Team",
   ].join("\n");
 
   return { subject, body };
@@ -586,12 +372,10 @@ export default function CampaignWorkspace() {
     activeWorkspaceId,
     activeWorkspace,
     setActiveWorkspaceId,
-    refreshWorkspaces
+    refreshWorkspaces,
   } = useWorkspace();
 
   const routeWorkspaceId = params.id ? String(params.id) : "";
-  const workspaceId = workspace?.id || id || activeWorkspaceId;
-  const workspaceName = workspace?.name || workspace?.title || "Campaign Workspace";
   const workspaceId = routeWorkspaceId || activeWorkspaceId || "";
 
   const [loading, setLoading] = useState(true);
@@ -665,7 +449,7 @@ export default function CampaignWorkspace() {
 
         const [workspaceRes, tasksRes] = await Promise.allSettled([
           api.getWorkspace(workspaceId),
-          api.tasks({ limit: 250, workspace_id: workspaceId })
+          api.tasks({ limit: 250, workspace_id: workspaceId }),
         ]);
 
         if (!active) return;
@@ -711,12 +495,15 @@ export default function CampaignWorkspace() {
   const campaignTitle = useMemo(() => {
     const campaign = workspace?.campaign;
     if (!campaign) return `Campaign Workspace #${workspaceId || "—"}`;
+
     return (
       campaign.campaign_name ||
       campaign.candidate_name ||
       `Campaign Workspace #${workspaceId || "—"}`
     );
   }, [workspace, workspaceId]);
+
+  const workspaceName = workspace?.campaign?.campaign_name || campaignTitle;
 
   async function handleRefresh() {
     await refreshWorkspaces?.();
@@ -739,9 +526,9 @@ export default function CampaignWorkspace() {
           complete: workspace.analytics.complete,
           blocked: workspace.analytics.blocked,
           slaRisk: workspace.analytics.slaRisk,
-          signalClosureRate: workspace.analytics.signalClosureRate
+          signalClosureRate: workspace.analytics.signalClosureRate,
         },
-        html
+        html,
       };
 
       let savedReport = null;
@@ -754,7 +541,7 @@ export default function CampaignWorkspace() {
           id: `local-report-${Date.now()}`,
           ...payload,
           generated_at: new Date().toISOString(),
-          workspace_id: workspaceId
+          workspace_id: workspaceId,
         };
         setReportError("Report saved locally because backend save was unavailable.");
       }
@@ -861,9 +648,11 @@ export default function CampaignWorkspace() {
             <Badge tone={statusTone(workspace?.campaign?.status)}>
               {workspace?.campaign?.status || "Active"}
             </Badge>
+
             <button type="button" className="vs-button vs-button-secondary" onClick={handleRefresh}>
               Refresh
             </button>
+
             <button
               type="button"
               className="vs-button"
@@ -882,18 +671,21 @@ export default function CampaignWorkspace() {
               {workspace?.campaign?.stage || "Open"}
             </div>
           </div>
+
           <div className="vs-card-muted">
             <div className="vs-stat-label">State</div>
             <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>
               {workspace?.campaign?.state || "N/A"}
             </div>
           </div>
+
           <div className="vs-card-muted">
             <div className="vs-stat-label">Office</div>
             <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>
               {workspace?.campaign?.office || "Statewide"}
             </div>
           </div>
+
           <div className="vs-card-muted">
             <div className="vs-stat-label">Owner</div>
             <div style={{ marginTop: "0.5rem", fontWeight: 700 }}>
@@ -902,6 +694,11 @@ export default function CampaignWorkspace() {
           </div>
         </div>
       </SectionCard>
+
+      <WorkspaceOnboardingChecklist
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
+      />
 
       <div className="vs-grid-4">
         {(workspace.metrics || []).map((metric, index) => (
@@ -939,7 +736,7 @@ export default function CampaignWorkspace() {
                   meta={[
                     { label: "Type", value: alert.type || "task" },
                     { label: "Status", value: alert.action_status || "open" },
-                    { label: "Age", value: alert.age || "—" }
+                    { label: "Age", value: alert.age || "—" },
                   ]}
                   right={
                     <Badge tone={statusTone(alert.severity)}>
@@ -968,18 +765,21 @@ export default function CampaignWorkspace() {
                 {workspace.analytics.linkedSignals}
               </div>
             </div>
+
             <div className="vs-card-muted">
               <div className="vs-stat-label">Resolved Signals</div>
               <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 800 }}>
                 {workspace.analytics.resolvedSignals}
               </div>
             </div>
+
             <div className="vs-card-muted">
               <div className="vs-stat-label">Blocked Tasks</div>
               <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 800 }}>
                 {workspace.analytics.blocked}
               </div>
             </div>
+
             <div className="vs-card-muted">
               <div className="vs-stat-label">In Progress</div>
               <div style={{ marginTop: "0.5rem", fontSize: "1.5rem", fontWeight: 800 }}>
@@ -1006,7 +806,7 @@ export default function CampaignWorkspace() {
                   meta={[
                     { label: "Status", value: task.status || "open" },
                     { label: "Priority", value: task.priority || "medium" },
-                    { label: "Owner", value: task.assigned_to || "Command Team" }
+                    { label: "Owner", value: task.assigned_to || "Command Team" },
                   ]}
                   right={
                     <Badge tone={statusTone(task.status)}>
@@ -1032,7 +832,7 @@ export default function CampaignWorkspace() {
                   meta={[
                     { label: "High", value: owner.high },
                     { label: "Blocked", value: owner.blocked },
-                    { label: "Total", value: owner.total }
+                    { label: "Total", value: owner.total },
                   ]}
                   right={
                     <Badge
@@ -1062,7 +862,7 @@ export default function CampaignWorkspace() {
                 { label: "Workspace ID", value: workspace?.campaign?.id || workspaceId || "—" },
                 { label: "State", value: workspace?.campaign?.state || "National" },
                 { label: "Office", value: workspace?.campaign?.office || "Statewide" },
-                { label: "Cycle", value: workspace?.campaign?.stage || "2026" }
+                { label: "Cycle", value: workspace?.campaign?.stage || "2026" },
               ]}
               right={<Badge tone="default">Workspace</Badge>}
             />
@@ -1097,7 +897,7 @@ export default function CampaignWorkspace() {
                   background: "rgba(15, 23, 42, 0.45)",
                   color: "inherit",
                   padding: "0.75rem 0.85rem",
-                  outline: "none"
+                  outline: "none",
                 }}
               />
             </div>
@@ -1122,7 +922,7 @@ export default function CampaignWorkspace() {
                 fontFamily: "inherit",
                 fontSize: "0.9rem",
                 lineHeight: 1.55,
-                color: "inherit"
+                color: "inherit",
               }}
             >
 {`To: ${clientEmail || "[client email]"}
@@ -1133,19 +933,11 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
           </div>
 
           <div className="vs-inline-actions">
-            <button
-              type="button"
-              className="vs-button"
-              onClick={handleCopyClientDraft}
-            >
+            <button type="button" className="vs-button" onClick={handleCopyClientDraft}>
               {draftCopied ? "Copied" : "Copy Email Draft"}
             </button>
 
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={handleOpenMailDraft}
-            >
+            <button type="button" className="vs-button vs-button-secondary" onClick={handleOpenMailDraft}>
               Open Email Draft
             </button>
 
@@ -1162,7 +954,6 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
       </SectionCard>
 
       <ScheduledReportsPanel
-        WorkspaceOnboardingChecklist={WorkspaceOnboardingChecklist} 
         workspaceId={workspaceId}
         workspaceName={workspace?.campaign?.campaign_name || campaignTitle}
         defaultRecipient={clientEmail}
@@ -1175,12 +966,9 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
         right={
           <div className="vs-inline-actions">
             <Badge tone="accent">{reportHistory.length} saved</Badge>
+
             {reportHistory.length ? (
-              <button
-                type="button"
-                className="vs-button vs-button-secondary"
-                onClick={handleClearReports}
-              >
+              <button type="button" className="vs-button vs-button-secondary" onClick={handleClearReports}>
                 Clear
               </button>
             ) : null}
@@ -1201,7 +989,7 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
                   { label: "Complete", value: report.summary?.complete ?? 0 },
                   { label: "Blocked", value: report.summary?.blocked ?? 0 },
                   { label: "SLA Risk", value: report.summary?.slaRisk ?? report.summary?.sla_risk ?? 0 },
-                  { label: "Signal Closure", value: `${report.summary?.signalClosureRate ?? report.summary?.signal_closure_rate ?? 0}%` }
+                  { label: "Signal Closure", value: `${report.summary?.signalClosureRate ?? report.summary?.signal_closure_rate ?? 0}%` },
                 ]}
                 right={
                   <div className="vs-inline-actions">
@@ -1212,13 +1000,11 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
                     >
                       Open
                     </button>
-                    <button
-                      type="button"
-                      className="vs-button"
-                      onClick={() => handleDownloadSavedReport(report)}
-                    >
+
+                    <button type="button" className="vs-button" onClick={() => handleDownloadSavedReport(report)}>
                       Download
                     </button>
+
                     <button
                       type="button"
                       className="vs-button vs-button-secondary"
@@ -1256,11 +1042,9 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
                   meta={[
                     {
                       label: "When",
-                      value: item.created_at
-                        ? new Date(item.created_at).toLocaleString()
-                        : "Unknown"
+                      value: item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown",
                     },
-                    ...detailEntries
+                    ...detailEntries,
                   ]}
                 />
               );
