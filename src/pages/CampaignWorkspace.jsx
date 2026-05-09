@@ -9,6 +9,7 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import ScheduledReportsPanel from "../components/workspaces/ScheduledReportsPanel.jsx";
+import WorkspaceOnboardingChecklist from "../components/workspaces/WorkspaceOnboardingChecklist.jsx";
 
 function statusTone(value) {
   const v = String(value || "").toLowerCase();
@@ -589,6 +590,8 @@ export default function CampaignWorkspace() {
   } = useWorkspace();
 
   const routeWorkspaceId = params.id ? String(params.id) : "";
+  const workspaceId = workspace?.id || id || activeWorkspaceId;
+  const workspaceName = workspace?.name || workspace?.title || "Campaign Workspace";
   const workspaceId = routeWorkspaceId || activeWorkspaceId || "";
 
   const [loading, setLoading] = useState(true);
@@ -1159,6 +1162,7 @@ ${buildClientEmailDraft(workspace, reportHistory).body}`}
       </SectionCard>
 
       <ScheduledReportsPanel
+        WorkspaceOnboardingChecklist={WorkspaceOnboardingChecklist} 
         workspaceId={workspaceId}
         workspaceName={workspace?.campaign?.campaign_name || campaignTitle}
         defaultRecipient={clientEmail}
