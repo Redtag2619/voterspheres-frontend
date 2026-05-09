@@ -394,6 +394,17 @@ export const workspaceReportsApi = {
     tryPost([`/workspaces/${workspaceId}/reports/${reportId}/send`], payload),
 };
 
+export const workspaceOnboardingApi = {
+  getChecklist: (workspaceId) =>
+    tryGet([`/workspace-onboarding/${workspaceId}/onboarding-checklist`]),
+
+  updateChecklistItem: (workspaceId, itemId, payload) =>
+    tryPut([`/workspace-onboarding/${workspaceId}/onboarding-checklist/${itemId}`], payload),
+
+  resetChecklist: (workspaceId) =>
+    tryDelete([`/workspace-onboarding/${workspaceId}/onboarding-checklist`]),
+};
+
 export const scheduledReportsApi = {
   listByWorkspace: (workspaceId) =>
     tryGet([`/scheduled-reports/workspace/${workspaceId}`]),
@@ -782,6 +793,10 @@ export const api = {
   alertDeliveries: alertsApi.deliveries,
   dispatchAlerts: alertsApi.dispatch,
   updateAlertRule: alertsApi.updateRule,
+
+  workspaceOnboardingChecklist: workspaceOnboardingApi.getChecklist,
+  updateWorkspaceOnboardingChecklistItem: workspaceOnboardingApi.updateChecklistItem,
+  resetWorkspaceOnboardingChecklist: workspaceOnboardingApi.resetChecklist,
 
   realtimeStatus: realtimeApi.status,
 
