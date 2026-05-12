@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getStoredToken, clearStoredAuth } from "../lib/auth"; 
+import { getStoredToken, clearStoredAuth } from "../lib/auth";
 import { triggerUpgradePrompt } from "../lib/upgradePrompt";
 
 function normalizeApiBaseUrl(rawValue) {
@@ -54,11 +54,12 @@ function shouldInjectWorkspace(config = {}) {
     "/billing",
     "/public",
     "/workspaces",
+    "/workspace-onboarding",
     "/scheduled-reports",
     "/firm-users",
     "/firm-invites",
     "/enterprise-leads-admin",
-    "/beta-admin"
+    "/beta-admin",
   ];
 
   return !excludedPrefixes.some((prefix) => url.startsWith(prefix));
@@ -220,7 +221,7 @@ function withWorkspaceParams(params = {}) {
 
   return {
     ...params,
-    ...(workspaceId && !params.workspace_id ? { workspace_id: workspaceId } : {})
+    ...(workspaceId && !params.workspace_id ? { workspace_id: workspaceId } : {}),
   };
 }
 
@@ -229,7 +230,7 @@ function withWorkspacePayload(payload = {}) {
 
   return {
     ...payload,
-    ...(workspaceId && !payload.workspace_id ? { workspace_id: workspaceId } : {})
+    ...(workspaceId && !payload.workspace_id ? { workspace_id: workspaceId } : {}),
   };
 }
 
@@ -382,13 +383,15 @@ export const workspacesApi = {
   create: (payload) => tryPost(["/workspaces"], payload),
   update: (id, payload) => tryPatch([`/workspaces/${id}`], payload),
   getActiveWorkspaceId,
-  setActiveWorkspaceId
+  setActiveWorkspaceId,
 };
 
 export const workspaceReportsApi = {
   list: (workspaceId) => tryGet([`/workspaces/${workspaceId}/reports`]),
-  create: (workspaceId, payload) => tryPost([`/workspaces/${workspaceId}/reports`], payload),
-  delete: (workspaceId, reportId) => tryDelete([`/workspaces/${workspaceId}/reports/${reportId}`]),
+  create: (workspaceId, payload) =>
+    tryPost([`/workspaces/${workspaceId}/reports`], payload),
+  delete: (workspaceId, reportId) =>
+    tryDelete([`/workspaces/${workspaceId}/reports/${reportId}`]),
   clear: (workspaceId) => tryDelete([`/workspaces/${workspaceId}/reports`]),
   send: (workspaceId, reportId, payload) =>
     tryPost([`/workspaces/${workspaceId}/reports/${reportId}/send`], payload),
@@ -398,8 +401,16 @@ export const workspaceOnboardingApi = {
   getChecklist: (workspaceId) =>
     tryGet([`/workspace-onboarding/${workspaceId}/onboarding-checklist`]),
 
+  getActivity: (workspaceId, params = {}) =>
+    tryGet([`/workspace-onboarding/${workspaceId}/onboarding-activity`], {
+      params,
+    }),
+
   updateChecklistItem: (workspaceId, itemId, payload) =>
-    tryPut([`/workspace-onboarding/${workspaceId}/onboarding-checklist/${itemId}`], payload),
+    tryPut(
+      [`/workspace-onboarding/${workspaceId}/onboarding-checklist/${itemId}`],
+      payload
+    ),
 
   resetChecklist: (workspaceId) =>
     tryDelete([`/workspace-onboarding/${workspaceId}/onboarding-checklist`]),
@@ -421,13 +432,11 @@ export const scheduledReportsApi = {
   runDue: (payload = { limit: 10 }) =>
     tryPost(["/scheduled-reports/run-due"], payload),
 
-  delete: (scheduleId) =>
-    tryDelete([`/scheduled-reports/${scheduleId}`])
+  delete: (scheduleId) => tryDelete([`/scheduled-reports/${scheduleId}`]),
 };
 
 export const workspaceContactsApi = {
-  list: (workspaceId) =>
-    tryGet([`/workspace-contacts/${workspaceId}`]),
+  list: (workspaceId) => tryGet([`/workspace-contacts/${workspaceId}`]),
 
   create: (workspaceId, payload) =>
     tryPost([`/workspace-contacts/${workspaceId}`], payload),
@@ -450,7 +459,9 @@ export const billingApi = {
 
 export const candidatesApi = {
   list: async (params = {}) => {
-    const data = await tryGet(["/candidates"], { params: withWorkspaceParams(params) });
+    const data = await tryGet(["/candidates"], {
+      params: withWorkspaceParams(params),
+    });
     return Array.isArray(data) ? data : data;
   },
 
@@ -474,7 +485,10 @@ export const candidatesApi = {
   contacts: (id) => tryGet([`/candidates/${id}/contacts`]),
 
   enrichProfile: (id) =>
-    tryPost([`/candidates/${id}/refresh-profile`, `/candidates/${id}/enrich-profile`], {}),
+    tryPost(
+      [`/candidates/${id}/refresh-profile`, `/candidates/${id}/enrich-profile`],
+      {}
+    ),
 
   manualProfile: (id, payload) =>
     tryPost([`/candidates/${id}/manual-profile`], payload),
@@ -483,10 +497,15 @@ export const candidatesApi = {
     tryPost(["/candidates/refresh-profiles"], payload),
 
   scoring: (params = {}) =>
-    tryGet(["/candidates/intelligence/scoring"], { params: withWorkspaceParams(params) }),
+    tryGet(["/candidates/intelligence/scoring"], {
+      params: withWorkspaceParams(params),
+    }),
 
   dispatchIntelligenceAlerts: (payload = {}) =>
-    tryPost(["/candidates/intelligence/dispatch-alerts"], withWorkspacePayload(payload)),
+    tryPost(
+      ["/candidates/intelligence/dispatch-alerts"],
+      withWorkspacePayload(payload)
+    ),
 };
 
 export const intelligenceApi = {
@@ -497,10 +516,13 @@ export const intelligenceApi = {
   forecast: () => tryGet(["/intelligence/forecast"]),
   rankings: () => tryGet(["/intelligence/rankings"]),
   map: () => tryGet(["/intelligence/map"]),
-  feed: (params = {}) => tryGet(["/intelligence/feed"], { params: withWorkspaceParams(params) }),
+  feed: (params = {}) =>
+    tryGet(["/intelligence/feed"], { params: withWorkspaceParams(params) }),
   command: () => tryGet(["/intelligence/command", "/platform/command-center"]),
   candidateSummary: (params = {}) =>
-    tryGet(["/intelligence/candidate-summary"], { params: withWorkspaceParams(params) }),
+    tryGet(["/intelligence/candidate-summary"], {
+      params: withWorkspaceParams(params),
+    }),
   battlegrounds: () => tryGet(["/intelligence/battlegrounds"]),
   liveFundraising: () =>
     tryGet(["/intelligence/fundraising/live", "/fec/fundraising/live"]),
@@ -517,7 +539,8 @@ export const intelligenceApi = {
 
 export const platformApi = {
   aiChat: () => tryGet(["/platform/ai-chat"]),
-  postAiPrompt: (payload) => tryPost(["/platform/ai-chat"], withWorkspacePayload(payload)),
+  postAiPrompt: (payload) =>
+    tryPost(["/platform/ai-chat"], withWorkspacePayload(payload)),
 
   warRoom: async () => {
     const data = await tryGet(["/intelligence/feed", "/platform/war-room"]);
@@ -599,8 +622,10 @@ export const mailOpsApi = {
       "/platform/mailops/dashboard",
       "/mail-ops/dashboard",
     ]),
-  events: (params = {}) => tryGet(["/mailops/events"], { params: withWorkspaceParams(params) }),
-  createEvent: (payload) => tryPost(["/mailops/events"], withWorkspacePayload(payload)),
+  events: (params = {}) =>
+    tryGet(["/mailops/events"], { params: withWorkspaceParams(params) }),
+  createEvent: (payload) =>
+    tryPost(["/mailops/events"], withWorkspacePayload(payload)),
   updateEvent: (eventId, payload) =>
     tryPatch([`/mailops/events/${eventId}`], withWorkspacePayload(payload)),
 };
@@ -609,9 +634,12 @@ export const alertsApi = {
   list: () => tryGet(["/alerts"]),
   rebuild: () => tryPost(["/alerts/rebuild"], {}),
   rules: () => tryGet(["/alerts/rules"]),
-  deliveries: (params = {}) => tryGet(["/alerts/deliveries"], { params: withWorkspaceParams(params) }),
-  dispatch: (payload = { limit: 25 }) => tryPost(["/alerts/dispatch"], withWorkspacePayload(payload)),
-  updateRule: (ruleId, payload) => tryPut([`/alerts/rules/${ruleId}`], payload),
+  deliveries: (params = {}) =>
+    tryGet(["/alerts/deliveries"], { params: withWorkspaceParams(params) }),
+  dispatch: (payload = { limit: 25 }) =>
+    tryPost(["/alerts/dispatch"], withWorkspacePayload(payload)),
+  updateRule: (ruleId, payload) =>
+    tryPut([`/alerts/rules/${ruleId}`], payload),
 };
 
 export const realtimeApi = {
@@ -651,8 +679,7 @@ export const tasksApi = {
       params: withWorkspaceParams(params),
     }),
 
-  create: (payload) =>
-    tryPost(["/tasks"], withWorkspacePayload(payload)),
+  create: (payload) => tryPost(["/tasks"], withWorkspacePayload(payload)),
 
   update: (taskId, payload) =>
     tryPatch([`/tasks/${taskId}`], withWorkspacePayload(payload)),
@@ -778,7 +805,7 @@ export const api = {
   taskActivity: tasksApi.activity,
   taskTimeline: tasksApi.timeline,
   feedTaskState: tasksApi.feedState,
-  
+
   createEnterpriseLeadAdmin: enterpriseLeadsApi.create,
   enterpriseLeads: enterpriseLeadsApi.list,
   enterpriseLead: enterpriseLeadsApi.get,
@@ -786,7 +813,7 @@ export const api = {
   addEnterpriseLeadNote: enterpriseLeadsApi.addNote,
   provisionEnterpriseLeadWorkspace: enterpriseLeadsApi.provisionWorkspace,
   deleteEnterpriseLead: enterpriseLeadsApi.delete,
-  
+
   alerts: alertsApi.list,
   rebuildAlerts: alertsApi.rebuild,
   alertRules: alertsApi.rules,
@@ -795,7 +822,9 @@ export const api = {
   updateAlertRule: alertsApi.updateRule,
 
   workspaceOnboardingChecklist: workspaceOnboardingApi.getChecklist,
-  updateWorkspaceOnboardingChecklistItem: workspaceOnboardingApi.updateChecklistItem,
+  workspaceOnboardingActivity: workspaceOnboardingApi.getActivity,
+  updateWorkspaceOnboardingChecklistItem:
+    workspaceOnboardingApi.updateChecklistItem,
   resetWorkspaceOnboardingChecklist: workspaceOnboardingApi.resetChecklist,
 
   realtimeStatus: realtimeApi.status,
@@ -809,7 +838,7 @@ export {
   getActiveWorkspaceId,
   setActiveWorkspaceId,
   withWorkspaceParams,
-  withWorkspacePayload
+  withWorkspacePayload,
 };
 
 export default http;
