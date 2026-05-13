@@ -60,6 +60,7 @@ function shouldInjectWorkspace(config = {}) {
     "/firm-invites",
     "/enterprise-leads-admin",
     "/beta-admin",
+    "/candidates",
   ];
 
   return !excludedPrefixes.some((prefix) => url.startsWith(prefix));
@@ -484,6 +485,9 @@ export const candidatesApi = {
 
   contacts: (id) => tryGet([`/candidates/${id}/contacts`]),
 
+  contactCoverage: (params = {}) =>
+    tryGet(["/candidates/contact-coverage"], { params }),
+
   enrichProfile: (id) =>
     tryPost(
       [`/candidates/${id}/refresh-profile`, `/candidates/${id}/enrich-profile`],
@@ -492,6 +496,12 @@ export const candidatesApi = {
 
   manualProfile: (id, payload) =>
     tryPost([`/candidates/${id}/manual-profile`], payload),
+
+  updateProfileLocks: (id, payload) =>
+    tryPatch([`/candidates/${id}/profile-locks`], payload),
+
+  updateVerification: (id, payload) =>
+    tryPatch([`/candidates/${id}/verification`], payload),
 
   refreshProfiles: (payload = { limit: 100 }) =>
     tryPost(["/candidates/refresh-profiles"], payload),
@@ -752,8 +762,11 @@ export const api = {
   candidateParties: candidatesApi.parties,
   candidateDetail: candidatesApi.detail,
   candidateContacts: candidatesApi.contacts,
+  candidateContactCoverage: candidatesApi.contactCoverage,
   enrichCandidateProfile: candidatesApi.enrichProfile,
   manualCandidateProfile: candidatesApi.manualProfile,
+  updateCandidateProfileLocks: candidatesApi.updateProfileLocks,
+  updateCandidateVerification: candidatesApi.updateVerification,
   refreshCandidateProfiles: candidatesApi.refreshProfiles,
   candidateScoring: candidatesApi.scoring,
   dispatchCandidateIntelligenceAlerts: candidatesApi.dispatchIntelligenceAlerts,
