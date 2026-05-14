@@ -817,6 +817,11 @@ export const api = {
   consultants: platformApi.consultants,
   consultantStates: platformApi.consultantStates,
 
+  consultantOpportunities: consultantOpportunityApi.list,
+  consultantOpportunitySummary: consultantOpportunityApi.summary,
+  scoreConsultantOpportunities: consultantOpportunityApi.score,
+  consultantOpportunityDetail: consultantOpportunityApi.detail,
+
   vendorStates: vendorsApi.states,
   vendorCategories: vendorsApi.categories,
   vendorStatuses: vendorsApi.statuses,
