@@ -678,6 +678,27 @@ export const enterpriseLeadsApi = {
   delete: (leadId) => tryDelete([`/enterprise-leads/admin/${leadId}`]),
 };
 
+export const consultantOpportunityApi = {
+  list: (params = {}) =>
+    tryGet(["/consultant-opportunities"], {
+      params: withWorkspaceParams(params),
+    }),
+
+  summary: (params = {}) =>
+    tryGet(["/consultant-opportunities/summary"], {
+      params: withWorkspaceParams(params),
+    }),
+
+  score: (payload = {}) =>
+    tryPost(
+      ["/consultant-opportunities/score"],
+      withWorkspacePayload(payload)
+    ),
+
+  detail: (candidateId) =>
+    tryGet([`/consultant-opportunities/${candidateId}`]),
+};
+
 export const publicApi = {
   createEnterpriseLead: (payload) =>
     unwrap(http.post("/public/enterprise-leads", payload)),
