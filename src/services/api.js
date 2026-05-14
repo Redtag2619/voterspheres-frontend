@@ -699,12 +699,12 @@ export const consultantOpportunityApi = {
 
   detail: (candidateId) =>
     tryGet([`/consultant-opportunities/${candidateId}`]),
-};  
 
- heatmap: (params = {}) =>
+  heatmap: (params = {}) =>
     tryGet(["/consultant-opportunities/heatmap"], {
       params: withWorkspaceParams(params),
     }),
+};
 
 export const publicApi = {
   createEnterpriseLead: (payload) =>
