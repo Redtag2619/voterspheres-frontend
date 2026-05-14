@@ -7,7 +7,7 @@ import {
 } from "react-simple-maps";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard"; 
+import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
@@ -16,26 +16,111 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const STATE_NAME_TO_ABBR = {
-  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
-  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
-  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA",
-  Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
-  Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
-  Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV",
-  "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
-  "New York": "NY", "North Carolina": "NC", "North Dakota": "ND",
-  Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA",
-  "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD",
-  Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA",
-  Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY",
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  Florida: "FL",
+  Georgia: "GA",
+  Hawaii: "HI",
+  Idaho: "ID",
+  Illinois: "IL",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Michigan: "MI",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Montana: "MT",
+  Nebraska: "NE",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY",
   "District of Columbia": "DC",
 };
 
 const STATE_CENTROIDS = {
-  AZ: [-111.7, 34.3], GA: [-83.4, 32.7], PA: [-77.7, 40.9], MI: [-84.6, 44.3],
-  WI: [-89.6, 44.6], NV: [-116.6, 39.3], NC: [-79.4, 35.5], OH: [-82.8, 40.4],
-  FL: [-81.7, 27.8], TX: [-99.3, 31.5], CA: [-119.5, 37.2], NY: [-75.0, 43.0],
-  VA: [-78.7, 37.5], CO: [-105.5, 39.0], MN: [-94.2, 46.3], LA: [-91.9, 31.2],
+  AL: [-86.8, 32.8],
+  AK: [-152.4, 64.2],
+  AZ: [-111.7, 34.3],
+  AR: [-92.4, 34.9],
+  CA: [-119.5, 37.2],
+  CO: [-105.5, 39.0],
+  CT: [-72.7, 41.6],
+  DE: [-75.5, 39.0],
+  FL: [-81.7, 27.8],
+  GA: [-83.4, 32.7],
+  HI: [-157.5, 20.9],
+  ID: [-114.1, 44.2],
+  IL: [-89.2, 40.0],
+  IN: [-86.1, 40.0],
+  IA: [-93.5, 42.1],
+  KS: [-98.3, 38.5],
+  KY: [-84.8, 37.8],
+  LA: [-91.9, 31.2],
+  ME: [-69.0, 45.3],
+  MD: [-76.7, 39.0],
+  MA: [-71.8, 42.3],
+  MI: [-84.6, 44.3],
+  MN: [-94.2, 46.3],
+  MS: [-89.7, 32.7],
+  MO: [-92.6, 38.5],
+  MT: [-110.0, 46.9],
+  NE: [-99.8, 41.5],
+  NV: [-116.6, 39.3],
+  NH: [-71.6, 43.7],
+  NJ: [-74.7, 40.1],
+  NM: [-106.1, 34.4],
+  NY: [-75.0, 43.0],
+  NC: [-79.4, 35.5],
+  ND: [-100.5, 47.5],
+  OH: [-82.8, 40.4],
+  OK: [-97.5, 35.6],
+  OR: [-120.5, 44.0],
+  PA: [-77.7, 40.9],
+  RI: [-71.5, 41.7],
+  SC: [-80.9, 33.8],
+  SD: [-100.2, 44.4],
+  TN: [-86.4, 35.8],
+  TX: [-99.3, 31.5],
+  UT: [-111.7, 39.3],
+  VT: [-72.7, 44.1],
+  VA: [-78.7, 37.5],
+  WA: [-120.7, 47.4],
+  WV: [-80.6, 38.6],
+  WI: [-89.6, 44.6],
+  WY: [-107.6, 43.0],
+  DC: [-77.0, 38.9],
 };
 
 function formatDate(value) {
@@ -49,6 +134,7 @@ function heatTone(level) {
   if (value === "urgent") return "danger";
   if (value === "high") return "demo";
   if (value === "medium") return "accent";
+  if (value === "low") return "info";
   return "default";
 }
 
@@ -61,16 +147,251 @@ function getStateFill(item) {
   return "#111827";
 }
 
+function getPriorityFromBand(band) {
+  const value = String(band || "").toLowerCase();
+  if (value === "urgent") return "high";
+  if (value === "high") return "high";
+  if (value === "medium") return "medium";
+  return "low";
+}
+
+function getStateNameFromAbbr(abbr) {
+  const code = String(abbr || "").toUpperCase();
+  const match = Object.entries(STATE_NAME_TO_ABBR).find(([, value]) => value === code);
+  return match?.[0] || code;
+}
+
+function buildRecommendedActions(stateItem, opportunities = []) {
+  const urgentCount = Number(stateItem?.urgent_count || 0);
+  const highCount = Number(stateItem?.high_count || 0);
+  const avgScore = Number(stateItem?.avg_score || 0);
+  const top = opportunities[0] || null;
+
+  const actions = [];
+
+  if (urgentCount > 0) {
+    actions.push({
+      title: `Launch urgent consultant review in ${stateItem.state}`,
+      owner: "Consultant Intelligence",
+      priority: "high",
+      detail: `${urgentCount} urgent campaign opportunity signal${urgentCount === 1 ? "" : "s"} detected. Review top campaigns and assign outreach.`,
+    });
+  }
+
+  if (highCount > 0) {
+    actions.push({
+      title: `Build high-value consultant target list for ${stateItem.state}`,
+      owner: "Growth / BD",
+      priority: "high",
+      detail: `${highCount} high-priority campaign${highCount === 1 ? "" : "s"} should be moved into consultant pipeline targeting.`,
+    });
+  }
+
+  if (avgScore >= 50) {
+    actions.push({
+      title: `Run campaign weakness audit for ${stateItem.state}`,
+      owner: "Campaign Intelligence",
+      priority: "medium",
+      detail: `Average opportunity score is ${avgScore}. Audit digital, contact, staffing, and vendor gaps.`,
+    });
+  }
+
+  if (top?.candidate_name) {
+    actions.push({
+      title: `Generate outreach plan for ${top.candidate_name}`,
+      owner: "Consultant Match Team",
+      priority: getPriorityFromBand(top.opportunity_band),
+      detail: top.recommended_pitch || "Prepare pitch and consultant recommendations for this campaign.",
+    });
+  }
+
+  if (!actions.length) {
+    actions.push({
+      title: `Monitor ${stateItem?.state || "state"} opportunity signals`,
+      owner: "Command Team",
+      priority: "low",
+      detail: "No urgent consultant demand detected yet. Continue monitoring scoring changes.",
+    });
+  }
+
+  return actions.slice(0, 4);
+}
+
+function DrilldownPanel({
+  selectedStateItem,
+  selectedState,
+  opportunities,
+  onClose,
+  onCreateTask,
+  taskMessage,
+}) {
+  const stateCode = selectedStateItem?.state || selectedState || "";
+  const stateName = getStateNameFromAbbr(stateCode);
+  const stateOpportunities = opportunities.filter(
+    (item) => String(item.state || "").toUpperCase() === String(stateCode || "").toUpperCase()
+  );
+  const visibleOpportunities = stateOpportunities.length ? stateOpportunities : opportunities.slice(0, 6);
+  const recommendedActions = buildRecommendedActions(selectedStateItem, visibleOpportunities);
+
+  if (!stateCode) return null;
+
+  return (
+    <SectionCard
+      title={`${stateCode} Drilldown Intelligence`}
+      subtitle={`${stateName} campaign opportunity detail, consultant demand, and recommended next actions.`}
+      right={
+        <div className="vs-inline-actions">
+          <Badge tone={heatTone(selectedStateItem?.heat_level)}>
+            {selectedStateItem?.heat_level || "selected"}
+          </Badge>
+          <button type="button" className="vs-button vs-button-secondary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      }
+    >
+      {taskMessage ? <div className="vs-banner">{taskMessage}</div> : null}
+
+      <div className="vs-grid-4">
+        <StatCard
+          label="Campaigns"
+          value={selectedStateItem?.total_campaigns || 0}
+          subtext="Scored in this state"
+        />
+        <StatCard
+          label="Urgent"
+          value={selectedStateItem?.urgent_count || 0}
+          subtext="Immediate consultant need"
+        />
+        <StatCard
+          label="High"
+          value={selectedStateItem?.high_count || 0}
+          subtext="Strong BD targets"
+        />
+        <StatCard
+          label="Avg Score"
+          value={selectedStateItem?.avg_score || 0}
+          subtext={`Last scored ${formatDate(selectedStateItem?.last_scored_at)}`}
+        />
+      </div>
+
+      <div className="vs-grid-2" style={{ marginTop: 16 }}>
+        <div className="vs-stack">
+          <div className="vs-card-muted" style={{ padding: 16 }}>
+            <div style={{ fontWeight: 900, color: "var(--vs-text)" }}>
+              Intelligence Readout
+            </div>
+            <div style={{ marginTop: 8, color: "var(--vs-text-muted)", lineHeight: 1.55 }}>
+              {stateCode} has an average consultant opportunity score of{" "}
+              <strong style={{ color: "var(--vs-text)" }}>{selectedStateItem?.avg_score || 0}</strong>.
+              The strongest signals come from contact gaps, weak digital footprint,
+              missing staffing infrastructure, and campaigns that may need operational support.
+            </div>
+          </div>
+
+          <div className="vs-card-muted" style={{ padding: 16 }}>
+            <div style={{ fontWeight: 900, color: "var(--vs-text)" }}>
+              Demand Signals
+            </div>
+            <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <Badge tone="danger">{selectedStateItem?.urgent_count || 0} urgent</Badge>
+              <Badge tone="demo">{selectedStateItem?.high_count || 0} high</Badge>
+              <Badge tone="accent">{selectedStateItem?.medium_count || 0} medium</Badge>
+              <Badge tone="info">{selectedStateItem?.low_count || 0} low</Badge>
+            </div>
+          </div>
+        </div>
+
+        <div className="vs-stack">
+          {recommendedActions.map((action) => (
+            <div key={action.title} className="vs-card-muted" style={{ padding: 16 }}>
+              <ResponsiveRow
+                title={action.title}
+                subtitle={action.detail}
+                meta={[
+                  { label: "Owner", value: action.owner },
+                  { label: "Priority", value: action.priority },
+                  { label: "State", value: stateCode },
+                  { label: "Type", value: "Opportunity" },
+                ]}
+                right={
+                  <button
+                    type="button"
+                    className="vs-button"
+                    onClick={() => onCreateTask(action)}
+                  >
+                    Create Task
+                  </button>
+                }
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <SectionCard
+          title={`${stateCode} Top Campaign Opportunities`}
+          subtitle="Campaigns most likely to need consultant services or operational support."
+          right={<Badge tone="info">{visibleOpportunities.length} shown</Badge>}
+        >
+          <div className="vs-stack">
+            {!visibleOpportunities.length ? (
+              <EmptyState text="No campaign opportunities available for this state yet." />
+            ) : (
+              visibleOpportunities.map((row) => (
+                <ResponsiveRow
+                  key={row.candidate_id || row.id}
+                  title={`${row.candidate_name || "Candidate"} — ${row.office || "Office"}`}
+                  subtitle={row.recommended_pitch || "Opportunity signal detected."}
+                  meta={[
+                    { label: "Score", value: row.opportunity_score || 0 },
+                    { label: "Band", value: row.opportunity_band || "N/A" },
+                    { label: "Party", value: row.party || "N/A" },
+                    {
+                      label: "Confidence",
+                      value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%`,
+                    },
+                  ]}
+                  right={
+                    <div className="vs-inline-actions">
+                      <Badge tone={heatTone(row.opportunity_band)}>
+                        {row.opportunity_band || "opportunity"}
+                      </Badge>
+                      {row.website ? (
+                        <a
+                          className="vs-button vs-button-secondary"
+                          href={row.website}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Website
+                        </a>
+                      ) : null}
+                    </div>
+                  }
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </SectionCard>
+  );
+}
+
 export default function CampaignOpportunityHeatmap() {
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [error, setError] = useState("");
+  const [taskMessage, setTaskMessage] = useState("");
   const [data, setData] = useState({
     summary: {},
     states: [],
     top_opportunities: [],
   });
   const [selectedState, setSelectedState] = useState("");
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
 
   async function loadHeatmap(refresh = false) {
     try {
@@ -121,6 +442,42 @@ export default function CampaignOpportunityHeatmap() {
     }
   }
 
+  async function createOpportunityTask(action) {
+    try {
+      setTaskMessage("");
+
+      const payload = {
+        title: action.title,
+        description: action.detail,
+        source: "campaign_opportunity_heatmap",
+        state: selectedState || action.state || "National",
+        office: "Statewide",
+        priority: action.priority || "medium",
+        status: "open",
+        assigned_to: action.owner || "Consultant Intelligence",
+        due_label: action.priority === "high" ? "Now" : "Today",
+        metadata: {
+          source_page: "campaign_opportunity_heatmap",
+          action,
+        },
+      };
+
+      const response = await api.createTask?.(payload);
+
+      setTaskMessage(
+        response?.duplicate
+          ? "Task already exists for this opportunity."
+          : "Opportunity task created successfully."
+      );
+    } catch (err) {
+      setTaskMessage(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Task could not be created, but the opportunity remains available."
+      );
+    }
+  }
+
   useEffect(() => {
     loadHeatmap(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +490,11 @@ export default function CampaignOpportunityHeatmap() {
     }
     return map;
   }, [data.states]);
+
+  const selectedStateItem = useMemo(() => {
+    if (!selectedState) return null;
+    return stateByAbbr[String(selectedState).toUpperCase()] || null;
+  }, [selectedState, stateByAbbr]);
 
   const metrics = [
     {
@@ -156,6 +518,13 @@ export default function CampaignOpportunityHeatmap() {
       subtext: `Last scored ${formatDate(data.summary?.last_scored_at)}`,
     },
   ];
+
+  function selectState(code) {
+    if (!code) return;
+    setSelectedState(String(code).toUpperCase());
+    setDrilldownOpen(true);
+    setTaskMessage("");
+  }
 
   return (
     <PageShell
@@ -195,7 +564,7 @@ export default function CampaignOpportunityHeatmap() {
 
       <SectionCard
         title="Heatmap Controls"
-        subtitle="Score opportunities and narrow the map by state."
+        subtitle="Score opportunities, narrow the map by state, and open state drilldown intelligence."
         right={
           <div className="vs-inline-actions">
             <button
@@ -221,7 +590,10 @@ export default function CampaignOpportunityHeatmap() {
           <input
             className="vs-input"
             value={selectedState}
-            onChange={(event) => setSelectedState(event.target.value.toUpperCase())}
+            onChange={(event) => {
+              setSelectedState(event.target.value.toUpperCase());
+              setDrilldownOpen(Boolean(event.target.value));
+            }}
             placeholder="Filter by state, e.g. AZ"
             maxLength={2}
           />
@@ -229,7 +601,11 @@ export default function CampaignOpportunityHeatmap() {
           <button
             type="button"
             className="vs-button vs-button-secondary"
-            onClick={() => setSelectedState("")}
+            onClick={() => {
+              setSelectedState("");
+              setDrilldownOpen(false);
+              setTaskMessage("");
+            }}
           >
             Clear State
           </button>
@@ -246,7 +622,7 @@ export default function CampaignOpportunityHeatmap() {
       >
         <SectionCard
           title="National Opportunity Heatmap"
-          subtitle="Darker states indicate stronger campaign consulting opportunity signals."
+          subtitle="Click any highlighted state to open the drilldown intelligence panel."
           right={<Badge tone="info">{data.states?.length || 0} states</Badge>}
         >
           <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
@@ -266,19 +642,20 @@ export default function CampaignOpportunityHeatmap() {
                       const stateName = geo.properties?.name;
                       const abbr = STATE_NAME_TO_ABBR[stateName];
                       const item = abbr ? stateByAbbr[abbr] : null;
+                      const isSelected = selectedState === abbr;
 
                       return (
                         <Geography
                           key={geo.rsmKey}
                           geography={geo}
                           onClick={() => {
-                            if (abbr) setSelectedState(abbr);
+                            if (abbr) selectState(abbr);
                           }}
                           style={{
                             default: {
                               fill: item ? getStateFill(item) : "#111827",
-                              stroke: "#374151",
-                              strokeWidth: 0.75,
+                              stroke: isSelected ? "#f8fafc" : "#374151",
+                              strokeWidth: isSelected ? 1.5 : 0.75,
                               outline: "none",
                               cursor: item ? "pointer" : "default",
                             },
@@ -309,11 +686,11 @@ export default function CampaignOpportunityHeatmap() {
                   return (
                     <Marker key={item.state} coordinates={coords}>
                       <circle
-                        r={8}
+                        r={selectedState === item.state ? 10 : 8}
                         fill="#f8fafc"
                         stroke="#111827"
                         strokeWidth={2}
-                        onClick={() => setSelectedState(item.state)}
+                        onClick={() => selectState(item.state)}
                         style={{ cursor: "pointer" }}
                       />
                       <text
@@ -340,7 +717,7 @@ export default function CampaignOpportunityHeatmap() {
         <div className="vs-stack">
           <SectionCard
             title="State Opportunity Stack"
-            subtitle="Ranked by average opportunity score."
+            subtitle="Ranked by average opportunity score. Select any state for drilldown."
           >
             <div className="vs-stack">
               {!(data.states || []).length ? (
@@ -351,12 +728,16 @@ export default function CampaignOpportunityHeatmap() {
                     key={item.state}
                     type="button"
                     className="vs-card-muted"
-                    onClick={() => setSelectedState(item.state)}
+                    onClick={() => selectState(item.state)}
                     style={{
                       textAlign: "left",
                       padding: "14px",
                       cursor: "pointer",
                       color: "var(--vs-text)",
+                      border:
+                        selectedState === item.state
+                          ? "1px solid rgba(96, 165, 250, 0.48)"
+                          : undefined,
                     }}
                   >
                     <div className="vs-inline-actions" style={{ justifyContent: "space-between" }}>
@@ -389,7 +770,10 @@ export default function CampaignOpportunityHeatmap() {
                       { label: "Score", value: row.opportunity_score },
                       { label: "Band", value: row.opportunity_band },
                       { label: "Party", value: row.party || "N/A" },
-                      { label: "Confidence", value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%` },
+                      {
+                        label: "Confidence",
+                        value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%`,
+                      },
                     ]}
                     right={
                       <Badge tone={heatTone(row.opportunity_band)}>
@@ -403,6 +787,17 @@ export default function CampaignOpportunityHeatmap() {
           </SectionCard>
         </div>
       </div>
+
+      {drilldownOpen && selectedState ? (
+        <DrilldownPanel
+          selectedState={selectedState}
+          selectedStateItem={selectedStateItem}
+          opportunities={data.top_opportunities || []}
+          onClose={() => setDrilldownOpen(false)}
+          onCreateTask={createOpportunityTask}
+          taskMessage={taskMessage}
+        />
+      ) : null}
     </PageShell>
   );
 }
