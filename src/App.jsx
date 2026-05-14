@@ -41,6 +41,7 @@ const Login = lazy(() => import("./pages/Login.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard.jsx"));
 const EnterpriseLeadIntake = lazy(() =>import("./pages/EnterpriseLeadIntake.jsx"));
+const CampaignOpportunityHeatmap = lazy(() => import("./pages/CampaignOpportunityHeatmap.jsx"));
 
 function LoadingScreen() {
   return (
@@ -179,6 +180,10 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_CONSULTANTS]} />}>
               <Route path="/consultants" element={<ConsultantMarketplace />} />
+            </Route>
+
+            <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_CONSULTANTS]} />}>
+              <Route path="/campaign-opportunity-heatmap" element={<CampaignOpportunityHeatmap />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_AI_CHAT]} />}>
