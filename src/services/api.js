@@ -61,6 +61,8 @@ function shouldInjectWorkspace(config = {}) {
     "/enterprise-leads-admin",
     "/beta-admin",
     "/candidates",
+    "/consultants",
+    "/consultant-opportunities",
   ];
 
   return !excludedPrefixes.some((prefix) => url.startsWith(prefix));
