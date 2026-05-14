@@ -18,6 +18,7 @@ const secondaryItems = [
   { label: "Forecast", to: "/forecast" },
   { label: "Donors", to: "/donors" },
   { label: "Consultants", to: "/consultants" },
+  { label: "Opportunity Map", to: "/campaign-opportunity-heatmap" },
   { label: "MailOps", to: "/mailops" },
   { label: "Pricing", to: "/pricing" },
   { label: "Billing", to: "/billing" },
