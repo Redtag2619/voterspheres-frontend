@@ -19,7 +19,7 @@ const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 const STATE_NAME_TO_ABBR = {
   Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
   Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
-  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA",
+  Hawaii: "HI", Idaho: "ID", Illinois: "IN", Iowa: "IA",
   Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
   Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
   Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV",
@@ -51,6 +51,39 @@ const STATE_CENTROIDS = {
   VA: [-78.7, 37.5], WA: [-120.7, 47.4], WV: [-80.6, 38.6],
   WI: [-89.6, 44.6], WY: [-107.6, 43.0], DC: [-77.0, 38.9],
 };
+
+const CONSULTANT_CATALOG = [
+  {
+    name: "Digital Strategy Partner",
+    category: "Digital strategy",
+    owner: "Consultant Match Team",
+    strengths: ["Digital strategy", "Campaign website", "Social media", "Voter targeting"],
+  },
+  {
+    name: "Campaign Operations Partner",
+    category: "Campaign operations",
+    owner: "Operations",
+    strengths: ["Campaign operations", "Direct outreach", "Field operations", "Compliance support"],
+  },
+  {
+    name: "Comms + Press Partner",
+    category: "Communications / press",
+    owner: "War Room",
+    strengths: ["Communications / press", "Press contact", "Rapid response", "Message discipline"],
+  },
+  {
+    name: "Fundraising Intelligence Partner",
+    category: "Fundraising intelligence",
+    owner: "Finance Intelligence",
+    strengths: ["Fundraising intelligence", "Donor prospecting", "Finance audit", "Call time strategy"],
+  },
+  {
+    name: "Vendor Network Partner",
+    category: "Vendor network matching",
+    owner: "Vendor Intelligence",
+    strengths: ["Vendor network matching", "Mail vendors", "Media buying", "Polling support"],
+  },
+];
 
 function formatDate(value) {
   if (!value) return "Not scored yet";
@@ -157,6 +190,138 @@ function buildBriefing(stateItem, opportunities = []) {
       },
     ],
   };
+}
+
+function buildConsultantMatches(opportunities = []) {
+  const serviceCounts = new Map();
+  const reasonText = opportunities
+    .flatMap((row) => asArray(row.reasons))
+    .join(" ")
+    .toLowerCase();
+
+  for (const row of opportunities) {
+    for (const service of asArray(row.recommended_services)) {
+      const key = String(service || "").trim();
+      if (!key) continue;
+      serviceCounts.set(key, (serviceCounts.get(key) || 0) + 1);
+    }
+  }
+
+  return CONSULTANT_CATALOG.map((consultant) => {
+    let score = 42;
+    const matchedSignals = [];
+
+    for (const strength of consultant.strengths) {
+      const directCount = serviceCounts.get(strength) || 0;
+      if (directCount) {
+        score += directCount * 12;
+        matchedSignals.push(`${strength} demand`);
+      }
+    }
+
+    if (consultant.category === "Digital strategy" && /website|social|digital/.test(reasonText)) {
+      score += 18;
+      matchedSignals.push("Digital footprint gap");
+    }
+
+    if (consultant.category === "Campaign operations" && /email|phone|address|operations/.test(reasonText)) {
+      score += 16;
+      matchedSignals.push("Campaign operations gap");
+    }
+
+    if (consultant.category === "Communications / press" && /press|comms|staff/.test(reasonText)) {
+      score += 15;
+      matchedSignals.push("Comms infrastructure gap");
+    }
+
+    if (consultant.category === "Fundraising intelligence" && /confidence|fundraising|donor/.test(reasonText)) {
+      score += 12;
+      matchedSignals.push("Fundraising intelligence need");
+    }
+
+    if (consultant.category === "Vendor network matching" && /vendor|website|staff|operations/.test(reasonText)) {
+      score += 14;
+      matchedSignals.push("Vendor support opportunity");
+    }
+
+    const topOpportunity = opportunities[0] || {};
+    const finalScore = Math.min(99, Math.max(35, Math.round(score)));
+
+    return {
+      ...consultant,
+      score: finalScore,
+      confidence:
+        finalScore >= 80
+          ? "Strong Match"
+          : finalScore >= 65
+            ? "Recommended"
+            : "Monitor",
+      matchedSignals: matchedSignals.length
+        ? [...new Set(matchedSignals)].slice(0, 4)
+        : ["General consultant coverage"],
+      pitch:
+        topOpportunity?.candidate_name
+          ? `${consultant.name} should be matched against ${topOpportunity.candidate_name} and the highest-scored state opportunities.`
+          : `${consultant.name} should monitor this state for consultant demand signals.`,
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+
+function ConsultantMatchEngine({ stateCode, opportunities, onCreateTask }) {
+  const matches = buildConsultantMatches(opportunities);
+
+  return (
+    <SectionCard
+      title={`${stateCode} Consultant Match Engine`}
+      subtitle="Recommended consultant/vendor categories based on campaign weaknesses, service demand, and opportunity scores."
+      right={<Badge tone="active">{matches.length} matches</Badge>}
+    >
+      <div className="vs-grid-2">
+        {matches.map((match) => (
+          <div key={match.name} className="vs-card-muted" style={{ padding: 16 }}>
+            <ResponsiveRow
+              title={match.name}
+              subtitle={match.pitch}
+              meta={[
+                { label: "Fit Score", value: match.score },
+                { label: "Confidence", value: match.confidence },
+                { label: "Category", value: match.category },
+                { label: "Owner", value: match.owner },
+              ]}
+              right={<Badge tone={match.score >= 80 ? "active" : "info"}>{match.confidence}</Badge>}
+            />
+
+            <div style={{ marginTop: 12 }}>
+              <div className="vs-stat-label">Matched Signals</div>
+              <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {match.matchedSignals.map((signal) => (
+                  <Badge key={signal} tone="accent">{signal}</Badge>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                className="vs-button"
+                onClick={() =>
+                  onCreateTask({
+                    title: `Match ${match.name} to ${stateCode} opportunities`,
+                    owner: match.owner,
+                    priority: match.score >= 80 ? "high" : "medium",
+                    detail: `${match.name} has a ${match.score} consultant fit score for ${stateCode}. ${match.pitch}`,
+                    consultant_match: match,
+                  })
+                }
+              >
+                Create Match Task
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
 }
 
 function CampaignOpportunityCard({ row, onCreateTask }) {
@@ -272,7 +437,7 @@ function DrilldownPanel({
   return (
     <SectionCard
       title={`${stateCode} AI Briefing + Command Integration`}
-      subtitle={`${stateName} opportunity intelligence, campaign weaknesses, contact gaps, and execution-ready actions.`}
+      subtitle={`${stateName} opportunity intelligence, consultant matching, campaign weaknesses, contact gaps, and execution-ready actions.`}
       right={
         <div className="vs-inline-actions">
           <Badge tone={heatTone(selectedStateItem?.heat_level)}>
@@ -347,6 +512,14 @@ function DrilldownPanel({
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <ConsultantMatchEngine
+          stateCode={stateCode}
+          opportunities={visibleOpps}
+          onCreateTask={onCreateTask}
+        />
       </div>
 
       <div style={{ marginTop: 18 }}>
@@ -457,6 +630,7 @@ export default function CampaignOpportunityHeatmap() {
           command_center_ready: true,
           candidate_id: action.candidate_id || null,
           candidate_name: action.candidate_name || null,
+          consultant_match: action.consultant_match || null,
           action,
         },
       };
@@ -537,7 +711,7 @@ export default function CampaignOpportunityHeatmap() {
     <PageShell
       eyebrow="Consultant Intelligence"
       title="Campaign Opportunity Heatmap"
-      description="Identify states and campaigns with consultant demand signals, generate AI briefings, review contact gaps, and move actions into Command Center."
+      description="Identify states and campaigns with consultant demand signals, generate AI briefings, match consultants, review contact gaps, and move actions into Command Center."
       tickerItems={[
         {
           label: "States",
@@ -571,7 +745,7 @@ export default function CampaignOpportunityHeatmap() {
 
       <SectionCard
         title="Heatmap Controls"
-        subtitle="Score opportunities, open AI briefing, and push actions into Command Center."
+        subtitle="Score opportunities, open AI briefing, run consultant matching, and push actions into Command Center."
         right={
           <div className="vs-inline-actions">
             <button
@@ -621,7 +795,7 @@ export default function CampaignOpportunityHeatmap() {
 
       <SectionCard
         title="National Opportunity Heatmap"
-        subtitle="Click any highlighted state to open AI briefing and command actions."
+        subtitle="Click any highlighted state to open AI briefing, consultant matching, and command actions."
         right={<Badge tone="info">{data.states?.length || 0} states</Badge>}
       >
         <div className="vs-card" style={{ padding: "12px", minHeight: "470px" }}>
@@ -715,7 +889,7 @@ export default function CampaignOpportunityHeatmap() {
 
       <SectionCard
         title="State Opportunity Stack"
-        subtitle="Ranked by average opportunity score. Select any state to update the AI briefing below."
+        subtitle="Ranked by average opportunity score. Select any state to update the AI briefing and consultant matches below."
       >
         <div className="vs-grid-4">
           {!(data.states || []).length ? (
