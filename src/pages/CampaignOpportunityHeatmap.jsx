@@ -713,7 +713,7 @@ export default function CampaignOpportunityHeatmap() {
               <ComposableMap
                 projection="geoAlbersUsa"
                 projectionConfig={{ scale: 1200 }}
-                <div className="vs-card" style={{ padding: "12px", minHeight: "360px" }}>
+                style={{ width: "100%", height: "auto" }}
               >
                 <Geographies geography={US_TOPO_JSON}>
                   {({ geographies }) =>
