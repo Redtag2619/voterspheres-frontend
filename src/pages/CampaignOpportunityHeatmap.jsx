@@ -633,7 +633,7 @@ export default function CampaignOpportunityHeatmap() {
             <ComposableMap
               projection="geoAlbersUsa"
               projectionConfig={{ scale: 1200 }}
-              style={{ width: "100%", height: "auto" }}
+              style={{ width: "75%", height: "auto" }}
             >
               <Geographies geography={US_TOPO_JSON}>
                 {({ geographies }) =>
