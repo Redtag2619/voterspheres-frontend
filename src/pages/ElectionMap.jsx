@@ -734,17 +734,33 @@ export default function ElectionMap() {
             subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
             right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
           >
-            <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
+            <div
+              className="vs-card"
+              style={{
+              padding: "12px",
+              height: "420px",
+              minHeight: "420px",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
               {loading ? (
                 <EmptyState text="Loading live map..." />
               ) : !overlaysByState.length ? (
                 <EmptyState text="No live overlays match the selected filters." />
               ) : (
+  
                 <ComposableMap
-                  projection="geoAlbersUsa"
-                  projectionConfig={{ scale: 1200 }}
-                  style={{ width: "100%", height: "auto" }}
-                >
+                 projection="geoAlbersUsa"
+                 projectionConfig={{ scale: 1040 }}
+                 style={{
+                   width: "100%",
+                   maxWidth: "980px",
+                   height: "390px",
+                 }}
+               >
                   <Geographies geography={US_TOPO_JSON}>
                     {({ geographies }) =>
                       geographies.map((geo) => {
