@@ -624,7 +624,7 @@ export default function CampaignOpportunityHeatmap() {
         subtitle="Click any highlighted state to open AI briefing and command actions."
         right={<Badge tone="info">{data.states?.length || 0} states</Badge>}
       >
-        <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
+        <div className="vs-card" style={{ padding: "12px", minHeight: "500px" }}>
           {loading ? (
             <EmptyState text="Loading opportunity heatmap..." />
           ) : !(data.states || []).length ? (
