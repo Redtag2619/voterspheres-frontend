@@ -17,39 +17,111 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const STATE_NAME_TO_ABBR = {
-  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
-  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
-  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA",
-  Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
-  Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
-  Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV",
-  "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
-  "New York": "NY", "North Carolina": "NC", "North Dakota": "ND",
-  Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA",
-  "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD",
-  Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA",
-  Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY",
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  Florida: "FL",
+  Georgia: "GA",
+  Hawaii: "HI",
+  Idaho: "ID",
+  Illinois: "IL",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Michigan: "MI",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Montana: "MT",
+  Nebraska: "NE",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY",
   "District of Columbia": "DC",
 };
 
 const STATE_CENTROIDS = {
-  AL: [-86.8, 32.8], AK: [-152.4, 64.2], AZ: [-111.7, 34.3],
-  AR: [-92.4, 34.9], CA: [-119.5, 37.2], CO: [-105.5, 39.0],
-  CT: [-72.7, 41.6], DE: [-75.5, 39.0], FL: [-81.7, 27.8],
-  GA: [-83.4, 32.7], HI: [-157.5, 20.9], ID: [-114.1, 44.2],
-  IL: [-89.2, 40.0], IN: [-86.1, 40.0], IA: [-93.5, 42.1],
-  KS: [-98.3, 38.5], KY: [-84.8, 37.8], LA: [-91.9, 31.2],
-  ME: [-69.0, 45.3], MD: [-76.7, 39.0], MA: [-71.8, 42.3],
-  MI: [-84.6, 44.3], MN: [-94.2, 46.3], MS: [-89.7, 32.7],
-  MO: [-92.6, 38.5], MT: [-110.0, 46.9], NE: [-99.8, 41.5],
-  NV: [-116.6, 39.3], NH: [-71.6, 43.7], NJ: [-74.7, 40.1],
-  NM: [-106.1, 34.4], NY: [-75.0, 43.0], NC: [-79.4, 35.5],
-  ND: [-100.5, 47.5], OH: [-82.8, 40.4], OK: [-97.5, 35.6],
-  OR: [-120.5, 44.0], PA: [-77.7, 40.9], RI: [-71.5, 41.7],
-  SC: [-80.9, 33.8], SD: [-100.2, 44.4], TN: [-86.4, 35.8],
-  TX: [-99.3, 31.5], UT: [-111.7, 39.3], VT: [-72.7, 44.1],
-  VA: [-78.7, 37.5], WA: [-120.7, 47.4], WV: [-80.6, 38.6],
-  WI: [-89.6, 44.6], WY: [-107.6, 43.0], DC: [-77.0, 38.9],
+  AL: [-86.8, 32.8],
+  AK: [-152.4, 64.2],
+  AZ: [-111.7, 34.3],
+  AR: [-92.4, 34.9],
+  CA: [-119.5, 37.2],
+  CO: [-105.5, 39.0],
+  CT: [-72.7, 41.6],
+  DE: [-75.5, 39.0],
+  FL: [-81.7, 27.8],
+  GA: [-83.4, 32.7],
+  HI: [-157.5, 20.9],
+  ID: [-114.1, 44.2],
+  IL: [-89.2, 40.0],
+  IN: [-86.1, 40.0],
+  IA: [-93.5, 42.1],
+  KS: [-98.3, 38.5],
+  KY: [-84.8, 37.8],
+  LA: [-91.9, 31.2],
+  ME: [-69.0, 45.3],
+  MD: [-76.7, 39.0],
+  MA: [-71.8, 42.3],
+  MI: [-84.6, 44.3],
+  MN: [-94.2, 46.3],
+  MS: [-89.7, 32.7],
+  MO: [-92.6, 38.5],
+  MT: [-110.0, 46.9],
+  NE: [-99.8, 41.5],
+  NV: [-116.6, 39.3],
+  NH: [-71.6, 43.7],
+  NJ: [-74.7, 40.1],
+  NM: [-106.1, 34.4],
+  NY: [-75.0, 43.0],
+  NC: [-79.4, 35.5],
+  ND: [-100.5, 47.5],
+  OH: [-82.8, 40.4],
+  OK: [-97.5, 35.6],
+  OR: [-120.5, 44.0],
+  PA: [-77.7, 40.9],
+  RI: [-71.5, 41.7],
+  SC: [-80.9, 33.8],
+  SD: [-100.2, 44.4],
+  TN: [-86.4, 35.8],
+  TX: [-99.3, 31.5],
+  UT: [-111.7, 39.3],
+  VT: [-72.7, 44.1],
+  VA: [-78.7, 37.5],
+  WA: [-120.7, 47.4],
+  WV: [-80.6, 38.6],
+  WI: [-89.6, 44.6],
+  WY: [-107.6, 43.0],
+  DC: [-77.0, 38.9],
 };
 
 function formatDate(value) {
@@ -64,6 +136,7 @@ function heatTone(level) {
   if (value === "high") return "demo";
   if (value === "medium") return "accent";
   if (value === "low") return "info";
+  if (value === "active") return "active";
   return "default";
 }
 
@@ -87,6 +160,18 @@ function priorityFromBand(band) {
   if (value === "urgent" || value === "high") return "high";
   if (value === "medium") return "medium";
   return "low";
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function buildBriefing(stateItem, opportunities = []) {
@@ -114,40 +199,125 @@ function buildBriefing(stateItem, opportunities = []) {
           ? `${state} has developing campaign opportunity signals. Monitor gaps and prepare consultant recommendations.`
           : `${state} is currently lower intensity, but should remain in the national monitoring layer.`;
 
-  const weakness = [
-    "Campaign contact coverage gaps",
-    "Digital footprint and website weakness",
-    "Missing staff or press infrastructure",
-    "Potential consultant/vendor matching need",
-  ];
-
-  const recommendedActions = [
-    {
-      title: `Create ${state} consultant opportunity task force`,
-      owner: "Consultant Intelligence",
-      priority: urgent || high ? "high" : "medium",
-      detail: `Build a ranked opportunity list for ${state} and assign outreach ownership.`,
-    },
-    {
-      title: `Generate campaign outreach plan${top?.candidate_name ? ` for ${top.candidate_name}` : ""}`,
-      owner: "Growth / BD",
-      priority: priorityFromBand(top?.opportunity_band),
-      detail: top?.recommended_pitch || `Draft consultant outreach messaging for top ${state} campaign opportunities.`,
-    },
-    {
-      title: `Run ${state} campaign weakness audit`,
-      owner: "Campaign Intelligence",
-      priority: avg >= 60 ? "high" : "medium",
-      detail: "Review contact gaps, website quality, staffing gaps, fundraising needs, and vendor opportunities.",
-    },
-  ];
-
   return {
     posture,
     summary,
-    weakness,
-    recommendedActions,
+    weakness: [
+      "Campaign contact coverage gaps",
+      "Digital footprint and website weakness",
+      "Missing staff or press infrastructure",
+      "Potential consultant/vendor matching need",
+    ],
+    recommendedActions: [
+      {
+        title: `Create ${state} consultant opportunity task force`,
+        owner: "Consultant Intelligence",
+        priority: urgent || high ? "high" : "medium",
+        detail: `Build a ranked opportunity list for ${state} and assign outreach ownership.`,
+      },
+      {
+        title: `Generate campaign outreach plan${top?.candidate_name ? ` for ${top.candidate_name}` : ""}`,
+        owner: "Growth / BD",
+        priority: priorityFromBand(top?.opportunity_band),
+        detail: top?.recommended_pitch || `Draft consultant outreach messaging for top ${state} campaign opportunities.`,
+      },
+      {
+        title: `Run ${state} campaign weakness audit`,
+        owner: "Campaign Intelligence",
+        priority: avg >= 60 ? "high" : "medium",
+        detail: "Review contact gaps, website quality, staffing gaps, fundraising needs, and vendor opportunities.",
+      },
+    ],
   };
+}
+
+function CampaignOpportunityCard({ row, onCreateTask }) {
+  const reasons = asArray(row.reasons);
+  const services = asArray(row.recommended_services);
+
+  return (
+    <div className="vs-card-muted" style={{ padding: 16 }}>
+      <ResponsiveRow
+        title={`${row.candidate_name || "Candidate"} — ${row.office || "Office"}`}
+        subtitle={row.recommended_pitch || "Opportunity signal detected."}
+        meta={[
+          { label: "Score", value: row.opportunity_score || 0 },
+          { label: "Band", value: row.opportunity_band || "N/A" },
+          { label: "Party", value: row.party || "N/A" },
+          {
+            label: "Confidence",
+            value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%`,
+          },
+        ]}
+        right={
+          <div className="vs-inline-actions">
+            <Badge tone={heatTone(row.opportunity_band)}>
+              {row.opportunity_band || "opportunity"}
+            </Badge>
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={() =>
+                onCreateTask({
+                  title: `Review consultant opportunity: ${row.candidate_name}`,
+                  owner: "Consultant Intelligence",
+                  priority: priorityFromBand(row.opportunity_band),
+                  detail:
+                    row.recommended_pitch ||
+                    "Review campaign opportunity and assign outreach.",
+                  candidate_id: row.candidate_id,
+                  candidate_name: row.candidate_name,
+                })
+              }
+            >
+              Task
+            </button>
+          </div>
+        }
+      />
+
+      <div className="vs-grid-2" style={{ marginTop: 14 }}>
+        <div>
+          <div className="vs-stat-label">Opportunity Reasons</div>
+          <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+            {reasons.length ? (
+              reasons.slice(0, 5).map((reason) => (
+                <div key={reason} style={{ color: "var(--vs-text-muted)", fontSize: 13 }}>
+                  • {reason}
+                </div>
+              ))
+            ) : (
+              <div style={{ color: "var(--vs-text-muted)", fontSize: 13 }}>
+                No reason details returned yet.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="vs-stat-label">Recommended Services</div>
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {services.length ? (
+              services.slice(0, 6).map((service) => (
+                <Badge key={service} tone="info">
+                  {service}
+                </Badge>
+              ))
+            ) : (
+              <Badge tone="default">No services returned</Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="vs-grid-4" style={{ marginTop: 14 }}>
+        <StatCard label="Website" value={row.website ? "Yes" : "No"} subtext={row.website || "Missing"} />
+        <StatCard label="Email" value={row.email ? "Yes" : "No"} subtext={row.email || "Missing"} />
+        <StatCard label="Phone" value={row.phone ? "Yes" : "No"} subtext={row.phone || "Missing"} />
+        <StatCard label="Last Scrape" value={formatDate(row.last_scraped_at)} subtext="Contact enrichment" />
+      </div>
+    </div>
+  );
 }
 
 function DrilldownPanel({
@@ -161,10 +331,12 @@ function DrilldownPanel({
 }) {
   const stateCode = selectedStateItem?.state || selectedState;
   const stateName = stateNameFromAbbr(stateCode);
+
   const stateOpps = opportunities.filter(
     (item) => String(item.state || "").toUpperCase() === String(stateCode || "").toUpperCase()
   );
-  const visibleOpps = stateOpps.length ? stateOpps : opportunities.slice(0, 6);
+
+  const visibleOpps = stateOpps.length ? stateOpps : opportunities.slice(0, 8);
   const briefing = buildBriefing(selectedStateItem, visibleOpps);
 
   if (!stateCode) return null;
@@ -172,7 +344,7 @@ function DrilldownPanel({
   return (
     <SectionCard
       title={`${stateCode} AI Briefing + Command Integration`}
-      subtitle={`${stateName} opportunity intelligence, campaign weaknesses, and execution-ready actions.`}
+      subtitle={`${stateName} opportunity intelligence, campaign weaknesses, contact gaps, and execution-ready actions.`}
       right={
         <div className="vs-inline-actions">
           <Badge tone={heatTone(selectedStateItem?.heat_level)}>
@@ -251,8 +423,8 @@ function DrilldownPanel({
 
       <div style={{ marginTop: 18 }}>
         <SectionCard
-          title={`${stateCode} Campaign Targets`}
-          subtitle="Highest-scored campaigns available for consultant outreach and operational review."
+          title={`${stateCode} Campaign Intelligence`}
+          subtitle="Expanded opportunity details, recommended services, contact availability, and enrichment signals."
           right={<Badge tone="info">{visibleOpps.length} shown</Badge>}
         >
           <div className="vs-stack">
@@ -260,39 +432,10 @@ function DrilldownPanel({
               <EmptyState text="No campaign opportunities available for this state yet." />
             ) : (
               visibleOpps.map((row) => (
-                <ResponsiveRow
+                <CampaignOpportunityCard
                   key={row.candidate_id || row.id}
-                  title={`${row.candidate_name || "Candidate"} — ${row.office || "Office"}`}
-                  subtitle={row.recommended_pitch || "Opportunity signal detected."}
-                  meta={[
-                    { label: "Score", value: row.opportunity_score || 0 },
-                    { label: "Band", value: row.opportunity_band || "N/A" },
-                    { label: "Party", value: row.party || "N/A" },
-                    { label: "Confidence", value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%` },
-                  ]}
-                  right={
-                    <div className="vs-inline-actions">
-                      <Badge tone={heatTone(row.opportunity_band)}>
-                        {row.opportunity_band || "opportunity"}
-                      </Badge>
-                      <button
-                        type="button"
-                        className="vs-button vs-button-secondary"
-                        onClick={() =>
-                          onCreateTask({
-                            title: `Review consultant opportunity: ${row.candidate_name}`,
-                            owner: "Consultant Intelligence",
-                            priority: priorityFromBand(row.opportunity_band),
-                            detail: row.recommended_pitch || "Review campaign opportunity and assign outreach.",
-                            candidate_id: row.candidate_id,
-                            candidate_name: row.candidate_name,
-                          })
-                        }
-                      >
-                        Task
-                      </button>
-                    </div>
-                  }
+                  row={row}
+                  onCreateTask={onCreateTask}
                 />
               ))
             )}
@@ -425,10 +568,26 @@ export default function CampaignOpportunityHeatmap() {
   }, [selectedState, stateByAbbr]);
 
   const metrics = [
-    { label: "Scored States", value: data.summary?.states || 0, subtext: "States with opportunity scores" },
-    { label: "Campaigns", value: data.summary?.total_campaigns || 0, subtext: "Scored campaign records" },
-    { label: "Urgent", value: data.summary?.urgent_count || 0, subtext: "Highest opportunity band" },
-    { label: "Avg Score", value: data.summary?.avg_score || 0, subtext: `Last scored ${formatDate(data.summary?.last_scored_at)}` },
+    {
+      label: "Scored States",
+      value: data.summary?.states || 0,
+      subtext: "States with opportunity scores",
+    },
+    {
+      label: "Campaigns",
+      value: data.summary?.total_campaigns || 0,
+      subtext: "Scored campaign records",
+    },
+    {
+      label: "Urgent",
+      value: data.summary?.urgent_count || 0,
+      subtext: "Highest opportunity band",
+    },
+    {
+      label: "Avg Score",
+      value: data.summary?.avg_score || 0,
+      subtext: `Last scored ${formatDate(data.summary?.last_scored_at)}`,
+    },
   ];
 
   function selectState(code) {
@@ -439,7 +598,10 @@ export default function CampaignOpportunityHeatmap() {
   }
 
   function goCommandCenter() {
-    const params = selectedState ? `?state=${encodeURIComponent(selectedState)}&source=opportunity-heatmap` : "?source=opportunity-heatmap";
+    const params = selectedState
+      ? `?state=${encodeURIComponent(selectedState)}&source=opportunity-heatmap`
+      : "?source=opportunity-heatmap";
+
     navigate(`/command-center${params}`);
   }
 
@@ -447,18 +609,35 @@ export default function CampaignOpportunityHeatmap() {
     <PageShell
       eyebrow="Consultant Intelligence"
       title="Campaign Opportunity Heatmap"
-      description="Identify states and campaigns with the clearest consultant demand signals, generate AI briefings, and move actions into Command Center."
+      description="Identify states and campaigns with consultant demand signals, generate AI briefings, review contact gaps, and move actions into Command Center."
       tickerItems={[
-        { label: "States", value: String(data.summary?.states || 0), dotClass: "vs-live-dot-success" },
-        { label: "Urgent", value: String(data.summary?.urgent_count || 0), dotClass: "vs-live-dot-warning" },
-        { label: "Avg Score", value: String(data.summary?.avg_score || 0), dotClass: "vs-live-dot" },
+        {
+          label: "States",
+          value: String(data.summary?.states || 0),
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "Urgent",
+          value: String(data.summary?.urgent_count || 0),
+          dotClass: "vs-live-dot-warning",
+        },
+        {
+          label: "Avg Score",
+          value: String(data.summary?.avg_score || 0),
+          dotClass: "vs-live-dot",
+        },
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
         {metrics.map((metric) => (
-          <StatCard key={metric.label} label={metric.label} value={metric.value} subtext={metric.subtext} />
+          <StatCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            subtext={metric.subtext}
+          />
         ))}
       </div>
 
@@ -467,10 +646,20 @@ export default function CampaignOpportunityHeatmap() {
         subtitle="Score opportunities, open AI briefing, and push actions into Command Center."
         right={
           <div className="vs-inline-actions">
-            <button type="button" className="vs-button vs-button-secondary" onClick={() => loadHeatmap(true)} disabled={loading}>
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={() => loadHeatmap(true)}
+              disabled={loading}
+            >
               Refresh Heatmap
             </button>
-            <button type="button" className="vs-button" onClick={scoreNow} disabled={scoring}>
+            <button
+              type="button"
+              className="vs-button"
+              onClick={scoreNow}
+              disabled={scoring}
+            >
               {scoring ? "Scoring..." : "Score Opportunities"}
             </button>
           </div>
@@ -521,7 +710,11 @@ export default function CampaignOpportunityHeatmap() {
             ) : !(data.states || []).length ? (
               <EmptyState text="No opportunity scores yet. Click Score Opportunities." />
             ) : (
-              <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 1200 }} style={{ width: "100%", height: "auto" }}>
+              <ComposableMap
+                projection="geoAlbersUsa"
+                projectionConfig={{ scale: 1200 }}
+                style={{ width: "100%", height: "auto" }}
+              >
                 <Geographies geography={US_TOPO_JSON}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
@@ -601,7 +794,10 @@ export default function CampaignOpportunityHeatmap() {
         </SectionCard>
 
         <div className="vs-stack">
-          <SectionCard title="State Opportunity Stack" subtitle="Ranked by average opportunity score.">
+          <SectionCard
+            title="State Opportunity Stack"
+            subtitle="Ranked by average opportunity score."
+          >
             <div className="vs-stack">
               {!(data.states || []).length ? (
                 <EmptyState text="No state opportunity data available yet." />
@@ -617,7 +813,10 @@ export default function CampaignOpportunityHeatmap() {
                       padding: "14px",
                       cursor: "pointer",
                       color: "var(--vs-text)",
-                      border: selectedState === item.state ? "1px solid rgba(96, 165, 250, 0.48)" : undefined,
+                      border:
+                        selectedState === item.state
+                          ? "1px solid rgba(96, 165, 250, 0.48)"
+                          : undefined,
                     }}
                   >
                     <div className="vs-inline-actions" style={{ justifyContent: "space-between" }}>
@@ -633,7 +832,10 @@ export default function CampaignOpportunityHeatmap() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Top Campaign Opportunities" subtitle="Highest opportunity scores across the current filter.">
+          <SectionCard
+            title="Top Campaign Opportunities"
+            subtitle="Highest opportunity scores across the current filter."
+          >
             <div className="vs-stack">
               {!(data.top_opportunities || []).length ? (
                 <EmptyState text="No campaign opportunities available yet." />
@@ -647,9 +849,16 @@ export default function CampaignOpportunityHeatmap() {
                       { label: "Score", value: row.opportunity_score },
                       { label: "Band", value: row.opportunity_band },
                       { label: "Party", value: row.party || "N/A" },
-                      { label: "Confidence", value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%` },
+                      {
+                        label: "Confidence",
+                        value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%`,
+                      },
                     ]}
-                    right={<Badge tone={heatTone(row.opportunity_band)}>{row.opportunity_band}</Badge>}
+                    right={
+                      <Badge tone={heatTone(row.opportunity_band)}>
+                        {row.opportunity_band}
+                      </Badge>
+                    }
                   />
                 ))
               )}
