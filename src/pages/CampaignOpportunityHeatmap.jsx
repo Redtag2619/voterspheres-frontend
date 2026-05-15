@@ -624,7 +624,7 @@ export default function CampaignOpportunityHeatmap() {
         subtitle="Click any highlighted state to open AI briefing and command actions."
         right={<Badge tone="info">{data.states?.length || 0} states</Badge>}
       >
-        <div className="vs-card" style={{ padding: "12px", minHeight: "360px" }}>
+        <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
           {loading ? (
             <EmptyState text="Loading opportunity heatmap..." />
           ) : !(data.states || []).length ? (
@@ -633,7 +633,7 @@ export default function CampaignOpportunityHeatmap() {
             <ComposableMap
               projection="geoAlbersUsa"
               projectionConfig={{ scale: 1200 }}
-              style={{ width: "100%", height: "360px" }}
+              style={{ width: "100%", height: "auto" }}
             >
               <Geographies geography={US_TOPO_JSON}>
                 {({ geographies }) =>
