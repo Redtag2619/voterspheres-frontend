@@ -17,111 +17,39 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const STATE_NAME_TO_ABBR = {
-  Alabama: "AL",
-  Alaska: "AK",
-  Arizona: "AZ",
-  Arkansas: "AR",
-  California: "CA",
-  Colorado: "CO",
-  Connecticut: "CT",
-  Delaware: "DE",
-  Florida: "FL",
-  Georgia: "GA",
-  Hawaii: "HI",
-  Idaho: "ID",
-  Illinois: "IL",
-  Indiana: "IN",
-  Iowa: "IA",
-  Kansas: "KS",
-  Kentucky: "KY",
-  Louisiana: "LA",
-  Maine: "ME",
-  Maryland: "MD",
-  Massachusetts: "MA",
-  Michigan: "MI",
-  Minnesota: "MN",
-  Mississippi: "MS",
-  Missouri: "MO",
-  Montana: "MT",
-  Nebraska: "NE",
-  Nevada: "NV",
-  "New Hampshire": "NH",
-  "New Jersey": "NJ",
-  "New Mexico": "NM",
-  "New York": "NY",
-  "North Carolina": "NC",
-  "North Dakota": "ND",
-  Ohio: "OH",
-  Oklahoma: "OK",
-  Oregon: "OR",
-  Pennsylvania: "PA",
-  "Rhode Island": "RI",
-  "South Carolina": "SC",
-  "South Dakota": "SD",
-  Tennessee: "TN",
-  Texas: "TX",
-  Utah: "UT",
-  Vermont: "VT",
-  Virginia: "VA",
-  Washington: "WA",
-  "West Virginia": "WV",
-  Wisconsin: "WI",
-  Wyoming: "WY",
+  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
+  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
+  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA",
+  Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
+  Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
+  Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV",
+  "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
+  "New York": "NY", "North Carolina": "NC", "North Dakota": "ND",
+  Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA",
+  "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD",
+  Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA",
+  Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY",
   "District of Columbia": "DC",
 };
 
 const STATE_CENTROIDS = {
-  AL: [-86.8, 32.8],
-  AK: [-152.4, 64.2],
-  AZ: [-111.7, 34.3],
-  AR: [-92.4, 34.9],
-  CA: [-119.5, 37.2],
-  CO: [-105.5, 39.0],
-  CT: [-72.7, 41.6],
-  DE: [-75.5, 39.0],
-  FL: [-81.7, 27.8],
-  GA: [-83.4, 32.7],
-  HI: [-157.5, 20.9],
-  ID: [-114.1, 44.2],
-  IL: [-89.2, 40.0],
-  IN: [-86.1, 40.0],
-  IA: [-93.5, 42.1],
-  KS: [-98.3, 38.5],
-  KY: [-84.8, 37.8],
-  LA: [-91.9, 31.2],
-  ME: [-69.0, 45.3],
-  MD: [-76.7, 39.0],
-  MA: [-71.8, 42.3],
-  MI: [-84.6, 44.3],
-  MN: [-94.2, 46.3],
-  MS: [-89.7, 32.7],
-  MO: [-92.6, 38.5],
-  MT: [-110.0, 46.9],
-  NE: [-99.8, 41.5],
-  NV: [-116.6, 39.3],
-  NH: [-71.6, 43.7],
-  NJ: [-74.7, 40.1],
-  NM: [-106.1, 34.4],
-  NY: [-75.0, 43.0],
-  NC: [-79.4, 35.5],
-  ND: [-100.5, 47.5],
-  OH: [-82.8, 40.4],
-  OK: [-97.5, 35.6],
-  OR: [-120.5, 44.0],
-  PA: [-77.7, 40.9],
-  RI: [-71.5, 41.7],
-  SC: [-80.9, 33.8],
-  SD: [-100.2, 44.4],
-  TN: [-86.4, 35.8],
-  TX: [-99.3, 31.5],
-  UT: [-111.7, 39.3],
-  VT: [-72.7, 44.1],
-  VA: [-78.7, 37.5],
-  WA: [-120.7, 47.4],
-  WV: [-80.6, 38.6],
-  WI: [-89.6, 44.6],
-  WY: [-107.6, 43.0],
-  DC: [-77.0, 38.9],
+  AL: [-86.8, 32.8], AK: [-152.4, 64.2], AZ: [-111.7, 34.3],
+  AR: [-92.4, 34.9], CA: [-119.5, 37.2], CO: [-105.5, 39.0],
+  CT: [-72.7, 41.6], DE: [-75.5, 39.0], FL: [-81.7, 27.8],
+  GA: [-83.4, 32.7], HI: [-157.5, 20.9], ID: [-114.1, 44.2],
+  IL: [-89.2, 40.0], IN: [-86.1, 40.0], IA: [-93.5, 42.1],
+  KS: [-98.3, 38.5], KY: [-84.8, 37.8], LA: [-91.9, 31.2],
+  ME: [-69.0, 45.3], MD: [-76.7, 39.0], MA: [-71.8, 42.3],
+  MI: [-84.6, 44.3], MN: [-94.2, 46.3], MS: [-89.7, 32.7],
+  MO: [-92.6, 38.5], MT: [-110.0, 46.9], NE: [-99.8, 41.5],
+  NV: [-116.6, 39.3], NH: [-71.6, 43.7], NJ: [-74.7, 40.1],
+  NM: [-106.1, 34.4], NY: [-75.0, 43.0], NC: [-79.4, 35.5],
+  ND: [-100.5, 47.5], OH: [-82.8, 40.4], OK: [-97.5, 35.6],
+  OR: [-120.5, 44.0], PA: [-77.7, 40.9], RI: [-71.5, 41.7],
+  SC: [-80.9, 33.8], SD: [-100.2, 44.4], TN: [-86.4, 35.8],
+  TX: [-99.3, 31.5], UT: [-111.7, 39.3], VT: [-72.7, 44.1],
+  VA: [-78.7, 37.5], WA: [-120.7, 47.4], WV: [-80.6, 38.6],
+  WI: [-89.6, 44.6], WY: [-107.6, 43.0], DC: [-77.0, 38.9],
 };
 
 function formatDate(value) {
@@ -691,181 +619,137 @@ export default function CampaignOpportunityHeatmap() {
         </div>
       </SectionCard>
 
-      <div
-        style={{
-          display: "grid",
-          gap: "16px",
-          gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)",
-          alignItems: "start",
-        }}
+      <SectionCard
+        title="National Opportunity Heatmap"
+        subtitle="Click any highlighted state to open AI briefing and command actions."
+        right={<Badge tone="info">{data.states?.length || 0} states</Badge>}
       >
-        <SectionCard
-          title="National Opportunity Heatmap"
-          subtitle="Click any highlighted state to open AI briefing and command actions."
-          right={<Badge tone="info">{data.states?.length || 0} states</Badge>}
-        >
-          <div className="vs-card" style={{ padding: "12px", minHeight: "520px" }}>
-            {loading ? (
-              <EmptyState text="Loading opportunity heatmap..." />
-            ) : !(data.states || []).length ? (
-              <EmptyState text="No opportunity scores yet. Click Score Opportunities." />
-            ) : (
-              <ComposableMap
-                projection="geoAlbersUsa"
-                projectionConfig={{ scale: 1200 }}
-                style={{ width: "100%", height: "auto" }}
-              >
-                <Geographies geography={US_TOPO_JSON}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const stateName = geo.properties?.name;
-                      const abbr = STATE_NAME_TO_ABBR[stateName];
-                      const item = abbr ? stateByAbbr[abbr] : null;
-                      const isSelected = selectedState === abbr;
+        <div className="vs-card" style={{ padding: "12px", minHeight: "360px" }}>
+          {loading ? (
+            <EmptyState text="Loading opportunity heatmap..." />
+          ) : !(data.states || []).length ? (
+            <EmptyState text="No opportunity scores yet. Click Score Opportunities." />
+          ) : (
+            <ComposableMap
+              projection="geoAlbersUsa"
+              projectionConfig={{ scale: 1200 }}
+              style={{ width: "100%", height: "360px" }}
+            >
+              <Geographies geography={US_TOPO_JSON}>
+                {({ geographies }) =>
+                  geographies.map((geo) => {
+                    const stateName = geo.properties?.name;
+                    const abbr = STATE_NAME_TO_ABBR[stateName];
+                    const item = abbr ? stateByAbbr[abbr] : null;
+                    const isSelected = selectedState === abbr;
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => {
-                            if (abbr) selectState(abbr);
-                          }}
-                          style={{
-                            default: {
-                              fill: item ? getStateFill(item) : "#111827",
-                              stroke: isSelected ? "#f8fafc" : "#374151",
-                              strokeWidth: isSelected ? 1.5 : 0.75,
-                              outline: "none",
-                              cursor: item ? "pointer" : "default",
-                            },
-                            hover: {
-                              fill: item ? getStateFill(item) : "#1f2937",
-                              stroke: "#cbd5e1",
-                              strokeWidth: 1.2,
-                              outline: "none",
-                              cursor: item ? "pointer" : "default",
-                            },
-                            pressed: {
-                              fill: item ? getStateFill(item) : "#1f2937",
-                              stroke: "#cbd5e1",
-                              strokeWidth: 1.2,
-                              outline: "none",
-                            },
-                          }}
-                        />
-                      );
-                    })
-                  }
-                </Geographies>
-
-                {(data.states || []).map((item) => {
-                  const coords = STATE_CENTROIDS[item.state];
-                  if (!coords) return null;
-
-                  return (
-                    <Marker key={item.state} coordinates={coords}>
-                      <circle
-                        r={selectedState === item.state ? 10 : 8}
-                        fill="#f8fafc"
-                        stroke="#111827"
-                        strokeWidth={2}
-                        onClick={() => selectState(item.state)}
-                        style={{ cursor: "pointer" }}
-                      />
-                      <text
-                        textAnchor="middle"
-                        y={-12}
-                        style={{
-                          fontFamily: "inherit",
-                          fill: "#e5e7eb",
-                          fontSize: 10,
-                          fontWeight: 800,
-                          pointerEvents: "none",
+                    return (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        onClick={() => {
+                          if (abbr) selectState(abbr);
                         }}
-                      >
-                        {item.state}
-                      </text>
-                    </Marker>
-                  );
-                })}
-              </ComposableMap>
-            )}
-          </div>
-        </SectionCard>
+                        style={{
+                          default: {
+                            fill: item ? getStateFill(item) : "#111827",
+                            stroke: isSelected ? "#f8fafc" : "#374151",
+                            strokeWidth: isSelected ? 1.5 : 0.75,
+                            outline: "none",
+                            cursor: item ? "pointer" : "default",
+                          },
+                          hover: {
+                            fill: item ? getStateFill(item) : "#1f2937",
+                            stroke: "#cbd5e1",
+                            strokeWidth: 1.2,
+                            outline: "none",
+                            cursor: item ? "pointer" : "default",
+                          },
+                          pressed: {
+                            fill: item ? getStateFill(item) : "#1f2937",
+                            stroke: "#cbd5e1",
+                            strokeWidth: 1.2,
+                            outline: "none",
+                          },
+                        }}
+                      />
+                    );
+                  })
+                }
+              </Geographies>
 
-        <div className="vs-stack">
-          <SectionCard
-            title="State Opportunity Stack"
-            subtitle="Ranked by average opportunity score."
-          >
-            <div className="vs-stack">
-              {!(data.states || []).length ? (
-                <EmptyState text="No state opportunity data available yet." />
-              ) : (
-                (data.states || []).slice(0, 12).map((item) => (
-                  <button
-                    key={item.state}
-                    type="button"
-                    className="vs-card-muted"
-                    onClick={() => selectState(item.state)}
-                    style={{
-                      textAlign: "left",
-                      padding: "14px",
-                      cursor: "pointer",
-                      color: "var(--vs-text)",
-                      border:
-                        selectedState === item.state
-                          ? "1px solid rgba(96, 165, 250, 0.48)"
-                          : undefined,
-                    }}
-                  >
-                    <div className="vs-inline-actions" style={{ justifyContent: "space-between" }}>
-                      <strong>{item.state}</strong>
-                      <Badge tone={heatTone(item.heat_level)}>{item.heat_level}</Badge>
-                    </div>
-                    <div style={{ marginTop: 8, color: "var(--vs-text-muted)", fontSize: 13 }}>
-                      Avg score {item.avg_score} • {item.total_campaigns} campaigns • {item.urgent_count} urgent
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </SectionCard>
+              {(data.states || []).map((item) => {
+                const coords = STATE_CENTROIDS[item.state];
+                if (!coords) return null;
 
-          <SectionCard
-            title="Top Campaign Opportunities"
-            subtitle="Highest opportunity scores across the current filter."
-          >
-            <div className="vs-stack">
-              {!(data.top_opportunities || []).length ? (
-                <EmptyState text="No campaign opportunities available yet." />
-              ) : (
-                (data.top_opportunities || []).map((row) => (
-                  <ResponsiveRow
-                    key={row.candidate_id}
-                    title={`${row.candidate_name} — ${row.state || "NA"} ${row.office || ""}`}
-                    subtitle={row.recommended_pitch || "Opportunity signal detected."}
-                    meta={[
-                      { label: "Score", value: row.opportunity_score },
-                      { label: "Band", value: row.opportunity_band },
-                      { label: "Party", value: row.party || "N/A" },
-                      {
-                        label: "Confidence",
-                        value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%`,
-                      },
-                    ]}
-                    right={
-                      <Badge tone={heatTone(row.opportunity_band)}>
-                        {row.opportunity_band}
-                      </Badge>
-                    }
-                  />
-                ))
-              )}
-            </div>
-          </SectionCard>
+                return (
+                  <Marker key={item.state} coordinates={coords}>
+                    <circle
+                      r={selectedState === item.state ? 10 : 8}
+                      fill="#f8fafc"
+                      stroke="#111827"
+                      strokeWidth={2}
+                      onClick={() => selectState(item.state)}
+                      style={{ cursor: "pointer" }}
+                    />
+                    <text
+                      textAnchor="middle"
+                      y={-12}
+                      style={{
+                        fontFamily: "inherit",
+                        fill: "#e5e7eb",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {item.state}
+                    </text>
+                  </Marker>
+                );
+              })}
+            </ComposableMap>
+          )}
         </div>
-      </div>
+      </SectionCard>
+
+      <SectionCard
+        title="State Opportunity Stack"
+        subtitle="Ranked by average opportunity score. Select any state to update the AI briefing below."
+      >
+        <div className="vs-grid-4">
+          {!(data.states || []).length ? (
+            <EmptyState text="No state opportunity data available yet." />
+          ) : (
+            (data.states || []).slice(0, 12).map((item) => (
+              <button
+                key={item.state}
+                type="button"
+                className="vs-card-muted"
+                onClick={() => selectState(item.state)}
+                style={{
+                  textAlign: "left",
+                  padding: "14px",
+                  cursor: "pointer",
+                  color: "var(--vs-text)",
+                  border:
+                    selectedState === item.state
+                      ? "1px solid rgba(96, 165, 250, 0.48)"
+                      : undefined,
+                }}
+              >
+                <div className="vs-inline-actions" style={{ justifyContent: "space-between" }}>
+                  <strong>{item.state}</strong>
+                  <Badge tone={heatTone(item.heat_level)}>{item.heat_level}</Badge>
+                </div>
+                <div style={{ marginTop: 8, color: "var(--vs-text-muted)", fontSize: 13 }}>
+                  Avg score {item.avg_score} • {item.total_campaigns} campaigns • {item.urgent_count} urgent
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </SectionCard>
 
       {drilldownOpen && selectedState ? (
         <DrilldownPanel
@@ -878,6 +762,39 @@ export default function CampaignOpportunityHeatmap() {
           taskMessage={taskMessage}
         />
       ) : null}
+
+      <SectionCard
+        title="Top Campaign Opportunities"
+        subtitle="Highest opportunity scores across the current filter."
+      >
+        <div className="vs-stack">
+          {!(data.top_opportunities || []).length ? (
+            <EmptyState text="No campaign opportunities available yet." />
+          ) : (
+            (data.top_opportunities || []).map((row) => (
+              <ResponsiveRow
+                key={row.candidate_id}
+                title={`${row.candidate_name} — ${row.state || "NA"} ${row.office || ""}`}
+                subtitle={row.recommended_pitch || "Opportunity signal detected."}
+                meta={[
+                  { label: "Score", value: row.opportunity_score },
+                  { label: "Band", value: row.opportunity_band },
+                  { label: "Party", value: row.party || "N/A" },
+                  {
+                    label: "Confidence",
+                    value: `${Math.round(Number(row.contact_confidence || 0) * 100)}%`,
+                  },
+                ]}
+                right={
+                  <Badge tone={heatTone(row.opportunity_band)}>
+                    {row.opportunity_band}
+                  </Badge>
+                }
+              />
+            ))
+          )}
+        </div>
+      </SectionCard>
     </PageShell>
   );
 }
