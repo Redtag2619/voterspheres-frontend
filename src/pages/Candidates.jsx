@@ -55,6 +55,35 @@ function normalizeCandidateName(candidate) {
   );
 }
 
+
+function getContactValue(profile, candidate, profileKey, candidateKeys = []) {
+  if (profile?.[profileKey]) return profile[profileKey];
+
+  for (const key of candidateKeys) {
+    if (candidate?.[key]) return candidate[key];
+  }
+
+  return "";
+}
+
+function getAddressValue(profile, candidate, profileKey, candidateKeys = []) {
+  const direct = getContactValue(profile, candidate, profileKey, candidateKeys);
+
+  if (direct) return direct;
+
+  const address = [
+    candidate?.address_line1,
+    candidate?.address_line2,
+    candidate?.city,
+    candidate?.state_code || candidate?.state,
+    candidate?.postal_code,
+  ]
+    .filter(Boolean)
+    .join(", " );
+
+  return address || "";
+}
+
 function getPartyTone(party) {
   const value = String(party || "").toLowerCase();
   if (value.includes("democratic")) return "accent";
@@ -138,19 +167,35 @@ function normalizeDetailPayload(payload, selectedCandidate) {
   if (!payload || typeof payload !== "object") {
     return { candidate: selectedCandidate || null, profile: null };
   }
+  const candidate = {
+    ...(selectedCandidate || {}),
+    ...(payload.candidate || (payload.profile ? {} : payload) || {}),
+  };
+
   return {
-    candidate: payload.candidate || selectedCandidate || payload || null,
-    profile: payload.profile || null
+    candidate: Object.keys(candidate).length ? candidate : null,
+    profile: payload.profile || null,
   };
 }
 
 function getProfileHealth(profile = {}, candidate = null) {
-  const hasCampaignWebsite = Boolean(profile?.campaign_website || candidate?.website);
-  const hasOfficialWebsite = Boolean(profile?.official_website);
-  const hasEmail = Boolean(profile?.email);
-  const hasPressEmail = Boolean(profile?.press_contact_email);
-  const hasPhone = Boolean(profile?.phone);
-  const hasAddress = Boolean(profile?.office_address || profile?.campaign_address);
+  const hasCampaignWebsite = Boolean(
+    getContactValue(profile, candidate, "campaign_website", ["website", "campaign_website"])
+  );
+  const hasOfficialWebsite = Boolean(
+    getContactValue(profile, candidate, "official_website", ["official_website"])
+  );
+  const hasEmail = Boolean(
+    getContactValue(profile, candidate, "email", ["contact_email", "email", "press_email"])
+  );
+  const hasPressEmail = Boolean(
+    getContactValue(profile, candidate, "press_contact_email", ["press_email", "contact_email"])
+  );
+  const hasPhone = Boolean(getContactValue(profile, candidate, "phone", ["phone"]));
+  const hasAddress = Boolean(
+    getAddressValue(profile, candidate, "office_address", ["office_address", "campaign_address", "address_line1"]) ||
+      getAddressValue(profile, candidate, "campaign_address", ["campaign_address", "office_address", "address_line1"])
+  );
   const hasStaff = Boolean(
     profile?.chief_of_staff_name ||
       profile?.campaign_manager_name ||
@@ -244,7 +289,16 @@ function LockToggle({ label, checked, onChange, disabled }) {
 
 function CandidateListRow({ candidate, isActive, onSelect, targetMatch, verified, intel }) {
   const name = normalizeCandidateName(candidate);
-  const hasContact = Boolean(intel?.has_contact || candidate?.contact?.campaign_email || candidate?.contact?.phone);
+  const hasContact = Boolean(
+    intel?.has_contact ||
+      candidate?.has_contact ||
+      candidate?.contact_email ||
+      candidate?.press_email ||
+      candidate?.email ||
+      candidate?.phone ||
+      candidate?.contact?.campaign_email ||
+      candidate?.contact?.phone
+  );
   const score = Number(intel?.intelligence_score || 0);
 
   return (
@@ -282,7 +336,16 @@ function CandidateListRow({ candidate, isActive, onSelect, targetMatch, verified
       <div className="vs-grid-3">
         <MetricChip label={`Score ${score}`} active={score >= 5} />
         <MetricChip label="Contact" active={hasContact} />
-        <MetricChip label="Website" active={Boolean(intel?.has_website || candidate.website)} />
+        <MetricChip
+          label="Website"
+          active={Boolean(
+            intel?.has_website ||
+              candidate?.has_website ||
+              candidate?.website ||
+              candidate?.campaign_website ||
+              candidate?.official_website
+          )}
+        />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -495,14 +558,21 @@ export default function Candidates() {
         });
 
         setEditDraft({
-          campaign_website: profile?.campaign_website || selectedCandidate?.website || "",
-          official_website: profile?.official_website || "",
-          phone: profile?.phone || "",
-          email: profile?.email || "",
-          office_address: profile?.office_address || "",
-          campaign_address: profile?.campaign_address || "",
-          press_contact_name: profile?.press_contact_name || "",
-          press_contact_email: profile?.press_contact_email || ""
+          campaign_website:
+            getContactValue(profile, normalized.candidate, "campaign_website", ["website", "campaign_website"]) || "",
+          official_website:
+            getContactValue(profile, normalized.candidate, "official_website", ["official_website"]) || "",
+          phone: getContactValue(profile, normalized.candidate, "phone", ["phone"]) || "",
+          email:
+            getContactValue(profile, normalized.candidate, "email", ["contact_email", "email", "press_email"]) || "",
+          office_address:
+            getAddressValue(profile, normalized.candidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "",
+          campaign_address:
+            getAddressValue(profile, normalized.candidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "",
+          press_contact_name:
+            getContactValue(profile, normalized.candidate, "press_contact_name", ["press_contact_name"]) || "",
+          press_contact_email:
+            getContactValue(profile, normalized.candidate, "press_contact_email", ["press_email", "contact_email"]) || "",
         });
 
         setVerificationDraft({
@@ -691,20 +761,27 @@ export default function Candidates() {
   function resetOverviewDraft() {
     setEditDraft((prev) => ({
       ...prev,
-      campaign_website: profile?.campaign_website || detailCandidate?.website || "",
-      official_website: profile?.official_website || "",
-      phone: profile?.phone || "",
-      email: profile?.email || ""
+      campaign_website:
+        getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]) || "",
+      official_website:
+        getContactValue(profile, detailCandidate, "official_website", ["official_website"]) || "",
+      phone: getContactValue(profile, detailCandidate, "phone", ["phone"]) || "",
+      email:
+        getContactValue(profile, detailCandidate, "email", ["contact_email", "email", "press_email"]) || ""
     }));
   }
 
   function resetContactDraft() {
     setEditDraft((prev) => ({
       ...prev,
-      office_address: profile?.office_address || "",
-      campaign_address: profile?.campaign_address || "",
-      press_contact_name: profile?.press_contact_name || "",
-      press_contact_email: profile?.press_contact_email || ""
+      office_address:
+        getAddressValue(profile, detailCandidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "",
+      campaign_address:
+        getAddressValue(profile, detailCandidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "",
+      press_contact_name:
+        getContactValue(profile, detailCandidate, "press_contact_name", ["press_contact_name"]) || "",
+      press_contact_email:
+        getContactValue(profile, detailCandidate, "press_contact_email", ["press_email", "contact_email"]) || ""
     }));
   }
 
@@ -943,10 +1020,40 @@ export default function Candidates() {
                       ))
                     ) : (
                       <>
-                        <DetailField label="Campaign Website" value={profile?.campaign_website || detailCandidate.website || "N/A"} href={safeUrl(profile?.campaign_website || detailCandidate.website || "")} />
-                        <DetailField label="Official Website" value={profile?.official_website || "N/A"} href={safeUrl(profile?.official_website || "")} />
-                        <DetailField label="Phone" value={profile?.phone || "N/A"} />
-                        <DetailField label="Email" value={profile?.email || "N/A"} />
+                        <DetailField
+                          label="Campaign Website"
+                          value={
+                            getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]) ||
+                            "N/A"
+                          }
+                          href={safeUrl(
+                            getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"])
+                          )}
+                        />
+                        <DetailField
+                          label="Official Website"
+                          value={
+                            getContactValue(profile, detailCandidate, "official_website", ["official_website"]) ||
+                            "N/A"
+                          }
+                          href={safeUrl(
+                            getContactValue(profile, detailCandidate, "official_website", ["official_website"])
+                          )}
+                        />
+                        <DetailField
+                          label="Phone"
+                          value={getContactValue(profile, detailCandidate, "phone", ["phone"]) || "N/A"}
+                        />
+                        <DetailField
+                          label="Email"
+                          value={
+                            getContactValue(profile, detailCandidate, "email", [
+                              "contact_email",
+                              "email",
+                              "press_email",
+                            ]) || "N/A"
+                          }
+                        />
                       </>
                     )}
                   </div>
@@ -973,10 +1080,43 @@ export default function Candidates() {
                       ))
                     ) : (
                       <>
-                        <DetailField label="Office Address" value={profile?.office_address || "N/A"} />
-                        <DetailField label="Campaign Address" value={profile?.campaign_address || "N/A"} />
-                        <DetailField label="Press Contact" value={profile?.press_contact_name || "N/A"} />
-                        <DetailField label="Press Contact Email" value={profile?.press_contact_email || "N/A"} />
+                        <DetailField
+                          label="Office Address"
+                          value={
+                            getAddressValue(profile, detailCandidate, "office_address", [
+                              "office_address",
+                              "campaign_address",
+                              "address_line1",
+                            ]) || "N/A"
+                          }
+                        />
+                        <DetailField
+                          label="Campaign Address"
+                          value={
+                            getAddressValue(profile, detailCandidate, "campaign_address", [
+                              "campaign_address",
+                              "office_address",
+                              "address_line1",
+                            ]) || "N/A"
+                          }
+                        />
+                        <DetailField
+                          label="Press Contact"
+                          value={
+                            getContactValue(profile, detailCandidate, "press_contact_name", [
+                              "press_contact_name",
+                            ]) || "N/A"
+                          }
+                        />
+                        <DetailField
+                          label="Press Contact Email"
+                          value={
+                            getContactValue(profile, detailCandidate, "press_contact_email", [
+                              "press_email",
+                              "contact_email",
+                            ]) || "N/A"
+                          }
+                        />
                       </>
                     )}
                   </div>
