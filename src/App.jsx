@@ -12,6 +12,7 @@ import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 import AdminAlerts from "./pages/AdminAlerts";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import PlanProtectedRoute from "./components/PlanProtectedRoute.jsx";
+import RelationshipGraph from "./pages/RelationshipGraph";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -198,6 +199,7 @@ function AppRoutes() {
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
+              <Route path="/relationship-graph" element={<RelationshipGraph />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}>
