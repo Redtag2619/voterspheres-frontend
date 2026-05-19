@@ -487,9 +487,17 @@ export const candidatesApi = {
 
   contacts: (id) => tryGet([`/candidates/${id}/contacts`]),
 
-  contactCoverage: (params = {}) =>
+    contactCoverage: (params = {}) =>
     tryGet(["/candidates/contact-coverage"], { params }),
 
+  enrichmentStatus: (params = {}) =>
+    tryGet(["/candidates/enrichment-status", "/candidates/contact-coverage"], {
+      params,
+    }),
+
+  syncFecCommitteeContacts: (payload = { limit: 500 }) =>
+    tryPost(["/candidates/sync-fec-committee-contacts"], payload),
+  
   enrichProfile: (id) =>
     tryPost(
       [`/candidates/${id}/refresh-profile`, `/candidates/${id}/enrich-profile`],
@@ -791,6 +799,8 @@ export const api = {
   candidateDetail: candidatesApi.detail,
   candidateContacts: candidatesApi.contacts,
   candidateContactCoverage: candidatesApi.contactCoverage,
+  candidateEnrichmentStatus: candidatesApi.enrichmentStatus,
+  syncFecCommitteeContacts: candidatesApi.syncFecCommitteeContacts,
   enrichCandidateProfile: candidatesApi.enrichProfile,
   manualCandidateProfile: candidatesApi.manualProfile,
   updateCandidateProfileLocks: candidatesApi.updateProfileLocks,
