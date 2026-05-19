@@ -67,6 +67,13 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+function getConfidenceTone(value) {
+  const score = Number(value || 0);
+  if (score >= 0.7) return "active";
+  if (score >= 0.35) return "warning";
+  return "default";
+}
+
 function formatMoney(value) {
   const amount = safeNumber(value, 0);
 
