@@ -714,6 +714,13 @@ export const consultantOpportunityApi = {
     }),
 };
 
+export const relationshipGraphApi = {
+  graph: (params = {}) =>
+    tryGet(["/relationships/graph"], {
+      params: withWorkspaceParams(params),
+    }),
+};
+
 export const publicApi = {
   createEnterpriseLead: (payload) =>
     unwrap(http.post("/public/enterprise-leads", payload)),
@@ -822,7 +829,7 @@ export const api = {
   intelligenceBattlegrounds: intelligenceApi.battlegrounds,
   liveFundraising: intelligenceApi.liveFundraising,
   fundraisingLeaderboard: intelligenceApi.fundraisingLeaderboard,
-
+  
   crossSignalIntelligence: intelligenceApi.crossSignal,
   dispatchCrossSignalAlerts: intelligenceApi.dispatchCrossSignalAlerts,
 
@@ -885,6 +892,8 @@ export const api = {
   campaignOpportunityHeatmap: consultantOpportunityApi.heatmap,
 
   realtimeStatus: realtimeApi.status,
+  
+  relationshipGraph: relationshipGraphApi.graph,
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
 };
