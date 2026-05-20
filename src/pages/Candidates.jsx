@@ -10,26 +10,6 @@ import EmptyState from "../components/ui/EmptyState";
 const fallbackListData = { total: 0, results: [] };
 const fallbackDetail = { candidate: null, profile: null };
 
-const fallbackCoverage = {
-  total_candidates: 0,
-  total: 0,
-  with_email: 0,
-  with_phone: 0,
-  with_website: 0,
-  with_address: 0,
-  with_social: 0,
-  verified: 0,
-  discovery_failed: 0,
-  fec_committee: 0,
-  avg_confidence: 0,
-  missing_email: 0,
-  missing_phone: 0,
-  missing_website: 0,
-  missing_address: 0,
-  enrichment_running: false,
-  last_sync_at: null,
-};
-
 const LOCKABLE_FIELDS = [
   { key: "campaign_website", label: "Campaign Website" },
   { key: "official_website", label: "Official Website" },
@@ -42,21 +22,21 @@ const LOCKABLE_FIELDS = [
   { key: "chief_of_staff_name", label: "Chief of Staff" },
   { key: "campaign_manager_name", label: "Campaign Manager" },
   { key: "finance_director_name", label: "Finance Director" },
-  { key: "political_director_name", label: "Political Director" },
+  { key: "political_director_name", label: "Political Director" }
 ];
 
 const OVERVIEW_FIELDS = [
   { key: "campaign_website", label: "Campaign Website", type: "url" },
   { key: "official_website", label: "Official Website", type: "url" },
   { key: "phone", label: "Phone", type: "text" },
-  { key: "email", label: "Email", type: "email" },
+  { key: "email", label: "Email", type: "email" }
 ];
 
 const CONTACT_FIELDS = [
   { key: "office_address", label: "Office Address", type: "textarea" },
   { key: "campaign_address", label: "Campaign Address", type: "textarea" },
   { key: "press_contact_name", label: "Press Contact", type: "text" },
-  { key: "press_contact_email", label: "Press Contact Email", type: "email" },
+  { key: "press_contact_email", label: "Press Contact Email", type: "email" }
 ];
 
 function listFromPayload(payload, key) {
@@ -74,6 +54,7 @@ function normalizeCandidateName(candidate) {
     "Candidate"
   );
 }
+
 
 function getContactValue(profile, candidate, profileKey, candidateKeys = []) {
   if (profile?.[profileKey]) return profile[profileKey];
@@ -98,40 +79,9 @@ function getAddressValue(profile, candidate, profileKey, candidateKeys = []) {
     candidate?.postal_code,
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(", " );
 
   return address || "";
-}
-
-function normalizeCoveragePayload(payload) {
-  const status = payload?.status || payload?.coverage || payload || {};
-  const total = Number(status.total_candidates || status.total || 0);
-  const withEmail = Number(status.with_email || 0);
-  const withPhone = Number(status.with_phone || 0);
-  const withWebsite = Number(status.with_website || 0);
-  const withAddress = Number(status.with_address || 0);
-
-  return {
-    ...fallbackCoverage,
-    ...status,
-    total_candidates: total,
-    total,
-    with_email: withEmail,
-    with_phone: withPhone,
-    with_website: withWebsite,
-    with_address: withAddress,
-    with_social: Number(status.with_social || 0),
-    verified: Number(status.verified || 0),
-    discovery_failed: Number(status.discovery_failed || 0),
-    fec_committee: Number(status.fec_committee || 0),
-    avg_confidence: status.avg_confidence || 0,
-    missing_email: Number(status.missing_email ?? Math.max(total - withEmail, 0)),
-    missing_phone: Number(status.missing_phone ?? Math.max(total - withPhone, 0)),
-    missing_website: Number(status.missing_website ?? Math.max(total - withWebsite, 0)),
-    missing_address: Number(status.missing_address ?? Math.max(total - withAddress, 0)),
-    enrichment_running: Boolean(status.enrichment_running),
-    last_sync_at: status.last_sync_at || status.updated_at || null,
-  };
 }
 
 function getPartyTone(party) {
@@ -192,13 +142,6 @@ function formatConfidence(value) {
   return `${Math.round(score * 100)}%`;
 }
 
-function formatPercent(numerator, denominator) {
-  const top = Number(numerator || 0);
-  const bottom = Number(denominator || 0);
-  if (!bottom) return "0%";
-  return `${Math.round((top / bottom) * 100)}%`;
-}
-
 function safeUrl(value) {
   if (!value) return "";
   if (String(value).startsWith("http://") || String(value).startsWith("https://")) {
@@ -216,7 +159,7 @@ function formatDateTime(value) {
     day: "numeric",
     year: "numeric",
     hour: "numeric",
-    minute: "2-digit",
+    minute: "2-digit"
   }).format(date);
 }
 
@@ -224,7 +167,6 @@ function normalizeDetailPayload(payload, selectedCandidate) {
   if (!payload || typeof payload !== "object") {
     return { candidate: selectedCandidate || null, profile: null };
   }
-
   const candidate = {
     ...(selectedCandidate || {}),
     ...(payload.candidate || (payload.profile ? {} : payload) || {}),
@@ -268,7 +210,7 @@ function getProfileHealth(profile = {}, candidate = null) {
     hasPressEmail,
     hasPhone,
     hasAddress,
-    hasStaff,
+    hasStaff
   ].filter(Boolean).length;
 
   return {
@@ -280,7 +222,7 @@ function getProfileHealth(profile = {}, candidate = null) {
     hasAddress,
     hasStaff,
     completed,
-    total: 6,
+    total: 6
   };
 }
 
@@ -336,34 +278,6 @@ function MetricChip({ label, active }) {
   );
 }
 
-function CoverageBar({ label, value, total, tone = "active" }) {
-  const percent = total ? Math.min(100, Math.round((Number(value || 0) / Number(total || 1)) * 100)) : 0;
-
-  const color =
-    tone === "danger"
-      ? "#dc2626"
-      : tone === "warning"
-        ? "#d97706"
-        : tone === "info"
-          ? "#2563eb"
-          : "#16a34a";
-
-  return (
-    <div className="vs-card-muted" style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <strong style={{ color: "var(--vs-text)", fontSize: 13 }}>{label}</strong>
-        <Badge tone={tone}>{percent}%</Badge>
-      </div>
-      <div style={{ height: 8, borderRadius: 999, background: "rgba(148, 163, 184, 0.18)", overflow: "hidden" }}>
-        <div style={{ width: `${percent}%`, height: "100%", borderRadius: 999, background: color }} />
-      </div>
-      <div style={{ color: "var(--vs-text-muted)", fontSize: 12 }}>
-        {Number(value || 0).toLocaleString()} of {Number(total || 0).toLocaleString()} candidates
-      </div>
-    </div>
-  );
-}
-
 function LockToggle({ label, checked, onChange, disabled }) {
   return (
     <label className="vs-card-muted" style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", minHeight: "56px" }}>
@@ -401,7 +315,7 @@ function CandidateListRow({ candidate, isActive, onSelect, targetMatch, verified
         border: isActive ? "1px solid rgba(99, 102, 241, 0.55)" : targetMatch ? "1px solid rgba(251, 191, 36, 0.55)" : undefined,
         boxShadow: isActive ? "0 0 0 1px rgba(99, 102, 241, 0.18)" : targetMatch ? "0 0 0 1px rgba(251, 191, 36, 0.16)" : undefined,
         cursor: "pointer",
-        position: "relative",
+        position: "relative"
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -445,6 +359,202 @@ function CandidateListRow({ candidate, isActive, onSelect, targetMatch, verified
   );
 }
 
+
+function normalizeRelationshipGraphPayload(payload) {
+  const graph = payload?.graph || payload || {};
+  const insights = graph.insights || {};
+
+  return {
+    nodes: Array.isArray(graph.nodes) ? graph.nodes : [],
+    links: Array.isArray(graph.links) ? graph.links : [],
+    counts: graph.counts || {},
+    insights: {
+      summary: Array.isArray(insights.summary) ? insights.summary : [],
+      topInfluencers: Array.isArray(insights.topInfluencers)
+        ? insights.topInfluencers
+        : Array.isArray(insights.top_influencers)
+          ? insights.top_influencers
+          : [],
+      highStrengthLinks: Array.isArray(insights.highStrengthLinks)
+        ? insights.highStrengthLinks
+        : Array.isArray(insights.strongest_links)
+          ? insights.strongest_links
+          : [],
+      orphanCandidates: Array.isArray(insights.orphanCandidates)
+        ? insights.orphanCandidates
+        : Array.isArray(insights.orphan_candidates)
+          ? insights.orphan_candidates
+          : [],
+    },
+  };
+}
+
+function normalizeGraphName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getLinkEndpointId(endpoint) {
+  if (!endpoint) return "";
+  if (typeof endpoint === "string") return endpoint;
+  return endpoint.id || "";
+}
+
+function getRelationshipNodeMatch(candidate, graph) {
+  if (!candidate || !graph?.nodes?.length) return null;
+
+  const candidateId = String(candidate.id || "");
+  const fecId = String(candidate.fec_candidate_id || "").toLowerCase();
+  const candidateName = normalizeGraphName(normalizeCandidateName(candidate));
+
+  return (
+    graph.nodes.find((node) => {
+      if (node.type !== "candidate") return false;
+      const raw = node.raw || {};
+      return (
+        String(node.source_id || "") === candidateId ||
+        String(raw.id || "") === candidateId ||
+        String(raw.fec_candidate_id || "").toLowerCase() === fecId ||
+        normalizeGraphName(node.label) === candidateName ||
+        normalizeGraphName(raw.full_name || raw.name) === candidateName
+      );
+    }) || null
+  );
+}
+
+function getRelationshipConnections(node, graph) {
+  if (!node?.id || !graph?.links?.length) return [];
+
+  const nodesById = new Map((graph.nodes || []).map((item) => [item.id, item]));
+
+  return graph.links
+    .filter((link) => {
+      const source = getLinkEndpointId(link.source);
+      const target = getLinkEndpointId(link.target);
+      return source === node.id || target === node.id;
+    })
+    .map((link) => {
+      const source = getLinkEndpointId(link.source);
+      const target = getLinkEndpointId(link.target);
+      const otherId = source === node.id ? target : source;
+      const otherNode = nodesById.get(otherId);
+
+      return {
+        ...link,
+        otherId,
+        otherNode,
+      };
+    })
+    .sort((a, b) => Number(b.strength || 0) - Number(a.strength || 0));
+}
+
+function relationshipTypeTone(type) {
+  if (type === "consultant") return "active";
+  if (type === "donor") return "warning";
+  if (type === "candidate") return "accent";
+  return "default";
+}
+
+function RelationshipIntelligenceCard({ candidate, graph, loading, onOpenGraph, onOpenConsultants }) {
+  const matchedNode = useMemo(() => getRelationshipNodeMatch(candidate, graph), [candidate, graph]);
+  const connections = useMemo(() => getRelationshipConnections(matchedNode, graph), [matchedNode, graph]);
+
+  const consultantConnections = connections.filter((item) => item.otherNode?.type === "consultant");
+  const donorConnections = connections.filter((item) => item.otherNode?.type === "donor");
+  const topConnections = connections.slice(0, 6);
+  const influence = Number(matchedNode?.influence || 0);
+
+  return (
+    <SectionCard
+      title="Relationship Intelligence"
+      subtitle="Candidate-level donor, consultant, and influence-path intelligence from the live relationship graph."
+      right={
+        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Badge tone={matchedNode ? getConfidenceTone(influence / 100) : "default"}>
+            {loading ? "Loading Graph" : matchedNode ? "Graph Matched" : "No Match Yet"}
+          </Badge>
+          <button type="button" className="vs-button vs-button-secondary" onClick={onOpenGraph}>
+            Open Relationship Graph
+          </button>
+        </div>
+      }
+    >
+      {loading ? (
+        <EmptyState text="Loading relationship intelligence for this candidate..." />
+      ) : !matchedNode ? (
+        <div className="vs-stack">
+          <EmptyState text="No relationship graph node matched this candidate yet. Run the relationship graph after candidate/contact enrichment to expand coverage." />
+          <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="vs-button" onClick={onOpenGraph}>
+              Analyze Full Network
+            </button>
+            <button type="button" className="vs-button vs-button-secondary" onClick={onOpenConsultants}>
+              Find Consultant Matches
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="vs-stack">
+          <div className="vs-grid-4">
+            <StatCard label="Influence Score" value={influence} subtext="Graph priority" />
+            <StatCard label="Connections" value={connections.length} subtext="Weighted paths" />
+            <StatCard label="Consultants" value={consultantConnections.length} subtext="Strategist links" />
+            <StatCard label="Donors" value={donorConnections.length} subtext="Funding links" />
+          </div>
+
+          <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 10 }}>
+            <div className="vs-stat-label">Strategic Influence Summary</div>
+            <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.55 }}>
+              {connections.length
+                ? `${normalizeCandidateName(candidate)} has ${connections.length} mapped relationship path${connections.length === 1 ? "" : "s"}, including ${consultantConnections.length} consultant connection${consultantConnections.length === 1 ? "" : "s"} and ${donorConnections.length} donor connection${donorConnections.length === 1 ? "" : "s"}. Use this profile as an anchor for consultant matching, donor outreach, and coalition analysis.`
+                : `${normalizeCandidateName(candidate)} is matched in the relationship graph, but no strong consultant or donor paths were detected yet. Prioritize enrichment and consultant discovery.`}
+            </div>
+          </div>
+
+          {topConnections.length ? (
+            <div className="vs-grid-2">
+              {topConnections.map((connection, index) => (
+                <div key={`${connection.otherId}-${index}`} className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <strong style={{ color: "var(--vs-text)", lineHeight: 1.3 }}>
+                      {connection.otherNode?.label || connection.otherId || "Relationship Node"}
+                    </strong>
+                    <Badge tone={relationshipTypeTone(connection.otherNode?.type)}>
+                      {connection.otherNode?.type || "Connection"}
+                    </Badge>
+                  </div>
+
+                  <div style={{ color: "var(--vs-text-muted)", fontSize: 13, lineHeight: 1.45 }}>
+                    {connection.otherNode?.subtitle || connection.label || "Strategic relationship identified in graph intelligence."}
+                  </div>
+
+                  <div className="vs-chip-row">
+                    <Badge tone="info">{connection.label || "Relationship"}</Badge>
+                    <Badge tone={getConfidenceTone(Number(connection.strength || 0) / 100)}>
+                      Strength {connection.strength || 0}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="vs-button" onClick={onOpenGraph}>
+              Analyze Full Network
+            </button>
+            <button type="button" className="vs-button vs-button-secondary" onClick={onOpenConsultants}>
+              Find Consultant Matches
+            </button>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 export default function Candidates() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -453,7 +563,7 @@ export default function Candidates() {
     q: searchParams.get("q") || "",
     state: searchParams.get("state") || "",
     office: searchParams.get("office") || "",
-    party: searchParams.get("party") || "",
+    party: searchParams.get("party") || ""
   };
 
   const targetCandidateName = searchParams.get("candidate") || "";
@@ -462,12 +572,8 @@ export default function Candidates() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadingIntel, setLoadingIntel] = useState(true);
-  const [loadingCoverage, setLoadingCoverage] = useState(true);
-
   const [refreshingProfile, setRefreshingProfile] = useState(false);
   const [refreshingAll, setRefreshingAll] = useState(false);
-  const [syncingFec, setSyncingFec] = useState(false);
-
   const [savingLocks, setSavingLocks] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingVerification, setSavingVerification] = useState(false);
@@ -477,14 +583,11 @@ export default function Candidates() {
 
   const [listError, setListError] = useState("");
   const [detailError, setDetailError] = useState("");
-  const [coverageError, setCoverageError] = useState("");
-  const [coverageMessage, setCoverageMessage] = useState("");
   const [lockMessage, setLockMessage] = useState("");
   const [profileMessage, setProfileMessage] = useState("");
   const [verificationMessage, setVerificationMessage] = useState("");
 
   const [data, setData] = useState(fallbackListData);
-  const [coverage, setCoverage] = useState(fallbackCoverage);
   const [candidateIntel, setCandidateIntel] = useState({ summary: {}, results: [], heat_map: {} });
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(fallbackDetail);
@@ -500,26 +603,6 @@ export default function Candidates() {
 
   const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
 
-  async function loadCoverage() {
-    try {
-      setLoadingCoverage(true);
-      setCoverageError("");
-
-      const payload = api.candidateEnrichmentStatus
-        ? await api.candidateEnrichmentStatus(filters)
-        : api.candidateContactCoverage
-          ? await api.candidateContactCoverage(filters)
-          : await api.get("/candidates/enrichment-status", { params: filters }).then((r) => r.data);
-
-      setCoverage(normalizeCoveragePayload(payload));
-    } catch (err) {
-      setCoverageError(err?.response?.data?.error || err?.message || "Failed to load candidate coverage.");
-      setCoverage(fallbackCoverage);
-    } finally {
-      setLoadingCoverage(false);
-    }
-  }
-
   useEffect(() => {
     let active = true;
 
@@ -528,7 +611,7 @@ export default function Candidates() {
         const [statesRes, officesRes, partiesRes] = await Promise.all([
           api.candidateStates ? api.candidateStates() : api.get("/candidates/states").then((r) => r.data),
           api.candidateOffices ? api.candidateOffices() : api.get("/candidates/offices").then((r) => r.data),
-          api.candidateParties ? api.candidateParties() : api.get("/candidates/parties").then((r) => r.data),
+          api.candidateParties ? api.candidateParties() : api.get("/candidates/parties").then((r) => r.data)
         ]);
 
         if (!active) return;
@@ -549,10 +632,6 @@ export default function Candidates() {
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    loadCoverage();
-  }, [filters]);
 
   useEffect(() => {
     let active = true;
@@ -580,6 +659,47 @@ export default function Candidates() {
       active = false;
     };
   }, [filters]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRelationshipGraph() {
+      if (demoMode) {
+        setRelationshipGraph({ nodes: [], links: [], insights: {}, counts: {} });
+        setLoadingRelationshipGraph(false);
+        return;
+      }
+
+      try {
+        setLoadingRelationshipGraph(true);
+
+        const params = {
+          state: filters.state || undefined,
+          party: filters.party || undefined,
+          office: filters.office || undefined,
+          limit: 120,
+        };
+
+        const payload = api.relationshipGraph
+          ? await api.relationshipGraph(params)
+          : await api.get("/relationships/graph", { params }).then((response) => response.data);
+
+        if (!active) return;
+        setRelationshipGraph(normalizeRelationshipGraphPayload(payload));
+      } catch {
+        if (!active) return;
+        setRelationshipGraph({ nodes: [], links: [], insights: {}, counts: {} });
+      } finally {
+        if (active) setLoadingRelationshipGraph(false);
+      }
+    }
+
+    loadRelationshipGraph();
+
+    return () => {
+      active = false;
+    };
+  }, [demoMode, filters.state, filters.party, filters.office]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -671,24 +791,31 @@ export default function Candidates() {
         const profile = normalized?.profile || {};
         setLockDraft({
           admin_locked: Boolean(profile.admin_locked),
-          locked_fields: profile.locked_fields && typeof profile.locked_fields === "object" ? profile.locked_fields : {},
+          locked_fields: profile.locked_fields && typeof profile.locked_fields === "object" ? profile.locked_fields : {}
         });
 
         setEditDraft({
-          campaign_website: getContactValue(profile, normalized.candidate, "campaign_website", ["website", "campaign_website"]) || "",
-          official_website: getContactValue(profile, normalized.candidate, "official_website", ["official_website"]) || "",
+          campaign_website:
+            getContactValue(profile, normalized.candidate, "campaign_website", ["website", "campaign_website"]) || "",
+          official_website:
+            getContactValue(profile, normalized.candidate, "official_website", ["official_website"]) || "",
           phone: getContactValue(profile, normalized.candidate, "phone", ["phone"]) || "",
-          email: getContactValue(profile, normalized.candidate, "email", ["contact_email", "email", "press_email"]) || "",
-          office_address: getAddressValue(profile, normalized.candidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "",
-          campaign_address: getAddressValue(profile, normalized.candidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "",
-          press_contact_name: getContactValue(profile, normalized.candidate, "press_contact_name", ["press_contact_name"]) || "",
-          press_contact_email: getContactValue(profile, normalized.candidate, "press_contact_email", ["press_email", "contact_email"]) || "",
+          email:
+            getContactValue(profile, normalized.candidate, "email", ["contact_email", "email", "press_email"]) || "",
+          office_address:
+            getAddressValue(profile, normalized.candidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "",
+          campaign_address:
+            getAddressValue(profile, normalized.candidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "",
+          press_contact_name:
+            getContactValue(profile, normalized.candidate, "press_contact_name", ["press_contact_name"]) || "",
+          press_contact_email:
+            getContactValue(profile, normalized.candidate, "press_contact_email", ["press_email", "contact_email"]) || "",
         });
 
         setVerificationDraft({
           is_verified: Boolean(profile?.is_verified),
           verified_by: profile?.verified_by || "",
-          internal_notes: profile?.internal_notes || "",
+          internal_notes: profile?.internal_notes || ""
         });
       } catch (err) {
         if (!active) return;
@@ -731,7 +858,7 @@ export default function Candidates() {
       other_candidates: items.filter((c) => {
         const p = String(c.party || "").toLowerCase();
         return !p.includes("democratic") && !p.includes("republican");
-      }).length,
+      }).length
     };
   }, [candidates, data.total]);
 
@@ -755,8 +882,6 @@ export default function Candidates() {
       ? await api.candidateScoring(filters)
       : await api.get("/candidates/intelligence/scoring", { params: filters }).then((r) => r.data);
     setCandidateIntel(intel || { summary: {}, results: [], heat_map: {} });
-
-    await loadCoverage();
 
     if (selectedCandidateId) {
       const detailResponse = await api.get(`/candidates/${selectedCandidateId}`, { timeout: 10000 });
@@ -784,12 +909,12 @@ export default function Candidates() {
 
       setSelectedDetail({
         candidate: payload.candidate || detailCandidate || null,
-        profile: nextProfile,
+        profile: nextProfile
       });
 
       setLockDraft({
         admin_locked: Boolean(nextProfile?.admin_locked),
-        locked_fields: nextProfile?.locked_fields && typeof nextProfile.locked_fields === "object" ? nextProfile.locked_fields : {},
+        locked_fields: nextProfile?.locked_fields && typeof nextProfile.locked_fields === "object" ? nextProfile.locked_fields : {}
       });
 
       setEditDraft({
@@ -800,13 +925,13 @@ export default function Candidates() {
         office_address: nextProfile?.office_address || "",
         campaign_address: nextProfile?.campaign_address || "",
         press_contact_name: nextProfile?.press_contact_name || "",
-        press_contact_email: nextProfile?.press_contact_email || "",
+        press_contact_email: nextProfile?.press_contact_email || ""
       });
 
       setVerificationDraft({
         is_verified: Boolean(nextProfile?.is_verified),
         verified_by: nextProfile?.verified_by || "",
-        internal_notes: nextProfile?.internal_notes || "",
+        internal_notes: nextProfile?.internal_notes || ""
       });
 
       setEditingOverview(false);
@@ -824,31 +949,11 @@ export default function Candidates() {
     try {
       setRefreshingAll(true);
       setListError("");
-      setCoverageMessage("");
-
       if (api.refreshCandidateProfiles) {
-        await api.refreshCandidateProfiles({
-          limit: 100,
-          only_missing: true,
-          use_fec: true,
-          state: filters.state || null,
-          office: filters.office || null,
-        });
+        await api.refreshCandidateProfiles({ limit: 100 });
       } else {
-        await api.post(
-          "/candidates/refresh-profiles",
-          {
-            limit: 100,
-            only_missing: true,
-            use_fec: true,
-            state: filters.state || null,
-            office: filters.office || null,
-          },
-          { timeout: 90000 }
-        );
+        await api.post("/candidates/refresh-profiles", { limit: 100 }, { timeout: 90000 });
       }
-
-      setCoverageMessage("Missing candidate profiles refreshed.");
       await reloadListAndDetail();
     } catch (err) {
       setListError(err?.response?.data?.error || err?.message || "Failed to refresh live candidate feeds");
@@ -857,48 +962,13 @@ export default function Candidates() {
     }
   }
 
-  async function handleSyncFecCommitteeContacts() {
-    try {
-      setSyncingFec(true);
-      setCoverageError("");
-      setCoverageMessage("");
-
-      if (api.syncFecCommitteeContacts) {
-        await api.syncFecCommitteeContacts({
-          limit: 500,
-          offset: 0,
-          state: filters.state || null,
-          office: filters.office || null,
-        });
-      } else {
-        await api.post(
-          "/candidates/sync-fec-committee-contacts",
-          {
-            limit: 500,
-            offset: 0,
-            state: filters.state || null,
-            office: filters.office || null,
-          },
-          { timeout: 120000 }
-        );
-      }
-
-      setCoverageMessage("FEC committee contact sync completed.");
-      await reloadListAndDetail();
-    } catch (err) {
-      setCoverageError(err?.response?.data?.error || err?.message || "Failed to sync FEC committee contacts.");
-    } finally {
-      setSyncingFec(false);
-    }
-  }
-
   function toggleLockedField(fieldKey) {
     setLockDraft((prev) => ({
       ...prev,
       locked_fields: {
         ...prev.locked_fields,
-        [fieldKey]: !prev.locked_fields?.[fieldKey],
-      },
+        [fieldKey]: !prev.locked_fields?.[fieldKey]
+      }
     }));
   }
 
@@ -910,14 +980,10 @@ export default function Candidates() {
       setDetailError("");
       setLockMessage("");
 
-      const response = await api.patch(
-        `/candidates/${selectedCandidateId}/profile-locks`,
-        {
-          admin_locked: lockDraft.admin_locked,
-          locked_fields: lockDraft.locked_fields,
-        },
-        { timeout: 15000 }
-      );
+      const response = await api.patch(`/candidates/${selectedCandidateId}/profile-locks`, {
+        admin_locked: lockDraft.admin_locked,
+        locked_fields: lockDraft.locked_fields
+      }, { timeout: 15000 });
 
       const nextProfile = response?.data?.profile || response?.data || null;
       setSelectedDetail((prev) => ({ candidate: prev.candidate, profile: nextProfile }));
@@ -932,20 +998,27 @@ export default function Candidates() {
   function resetOverviewDraft() {
     setEditDraft((prev) => ({
       ...prev,
-      campaign_website: getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]) || "",
-      official_website: getContactValue(profile, detailCandidate, "official_website", ["official_website"]) || "",
+      campaign_website:
+        getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]) || "",
+      official_website:
+        getContactValue(profile, detailCandidate, "official_website", ["official_website"]) || "",
       phone: getContactValue(profile, detailCandidate, "phone", ["phone"]) || "",
-      email: getContactValue(profile, detailCandidate, "email", ["contact_email", "email", "press_email"]) || "",
+      email:
+        getContactValue(profile, detailCandidate, "email", ["contact_email", "email", "press_email"]) || ""
     }));
   }
 
   function resetContactDraft() {
     setEditDraft((prev) => ({
       ...prev,
-      office_address: getAddressValue(profile, detailCandidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "",
-      campaign_address: getAddressValue(profile, detailCandidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "",
-      press_contact_name: getContactValue(profile, detailCandidate, "press_contact_name", ["press_contact_name"]) || "",
-      press_contact_email: getContactValue(profile, detailCandidate, "press_contact_email", ["press_email", "contact_email"]) || "",
+      office_address:
+        getAddressValue(profile, detailCandidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "",
+      campaign_address:
+        getAddressValue(profile, detailCandidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "",
+      press_contact_name:
+        getContactValue(profile, detailCandidate, "press_contact_name", ["press_contact_name"]) || "",
+      press_contact_email:
+        getContactValue(profile, detailCandidate, "press_contact_email", ["press_email", "contact_email"]) || ""
     }));
   }
 
@@ -968,7 +1041,7 @@ export default function Candidates() {
 
       setSelectedDetail({
         candidate: payload.candidate || detailCandidate || null,
-        profile: nextProfile,
+        profile: nextProfile
       });
 
       setProfileMessage(lockEditedFieldsOnSave ? "Profile changes saved and edited fields locked." : "Profile changes saved.");
@@ -990,15 +1063,11 @@ export default function Candidates() {
       setDetailError("");
       setVerificationMessage("");
 
-      const response = await api.patch(
-        `/candidates/${selectedCandidateId}/verification`,
-        {
-          is_verified: verificationDraft.is_verified,
-          verified_by: verificationDraft.verified_by,
-          internal_notes: verificationDraft.internal_notes,
-        },
-        { timeout: 15000 }
-      );
+      const response = await api.patch(`/candidates/${selectedCandidateId}/verification`, {
+        is_verified: verificationDraft.is_verified,
+        verified_by: verificationDraft.verified_by,
+        internal_notes: verificationDraft.internal_notes
+      }, { timeout: 15000 });
 
       const nextProfile = response?.data?.profile || response?.data || null;
       setSelectedDetail((prev) => ({ candidate: prev.candidate || detailCandidate, profile: nextProfile }));
@@ -1018,8 +1087,6 @@ export default function Candidates() {
     setSearchParams(next, { replace: true });
   }
 
-  const totalCoverage = Number(coverage.total_candidates || coverage.total || 0);
-
   return (
     <PageShell
       eyebrow="Candidate Intelligence"
@@ -1036,57 +1103,13 @@ export default function Candidates() {
       ) : null}
 
       {listError ? <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>{listError}</div> : null}
-      {coverageError ? <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>{coverageError}</div> : null}
-      {coverageMessage ? <div className="vs-banner" style={{ borderColor: "#bbf7d0", background: "#f0fdf4", color: "#166534" }}>{coverageMessage}</div> : null}
 
       <div className="vs-grid-4">
         <StatCard label="Visible Candidates" value={summary.total_candidates || 0} subtext="Current filtered records" />
         <StatCard label="Tier 1 Intel" value={candidateIntel?.summary?.tier1 || 0} subtext="Highest intelligence readiness" />
         <StatCard label="Elevated Risk" value={candidateIntel?.summary?.elevated || 0} subtext="Missing or incomplete records" />
-        <StatCard label="Verified" value={candidateIntel?.summary?.verified || coverage.verified || 0} subtext="Analyst-reviewed profiles" />
+        <StatCard label="Verified" value={candidateIntel?.summary?.verified || 0} subtext="Analyst-reviewed profiles" />
       </div>
-
-      <SectionCard
-        title="Candidate Coverage Dashboard"
-        subtitle="Track imported contact intelligence, FEC committee coverage, discovery gaps, and refresh controls."
-        right={
-          <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Badge tone={loadingCoverage ? "warning" : "active"}>
-              {loadingCoverage ? "Loading Coverage" : "Coverage Live"}
-            </Badge>
-            <button type="button" className="vs-button vs-button-secondary" onClick={loadCoverage} disabled={loadingCoverage}>
-              Refresh Coverage
-            </button>
-            <button type="button" className="vs-button vs-button-secondary" onClick={handleSyncFecCommitteeContacts} disabled={syncingFec}>
-              {syncingFec ? "Syncing FEC..." : "FEC Committee Sync"}
-            </button>
-            <button type="button" className="vs-button" onClick={handleRefreshAllProfiles} disabled={refreshingAll}>
-              {refreshingAll ? "Refreshing Missing..." : "Refresh Missing Contacts"}
-            </button>
-          </div>
-        }
-      >
-        <div className="vs-grid-4">
-          <StatCard label="Total Candidates" value={totalCoverage || summary.total_candidates || 0} subtext="Coverage universe" />
-          <StatCard label="FEC Committee" value={coverage.fec_committee || 0} subtext={`${formatPercent(coverage.fec_committee, totalCoverage)} source coverage`} />
-          <StatCard label="Discovery Failed" value={coverage.discovery_failed || 0} subtext="Needs fallback source" />
-          <StatCard label="Avg Confidence" value={formatConfidence(coverage.avg_confidence)} subtext={`Last sync ${formatDateTime(coverage.last_sync_at)}`} />
-        </div>
-
-        <div className="vs-grid-4" style={{ marginTop: 14 }}>
-          <CoverageBar label="Email Coverage" value={coverage.with_email} total={totalCoverage} tone="active" />
-          <CoverageBar label="Phone Coverage" value={coverage.with_phone} total={totalCoverage} tone="info" />
-          <CoverageBar label="Website Coverage" value={coverage.with_website} total={totalCoverage} tone="warning" />
-          <CoverageBar label="Address Coverage" value={coverage.with_address} total={totalCoverage} tone="active" />
-        </div>
-
-        <div className="vs-grid-4" style={{ marginTop: 14 }}>
-          <StatCard label="Missing Email" value={coverage.missing_email || 0} subtext="Needs enrichment" />
-          <StatCard label="Missing Phone" value={coverage.missing_phone || 0} subtext="Needs enrichment" />
-          <StatCard label="Missing Website" value={coverage.missing_website || 0} subtext="Needs discovery" />
-          <StatCard label="Missing Address" value={coverage.missing_address || 0} subtext="Needs committee/contact source" />
-        </div>
-      </SectionCard>
 
       <SectionCard title="Command Filters" subtitle="Drive candidate intelligence by state, office, party, or direct search.">
         <div className="vs-grid-4">
@@ -1202,74 +1225,30 @@ export default function Candidates() {
                     <MetricChip label="Staff" active={health.hasStaff} />
                   </div>
 
-              <SectionCard
-  title="Relationship Intelligence"
-  subtitle="Candidate-level donor, consultant, and influence-path intelligence from the live relationship graph."
-  right={
-    <button
-      type="button"
-      className="vs-button vs-button-secondary"
-      onClick={() =>
-        navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)
-      }
-    >
-      Open Relationship Graph
-    </button>
-  }
->
-  <div className="vs-grid-4">
-    <StatCard
-      label="Influence Score"
-      value={selectedIntel?.relationship_influence_score || 0}
-      subtext="Graph priority"
-    />
-    <StatCard
-      label="Connections"
-      value={selectedIntel?.relationship_connections || 0}
-      subtext="Weighted paths"
-    />
-    <StatCard
-      label="Consultants"
-      value={selectedIntel?.consultant_connections || 0}
-      subtext="Strategist links"
-    />
-    <StatCard
-      label="Donors"
-      value={selectedIntel?.donor_connections || 0}
-      subtext="Funding links"
-    />
-  </div>
+                  {selectedIntel?.recommended_actions?.length ? (
+                    <div className="vs-stack" style={{ marginTop: 12 }}>
+                      {selectedIntel.recommended_actions.map((action, index) => (
+                        <div key={`${action}-${index}`} className="vs-banner" style={{ margin: 0 }}>
+                          {action}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </SectionCard>
 
-  <div className="vs-card-muted" style={{ marginTop: 14, padding: 16 }}>
-    <div className="vs-stat-label">Strategic Influence Summary</div>
-    <div style={{ marginTop: 6, color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.55 }}>
-      {selectedIntel?.relationship_summary ||
-        "Relationship intelligence is building for this candidate. Donor, consultant, PAC, and organizational links will appear as graph coverage expands."}
-    </div>
-  </div>
 
-  <div className="vs-inline-actions" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-    <button
-      type="button"
-      className="vs-button"
-      onClick={() =>
-        navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)
-      }
-    >
-      Analyze Full Network
-    </button>
+                <RelationshipIntelligenceCard
+                  candidate={detailCandidate}
+                  graph={relationshipGraph}
+                  loading={loadingRelationshipGraph}
+                  onOpenGraph={() =>
+                    navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)
+                  }
+                  onOpenConsultants={() =>
+                    navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)
+                  }
+                />
 
-    <button
-      type="button"
-      className="vs-button vs-button-secondary"
-      onClick={() =>
-        navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)
-      }
-    >
-      Find Consultant Matches
-    </button>
-  </div>
-</SectionCard>
                 <SectionCard
                   title="Overview"
                   subtitle="Command fields for direct campaign communication."
@@ -1293,16 +1272,38 @@ export default function Candidates() {
                       <>
                         <DetailField
                           label="Campaign Website"
-                          value={getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]) || "N/A"}
-                          href={safeUrl(getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]))}
+                          value={
+                            getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"]) ||
+                            "N/A"
+                          }
+                          href={safeUrl(
+                            getContactValue(profile, detailCandidate, "campaign_website", ["website", "campaign_website"])
+                          )}
                         />
                         <DetailField
                           label="Official Website"
-                          value={getContactValue(profile, detailCandidate, "official_website", ["official_website"]) || "N/A"}
-                          href={safeUrl(getContactValue(profile, detailCandidate, "official_website", ["official_website"]))}
+                          value={
+                            getContactValue(profile, detailCandidate, "official_website", ["official_website"]) ||
+                            "N/A"
+                          }
+                          href={safeUrl(
+                            getContactValue(profile, detailCandidate, "official_website", ["official_website"])
+                          )}
                         />
-                        <DetailField label="Phone" value={getContactValue(profile, detailCandidate, "phone", ["phone"]) || "N/A"} />
-                        <DetailField label="Email" value={getContactValue(profile, detailCandidate, "email", ["contact_email", "email", "press_email"]) || "N/A"} />
+                        <DetailField
+                          label="Phone"
+                          value={getContactValue(profile, detailCandidate, "phone", ["phone"]) || "N/A"}
+                        />
+                        <DetailField
+                          label="Email"
+                          value={
+                            getContactValue(profile, detailCandidate, "email", [
+                              "contact_email",
+                              "email",
+                              "press_email",
+                            ]) || "N/A"
+                          }
+                        />
                       </>
                     )}
                   </div>
@@ -1329,10 +1330,43 @@ export default function Candidates() {
                       ))
                     ) : (
                       <>
-                        <DetailField label="Office Address" value={getAddressValue(profile, detailCandidate, "office_address", ["office_address", "campaign_address", "address_line1"]) || "N/A"} />
-                        <DetailField label="Campaign Address" value={getAddressValue(profile, detailCandidate, "campaign_address", ["campaign_address", "office_address", "address_line1"]) || "N/A"} />
-                        <DetailField label="Press Contact" value={getContactValue(profile, detailCandidate, "press_contact_name", ["press_contact_name"]) || "N/A"} />
-                        <DetailField label="Press Contact Email" value={getContactValue(profile, detailCandidate, "press_contact_email", ["press_email", "contact_email"]) || "N/A"} />
+                        <DetailField
+                          label="Office Address"
+                          value={
+                            getAddressValue(profile, detailCandidate, "office_address", [
+                              "office_address",
+                              "campaign_address",
+                              "address_line1",
+                            ]) || "N/A"
+                          }
+                        />
+                        <DetailField
+                          label="Campaign Address"
+                          value={
+                            getAddressValue(profile, detailCandidate, "campaign_address", [
+                              "campaign_address",
+                              "office_address",
+                              "address_line1",
+                            ]) || "N/A"
+                          }
+                        />
+                        <DetailField
+                          label="Press Contact"
+                          value={
+                            getContactValue(profile, detailCandidate, "press_contact_name", [
+                              "press_contact_name",
+                            ]) || "N/A"
+                          }
+                        />
+                        <DetailField
+                          label="Press Contact Email"
+                          value={
+                            getContactValue(profile, detailCandidate, "press_contact_email", [
+                              "press_email",
+                              "contact_email",
+                            ]) || "N/A"
+                          }
+                        />
                       </>
                     )}
                   </div>
