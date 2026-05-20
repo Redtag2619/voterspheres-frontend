@@ -43,6 +43,8 @@ const Signup = lazy(() => import("./pages/Signup.jsx"));
 const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard.jsx"));
 const EnterpriseLeadIntake = lazy(() =>import("./pages/EnterpriseLeadIntake.jsx"));
 const CampaignOpportunityHeatmap = lazy(() => import("./pages/CampaignOpportunityHeatmap.jsx"));
+const ConsultantIntel = lazy(() => import("./pages/ConsultantIntel"));
+const ConsultantProfile = lazy(() => import("./pages/ConsultantProfile"));
 
 function LoadingScreen() {
   return (
@@ -200,6 +202,8 @@ function AppRoutes() {
               <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
+              <Route path="/consultant-intel" element={<ConsultantIntel />} />
+              <Route path="/consultants/:id" element={<ConsultantProfile />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}>
