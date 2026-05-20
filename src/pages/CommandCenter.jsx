@@ -14,6 +14,7 @@ import useLiveChannel from "../hooks/useLiveChannel";
 import useRealtimeStream from "../hooks/useRealtimeStream";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
+import ConsultantCommandPanel from "../components/consultants/ConsultantCommandPanel";
 
 const fallbackData = {
   metrics: [
@@ -2145,6 +2146,15 @@ export default function CommandCenter() {
               />
             ))
           )}
+        </div>
+      
+      </SectionCard> 
+         title="Consultant Intelligence" 
+         subtitle="National consultant rankings, opposition exposure, and battleground consultant pressure." 
+         right={<a className="vs-button vs-button-secondary" href="/consultant-intel">Open Consultant Intel</a>}
+      >
+        <div className="vs-banner">
+          Consultant intelligence is now powered by live FEC disbursement ingestion and consultant-candidate relationship mapping.
         </div>
       </SectionCard>
 
