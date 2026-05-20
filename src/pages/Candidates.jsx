@@ -359,92 +359,81 @@ function CandidateListRow({ candidate, isActive, onSelect, targetMatch, verified
   );
 }
 
-
 function normalizeRelationshipGraphPayload(payload) {
   const graph = payload?.graph || payload || {};
-  const insights = graph.insights || {};
 
   return {
     nodes: Array.isArray(graph.nodes) ? graph.nodes : [],
     links: Array.isArray(graph.links) ? graph.links : [],
+    insights: graph.insights || {},
     counts: graph.counts || {},
-    insights: {
-      summary: Array.isArray(insights.summary) ? insights.summary : [],
-      topInfluencers: Array.isArray(insights.topInfluencers)
-        ? insights.topInfluencers
-        : Array.isArray(insights.top_influencers)
-          ? insights.top_influencers
-          : [],
-      highStrengthLinks: Array.isArray(insights.highStrengthLinks)
-        ? insights.highStrengthLinks
-        : Array.isArray(insights.strongest_links)
-          ? insights.strongest_links
-          : [],
-      orphanCandidates: Array.isArray(insights.orphanCandidates)
-        ? insights.orphanCandidates
-        : Array.isArray(insights.orphan_candidates)
-          ? insights.orphan_candidates
-          : [],
-    },
   };
 }
 
-function normalizeGraphName(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function getLinkEndpointId(endpoint) {
+function getRelationshipEndpointId(endpoint) {
   if (!endpoint) return "";
   if (typeof endpoint === "string") return endpoint;
   return endpoint.id || "";
 }
 
-function getRelationshipNodeMatch(candidate, graph) {
-  if (!candidate || !graph?.nodes?.length) return null;
+function normalizeGraphName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSelectedRelationshipNode(graph, candidate, selectedName) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  if (!candidate || !nodes.length) return null;
 
   const candidateId = String(candidate.id || "");
-  const fecId = String(candidate.fec_candidate_id || "").toLowerCase();
-  const candidateName = normalizeGraphName(normalizeCandidateName(candidate));
+  const fecId = String(candidate.fec_candidate_id || candidate.fec_id || "");
+  const name = normalizeGraphName(selectedName || normalizeCandidateName(candidate));
 
   return (
-    graph.nodes.find((node) => {
-      if (node.type !== "candidate") return false;
+    nodes.find((node) => {
       const raw = node.raw || {};
+      const nodeSourceId = String(node.source_id || node.sourceId || raw.id || "");
+      const nodeFecId = String(raw.fec_candidate_id || node.fec_candidate_id || "");
+
       return (
-        String(node.source_id || "") === candidateId ||
-        String(raw.id || "") === candidateId ||
-        String(raw.fec_candidate_id || "").toLowerCase() === fecId ||
-        normalizeGraphName(node.label) === candidateName ||
-        normalizeGraphName(raw.full_name || raw.name) === candidateName
+        node.type === "candidate" &&
+        ((candidateId && nodeSourceId === candidateId) ||
+          (fecId && nodeFecId === fecId))
       );
-    }) || null
+    }) ||
+    nodes.find((node) => {
+      if (node.type !== "candidate") return false;
+      const nodeName = normalizeGraphName(node.label || node.raw?.full_name || node.raw?.name);
+      return Boolean(name && nodeName && (nodeName === name || nodeName.includes(name) || name.includes(nodeName)));
+    }) ||
+    null
   );
 }
 
-function getRelationshipConnections(node, graph) {
-  if (!node?.id || !graph?.links?.length) return [];
+function getRelationshipConnections(graph, node) {
+  if (!node?.id) return [];
 
-  const nodesById = new Map((graph.nodes || []).map((item) => [item.id, item]));
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const links = Array.isArray(graph?.links) ? graph.links : [];
+  const nodeById = new Map(nodes.map((item) => [item.id, item]));
 
-  return graph.links
+  return links
     .filter((link) => {
-      const source = getLinkEndpointId(link.source);
-      const target = getLinkEndpointId(link.target);
+      const source = getRelationshipEndpointId(link.source);
+      const target = getRelationshipEndpointId(link.target);
       return source === node.id || target === node.id;
     })
     .map((link) => {
-      const source = getLinkEndpointId(link.source);
-      const target = getLinkEndpointId(link.target);
+      const source = getRelationshipEndpointId(link.source);
+      const target = getRelationshipEndpointId(link.target);
       const otherId = source === node.id ? target : source;
-      const otherNode = nodesById.get(otherId);
-
       return {
         ...link,
         otherId,
-        otherNode,
+        otherNode: nodeById.get(otherId) || null,
       };
     })
     .sort((a, b) => Number(b.strength || 0) - Number(a.strength || 0));
@@ -454,17 +443,24 @@ function relationshipTypeTone(type) {
   if (type === "consultant") return "active";
   if (type === "donor") return "warning";
   if (type === "candidate") return "accent";
-  return "default";
+  return "info";
 }
 
-function RelationshipIntelligenceCard({ candidate, graph, loading, onOpenGraph, onOpenConsultants }) {
-  const matchedNode = useMemo(() => getRelationshipNodeMatch(candidate, graph), [candidate, graph]);
-  const connections = useMemo(() => getRelationshipConnections(matchedNode, graph), [matchedNode, graph]);
-
+function RelationshipIntelligenceCard({
+  graph,
+  loading,
+  error,
+  candidate,
+  selectedName,
+  relationshipNode,
+  connections,
+  onOpenGraph,
+  onOpenConsultants,
+}) {
   const consultantConnections = connections.filter((item) => item.otherNode?.type === "consultant");
   const donorConnections = connections.filter((item) => item.otherNode?.type === "donor");
-  const topConnections = connections.slice(0, 6);
-  const influence = Number(matchedNode?.influence || 0);
+  const strongest = connections.slice(0, 4);
+  const influence = relationshipNode?.influence || 0;
 
   return (
     <SectionCard
@@ -472,8 +468,8 @@ function RelationshipIntelligenceCard({ candidate, graph, loading, onOpenGraph, 
       subtitle="Candidate-level donor, consultant, and influence-path intelligence from the live relationship graph."
       right={
         <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Badge tone={matchedNode ? getConfidenceTone(influence / 100) : "default"}>
-            {loading ? "Loading Graph" : matchedNode ? "Graph Matched" : "No Match Yet"}
+          <Badge tone={loading ? "warning" : relationshipNode ? "active" : "default"}>
+            {loading ? "Loading Graph" : relationshipNode ? "Graph Matched" : "No Match Yet"}
           </Badge>
           <button type="button" className="vs-button vs-button-secondary" onClick={onOpenGraph}>
             Open Relationship Graph
@@ -481,76 +477,64 @@ function RelationshipIntelligenceCard({ candidate, graph, loading, onOpenGraph, 
         </div>
       }
     >
-      {loading ? (
-        <EmptyState text="Loading relationship intelligence for this candidate..." />
-      ) : !matchedNode ? (
-        <div className="vs-stack">
-          <EmptyState text="No relationship graph node matched this candidate yet. Run the relationship graph after candidate/contact enrichment to expand coverage." />
-          <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="vs-button" onClick={onOpenGraph}>
-              Analyze Full Network
-            </button>
-            <button type="button" className="vs-button vs-button-secondary" onClick={onOpenConsultants}>
-              Find Consultant Matches
-            </button>
-          </div>
+      {error ? (
+        <div className="vs-banner" style={{ borderColor: "#fde68a", background: "#fffbeb", color: "#92400e", marginBottom: 12 }}>
+          {error}
         </div>
-      ) : (
-        <div className="vs-stack">
-          <div className="vs-grid-4">
-            <StatCard label="Influence Score" value={influence} subtext="Graph priority" />
-            <StatCard label="Connections" value={connections.length} subtext="Weighted paths" />
-            <StatCard label="Consultants" value={consultantConnections.length} subtext="Strategist links" />
-            <StatCard label="Donors" value={donorConnections.length} subtext="Funding links" />
-          </div>
+      ) : null}
 
-          <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 10 }}>
-            <div className="vs-stat-label">Strategic Influence Summary</div>
-            <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.55 }}>
-              {connections.length
-                ? `${normalizeCandidateName(candidate)} has ${connections.length} mapped relationship path${connections.length === 1 ? "" : "s"}, including ${consultantConnections.length} consultant connection${consultantConnections.length === 1 ? "" : "s"} and ${donorConnections.length} donor connection${donorConnections.length === 1 ? "" : "s"}. Use this profile as an anchor for consultant matching, donor outreach, and coalition analysis.`
-                : `${normalizeCandidateName(candidate)} is matched in the relationship graph, but no strong consultant or donor paths were detected yet. Prioritize enrichment and consultant discovery.`}
-            </div>
-          </div>
+      <div className="vs-grid-4">
+        <StatCard label="Influence Score" value={influence || "—"} subtext="Graph priority" />
+        <StatCard label="Connections" value={connections.length} subtext="Weighted paths" />
+        <StatCard label="Consultants" value={consultantConnections.length} subtext="Strategist links" />
+        <StatCard label="Donors" value={donorConnections.length} subtext="Funding links" />
+      </div>
 
-          {topConnections.length ? (
-            <div className="vs-grid-2">
-              {topConnections.map((connection, index) => (
-                <div key={`${connection.otherId}-${index}`} className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <strong style={{ color: "var(--vs-text)", lineHeight: 1.3 }}>
-                      {connection.otherNode?.label || connection.otherId || "Relationship Node"}
-                    </strong>
-                    <Badge tone={relationshipTypeTone(connection.otherNode?.type)}>
-                      {connection.otherNode?.type || "Connection"}
-                    </Badge>
-                  </div>
-
-                  <div style={{ color: "var(--vs-text-muted)", fontSize: 13, lineHeight: 1.45 }}>
-                    {connection.otherNode?.subtitle || connection.label || "Strategic relationship identified in graph intelligence."}
-                  </div>
-
-                  <div className="vs-chip-row">
-                    <Badge tone="info">{connection.label || "Relationship"}</Badge>
-                    <Badge tone={getConfidenceTone(Number(connection.strength || 0) / 100)}>
-                      Strength {connection.strength || 0}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="vs-button" onClick={onOpenGraph}>
-              Analyze Full Network
-            </button>
-            <button type="button" className="vs-button vs-button-secondary" onClick={onOpenConsultants}>
-              Find Consultant Matches
-            </button>
-          </div>
+      <div className="vs-card-muted" style={{ marginTop: 14, padding: 16, display: "grid", gap: 8 }}>
+        <div className="vs-stat-label">Strategic Influence Summary</div>
+        <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.55 }}>
+          {relationshipNode
+            ? `${selectedName || "This candidate"} is mapped into the live relationship graph with ${connections.length} weighted connection${connections.length === 1 ? "" : "s"}. Use this signal to identify consultant fit, donor proximity, and coalition coverage gaps.`
+            : loading
+              ? "Loading relationship graph intelligence for this candidate."
+              : "Relationship intelligence is building for this candidate. Donor, consultant, PAC, and organizational links will appear as graph coverage expands."}
         </div>
-      )}
+      </div>
+
+      {strongest.length ? (
+        <div className="vs-grid-2" style={{ marginTop: 14 }}>
+          {strongest.map((connection, index) => (
+            <div key={`${connection.otherId || index}-${connection.strength || 0}`} className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <strong style={{ color: "var(--vs-text)", wordBreak: "break-word" }}>
+                  {connection.otherNode?.label || connection.otherId || "Relationship"}
+                </strong>
+                <Badge tone={relationshipTypeTone(connection.otherNode?.type)}>
+                  {connection.otherNode?.type || "Connection"}
+                </Badge>
+              </div>
+              <div style={{ color: "var(--vs-text-muted)", fontSize: 13, lineHeight: 1.5 }}>
+                {connection.label || "Strategic relationship identified in graph intelligence."}
+              </div>
+              <div className="vs-chip-row">
+                <Badge tone="info">Strength {connection.strength || 0}</Badge>
+                <Badge tone={getConfidenceTone(Number(connection.strength || 0) / 100)}>
+                  {connection.type || "relationship"}
+                </Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="vs-inline-actions" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button type="button" className="vs-button" onClick={onOpenGraph}>
+          Analyze Full Network
+        </button>
+        <button type="button" className="vs-button vs-button-secondary" onClick={onOpenConsultants} disabled={!candidate?.state}>
+          Find Consultant Matches
+        </button>
+      </div>
     </SectionCard>
   );
 }
@@ -572,6 +556,9 @@ export default function Candidates() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadingIntel, setLoadingIntel] = useState(true);
+  const [relationshipGraph, setRelationshipGraph] = useState({ nodes: [], links: [], insights: {}, counts: {} });
+  const [loadingRelationshipGraph, setLoadingRelationshipGraph] = useState(false);
+  const [relationshipGraphError, setRelationshipGraphError] = useState("");
   const [refreshingProfile, setRefreshingProfile] = useState(false);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [savingLocks, setSavingLocks] = useState(false);
@@ -660,35 +647,33 @@ export default function Candidates() {
     };
   }, [filters]);
 
+
   useEffect(() => {
     let active = true;
 
     async function loadRelationshipGraph() {
-      if (demoMode) {
-        setRelationshipGraph({ nodes: [], links: [], insights: {}, counts: {} });
-        setLoadingRelationshipGraph(false);
-        return;
-      }
-
       try {
         setLoadingRelationshipGraph(true);
+        setRelationshipGraphError("");
 
         const params = {
+          limit: 100,
           state: filters.state || undefined,
           party: filters.party || undefined,
           office: filters.office || undefined,
-          limit: 120,
         };
 
         const payload = api.relationshipGraph
           ? await api.relationshipGraph(params)
-          : await api.get("/relationships/graph", { params }).then((response) => response.data);
+          : await api.get("/relationships/graph", { params }).then((r) => r.data);
 
         if (!active) return;
+
         setRelationshipGraph(normalizeRelationshipGraphPayload(payload));
-      } catch {
+      } catch (err) {
         if (!active) return;
         setRelationshipGraph({ nodes: [], links: [], insights: {}, counts: {} });
+        setRelationshipGraphError(err?.response?.data?.error || err?.message || "Relationship graph intelligence is unavailable.");
       } finally {
         if (active) setLoadingRelationshipGraph(false);
       }
@@ -699,7 +684,7 @@ export default function Candidates() {
     return () => {
       active = false;
     };
-  }, [demoMode, filters.state, filters.party, filters.office]);
+  }, [filters.state, filters.party, filters.office]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -868,6 +853,15 @@ export default function Candidates() {
   const scrapedPageCount = Array.isArray(profile?.scraped_pages) ? profile.scraped_pages.length : 0;
   const health = getProfileHealth(profile, detailCandidate);
   const commandSummary = buildCommandSummary(detailCandidate, profile, health);
+
+  const selectedRelationshipNode = useMemo(
+    () => getSelectedRelationshipNode(relationshipGraph, detailCandidate, selectedName),
+    [relationshipGraph, detailCandidate, selectedName]
+  );
+  const selectedRelationshipConnections = useMemo(
+    () => getRelationshipConnections(relationshipGraph, selectedRelationshipNode),
+    [relationshipGraph, selectedRelationshipNode]
+  );
 
   async function reloadListAndDetail() {
     const payload = api.candidates
@@ -1236,17 +1230,16 @@ export default function Candidates() {
                   ) : null}
                 </SectionCard>
 
-
                 <RelationshipIntelligenceCard
-                  candidate={detailCandidate}
                   graph={relationshipGraph}
                   loading={loadingRelationshipGraph}
-                  onOpenGraph={() =>
-                    navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)
-                  }
-                  onOpenConsultants={() =>
-                    navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)
-                  }
+                  error={relationshipGraphError}
+                  candidate={detailCandidate}
+                  selectedName={selectedName}
+                  relationshipNode={selectedRelationshipNode}
+                  connections={selectedRelationshipConnections}
+                  onOpenGraph={() => navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)}
+                  onOpenConsultants={() => navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)}
                 />
 
                 <SectionCard
