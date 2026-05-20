@@ -10,7 +10,8 @@ const primaryItems = [
   { label: "War Room", to: "/war-room" },
   { label: "Command", to: "/command-center" },
   { label: "Fundraising", to: "/fundraising" },
-  { label: "Vendors", to: "/vendors" }
+  { label: "Vendors", to: "/vendors" },
+  { label: "Consultant Intel", to: "/consultant-intel" }
 ];
 
 const secondaryItems = [
