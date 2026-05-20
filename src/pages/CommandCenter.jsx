@@ -2123,6 +2123,16 @@ export default function CommandCenter() {
           </div>
         ) : null}
       </SectionCard>
+      
+      <SectionCard
+        title="Consultant Intelligence"
+        subtitle="National consultant rankings, opposition exposure, and battleground consultant pressure."
+        right={<a className="vs-button vs-button-secondary" href="/consultant-intel">Open Consultant Intel</a>}
+      >
+        <div className="vs-banner">
+          Consultant intelligence is now powered by live FEC disbursement ingestion and consultant-candidate relationship mapping.
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Priority Battleground Board"
@@ -2148,17 +2158,7 @@ export default function CommandCenter() {
           )}
         </div>
       
-      </SectionCard> 
-         title="Consultant Intelligence" 
-         subtitle="National consultant rankings, opposition exposure, and battleground consultant pressure." 
-         right={<a className="vs-button vs-button-secondary" href="/consultant-intel">Open Consultant Intel</a>}
-      >
-        <div className="vs-banner">
-          Consultant intelligence is now powered by live FEC disbursement ingestion and consultant-candidate relationship mapping.
-        </div>
-      </SectionCard>
-
-      <div className="vs-grid-2">
+        <div className="vs-grid-2">
         <SectionCard title="War Room Feed" subtitle="Live risk, logistics, forecast, vendor, and alert signals entering the command feed.">
           <div className="vs-stack">
             {!demoMode && loading ? (
