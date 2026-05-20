@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
+import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -49,6 +50,19 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+function clean(value, fallback = "N/A") {
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value);
+}
+
+function safeUrl(value) {
+  if (!value) return "";
+  if (String(value).startsWith("http://") || String(value).startsWith("https://")) {
+    return value;
+  }
+  return `https://${value}`;
+}
+
 function getConfidenceTone(value) {
   const score = Number(value || 0);
   if (score >= 0.7) return "active";
@@ -56,9 +70,43 @@ function getConfidenceTone(value) {
   return "default";
 }
 
+function getTypeTone(type) {
+  if (type === "candidate") return "accent";
+  if (type === "consultant") return "active";
+  if (type === "donor") return "warning";
+  return "default";
+}
+
+function getInfluenceLabel(score) {
+  const next = safeNumber(score);
+  if (next >= 80) return "High Influence";
+  if (next >= 55) return "Medium Influence";
+  return "Emerging Signal";
+}
+
 function formatPercent(value) {
   const next = safeNumber(value, 0);
   return `${Math.round(next * 100)}%`;
+}
+
+function formatMoney(value) {
+  const amount = safeNumber(value, 0);
+
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${Math.round(amount / 1_000)}K`;
+
+  return `$${Math.round(amount).toLocaleString()}`;
+}
+
+function getRawAmount(raw = {}) {
+  return (
+    raw.total_amount ||
+    raw.amount ||
+    raw.contribution_amount ||
+    raw.total_contributions ||
+    raw.receipts ||
+    0
+  );
 }
 
 function normalizeGraphPayload(payload) {
@@ -95,6 +143,91 @@ function normalizeGraphPayload(payload) {
           : [],
     },
   };
+}
+
+function getLinkEndpointId(endpoint) {
+  if (!endpoint) return "";
+  if (typeof endpoint === "string") return endpoint;
+  return endpoint.id || "";
+}
+
+function getNodeConnections(node, graph) {
+  if (!node?.id) return [];
+
+  const nodesById = new Map((graph.nodes || []).map((item) => [item.id, item]));
+
+  return (graph.links || [])
+    .filter((link) => {
+      const source = getLinkEndpointId(link.source);
+      const target = getLinkEndpointId(link.target);
+      return source === node.id || target === node.id;
+    })
+    .map((link) => {
+      const source = getLinkEndpointId(link.source);
+      const target = getLinkEndpointId(link.target);
+      const otherId = source === node.id ? target : source;
+      const otherNode = nodesById.get(otherId);
+
+      return {
+        ...link,
+        otherNode,
+        otherId,
+      };
+    })
+    .sort((a, b) => safeNumber(b.strength) - safeNumber(a.strength));
+}
+
+function DetailRow({ label, value, href }) {
+  return (
+    <div
+      className="vs-card-muted"
+      style={{
+        padding: "10px 12px",
+        display: "grid",
+        gap: 4,
+      }}
+    >
+      <div className="vs-stat-label">{label}</div>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            color: "var(--vs-text)",
+            fontWeight: 800,
+            textDecoration: "none",
+            wordBreak: "break-word",
+          }}
+        >
+          {value || "N/A"}
+        </a>
+      ) : (
+        <div
+          style={{
+            color: "var(--vs-text)",
+            fontWeight: 800,
+            wordBreak: "break-word",
+          }}
+        >
+          {value || "N/A"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActionButton({ children, onClick, disabled, secondary = false }) {
+  return (
+    <button
+      type="button"
+      className={secondary ? "vs-button vs-button-secondary" : "vs-button"}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
 }
 
 function NodeLegend() {
@@ -310,7 +443,204 @@ function RelationshipGraphCanvas({ graph, selectedNode, onSelectNode }) {
   );
 }
 
-function SelectedNodePanel({ node }) {
+function CandidateNodeDetails({ node, navigate }) {
+  const raw = node.raw || {};
+  const website = safeUrl(raw.website || raw.campaign_website || raw.official_website);
+  const email = raw.contact_email || raw.email || raw.press_email || "";
+  const district = raw.district ? `District ${raw.district}` : "District N/A";
+
+  return (
+    <div className="vs-stack">
+      <div className="vs-grid-2">
+        <DetailRow label="FEC Candidate ID" value={raw.fec_candidate_id || node.source_id || "N/A"} />
+        <DetailRow label="Race" value={`${clean(raw.state || node.state)} • ${clean(raw.office)} • ${district}`} />
+        <DetailRow label="Party" value={raw.party || node.party || "N/A"} />
+        <DetailRow label="Incumbent" value={raw.incumbent ? "Yes" : "No"} />
+        <DetailRow label="Website" value={website || "N/A"} href={website || undefined} />
+        <DetailRow label="Primary Email" value={email || "N/A"} href={email ? `mailto:${email}` : undefined} />
+      </div>
+
+      <div
+        className="vs-card-muted"
+        style={{
+          padding: 14,
+          display: "grid",
+          gap: 8,
+        }}
+      >
+        <div className="vs-stat-label">Influence Explanation</div>
+        <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.45 }}>
+          This candidate’s score is driven by available contact intelligence, campaign website presence,
+          office/state metadata, party signal, FEC linkage, and relationship density across consultants and donors.
+        </div>
+      </div>
+
+      <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <ActionButton onClick={() => navigate(`/candidates?q=${encodeURIComponent(node.label || "")}`)}>
+          Open Candidate Profile
+        </ActionButton>
+        {website ? (
+          <ActionButton secondary onClick={() => window.open(website, "_blank", "noopener,noreferrer")}>
+            Open Website
+          </ActionButton>
+        ) : null}
+        {email ? (
+          <ActionButton secondary onClick={() => window.location.href = `mailto:${email}`}>
+            Email Campaign
+          </ActionButton>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ConsultantNodeDetails({ node, navigate }) {
+  const raw = node.raw || {};
+  const specialty = raw.specialty || raw.category || raw.service_category || "General consulting";
+  const state = raw.state || raw.coverage_state || node.state || "National";
+
+  return (
+    <div className="vs-stack">
+      <div className="vs-grid-2">
+        <DetailRow label="Consultant / Firm" value={node.label || "N/A"} />
+        <DetailRow label="Coverage" value={state} />
+        <DetailRow label="Specialty" value={specialty} />
+        <DetailRow label="Party Alignment" value={raw.party || raw.party_affiliation || "N/A"} />
+        <DetailRow label="Win Rate" value={raw.win_rate ? `${raw.win_rate}%` : "N/A"} />
+        <DetailRow label="Rating" value={raw.rating || "N/A"} />
+      </div>
+
+      <div
+        className="vs-card-muted"
+        style={{
+          padding: 14,
+          display: "grid",
+          gap: 8,
+        }}
+      >
+        <div className="vs-stat-label">Consultant Match Logic</div>
+        <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.45 }}>
+          Consultant strength is calculated from state coverage, office/category fit, party alignment,
+          win-rate signals, client volume, rating, and relationship overlap with donors and candidates.
+        </div>
+      </div>
+
+      <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <ActionButton onClick={() => navigate(`/consultants?state=${encodeURIComponent(state)}`)}>
+          Open Consultant Marketplace
+        </ActionButton>
+        <ActionButton secondary onClick={() => navigate(`/campaign-opportunity-heatmap?state=${encodeURIComponent(state)}`)}>
+          View Opportunity Map
+        </ActionButton>
+      </div>
+    </div>
+  );
+}
+
+function DonorNodeDetails({ node, navigate }) {
+  const raw = node.raw || {};
+  const amount = getRawAmount(raw);
+  const state = raw.state || node.state || "National";
+
+  return (
+    <div className="vs-stack">
+      <div className="vs-grid-2">
+        <DetailRow label="Donor / Committee" value={node.label || "N/A"} />
+        <DetailRow label="State" value={state} />
+        <DetailRow label="Contribution Signal" value={formatMoney(amount)} />
+        <DetailRow label="Party Alignment" value={raw.party || raw.party_affiliation || node.party || "N/A"} />
+        <DetailRow label="Cycle" value={raw.cycle || raw.election_year || "N/A"} />
+        <DetailRow label="Source ID" value={raw.id || raw.donor_id || node.source_id || "N/A"} />
+      </div>
+
+      <div
+        className="vs-card-muted"
+        style={{
+          padding: 14,
+          display: "grid",
+          gap: 8,
+        }}
+      >
+        <div className="vs-stat-label">Donor Influence Logic</div>
+        <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.45 }}>
+          Donor influence is weighted by contribution volume, state alignment, party alignment,
+          cycle signal, and proximity to candidate and consultant relationship paths.
+        </div>
+      </div>
+
+      <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <ActionButton onClick={() => navigate(`/donors?state=${encodeURIComponent(state)}`)}>
+          Open Donor Network
+        </ActionButton>
+        <ActionButton secondary onClick={() => navigate(`/fundraising`)}>
+          View Fundraising
+        </ActionButton>
+      </div>
+    </div>
+  );
+}
+
+function ConnectedPathsPanel({ node, graph, onSelectNode }) {
+  const connections = getNodeConnections(node, graph);
+
+  return (
+    <SectionCard
+      title="Connected Paths"
+      subtitle="Highest-value relationship paths connected to this selected node."
+    >
+      <div className="vs-stack">
+        {connections.length ? (
+          connections.slice(0, 8).map((connection, index) => (
+            <button
+              key={`${connection.otherId}-${index}`}
+              type="button"
+              className="vs-card-muted"
+              onClick={() => connection.otherNode && onSelectNode(connection.otherNode)}
+              style={{
+                padding: 12,
+                display: "grid",
+                gap: 6,
+                textAlign: "left",
+                cursor: connection.otherNode ? "pointer" : "default",
+                border: "1px solid rgba(148, 163, 184, 0.18)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontWeight: 900, color: "var(--vs-text)" }}>
+                  {connection.otherNode?.label || connection.otherId}
+                </div>
+                <Badge tone={getConfidenceTone(safeNumber(connection.strength) / 100)}>
+                  Strength {connection.strength || 0}
+                </Badge>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Badge tone={getTypeTone(connection.otherNode?.type)}>
+                  {NODE_TYPES[connection.otherNode?.type]?.label || "Node"}
+                </Badge>
+                <Badge tone="info">{connection.label || "Relationship"}</Badge>
+              </div>
+            </button>
+          ))
+        ) : (
+          <EmptyState text="No connected relationship paths found for this node." />
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
+function SelectedNodePanel({ node, graph, onSelectNode }) {
+  const navigate = useNavigate();
+
   if (!node) {
     return (
       <EmptyState text="Select a node to view relationship intelligence, influence score, source details, and recommended action." />
@@ -328,21 +658,11 @@ function SelectedNodePanel({ node }) {
         }}
       >
         <div className="vs-chip-row">
-          <Badge
-            tone={
-              node.type === "candidate"
-                ? "accent"
-                : node.type === "consultant"
-                  ? "active"
-                  : "warning"
-            }
-          >
-            {NODE_TYPES[node.type]?.label || node.type}
-          </Badge>
-
+          <Badge tone={getTypeTone(node.type)}>{NODE_TYPES[node.type]?.label || node.type}</Badge>
           <Badge tone={getConfidenceTone(safeNumber(node.influence) / 100)}>
-            Influence {node.influence || 0}
+            {getInfluenceLabel(node.influence)}
           </Badge>
+          <Badge tone="info">Score {node.influence || 0}</Badge>
         </div>
 
         <div>
@@ -373,18 +693,33 @@ function SelectedNodePanel({ node }) {
         <StatCard
           label="Influence Score"
           value={node.influence || 0}
-          subtext="Network priority"
+          subtext={getInfluenceLabel(node.influence)}
         />
         <StatCard
-          label="Node Type"
-          value={NODE_TYPES[node.type]?.label || node.type}
-          subtext="Graph classification"
+          label="Connected Paths"
+          value={getNodeConnections(node, graph).length}
+          subtext="Relationship edges"
         />
       </div>
 
       <SectionCard
+        title="Node Intelligence"
+        subtitle="Formatted backend intelligence for this selected relationship node."
+      >
+        {node.type === "candidate" ? (
+          <CandidateNodeDetails node={node} navigate={navigate} />
+        ) : node.type === "consultant" ? (
+          <ConsultantNodeDetails node={node} navigate={navigate} />
+        ) : (
+          <DonorNodeDetails node={node} navigate={navigate} />
+        )}
+      </SectionCard>
+
+      <ConnectedPathsPanel node={node} graph={graph} onSelectNode={onSelectNode} />
+
+      <SectionCard
         title="AI Relationship Readout"
-        subtitle="Generated from graph position, state fit, and influence scoring."
+        subtitle="Recommended action generated from node type, influence score, and graph connectivity."
       >
         <div className="vs-stack">
           <div className="vs-banner">
@@ -397,29 +732,11 @@ function SelectedNodePanel({ node }) {
           </div>
 
           <div className="vs-banner">
-            <strong>Signal quality:</strong> Influence score is calculated from live backend candidate, donor, consultant, state, party, office, and funding signals.
+            <strong>Signal quality:</strong> Influence score is calculated from live backend candidate, donor,
+            consultant, state, party, office, funding, and graph relationship signals.
           </div>
         </div>
       </SectionCard>
-
-      {node.raw ? (
-        <SectionCard title="Source Details" subtitle="Backend source row attached to this node.">
-          <pre
-            className="vs-card-muted"
-            style={{
-              margin: 0,
-              padding: 14,
-              overflow: "auto",
-              maxHeight: 260,
-              color: "var(--vs-text)",
-              fontSize: 12,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {JSON.stringify(node.raw, null, 2)}
-          </pre>
-        </SectionCard>
-      ) : null}
     </div>
   );
 }
@@ -873,7 +1190,11 @@ export default function RelationshipGraph() {
 
         <div className="vs-stack">
           <SectionCard title="Selected Node" subtitle="Node-level relationship intelligence.">
-            <SelectedNodePanel node={selectedNode} />
+            <SelectedNodePanel
+              node={selectedNode}
+              graph={graph}
+              onSelectNode={setSelectedNode}
+            />
           </SectionCard>
 
           <InsightsPanel insights={graph.insights} />
