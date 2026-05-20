@@ -1202,17 +1202,74 @@ export default function Candidates() {
                     <MetricChip label="Staff" active={health.hasStaff} />
                   </div>
 
-                  {selectedIntel?.recommended_actions?.length ? (
-                    <div className="vs-stack" style={{ marginTop: 12 }}>
-                      {selectedIntel.recommended_actions.map((action, index) => (
-                        <div key={`${action}-${index}`} className="vs-banner" style={{ margin: 0 }}>
-                          {action}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </SectionCard>
+              <SectionCard
+  title="Relationship Intelligence"
+  subtitle="Candidate-level donor, consultant, and influence-path intelligence from the live relationship graph."
+  right={
+    <button
+      type="button"
+      className="vs-button vs-button-secondary"
+      onClick={() =>
+        navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)
+      }
+    >
+      Open Relationship Graph
+    </button>
+  }
+>
+  <div className="vs-grid-4">
+    <StatCard
+      label="Influence Score"
+      value={selectedIntel?.relationship_influence_score || 0}
+      subtext="Graph priority"
+    />
+    <StatCard
+      label="Connections"
+      value={selectedIntel?.relationship_connections || 0}
+      subtext="Weighted paths"
+    />
+    <StatCard
+      label="Consultants"
+      value={selectedIntel?.consultant_connections || 0}
+      subtext="Strategist links"
+    />
+    <StatCard
+      label="Donors"
+      value={selectedIntel?.donor_connections || 0}
+      subtext="Funding links"
+    />
+  </div>
 
+  <div className="vs-card-muted" style={{ marginTop: 14, padding: 16 }}>
+    <div className="vs-stat-label">Strategic Influence Summary</div>
+    <div style={{ marginTop: 6, color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.55 }}>
+      {selectedIntel?.relationship_summary ||
+        "Relationship intelligence is building for this candidate. Donor, consultant, PAC, and organizational links will appear as graph coverage expands."}
+    </div>
+  </div>
+
+  <div className="vs-inline-actions" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <button
+      type="button"
+      className="vs-button"
+      onClick={() =>
+        navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)
+      }
+    >
+      Analyze Full Network
+    </button>
+
+    <button
+      type="button"
+      className="vs-button vs-button-secondary"
+      onClick={() =>
+        navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)
+      }
+    >
+      Find Consultant Matches
+    </button>
+  </div>
+</SectionCard>
                 <SectionCard
                   title="Overview"
                   subtitle="Command fields for direct campaign communication."
