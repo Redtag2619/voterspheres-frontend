@@ -6,6 +6,7 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ConsultantCommandPanel from "../components/consultants/ConsultantCommandPanel";
 
 const fallbackListData = { total: 0, results: [] };
 const fallbackDetail = { candidate: null, profile: null };
@@ -1210,6 +1211,7 @@ export default function Candidates() {
                 </div>
 
                 <SectionCard title="Intelligence Health" subtitle="Operational readiness for campaign contact intelligence." right={<Badge tone={health.completed >= 4 ? "active" : "warning"}>{health.completed}/{health.total} signals</Badge>}>
+                  <ConsultantCommandPanel candidateId={detailCandidate?.id} />
                   <div className="vs-grid-3">
                     <MetricChip label="Website" active={health.hasCampaignWebsite || health.hasOfficialWebsite} />
                     <MetricChip label="Primary Email" active={health.hasEmail} />
@@ -1229,7 +1231,7 @@ export default function Candidates() {
                     </div>
                   ) : null}
                 </SectionCard>
-
+                
                 <RelationshipIntelligenceCard
                   graph={relationshipGraph}
                   loading={loadingRelationshipGraph}
