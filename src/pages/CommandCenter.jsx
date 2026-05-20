@@ -743,6 +743,8 @@ export default function CommandCenter() {
   const [focusedTaskId, setFocusedTaskId] = useState(null);
   const [selectedAssignee, setSelectedAssignee] = useState(null);
   const [reassignmentMessage, setReassignmentMessage] = useState("");
+  const [relationshipGraph, setRelationshipGraph] = useState(null);
+  const [relationshipGraphLoading, setRelationshipGraphLoading] = useState(true);
 
   const executionBoardRef = useRef(null);
   const autoVendorTaskIds = useRef(new Set());
@@ -836,6 +838,41 @@ export default function CommandCenter() {
       setExecutionTasks([]);
     }
   }
+
+  useEffect(() => {
+  let active = true;
+
+  async function loadRelationshipGraph() {
+    if (demoMode) {
+      setRelationshipGraph(null);
+      setRelationshipGraphLoading(false);
+      return;
+    }
+
+    try {
+      setRelationshipGraphLoading(true);
+
+      const response = api.relationshipGraph
+        ? await api.relationshipGraph({ limit: 40 })
+        : (await api.get("/relationships/graph", { params: { limit: 40 } })).data;
+
+      if (!active) return;
+
+      setRelationshipGraph(response?.graph || response || null);
+    } catch {
+      if (!active) return;
+      setRelationshipGraph(null);
+    } finally {
+      if (active) setRelationshipGraphLoading(false);
+    }
+  }
+
+  loadRelationshipGraph();
+
+  return () => {
+    active = false;
+  };
+}, [demoMode]);
 
   useEffect(() => {
     let active = true;
@@ -1493,6 +1530,100 @@ export default function CommandCenter() {
     }, 80);
   }
 
+  function RelationshipIntelligencePanel({ graph, loading }) {
+  const counts = graph?.counts || {};
+  const insights = graph?.insights || {};
+  const topInfluencers = insights.top_influencers || insights.topInfluencers || [];
+  const strongestLinks = insights.strongest_links || insights.highStrengthLinks || [];
+  const weakCoverage = insights.orphan_candidates || insights.orphanCandidates || [];
+
+  const density = counts.nodes
+    ? Math.round((Number(counts.links || 0) / Math.max(Number(counts.nodes || 1), 1)) * 100)
+    : 0;
+
+  return (
+    <SectionCard
+      title="Relationship Intelligence"
+      subtitle="Backend relationship graph signals folded into the Command Center."
+      right={
+        <div className="vs-inline-actions">
+          <Badge tone={weakCoverage.length ? "warning" : "active"}>
+            {weakCoverage.length ? `${weakCoverage.length} weak coverage` : "Network stable"}
+          </Badge>
+          <a className="vs-button vs-button-secondary" href="/relationship-graph">
+            Open Graph
+          </a>
+        </div>
+      }
+    >
+      {loading ? (
+        <EmptyState text="Loading relationship intelligence..." />
+      ) : !graph ? (
+        <EmptyState text="No relationship graph intelligence available yet." />
+      ) : (
+        <div className="vs-stack">
+          <div className="vs-grid-4">
+            <StatCard label="Candidate Nodes" value={counts.candidates || 0} subtext="Campaign entities" />
+            <StatCard label="Consultant Nodes" value={counts.consultants || 0} subtext="Strategic operators" />
+            <StatCard label="Donor Nodes" value={counts.donors || 0} subtext="Funding network" />
+            <StatCard label="Network Density" value={`${density}%`} subtext={`${counts.links || 0} weighted paths`} />
+          </div>
+
+          <div className="vs-grid-2">
+            <div className="vs-stack">
+              <div className="vs-stat-label">Top Influence Nodes</div>
+              {topInfluencers.length ? (
+                topInfluencers.slice(0, 4).map((node) => (
+                  <div key={node.id} className="vs-card-muted" style={{ padding: 12 }}>
+                    <ResponsiveRow
+                      title={node.label || node.id}
+                      subtitle={node.subtitle || node.type || "Relationship node"}
+                      meta={[
+                        { label: "Type", value: node.type || "Node" },
+                        { label: "Influence", value: node.influence || 0 },
+                      ]}
+                      right={<Badge tone="info">{node.influence || 0}</Badge>}
+                    />
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No influence nodes available." />
+              )}
+            </div>
+
+            <div className="vs-stack">
+              <div className="vs-stat-label">Strongest Paths</div>
+              {strongestLinks.length ? (
+                strongestLinks.slice(0, 4).map((link, index) => (
+                  <div key={`${link.source}-${link.target}-${index}`} className="vs-card-muted" style={{ padding: 12 }}>
+                    <ResponsiveRow
+                      title={`${link.source} → ${link.target}`}
+                      subtitle={link.label || "Relationship path"}
+                      meta={[
+                        { label: "Strength", value: link.strength || 0 },
+                        { label: "Type", value: link.type || "relationship" },
+                      ]}
+                      right={<Badge tone="active">{link.strength || 0}</Badge>}
+                    />
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No strong relationship paths available." />
+              )}
+            </div>
+          </div>
+
+          {weakCoverage.length ? (
+            <div className="vs-banner" style={{ borderColor: "#fde68a", background: "#fffbeb", color: "#92400e" }}>
+              <strong>Network coverage gap:</strong> {weakCoverage.length} candidates have limited consultant/donor relationship coverage.
+            </div>
+          ) : null}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
   function toggleFeed(id) {
     setExpandedFeedIds((prev) => {
       const next = new Set(prev);
@@ -1943,6 +2074,11 @@ export default function CommandCenter() {
           focusedTaskId={focusedTaskId}
         />
       </div>
+
+      <RelationshipIntelligencePanel
+        graph={relationshipGraph}
+        loading={relationshipGraphLoading}
+      />
 
       <UserWorkloadPanel
         assignee={selectedAssignee}
