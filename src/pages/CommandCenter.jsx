@@ -172,6 +172,10 @@ function money(value) {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
+function joinText(values = []) {
+  return values.filter(Boolean).join(" - ");
+}
+
 function toneFromSeverity(value) {
   const next = String(value || "").toLowerCase();
   if (["critical", "high", "elevated", "severe"].includes(next)) return "danger";
@@ -335,7 +339,10 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                   <PremiumRow
                     key={item.id || item.name}
                     title={item.name || item.firm_name || "Consultant"}
-                    subtitle={`${item.category || "Political Consulting"} â€¢ ${item.state || "National"}`}
+                    subtitle={joinText([
+                      item.category || "Political Consulting",
+                      item.state || "National",
+                    ])}
                     tone={toneFromScore(item.influence_score)}
                     meta={[
                       { label: "Influence", value: item.influence_score || 0 },
@@ -367,7 +374,10 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                   <PremiumRow
                     key={item.id || item.name}
                     title={item.name || item.firm_name || "Consultant"}
-                    subtitle={item.risk_summary || `${item.category || "Political Consulting"} â€¢ ${item.state || "National"}`}
+                    subtitle={
+                      item.risk_summary ||
+                      joinText([item.category || "Political Consulting", item.state || "National"])
+                    }
                     tone={toneFromScore(item.exposure_score)}
                     meta={[
                       { label: "Exposure", value: item.exposure_score || 0 },
@@ -390,8 +400,12 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
               {recentRelationships.slice(0, 3).map((item) => (
                 <PremiumRow
                   key={item.id || `${item.consultant_name}-${item.candidate_name}`}
-                  title={`${item.consultant_name || "Consultant"} â†’ ${item.candidate_name || "Candidate"}`}
-                  subtitle={`${item.candidate_state || "State N/A"} â€¢ ${item.candidate_party || "Party N/A"} â€¢ ${item.category || "Consulting"}`}
+                  title={joinText([item.consultant_name || "Consultant", item.candidate_name || "Candidate"])}
+                  subtitle={joinText([
+                    item.candidate_state || "State N/A",
+                    item.candidate_party || "Party N/A",
+                    item.category || "Consulting",
+                  ])}
                   meta={[
                     { label: "Amount", value: money(item.total_amount) },
                     { label: "Transactions", value: item.transaction_count || 0 },
@@ -485,7 +499,7 @@ function RelationshipIntelligencePanel({ graph, loading }) {
                   return (
                     <PremiumRow
                       key={`${source}-${target}-${index}`}
-                      title={`${source} â†’ ${target}`}
+                      title={joinText([source, target])}
                       subtitle={link.label || "Relationship connection"}
                       meta={[
                         { label: "Strength", value: link.strength || 0 },
@@ -515,7 +529,7 @@ function BattlegroundPanel({ rows = [] }) {
             <PremiumRow
               key={row.race || `${row.state}-${row.office}`}
               title={row.race || `${row.state} ${row.office}`}
-              subtitle={`${row.state || "State"} â€¢ ${row.office || "Race"}`}
+              subtitle={joinText([row.state || "State", row.office || "Race"])}
               tone={toneFromSeverity(row.risk)}
               meta={[
                 { label: "Win Prob.", value: row.probability || row.win_probability || "N/A" },
@@ -546,7 +560,10 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
               <PremiumRow
                 key={item.id || `${item.time}-${item.title}`}
                 title={item.title}
-                subtitle={`${item.source || "Command Center"}${item.type ? ` â€¢ ${item.type}` : ""}`}
+                subtitle={joinText([
+                  item.source || "Command Center",
+                  item.type || "",
+                ])}
                 tone={toneFromSeverity(item.severity)}
                 live={["high", "critical"].includes(String(item.severity || "").toLowerCase())}
                 meta={[
@@ -620,13 +637,13 @@ function CrossSignalPanel({ data, loading }) {
             priorities.slice(0, 6).map((item, index) => (
               <PremiumRow
                 key={`${item.state}-${index}`}
-                title={`#${index + 1} ${item.state || "National"} â€” ${item.severity || "Priority"}`}
+                title={`#${index + 1} ${item.state || "National"} - ${item.severity || "Priority"}`}
                 subtitle={(item.recommended_actions || []).join(" ") || "Multiple signals suggest this state needs review."}
                 tone={toneFromSeverity(item.severity)}
                 meta={[
                   { label: "Score", value: item.priority_score || 0 },
                   { label: "Receipts", value: money(item.finance?.receipts) },
-                  { label: "Vendors", value: item.vendors?.coverage_status || "â€”" },
+                  { label: "Vendors", value: item.vendors?.coverage_status || "N/A" },
                   { label: "Mail Risk", value: item.mailops?.mail_risks || 0 },
                 ]}
                 right={<Badge tone={toneFromSeverity(item.severity)}>{item.risk || "Watch"}</Badge>}
@@ -915,4 +932,3 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
-
