@@ -8,7 +8,6 @@ import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import DemoBanner from "../components/ui/DemoBanner";
 import { useDemoMode } from "../context/DemoModeContext.jsx";
-import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 const fallbackData = {
   results: [
@@ -48,15 +47,28 @@ function statusTone(value) {
   return "default";
 }
 
+function normalizeRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
+}
+
+function normalizeState(value) {
+  return String(value || "").trim();
+}
+
 function ConsultantRow({ consultant }) {
   return (
     <ResponsiveRow
-      title={consultant.name || "Unnamed Consultant"}
-      subtitle={`${consultant.state || "Unknown state"} • ${consultant.category || "Uncategorized"}`}
+      title={consultant.name || consultant.firm_name || "Unnamed Consultant"}
+      subtitle={[consultant.state || "Unknown state", consultant.category || "Uncategorized"]
+        .filter(Boolean)
+        .join(" - ")}
       meta={[
         { label: "Category", value: consultant.category || "N/A" },
         { label: "State", value: consultant.state || "N/A" },
         { label: "Website", value: consultant.website || "N/A" },
+        { label: "Influence", value: consultant.influence_score || 0 },
       ]}
       alert={
         String(consultant.status || "").toLowerCase() === "active"
@@ -65,7 +77,7 @@ function ConsultantRow({ consultant }) {
       }
       right={
         <Badge tone={statusTone(consultant.status)}>
-          {consultant.status || "Unknown"}
+          {consultant.status || "active"}
         </Badge>
       }
     />
@@ -74,17 +86,18 @@ function ConsultantRow({ consultant }) {
 
 export default function ConsultantMarketplace() {
   const { demoMode } = useDemoMode();
-  const { filters } = useExecutiveFilters();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [consultantData, setConsultantData] = useState(fallbackData);
+  const [isDemoData, setIsDemoData] = useState(Boolean(fallbackData._demo));
+
   const [localFilters, setLocalFilters] = useState({
     search: "",
+    state: "",
     category: "",
     status: "",
   });
-  const [isDemoData, setIsDemoData] = useState(Boolean(fallbackData._demo));
 
   useEffect(() => {
     let active = true;
@@ -95,12 +108,14 @@ export default function ConsultantMarketplace() {
         setError("");
 
         const params = {};
-        if (filters.state) params.state = filters.state;
+        if (localFilters.state) params.state = localFilters.state;
         if (localFilters.search.trim()) params.search = localFilters.search.trim();
         if (localFilters.category.trim()) params.category = localFilters.category.trim();
         if (localFilters.status.trim()) params.status = localFilters.status.trim();
 
-        const data = await api.consultants(params);
+        const data = api.consultants
+          ? await api.consultants(params)
+          : await api.get("/consultants", { params }).then((r) => r.data);
 
         if (!active) return;
 
@@ -126,13 +141,24 @@ export default function ConsultantMarketplace() {
     return () => {
       active = false;
     };
-  }, [filters.state, localFilters.search, localFilters.category, localFilters.status]);
+  }, [
+    localFilters.search,
+    localFilters.state,
+    localFilters.category,
+    localFilters.status,
+  ]);
+
+  const allRows = useMemo(() => normalizeRows(consultantData), [consultantData]);
 
   const filteredResults = useMemo(() => {
-    let rows = Array.isArray(consultantData?.results) ? consultantData.results : [];
+    let rows = allRows;
 
-    if (filters.state) {
-      rows = rows.filter((row) => row.state === filters.state);
+    if (localFilters.state) {
+      rows = rows.filter(
+        (row) =>
+          normalizeState(row.state).toLowerCase() ===
+          normalizeState(localFilters.state).toLowerCase()
+      );
     }
 
     if (localFilters.search.trim()) {
@@ -140,6 +166,7 @@ export default function ConsultantMarketplace() {
       rows = rows.filter((row) => {
         return (
           String(row.name || "").toLowerCase().includes(q) ||
+          String(row.firm_name || "").toLowerCase().includes(q) ||
           String(row.category || "").toLowerCase().includes(q) ||
           String(row.state || "").toLowerCase().includes(q)
         );
@@ -163,7 +190,7 @@ export default function ConsultantMarketplace() {
     }
 
     return rows;
-  }, [consultantData, filters.state, localFilters]);
+  }, [allRows, localFilters]);
 
   const summary = useMemo(() => {
     const categories = new Set(filteredResults.map((row) => row.category).filter(Boolean));
@@ -180,31 +207,29 @@ export default function ConsultantMarketplace() {
     };
   }, [filteredResults]);
 
+  const stateOptions = useMemo(() => {
+    return Array.from(
+      new Set(allRows.map((row) => row.state).filter(Boolean))
+    ).sort();
+  }, [allRows]);
+
   const categoryOptions = useMemo(() => {
     return Array.from(
-      new Set(
-        (consultantData?.results || [])
-          .map((row) => row.category)
-          .filter(Boolean)
-      )
+      new Set(allRows.map((row) => row.category).filter(Boolean))
     ).sort();
-  }, [consultantData]);
+  }, [allRows]);
 
   const statusOptions = useMemo(() => {
     return Array.from(
-      new Set(
-        (consultantData?.results || [])
-          .map((row) => row.status)
-          .filter(Boolean)
-      )
+      new Set(allRows.map((row) => row.status || "active").filter(Boolean))
     ).sort();
-  }, [consultantData]);
+  }, [allRows]);
 
   return (
     <PageShell
       eyebrow="Consultant Marketplace"
       title="Find the consulting partners behind campaign execution."
-      description="Browse consulting firms, campaign specialists, and strategic operators across your active executive filter set."
+      description="Browse consulting firms, campaign specialists, and strategic operators by state, category, and status."
       demo={demoMode}
       demoText="Global Demo Mode is active. This module can render fallback consultant data when live endpoints are unavailable."
       tickerItems={[
@@ -214,8 +239,8 @@ export default function ConsultantMarketplace() {
           dotClass: "vs-live-dot-success",
         },
         {
-          label: "Categories",
-          value: `${summary.categories}`,
+          label: "States",
+          value: `${summary.states}`,
           dotClass: "vs-live-dot-warning",
         },
         {
@@ -257,7 +282,7 @@ export default function ConsultantMarketplace() {
 
       <SectionCard
         title="Marketplace Filters"
-        subtitle="Search within the consultant marketplace while honoring your executive state filter."
+        subtitle="Search and filter consultants across all imported states."
         right={
           <button
             type="button"
@@ -265,6 +290,7 @@ export default function ConsultantMarketplace() {
             onClick={() =>
               setLocalFilters({
                 search: "",
+                state: "",
                 category: "",
                 status: "",
               })
@@ -284,12 +310,20 @@ export default function ConsultantMarketplace() {
             placeholder="Search consultant, category, or state..."
           />
 
-          <input
-            className="vs-input"
-            value={filters.state || ""}
-            readOnly
-            placeholder="Executive state filter"
-          />
+          <select
+            className="vs-select"
+            value={localFilters.state}
+            onChange={(e) =>
+              setLocalFilters((prev) => ({ ...prev, state: e.target.value }))
+            }
+          >
+            <option value="">All states</option>
+            {stateOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="vs-grid-2" style={{ marginTop: "12px" }}>
@@ -327,7 +361,7 @@ export default function ConsultantMarketplace() {
 
       <SectionCard
         title="Consultant Directory"
-        subtitle="Campaign consulting firms and specialists across the filtered marketplace."
+        subtitle="Campaign consulting firms and specialists across the selected marketplace filters."
         right={
           <Badge tone={isDemoData ? "demo" : "active"}>
             {isDemoData ? "Demo Data" : "Live Data"}
