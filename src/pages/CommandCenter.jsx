@@ -211,11 +211,11 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel) {
   if (exposure) {
     return {
       level: "HIGH",
-      title: `${exposure.name || "Consultant"} exposure risk requires review`,
+      title: `${exposure.name || "Consultant"} consultant relationship needs review`,
       actions: [
-        "Open Consultant Intel",
-        "Review candidate overlap",
-        "Assign opposition exposure analyst",
+        "Open Consultant Intelligence",
+        "Review candidate relationships",
+        "Assign analyst review",
       ],
       link: "/consultant-intel",
     };
@@ -224,11 +224,11 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel) {
   if (urgent) {
     return {
       level: String(urgent.severity || "HIGH").toUpperCase(),
-      title: urgent.title || "High-priority command signal detected",
+      title: urgent.title || "High-priority alert detected",
       actions: [
-        "Assign task owner",
-        "Review tactical response",
-        "Monitor next-cycle impact",
+        "Assign an owner",
+        "Review response plan",
+        "Monitor impact",
       ],
       link: "/command-center",
     };
@@ -236,8 +236,8 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel) {
 
   return {
     level: "STABLE",
-    title: "No critical executive intervention required",
-    actions: ["Monitor live feed", "Refresh intelligence", "Review priorities"],
+    title: "No urgent executive action required",
+    actions: ["Monitor recent updates", "Refresh intelligence", "Review active priorities"],
     link: "/relationship-graph",
   };
 }
@@ -285,17 +285,17 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
   return (
     <SectionCard
       title="Consultant Intelligence"
-      subtitle="Live FEC consultant relationships, influence scores, overlap risk, and opposition exposure signals."
+      subtitle="Track which consultants are working with candidates, where they are active, and which relationships may require review."
       right={
         <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Badge tone={riskWatch ? "danger" : "active"}>
-            {riskWatch ? `${riskWatch} risk watch` : "Network stable"}
+            {riskWatch ? `${riskWatch} risk watch` : "No urgent consultant risk"}
           </Badge>
           <button type="button" className="vs-button vs-button-secondary" onClick={onRefresh}>
             Refresh
           </button>
           <Link className="vs-button" to="/consultant-intel">
-            Open Consultant Intel
+            Open Consultant Intelligence
           </Link>
         </div>
       }
@@ -308,28 +308,28 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
             <StatCard
               label="FEC Consultants"
               value={summary.fec_consultants || summary.fec_imported || 0}
-              subtext="Imported from disbursements"
+              subtext="Imported consultant records"
             />
             <StatCard
               label="Avg Influence"
               value={summary.avg_influence || 0}
-              subtext="Network scoring"
+              subtext="Overall influence score"
             />
             <StatCard
               label="Avg Exposure"
               value={summary.avg_exposure || 0}
-              subtext="Opposition risk"
+              subtext="Cross-campaign risk"
             />
             <StatCard
-              label="Risk Watch"
+              label="Needs Review"
               value={riskWatch}
-              subtext="High exposure or watch closely"
+              subtext="Consultants needing review"
             />
           </div>
 
           <div className="vs-grid-2" style={{ alignItems: "start" }}>
             <div className="vs-stack">
-              <div className="vs-stat-label">Top Influence Consultants</div>
+              <div className="vs-stat-label">Top Consultants by Influence</div>
               {topInfluence.length ? (
                 topInfluence.slice(0, 4).map((item) => (
                   <PremiumRow
@@ -356,12 +356,12 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                   />
                 ))
               ) : (
-                <EmptyState text="No influence consultants loaded yet." />
+                <EmptyState text="No top consultant records loaded yet." />
               )}
             </div>
 
             <div className="vs-stack">
-              <div className="vs-stat-label">Exposure Watchlist</div>
+              <div className="vs-stat-label">Consultants to Review</div>
               {topExposure.length ? (
                 topExposure.slice(0, 4).map((item) => (
                   <PremiumRow
@@ -379,14 +379,14 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                   />
                 ))
               ) : (
-                <EmptyState text="No exposure records loaded yet." />
+                <EmptyState text="No consultant exposure issues loaded yet." />
               )}
             </div>
           </div>
 
           {recentRelationships.length ? (
             <div className="vs-stack">
-              <div className="vs-stat-label">Recent Consultant-Candidate Relationships</div>
+              <div className="vs-stat-label">Recent Consultant Payments</div>
               {recentRelationships.slice(0, 3).map((item) => (
                 <PremiumRow
                   key={item.id || `${item.consultant_name}-${item.candidate_name}`}
@@ -423,11 +423,11 @@ function RelationshipIntelligencePanel({ graph, loading }) {
   return (
     <SectionCard
       title="Relationship Intelligence"
-      subtitle="Candidate, consultant, and donor graph signals folded into executive command."
+      subtitle="Shows how candidates, consultants, and donors are connected across the platform."
       right={
         <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Badge tone={weakCoverage.length ? "warning" : "active"}>
-            {weakCoverage.length ? `${weakCoverage.length} weak coverage` : "Network stable"}
+            {weakCoverage.length ? `${weakCoverage.length} weak coverage` : "No urgent consultant risk"}
           </Badge>
           <Link className="vs-button vs-button-secondary" to="/relationship-graph">
             Open Graph
@@ -442,21 +442,21 @@ function RelationshipIntelligencePanel({ graph, loading }) {
       ) : (
         <div className="vs-stack">
           <div className="vs-grid-4">
-            <StatCard label="Candidates" value={counts.candidates || 0} subtext="Campaign nodes" />
-            <StatCard label="Consultants" value={counts.consultants || 0} subtext="Operator nodes" />
-            <StatCard label="Donors" value={counts.donors || 0} subtext="Funding nodes" />
-            <StatCard label="Density" value={`${density}%`} subtext={`${counts.links || 0} weighted paths`} />
+            <StatCard label="Candidates" value={counts.candidates || 0} subtext="Candidate records" />
+            <StatCard label="Consultants" value={counts.consultants || 0} subtext="Consultant records" />
+            <StatCard label="Donors" value={counts.donors || 0} subtext="Donor records" />
+            <StatCard label="Density" value={`${density}%`} subtext={`${counts.links || 0} relationship paths`} />
           </div>
 
           <div className="vs-grid-2" style={{ alignItems: "start" }}>
             <div className="vs-stack">
-              <div className="vs-stat-label">Top Influence Nodes</div>
+              <div className="vs-stat-label">Most Connected People and Groups</div>
               {topInfluencers.length ? (
                 topInfluencers.slice(0, 4).map((node) => (
                   <PremiumRow
                     key={node.id}
                     title={node.label || node.id}
-                    subtitle={node.subtitle || node.type || "Relationship node"}
+                    subtitle={node.subtitle || node.type || "Network record"}
                     meta={[
                       { label: "Type", value: node.type || "Node" },
                       { label: "Influence", value: node.influence || 0 },
@@ -465,12 +465,12 @@ function RelationshipIntelligencePanel({ graph, loading }) {
                   />
                 ))
               ) : (
-                <EmptyState text="No influence nodes available." />
+                <EmptyState text="No connected network records available yet." />
               )}
             </div>
 
             <div className="vs-stack">
-              <div className="vs-stat-label">Strongest Paths</div>
+              <div className="vs-stat-label">Strongest Connections</div>
               {strongestLinks.length ? (
                 strongestLinks.slice(0, 4).map((link, index) => {
                   const source =
@@ -486,7 +486,7 @@ function RelationshipIntelligencePanel({ graph, loading }) {
                     <PremiumRow
                       key={`${source}-${target}-${index}`}
                       title={`${source} â†’ ${target}`}
-                      subtitle={link.label || "Relationship path"}
+                      subtitle={link.label || "Relationship connection"}
                       meta={[
                         { label: "Strength", value: link.strength || 0 },
                         { label: "Type", value: link.type || "relationship" },
@@ -496,7 +496,7 @@ function RelationshipIntelligencePanel({ graph, loading }) {
                   );
                 })
               ) : (
-                <EmptyState text="No strong relationship paths available." />
+                <EmptyState text="No strong relationship connections available yet." />
               )}
             </div>
           </div>
@@ -508,7 +508,7 @@ function RelationshipIntelligencePanel({ graph, loading }) {
 
 function BattlegroundPanel({ rows = [] }) {
   return (
-    <SectionCard title="Top Battlegrounds" subtitle="Highest-pressure races right now.">
+    <SectionCard title="Top Battlegrounds" subtitle="Priority races that need the most attention right now.">
       <div className="vs-stack">
         {rows.length ? (
           rows.map((row) => (
@@ -536,9 +536,9 @@ function BattlegroundPanel({ rows = [] }) {
 
 function ExecutiveFeedPanel({ feed = [], loading }) {
   return (
-    <SectionCard title="Executive Feed" subtitle="Live cross-signal intelligence stream.">
+    <SectionCard title="Executive Feed" subtitle="Recent alerts and updates from across the platform.">
       {loading ? (
-        <EmptyState text="Loading executive feed..." />
+        <EmptyState text="Loading recent updates..." />
       ) : (
         <div className="vs-stack">
           {feed.length ? (
@@ -559,7 +559,7 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
               />
             ))
           ) : (
-            <EmptyState text="No executive feed items loaded." />
+            <EmptyState text="No recent command updates loaded." />
           )}
         </div>
       )}
@@ -569,7 +569,7 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
 
 function ActionPanel({ actions = [] }) {
   return (
-    <SectionCard title="Execution Priorities" subtitle="Recommended command actions for the next cycle.">
+    <SectionCard title="Execution Priorities" subtitle="Recommended actions for the campaign team.">
       <div className="vs-stack">
         {actions.length ? (
           actions.slice(0, 8).map((item) => (
@@ -602,7 +602,7 @@ function CrossSignalPanel({ data, loading }) {
   return (
     <SectionCard
       title="Cross-Signal Priority Layer"
-      subtitle="Finance, vendor, mail, relationship, and campaign pressure combined into one priority layer."
+      subtitle="Combines fundraising, vendors, mail, relationships, and race pressure into one priority list."
       right={<Badge tone={number(summary.critical_states) ? "danger" : "active"}>{summary.critical_states || 0} critical</Badge>}
     >
       {loading ? (
@@ -610,10 +610,10 @@ function CrossSignalPanel({ data, loading }) {
       ) : (
         <div className="vs-stack">
           <div className="vs-grid-4">
-            <StatCard label="Tracked States" value={summary.states_tracked || 0} subtext="Cross-signal engine" />
-            <StatCard label="Critical States" value={summary.critical_states || 0} subtext="Immediate review" />
-            <StatCard label="High States" value={summary.high_states || 0} subtext="Pressure rising" />
-            <StatCard label="Vendor Gaps" value={summary.vendor_gap_states || 0} subtext="Coverage pressure" />
+            <StatCard label="Tracked States" value={summary.states_tracked || 0} subtext="States being monitored" />
+            <StatCard label="Critical States" value={summary.critical_states || 0} subtext="Needs action now" />
+            <StatCard label="High States" value={summary.high_states || 0} subtext="Needs close watch" />
+            <StatCard label="Vendor Gaps" value={summary.vendor_gap_states || 0} subtext="Vendor coverage gaps" />
           </div>
 
           {priorities.length ? (
@@ -621,7 +621,7 @@ function CrossSignalPanel({ data, loading }) {
               <PremiumRow
                 key={`${item.state}-${index}`}
                 title={`#${index + 1} ${item.state || "National"} â€” ${item.severity || "Priority"}`}
-                subtitle={(item.recommended_actions || []).join(" ") || "Multiple intelligence signals require executive review."}
+                subtitle={(item.recommended_actions || []).join(" ") || "Multiple signals suggest this state needs review."}
                 tone={toneFromSeverity(item.severity)}
                 meta={[
                   { label: "Score", value: item.priority_score || 0 },
@@ -819,10 +819,10 @@ export default function CommandCenter() {
   return (
     <PageShell
       eyebrow="Executive Command Center"
-      title="Operate every campaign signal from one command surface."
-      description="Fuse battlegrounds, cross-signal pressure, consultant intelligence, relationship graph exposure, and execution tasks into one operating layer."
+      title="Manage campaign operations from one executive dashboard."
+      description="Review battleground races, consultant activity, relationship networks, alerts, and tasks in one place."
       demo={demoMode}
-      demoText="Demo command intelligence is active."
+      demoText="Demo Command Center data is active."
     >
       {commandError ? (
         <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
@@ -833,22 +833,22 @@ export default function CommandCenter() {
       <div className="vs-inline-actions" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <div className="vs-chip-row">
           <Badge tone={highSeverityCount ? "danger" : "active"}>
-            {highSeverityCount ? `${highSeverityCount} high-priority signals` : "Signals controlled"}
+            {highSeverityCount ? `${highSeverityCount} high-priority alerts` : "No urgent alerts"}
           </Badge>
           <Badge tone={number(consultantSummary.fec_consultants) ? "info" : "default"}>
-            {consultantSummary.fec_consultants || 0} FEC consultants
+            {consultantSummary.fec_consultants || 0} consultants imported
           </Badge>
           <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>
-            {relationshipCounts.links || 0} graph paths
+            {relationshipCounts.links || 0} network connections
           </Badge>
         </div>
 
         <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" className="vs-button vs-button-secondary" onClick={refreshAll}>
-            Refresh Command Center
+            Refresh Dashboard
           </button>
           <button type="button" className="vs-button" onClick={runConsultantRiskScore} disabled={consultantLoading}>
-            {consultantLoading ? "Scoring..." : "Run Consultant Risk Score"}
+            {consultantLoading ? "Updating..." : "Update Consultant Scores"}
           </button>
         </div>
       </div>
@@ -856,8 +856,8 @@ export default function CommandCenter() {
       <MetricGrid metrics={metrics} />
 
       <SectionCard
-        title="Executive Decision"
-        subtitle="Highest-value action synthesized from command feed, consultant risk, and relationship intelligence."
+        title="Recommended Executive Action"
+        subtitle="The top action to review based on alerts, consultant activity, and relationship data."
         right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
       >
         <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 12 }}>
@@ -875,7 +875,7 @@ export default function CommandCenter() {
 
           <div>
             <Link className="vs-button vs-button-secondary" to={executiveDecision?.link || "/command-center"}>
-              Open Recommended View
+              Open Suggested Page
             </Link>
           </div>
         </div>
@@ -902,8 +902,8 @@ export default function CommandCenter() {
       <ExecutiveFeedPanel feed={feed} loading={commandLoading} />
 
       <SectionCard
-        title="Executive Execution Board"
-        subtitle="Live task layer connected to intelligence signals."
+        title="Execution Board"
+        subtitle="Tasks connected to campaign intelligence and operations."
         right={<Badge tone={tasks.length ? "info" : "default"}>{tasks.length} tasks</Badge>}
       >
         {tasksLoading ? (
