@@ -271,7 +271,13 @@ function ConsultantCard({
               <ContactField label="Email" value={email || "N/A"} href={email ? `mailto:${email}` : undefined} />
               <ContactField label="Phone" value={phone || "N/A"} href={phone ? `tel:${phone}` : undefined} />
               <ContactField label="Source" value={mergedConsultant.source || "FEC / internal"} />
+            <div className="vs-grid-4" style={{ marginTop: 12 }}>
+              <StatCard label="Contact Status" value={mergedConsultant.contact_status || "missing"} subtext="Enrichment state" />
+              <StatCard label="Confidence" value={`${mergedConsultant.contact_confidence || 0}%`} subtext="Contact confidence" />
+              <StatCard label="Verified" value={mergedConsultant.contact_verified_at ? "Yes" : "No"} subtext={mergedConsultant.contact_verified_at ? String(mergedConsultant.contact_verified_at).slice(0, 10) : "Not verified"} />
+              <StatCard label="Last Enriched" value={mergedConsultant.contact_enriched_at ? String(mergedConsultant.contact_enriched_at).slice(0, 10) : "N/A"} subtext={mergedConsultant.contact_source || "No source"} />
             </div>
+
 
             {!website && !email && !phone ? (
               <div className="vs-banner" style={{ marginTop: 12 }}>
@@ -290,6 +296,9 @@ function ConsultantCard({
                 </button>
                 <button type="button" className="vs-button" onClick={onOpenProfile}>
                   Open Profile
+                </button>
+                <button type="button" className="vs-button vs-button-secondary" onClick={onEnrichContact}>
+                  Enrich Contact
                 </button>
               </div>
             }
@@ -465,6 +474,22 @@ export default function ConsultantIntel() {
       setScoring(false);
     }
   }
+
+  async function enrichContactForConsultant(consultant) {
+    const id = getConsultantId(consultant);
+    if (!id) return;
+    try {
+      await api.post(`/consultants/contact-enrichment/${id}`, {});
+      setProfilesById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    await loadProfile(consultant);
+  } catch (err) {
+    setError(err?.response?.data?.error || err?.message || "Failed to enrich consultant contact.");
+  }
+}
 
   useEffect(() => {
     loadData();
