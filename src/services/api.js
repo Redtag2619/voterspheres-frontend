@@ -714,6 +714,11 @@ export const consultantOpportunityApi = {
     }),
 };
 
+export const consultantDeepIntelApi = {
+  profile: (id, params = {}) =>
+    tryGet([`/consultants/deep-intel/profile/${id}`], { params }),
+};
+
 export const relationshipGraphApi = {
   graph: (params = {}) =>
     tryGet(["/relationships/graph"], {
