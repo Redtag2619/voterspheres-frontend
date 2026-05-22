@@ -63,110 +63,69 @@ function BarRow({ label, value, amount, max }) {
   );
 }
 
-function ContactCard({ consultant }) {
+function ContactCard({ consultant, onEnrich, enriching }) {
   const website = safeUrl(consultant?.website);
   const email = consultant?.email || consultant?.contact_email || "";
   const phone = consultant?.phone || "";
+  const linkedin = safeUrl(consultant?.linkedin_url);
+  const address = consultant?.address || "";
+  const confidence = Number(consultant?.contact_confidence || 0);
+  const status = consultant?.contact_status || "missing";
 
   return (
-    <SectionCard title="Consultant Contact" subtitle="Available contact details from the consultant record.">
+    <SectionCard
+      title="Consultant Contact"
+      subtitle="Available contact details, verification status, and enrichment confidence."
+      right={
+        <button type="button" className="vs-button vs-button-secondary" onClick={onEnrich} disabled={enriching}>
+          {enriching ? "Enriching..." : "Enrich Contact"}
+        </button>
+      }
+    >
       <div className="vs-grid-4">
+        <StatCard label="Contact Status" value={status} subtext="Enrichment state" />
+        <StatCard label="Confidence" value={`${confidence}%`} subtext="Contact confidence" />
+        <StatCard label="Verified" value={consultant?.contact_verified_at ? "Yes" : "No"} subtext={consultant?.contact_verified_at ? String(consultant.contact_verified_at).slice(0, 10) : "Not verified"} />
+        <StatCard label="Source" value={consultant?.contact_source || "N/A"} subtext={consultant?.contact_enriched_at ? `Updated ${String(consultant.contact_enriched_at).slice(0, 10)}` : "Not enriched"} />
+      </div>
+
+      <div className="vs-grid-4" style={{ marginTop: 12 }}>
         <div className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 6 }}>
           <div className="vs-stat-label">Website</div>
-          {website ? (
-            <a href={website} target="_blank" rel="noreferrer" style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none", wordBreak: "break-word" }}>
-              {website}
-            </a>
-          ) : (
-            <strong style={{ color: "var(--vs-text)" }}>N/A</strong>
-          )}
+          {website ? <a href={website} target="_blank" rel="noreferrer" style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none", wordBreak: "break-word" }}>{website}</a> : <strong style={{ color: "var(--vs-text)" }}>N/A</strong>}
         </div>
 
         <div className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 6 }}>
           <div className="vs-stat-label">Email</div>
-          {email ? (
-            <a href={`mailto:${email}`} style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none", wordBreak: "break-word" }}>
-              {email}
-            </a>
-          ) : (
-            <strong style={{ color: "var(--vs-text)" }}>N/A</strong>
-          )}
+          {email ? <a href={`mailto:${email}`} style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none", wordBreak: "break-word" }}>{email}</a> : <strong style={{ color: "var(--vs-text)" }}>N/A</strong>}
         </div>
 
         <div className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 6 }}>
           <div className="vs-stat-label">Phone</div>
-          {phone ? (
-            <a href={`tel:${phone}`} style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none" }}>
-              {phone}
-            </a>
-          ) : (
-            <strong style={{ color: "var(--vs-text)" }}>N/A</strong>
-          )}
+          {phone ? <a href={`tel:${phone}`} style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none" }}>{phone}</a> : <strong style={{ color: "var(--vs-text)" }}>N/A</strong>}
         </div>
 
         <div className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 6 }}>
-          <div className="vs-stat-label">Source</div>
-          <strong style={{ color: "var(--vs-text)" }}>{consultant?.source || "FEC / internal"}</strong>
+          <div className="vs-stat-label">LinkedIn</div>
+          {linkedin ? <a href={linkedin} target="_blank" rel="noreferrer" style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none", wordBreak: "break-word" }}>Open LinkedIn</a> : <strong style={{ color: "var(--vs-text)" }}>N/A</strong>}
         </div>
       </div>
 
-      {!website && !email && !phone ? (
+      {address ? (
         <div className="vs-banner" style={{ marginTop: 12 }}>
-          FEC spending records usually identify payees and purposes, but they do not reliably include website, email, or phone. This record is ready for consultant contact enrichment.
+          <strong>Address:</strong> {address}
+        </div>
+      ) : null}
+
+      {consultant?.contact_source_url ? (
+        <div className="vs-banner" style={{ marginTop: 12 }}>
+          <strong>Source URL:</strong> {consultant.contact_source_url}
         </div>
       ) : null}
     </SectionCard>
   );
 }
 
-function RelationshipRow({ row }) {
-  return (
-    <div className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <div>
-          <strong style={{ color: "var(--vs-text)" }}>
-            {row.candidate_name || row.candidate_full_name || row.candidate_record_name || "Candidate"}
-          </strong>
-          <div style={{ color: "var(--vs-text-muted)", fontSize: 13, marginTop: 4 }}>
-            {joinText([row.candidate_state || "State N/A", row.candidate_office || "Office N/A", row.candidate_party || "Party N/A"])}
-          </div>
-        </div>
-        <Badge tone={tone(row.total_amount)}>{money(row.total_amount)}</Badge>
-      </div>
-
-      <div className="vs-chip-row">
-        <Badge tone="info">{row.category || "Consulting"}</Badge>
-        <Badge tone="accent">{row.transaction_count || 0} transactions</Badge>
-        <Badge tone="warning">Confidence {row.confidence || 0}</Badge>
-        {row.committee_name ? <Badge tone="default">{row.committee_name}</Badge> : null}
-      </div>
-
-      {row.purpose ? (
-        <div style={{ color: "var(--vs-text-muted)", fontSize: 12, lineHeight: 1.45 }}>
-          {row.purpose}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function RiskFlags({ flags = [] }) {
-  return (
-    <SectionCard title="Risk Flags" subtitle="Potential analyst-review signals generated from relationship patterns.">
-      <div className="vs-stack">
-        {flags.length ? flags.map((flag, index) => (
-          <div key={`${flag.label}-${index}`} className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 6 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-              <strong style={{ color: "var(--vs-text)" }}>{flag.label}</strong>
-              <Badge tone={riskTone(flag.level)}>{flag.level || "Signal"}</Badge>
-            </div>
-            <div style={{ color: "var(--vs-text-muted)", fontSize: 13 }}>{flag.detail}</div>
-          </div>
-        )) : <EmptyState text="No elevated consultant risk flags detected." />}
-      </div>
-    </SectionCard>
-  );
-}
 
 function MixPanel({ title, subtitle, rows = [], labelKey, amountKey = "total_amount", countKey = "candidate_count" }) {
   const max = Math.max(...rows.map((row) => Number(row[amountKey] || 0)), 0);
@@ -242,7 +201,20 @@ export default function ConsultantProfile() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(null);  
+  const [enrichingContact, setEnrichingContact] = useState(false);
+
+  async function enrichContact() {
+    try {
+      setEnrichingContact(true);
+      await api.post(`/consultants/contact-enrichment/${id}`, {});
+      await loadProfile();
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Failed to enrich consultant contact.");
+    } finally {
+      setEnrichingContact(false);
+    }
+  }
 
   async function loadProfile() {
     try {
@@ -322,7 +294,7 @@ export default function ConsultantProfile() {
             <StatCard label="Total Spend" value={money(summary.total_amount || consultant.total_fec_disbursements)} subtext={`${summary.transaction_count || 0} transactions`} />
           </div>
 
-          <ContactCard consultant={consultant} />
+          <ContactCard consultant={consultant} onEnrich={enrichContact} enriching={enrichingContact} />
 
           <RiskFlags flags={profile.risk_flags || []} />
 
