@@ -22,9 +22,13 @@ function toneForScore(score) {
   return "default";
 }
 
-function safeText(value, fallback = "N/A") {
-  if (value === undefined || value === null || value === "") return fallback;
-  return String(value);
+function statusTone(value) {
+  const text = String(value || "").toLowerCase();
+  if (text === "complete") return "active";
+  if (text === "partial") return "warning";
+  if (text === "missing") return "danger";
+  if (text.includes("active")) return "active";
+  return "default";
 }
 
 function safeUrl(value) {
@@ -79,40 +83,19 @@ function mergeConsultantLists(...lists) {
 
 function ContactField({ label, value, href }) {
   return (
-    <div
-      className="vs-card-muted"
-      style={{
-        padding: "10px 12px",
-        display: "grid",
-        gap: 4,
-        minHeight: 74,
-      }}
-    >
+    <div className="vs-card-muted" style={{ padding: "10px 12px", display: "grid", gap: 4, minHeight: 74 }}>
       <div className="vs-stat-label">{label}</div>
       {href ? (
         <a
           href={href}
           target={href.startsWith("mailto:") || href.startsWith("tel:") ? undefined : "_blank"}
           rel="noreferrer"
-          style={{
-            color: "var(--vs-text)",
-            fontWeight: 800,
-            textDecoration: "none",
-            wordBreak: "break-word",
-          }}
+          style={{ color: "var(--vs-text)", fontWeight: 800, textDecoration: "none", wordBreak: "break-word" }}
         >
           {value || "N/A"}
         </a>
       ) : (
-        <div
-          style={{
-            color: "var(--vs-text)",
-            fontWeight: 800,
-            wordBreak: "break-word",
-          }}
-        >
-          {value || "N/A"}
-        </div>
+        <div style={{ color: "var(--vs-text)", fontWeight: 800, wordBreak: "break-word" }}>{value || "N/A"}</div>
       )}
     </div>
   );
@@ -120,36 +103,16 @@ function ContactField({ label, value, href }) {
 
 function CandidateRelationshipRow({ row }) {
   return (
-    <div
-      className="vs-card-muted"
-      style={{
-        padding: 12,
-        display: "grid",
-        gap: 8,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "flex-start",
-        }}
-      >
+    <div className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div>
           <div style={{ color: "var(--vs-text)", fontWeight: 900 }}>
-            {row.candidate_name || "Candidate"}
+            {row.candidate_name || row.candidate_full_name || row.candidate_record_name || "Candidate"}
           </div>
           <div style={{ color: "var(--vs-text-muted)", fontSize: 12, marginTop: 4 }}>
-            {joinText([
-              row.candidate_state || "State N/A",
-              row.candidate_office || "Office N/A",
-              row.candidate_party || "Party N/A",
-            ])}
+            {joinText([row.candidate_state || "State N/A", row.candidate_office || "Office N/A", row.candidate_party || "Party N/A"])}
           </div>
         </div>
-
         <Badge tone="info">{money(row.total_amount)}</Badge>
       </div>
 
@@ -157,134 +120,85 @@ function CandidateRelationshipRow({ row }) {
         <Badge tone="accent">{row.category || "Consulting"}</Badge>
         <Badge tone="info">{row.transaction_count || 0} transactions</Badge>
         <Badge tone="warning">Confidence {row.confidence || 0}</Badge>
-        {row.last_disbursement_date ? (
-          <Badge tone="default">Last {String(row.last_disbursement_date).slice(0, 10)}</Badge>
-        ) : null}
+        {row.last_disbursement_date ? <Badge tone="default">Last {String(row.last_disbursement_date).slice(0, 10)}</Badge> : null}
       </div>
 
-      {row.purpose ? (
-        <div style={{ color: "var(--vs-text-muted)", fontSize: 12, lineHeight: 1.45 }}>
-          {row.purpose}
-        </div>
-      ) : null}
+      {row.purpose ? <div style={{ color: "var(--vs-text-muted)", fontSize: 12, lineHeight: 1.45 }}>{row.purpose}</div> : null}
     </div>
   );
 }
 
-function ConsultantCard({
-  consultant,
-  expanded,
-  loadingProfile,
-  profile,
-  onToggle,
-  onOpenProfile,
-  onOpenGraph,
-}) {
+function ConsultantCard({ consultant, expanded, loadingProfile, enrichingContact, profile, onToggle, onOpenProfile, onOpenGraph, onEnrichContact }) {
   const name = getConsultantName(consultant);
-  const mergedConsultant = {
-    ...(consultant || {}),
-    ...(profile?.consultant || {}),
-  };
-
+  const mergedConsultant = { ...(consultant || {}), ...(profile?.consultant || {}) };
   const website = safeUrl(mergedConsultant.website);
   const email = mergedConsultant.email || mergedConsultant.contact_email || "";
   const phone = mergedConsultant.phone || "";
+  const linkedin = safeUrl(mergedConsultant.linkedin_url);
+  const address = mergedConsultant.address || "";
   const relationships = normalizeArray(profile?.relationships);
   const summary = profile?.summary || {};
+  const contactStatus = mergedConsultant.contact_status || "missing";
+  const contactConfidence = Number(mergedConsultant.contact_confidence || 0);
 
   return (
-    <div
-      className="vs-card-muted"
-      style={{
-        padding: 14,
-        display: "grid",
-        gap: 12,
-      }}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          appearance: "none",
-          border: 0,
-          background: "transparent",
-          padding: 0,
-          textAlign: "left",
-          cursor: "pointer",
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-          }}
-        >
+    <div className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 12 }}>
+      <button type="button" onClick={onToggle} style={{ appearance: "none", border: 0, background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ color: "var(--vs-text)", fontWeight: 900, fontSize: 16 }}>
-              {name}
-            </div>
+            <div style={{ color: "var(--vs-text)", fontWeight: 900, fontSize: 16 }}>{name}</div>
             <div style={{ color: "var(--vs-text-muted)", fontSize: 12, marginTop: 4 }}>
-              {joinText([
-                mergedConsultant.category || "Political Consulting",
-                mergedConsultant.state || "National",
-              ])}
+              {joinText([mergedConsultant.category || "Political Consulting", mergedConsultant.state || "National"])}
             </div>
           </div>
 
           <div className="vs-chip-row">
-            <Badge tone={toneForScore(mergedConsultant.influence_score)}>
-              Influence {mergedConsultant.influence_score || 0}
-            </Badge>
-            <Badge tone={toneForScore(mergedConsultant.exposure_score)}>
-              {mergedConsultant.risk_label || "Signal"}
-            </Badge>
+            <Badge tone={toneForScore(mergedConsultant.influence_score)}>Influence {mergedConsultant.influence_score || 0}</Badge>
+            <Badge tone={toneForScore(mergedConsultant.exposure_score)}>{mergedConsultant.risk_label || "Signal"}</Badge>
+            <Badge tone={statusTone(contactStatus)}>Contact {contactStatus}</Badge>
             <Badge tone="default">{expanded ? "Hide Candidates" : "Show Candidates"}</Badge>
           </div>
         </div>
 
         <div className="vs-chip-row">
           <Badge tone="info">{money(mergedConsultant.total_fec_disbursements || summary.total_amount)}</Badge>
-          <Badge tone="accent">
-            {mergedConsultant.clients_count || mergedConsultant.mapped_candidates || summary.relationship_count || 0} clients
-          </Badge>
+          <Badge tone="accent">{mergedConsultant.clients_count || mergedConsultant.mapped_candidates || summary.relationship_count || 0} clients</Badge>
           <Badge tone="warning">Battleground {mergedConsultant.battleground_score || 0}</Badge>
           <Badge tone="info">Overlap {mergedConsultant.overlap_score || 0}</Badge>
+          <Badge tone={toneForScore(contactConfidence)}>Contact Confidence {contactConfidence}%</Badge>
         </div>
 
-        {mergedConsultant.risk_summary ? (
-          <div style={{ color: "var(--vs-text-muted)", fontSize: 12, lineHeight: 1.5 }}>
-            {mergedConsultant.risk_summary}
-          </div>
-        ) : null}
+        {mergedConsultant.risk_summary ? <div style={{ color: "var(--vs-text-muted)", fontSize: 12, lineHeight: 1.5 }}>{mergedConsultant.risk_summary}</div> : null}
       </button>
 
       {expanded ? (
         <div className="vs-stack">
-          <SectionCard title="Consultant Contact" subtitle="Available contact information from the consultant record.">
+          <SectionCard
+            title="Consultant Contact"
+            subtitle="Available contact information, enrichment confidence, and source details."
+            right={
+              <button type="button" className="vs-button vs-button-secondary" onClick={onEnrichContact} disabled={enrichingContact}>
+                {enrichingContact ? "Enriching..." : "Enrich Contact"}
+              </button>
+            }
+          >
             <div className="vs-grid-4">
               <ContactField label="Website" value={website || "N/A"} href={website || undefined} />
               <ContactField label="Email" value={email || "N/A"} href={email ? `mailto:${email}` : undefined} />
               <ContactField label="Phone" value={phone || "N/A"} href={phone ? `tel:${phone}` : undefined} />
-              <ContactField label="Source" value={mergedConsultant.source || "FEC / internal"} />
-              
+              <ContactField label="LinkedIn" value={linkedin ? "Open LinkedIn" : "N/A"} href={linkedin || undefined} />
+            </div>
+
             <div className="vs-grid-4" style={{ marginTop: 12 }}>
-              <StatCard label="Contact Status" value={mergedConsultant.contact_status || "missing"} subtext="Enrichment state" />
-              <StatCard label="Confidence" value={`${mergedConsultant.contact_confidence || 0}%`} subtext="Contact confidence" />
+              <StatCard label="Contact Status" value={contactStatus} subtext="Enrichment state" />
+              <StatCard label="Confidence" value={`${contactConfidence}%`} subtext="Contact confidence" />
               <StatCard label="Verified" value={mergedConsultant.contact_verified_at ? "Yes" : "No"} subtext={mergedConsultant.contact_verified_at ? String(mergedConsultant.contact_verified_at).slice(0, 10) : "Not verified"} />
               <StatCard label="Last Enriched" value={mergedConsultant.contact_enriched_at ? String(mergedConsultant.contact_enriched_at).slice(0, 10) : "N/A"} subtext={mergedConsultant.contact_source || "No source"} />
             </div>
 
-
-            {!website && !email && !phone ? (
-              <div className="vs-banner" style={{ marginTop: 12 }}>
-                Contact details are not always included in FEC disbursement data. This consultant is ready for the next enrichment pass to find website, phone, and email.
-              </div>
-            ) : null}
+            {address ? <div className="vs-banner" style={{ marginTop: 12 }}><strong>Address:</strong> {address}</div> : null}
+            {mergedConsultant.contact_source_url ? <div className="vs-banner" style={{ marginTop: 12 }}><strong>Source URL:</strong> {mergedConsultant.contact_source_url}</div> : null}
+            {!website && !email && !phone && !linkedin ? <div className="vs-banner" style={{ marginTop: 12 }}>Contact details are not always included in FEC disbursement data. Use Enrich Contact to infer and store a first-pass contact record.</div> : null}
           </SectionCard>
 
           <SectionCard
@@ -292,15 +206,8 @@ function ConsultantCard({
             subtitle="Candidate relationships mapped from FEC disbursement records."
             right={
               <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" className="vs-button vs-button-secondary" onClick={onOpenGraph}>
-                  Open Graph
-                </button>
-                <button type="button" className="vs-button" onClick={onOpenProfile}>
-                  Open Profile
-                </button>
-                <button type="button" className="vs-button vs-button-secondary" onClick={onEnrichContact}>
-                  Enrich Contact
-                </button>
+                <button type="button" className="vs-button vs-button-secondary" onClick={onOpenGraph}>Open Graph</button>
+                <button type="button" className="vs-button" onClick={onOpenProfile}>Open Profile</button>
               </div>
             }
           >
@@ -309,31 +216,12 @@ function ConsultantCard({
             ) : relationships.length ? (
               <div className="vs-stack">
                 <div className="vs-grid-4">
-                  <StatCard
-                    label="Relationships"
-                    value={summary.relationship_count || relationships.length}
-                    subtext="Mapped candidates"
-                  />
-                  <StatCard
-                    label="Total Spend"
-                    value={money(summary.total_amount)}
-                    subtext="FEC disbursements"
-                  />
-                  <StatCard
-                    label="States"
-                    value={(summary.states || []).length}
-                    subtext={(summary.states || []).join(", ") || "N/A"}
-                  />
-                  <StatCard
-                    label="Cross Party"
-                    value={summary.has_cross_party_overlap ? "Yes" : "No"}
-                    subtext="Overlap signal"
-                  />
+                  <StatCard label="Relationships" value={summary.relationship_count || relationships.length} subtext="Mapped candidates" />
+                  <StatCard label="Total Spend" value={money(summary.total_amount)} subtext="FEC disbursements" />
+                  <StatCard label="States" value={(summary.states || []).length} subtext={(summary.states || []).join(", ") || "N/A"} />
+                  <StatCard label="Cross Party" value={summary.has_cross_party_overlap ? "Yes" : "No"} subtext="Overlap signal" />
                 </div>
-
-                {relationships.map((row) => (
-                  <CandidateRelationshipRow key={row.id || `${row.candidate_id}-${row.committee_id}-${row.category}`} row={row} />
-                ))}
+                {relationships.map((row) => <CandidateRelationshipRow key={row.id || `${row.candidate_id}-${row.committee_id}-${row.category}`} row={row} />)}
               </div>
             ) : (
               <EmptyState text="No candidate relationships mapped for this consultant yet." />
@@ -378,9 +266,7 @@ function ExposurePanel({ exposure = [] }) {
               <strong style={{ color: "var(--vs-text)" }}>{item.consultant_name}</strong>
               <Badge tone="danger">Exposure</Badge>
             </div>
-            <div style={{ color: "var(--vs-text-muted)", fontSize: 13 }}>
-              {joinText([item.candidate_name, item.candidate_party || "Party N/A", item.candidate_state || "State N/A"])}
-            </div>
+            <div style={{ color: "var(--vs-text-muted)", fontSize: 13 }}>{joinText([item.candidate_name, item.candidate_party || "Party N/A", item.candidate_state || "State N/A"])}</div>
             <div className="vs-chip-row">
               <Badge tone="info">{money(item.total_amount)}</Badge>
               <Badge tone="accent">{item.transaction_count || 0} transactions</Badge>
@@ -406,6 +292,7 @@ export default function ConsultantIntel() {
   const [expandedId, setExpandedId] = useState(null);
   const [profilesById, setProfilesById] = useState({});
   const [profileLoadingById, setProfileLoadingById] = useState({});
+  const [contactLoadingById, setContactLoadingById] = useState({});
 
   const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
 
@@ -413,7 +300,6 @@ export default function ConsultantIntel() {
     try {
       setLoading(true);
       setError("");
-
       const [riskDash, ranks, bg, ov, exp] = await Promise.all([
         api.get("/consultants/risk/dashboard", { params: { limit: 50 } }).then((r) => r.data),
         api.get("/consultants/import/rankings", { params: { limit: 50 } }).then((r) => r.data),
@@ -421,7 +307,6 @@ export default function ConsultantIntel() {
         api.get("/consultants/import/overlaps", { params: { limit: 25 } }).then((r) => r.data),
         api.get("/consultants/import/opposition-exposure", { params: { limit: 25 } }).then((r) => r.data),
       ]);
-
       setDashboard(riskDash || null);
       setRankings(ranks?.results || []);
       setBattlegrounds(bg?.results || []);
@@ -434,14 +319,13 @@ export default function ConsultantIntel() {
     }
   }
 
-  async function loadProfile(consultant) {
+  async function loadProfile(consultant, force = false) {
     const id = getConsultantId(consultant);
     if (!id) return;
-    if (profilesById[id]) return;
-
+    if (!force && profilesById[id]) return;
     try {
       setProfileLoadingById((prev) => ({ ...prev, [id]: true }));
-      const result = await api.get(`/consultants/risk/profile/${id}`).then((r) => r.data);
+      const result = await api.get(`/consultants/deep-intel/profile/${id}`).then((r) => r.data);
       setProfilesById((prev) => ({ ...prev, [id]: result || null }));
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || "Failed to load consultant profile.");
@@ -454,14 +338,27 @@ export default function ConsultantIntel() {
   async function toggleConsultant(consultant) {
     const id = getConsultantId(consultant);
     if (!id) return;
-
     if (String(expandedId) === String(id)) {
       setExpandedId(null);
       return;
     }
-
     setExpandedId(id);
     await loadProfile(consultant);
+  }
+
+  async function enrichContactForConsultant(consultant) {
+    const id = getConsultantId(consultant);
+    if (!id) return;
+    try {
+      setContactLoadingById((prev) => ({ ...prev, [id]: true }));
+      await api.post(`/consultants/contact-enrichment/${id}`, {});
+      await loadProfile(consultant, true);
+      await loadData();
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Failed to enrich consultant contact.");
+    } finally {
+      setContactLoadingById((prev) => ({ ...prev, [id]: false }));
+    }
   }
 
   async function runScore() {
@@ -476,54 +373,21 @@ export default function ConsultantIntel() {
     }
   }
 
-  async function enrichContactForConsultant(consultant) {
-    const id = getConsultantId(consultant);
-    if (!id) return;
-    try {
-      await api.post(`/consultants/contact-enrichment/${id}`, {});
-      setProfilesById((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    await loadProfile(consultant);
-  } catch (err) {
-    setError(err?.response?.data?.error || err?.message || "Failed to enrich consultant contact.");
-  }
-}
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const summary = dashboard?.summary || {};
-
-  const highRiskCount = useMemo(() => {
-    return Number(summary.high_exposure || 0) + Number(summary.watch_closely || 0);
-  }, [summary]);
-
-  const consultants = useMemo(() => {
-    return mergeConsultantLists(
-      rankings,
-      battlegrounds,
-      dashboard?.top_influence,
-      dashboard?.top_exposure
-    );
-  }, [rankings, battlegrounds, dashboard]);
+  const highRiskCount = useMemo(() => Number(summary.high_exposure || 0) + Number(summary.watch_closely || 0), [summary]);
+  const consultants = useMemo(() => mergeConsultantLists(rankings, battlegrounds, dashboard?.top_influence, dashboard?.top_exposure), [rankings, battlegrounds, dashboard]);
 
   return (
     <PageShell
       eyebrow="Consultant Intelligence"
       title="National consultant power map."
-      description="Track live FEC consultant relationships, candidate relationships, battleground rankings, overlap risks, and opposition exposure signals."
+      description="Track live FEC consultant relationships, candidate relationships, contact enrichment, battleground rankings, overlap risks, and opposition exposure signals."
       demo={demoMode}
       demoText="Demo consultant intelligence mode is active."
     >
-      {error ? (
-        <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>{error}</div> : null}
 
       <div className="vs-grid-4">
         <StatCard label="FEC Consultants" value={summary.fec_consultants || 0} subtext="Imported from disbursements" />
@@ -534,52 +398,38 @@ export default function ConsultantIntel() {
 
       <SectionCard
         title="Consultant Intelligence Controls"
-        subtitle="Refresh scoring after imports or reload all consultant intelligence panels."
+        subtitle="Refresh scoring after imports, reload panels, or enrich contacts from consultant records."
         right={
           <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="vs-button vs-button-secondary" onClick={loadData} disabled={loading}>
-              {loading ? "Loading..." : "Reload"}
-            </button>
-            <button type="button" className="vs-button" onClick={runScore} disabled={scoring}>
-              {scoring ? "Scoring..." : "Run AI Risk Score"}
-            </button>
+            <button type="button" className="vs-button vs-button-secondary" onClick={loadData} disabled={loading}>{loading ? "Loading..." : "Reload"}</button>
+            <button type="button" className="vs-button" onClick={runScore} disabled={scoring}>{scoring ? "Scoring..." : "Run AI Risk Score"}</button>
           </div>
         }
       >
-        <div className="vs-banner">
-          Consultant intelligence is powered by FEC Schedule B disbursements, consultant-candidate mappings, relationship density, battleground footprint, and overlap detection.
-        </div>
+        <div className="vs-banner">Consultant intelligence is powered by FEC Schedule B disbursements, consultant-candidate mappings, contact enrichment, relationship density, battleground footprint, and overlap detection.</div>
       </SectionCard>
 
-      {loading ? (
-        <EmptyState text="Loading consultant intelligence..." />
-      ) : (
+      {loading ? <EmptyState text="Loading consultant intelligence..." /> : (
         <div className="vs-stack">
-          <SectionCard
-            title="Consultant Network"
-            subtitle="One card per consultant. Expand a consultant to see contact details and candidate relationships."
-            right={<Badge tone="info">{consultants.length} consultants shown</Badge>}
-          >
+          <SectionCard title="Consultant Network" subtitle="One card per consultant. Expand a consultant to see contact enrichment details and candidate relationships." right={<Badge tone="info">{consultants.length} consultants shown</Badge>}>
             <div className="vs-stack">
-              {consultants.length ? (
-                consultants.map((consultant) => {
-                  const id = getConsultantId(consultant);
-                  return (
-                    <ConsultantCard
-                      key={id || getConsultantName(consultant)}
-                      consultant={consultant}
-                      expanded={String(expandedId) === String(id)}
-                      loadingProfile={Boolean(profileLoadingById[id])}
-                      profile={profilesById[id]}
-                      onToggle={() => toggleConsultant(consultant)}
-                      onOpenProfile={() => navigate(`/consultants/${id}`)}
-                      onOpenGraph={() => navigate(`/relationship-graph?consultant=${encodeURIComponent(getConsultantName(consultant))}`)}
-                    />
-                  );
-                })
-              ) : (
-                <EmptyState text="No consultant records found." />
-              )}
+              {consultants.length ? consultants.map((consultant) => {
+                const id = getConsultantId(consultant);
+                return (
+                  <ConsultantCard
+                    key={id || getConsultantName(consultant)}
+                    consultant={consultant}
+                    expanded={String(expandedId) === String(id)}
+                    loadingProfile={Boolean(profileLoadingById[id])}
+                    enrichingContact={Boolean(contactLoadingById[id])}
+                    profile={profilesById[id]}
+                    onToggle={() => toggleConsultant(consultant)}
+                    onOpenProfile={() => navigate(`/consultants/${id}`)}
+                    onOpenGraph={() => navigate(`/relationship-graph?consultant=${encodeURIComponent(getConsultantName(consultant))}`)}
+                    onEnrichContact={() => enrichContactForConsultant(consultant)}
+                  />
+                );
+              }) : <EmptyState text="No consultant records found." />}
             </div>
           </SectionCard>
 
@@ -592,3 +442,4 @@ export default function ConsultantIntel() {
     </PageShell>
   );
 }
+
