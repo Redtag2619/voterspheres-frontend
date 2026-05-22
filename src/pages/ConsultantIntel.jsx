@@ -271,6 +271,7 @@ function ConsultantCard({
               <ContactField label="Email" value={email || "N/A"} href={email ? `mailto:${email}` : undefined} />
               <ContactField label="Phone" value={phone || "N/A"} href={phone ? `tel:${phone}` : undefined} />
               <ContactField label="Source" value={mergedConsultant.source || "FEC / internal"} />
+              
             <div className="vs-grid-4" style={{ marginTop: 12 }}>
               <StatCard label="Contact Status" value={mergedConsultant.contact_status || "missing"} subtext="Enrichment state" />
               <StatCard label="Confidence" value={`${mergedConsultant.contact_confidence || 0}%`} subtext="Contact confidence" />
