@@ -719,6 +719,19 @@ export const consultantDeepIntelApi = {
     tryGet([`/consultants/deep-intel/profile/${id}`], { params }),
 };
 
+export const consultantContactEnrichmentApi = {
+  status: () => tryGet(["/consultants/contact-enrichment/status"]),
+  needsEnrichment: (params = {}) =>
+    tryGet(["/consultants/contact-enrichment/needs-enrichment"], { params }),
+  run: (payload = {}) =>
+    tryPost(["/consultants/contact-enrichment/run"], payload),
+  enrichOne: (id, payload = {}) =>
+    tryPost([`/consultants/contact-enrichment/${id}`], payload),
+  history: (id) =>
+    tryGet([`/consultants/contact-enrichment/${id}/history`]),
+};
+
+
 export const relationshipGraphApi = {
   graph: (params = {}) =>
     tryGet(["/relationships/graph"], {
@@ -851,6 +864,12 @@ export const api = {
   scoreConsultantOpportunities: consultantOpportunityApi.score,
   consultantOpportunityDetail: consultantOpportunityApi.detail,
 
+  consultantContactStatus: consultantContactEnrichmentApi.status,
+  consultantContactsNeedingEnrichment: consultantContactEnrichmentApi.needsEnrichment,
+  runConsultantContactEnrichment: consultantContactEnrichmentApi.run,
+  enrichConsultantContact: consultantContactEnrichmentApi.enrichOne,
+  consultantContactHistory: consultantContactEnrichmentApi.history,
+
   vendorStates: vendorsApi.states,
   vendorCategories: vendorsApi.categories,
   vendorStatuses: vendorsApi.statuses,
@@ -891,8 +910,7 @@ export const api = {
 
   workspaceOnboardingChecklist: workspaceOnboardingApi.getChecklist,
   workspaceOnboardingActivity: workspaceOnboardingApi.getActivity,
-  updateWorkspaceOnboardingChecklistItem:
-    workspaceOnboardingApi.updateChecklistItem,
+  updateWorkspaceOnboardingChecklistItem: workspaceOnboardingApi.updateChecklistItem,
   resetWorkspaceOnboardingChecklist: workspaceOnboardingApi.resetChecklist,  
   campaignOpportunityHeatmap: consultantOpportunityApi.heatmap,
 
