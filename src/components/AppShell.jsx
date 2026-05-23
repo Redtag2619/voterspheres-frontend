@@ -11,7 +11,8 @@ const primaryItems = [
   { label: "Command", to: "/command-center" },
   { label: "Fundraising", to: "/fundraising" },
   { label: "Vendors", to: "/vendors" },
-  { label: "Consultant Intel", to: "/consultant-intel" }
+  { label: "Consultant Intel", to: "/consultant-intel" }, 
+  { label: "Committee Intel", to: "/committee-intel", }
 ];
 
 const secondaryItems = [
