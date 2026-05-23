@@ -13,6 +13,7 @@ import AdminAlerts from "./pages/AdminAlerts";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import PlanProtectedRoute from "./components/PlanProtectedRoute.jsx";
 import RelationshipGraph from "./pages/RelationshipGraph";
+import CommitteeIntel from "./pages/CommitteeIntel.jsx";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -204,6 +205,7 @@ function AppRoutes() {
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
               <Route path="/consultants/:id" element={<ConsultantProfile />} />
+              <Route path="/committee-intel" element={<CommitteeIntel />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}>
