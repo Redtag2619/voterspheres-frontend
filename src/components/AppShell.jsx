@@ -21,6 +21,7 @@ const secondaryItems = [
   { label: "Donors", to: "/donors" },
   { label: "Consultants", to: "/consultants" },
   { label: "Relationship Graph", to: "/relationship-graph"},
+  { label: "Dark Money", to: "/dark-money-exposure" },
   { label: "Opportunity Map", to: "/campaign-opportunity-heatmap"},
   { label: "MailOps", to: "/mailops" },
   { label: "Pricing", to: "/pricing" },
