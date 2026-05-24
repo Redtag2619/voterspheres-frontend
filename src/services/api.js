@@ -748,6 +748,13 @@ export const darkMoneyExposureApi = {
     tryGet([`/dark-money-exposure/profile/${id}`], { params }),
 };
 
+export const executiveAlertsApi = {
+  list: (params = {}) =>
+    tryGet(["/executive-alerts"], {
+      params: withWorkspaceParams(params),
+    }),
+};
+
 export const publicApi = {
   createEnterpriseLead: (payload) =>
     unwrap(http.post("/public/enterprise-leads", payload)),
@@ -929,6 +936,8 @@ export const api = {
   
   darkMoneyExposure: darkMoneyExposureApi.dashboard,
   darkMoneyExposureProfile: darkMoneyExposureApi.profile,
+  
+  executiveAlerts: executiveAlertsApi.list,
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
 };
