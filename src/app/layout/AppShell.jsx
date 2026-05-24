@@ -14,6 +14,7 @@ const primaryNavItems = [
   { to: "/fundraising", label: "Fundraising", permission: PERMISSIONS.VIEW_FUNDRAISING },
   { to: "/vendors", label: "Vendors", permission: PERMISSIONS.VIEW_VENDORS },
   { to: "/consultants", label: "Consultants", permission: PERMISSIONS.VIEW_CONSULTANTS },
+  { to: "/consultant-intel", label: "Consultant Intel", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/committee-intel", label: "Committee Intel", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/dark-money-exposure", label: "Dark Money", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/relationship-graph", label: "Relationship Graph", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
@@ -21,40 +22,40 @@ const primaryNavItems = [
   { to: "/ai-chat", label: "AI Chat", permission: PERMISSIONS.VIEW_AI_CHAT },
   { to: "/war-room", label: "War Room", permission: PERMISSIONS.VIEW_WAR_ROOM },
   { to: "/command-center", label: "Command Center", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
-  { to: "/billing", label: "Billing", permission: PERMISSIONS.VIEW_BILLING }
+  { to: "/billing", label: "Billing", permission: PERMISSIONS.VIEW_BILLING },
 ];
 
 const adminNavItems = [
   {
     to: "/admin/candidate-profiles",
     label: "Candidate Profiles",
-    permission: PERMISSIONS.VIEW_CANDIDATE_ADMIN
+    permission: PERMISSIONS.VIEW_CANDIDATE_ADMIN,
   },
   {
     to: "/admin/beta-access",
     label: "Beta Access",
-    permission: PERMISSIONS.VIEW_BETA_ACCESS
+    permission: PERMISSIONS.VIEW_BETA_ACCESS,
   },
   {
     to: "/admin/firm-users",
     label: "Firm Users",
-    permission: PERMISSIONS.VIEW_FIRM_USERS
+    permission: PERMISSIONS.VIEW_FIRM_USERS,
   },
   {
     to: "/admin/firm-invites",
     label: "Firm Invites",
-    permission: PERMISSIONS.VIEW_FIRM_INVITES
+    permission: PERMISSIONS.VIEW_FIRM_INVITES,
   },
   {
     to: "/admin/enterprise-leads",
     label: "Enterprise Leads",
-    permission: PERMISSIONS.VIEW_ENTERPRISE_LEADS
-  }
+    permission: PERMISSIONS.VIEW_ENTERPRISE_LEADS,
+  },
 ];
 
 const publicNavItems = [
   { to: "/pricing", label: "Pricing" },
-  { to: "/signup", label: "Sign Up" }
+  { to: "/signup", label: "Sign Up" },
 ];
 
 function navClass({ isActive }) {
@@ -74,84 +75,102 @@ export default function AppShell() {
   );
 
   return (
-    <CheckoutPlanSync />
-    <div className="vs-shell">
-      <header className="vs-shell-header">
-        <div className="vs-shell-inner">
-          <div className="vs-brand-row">
-            <Link to="/dashboard" className="vs-brand-mark" aria-label="VoterSpheres home">
-             VS
-            </Link>
+    <>
+      <CheckoutPlanSync />
 
-            <div className="vs-brand-copy">
-              <div className="vs-brand-name">VoterSpheres</div>
-              <div className="vs-brand-tagline">Campaign intelligence operating system</div>
-            </div>
+      <div className="vs-shell">
+        <header className="vs-shell-header">
+          <div className="vs-shell-inner">
+            <div className="vs-brand-row">
+              <Link
+                to="/dashboard"
+                className="vs-brand-mark"
+                aria-label="VoterSpheres home"
+              >
+                VS
+              </Link>
 
-            <div className="vs-inline-actions" style={{ marginLeft: "auto" }}>
-              <div className="vs-brand-live">
-                <span className={demoMode ? "vs-live-dot-warning" : "vs-live-dot-success"} />
-                <span>{demoMode ? "Demo Mode" : "Live Mode"}</span>
+              <div className="vs-brand-copy">
+                <div className="vs-brand-name">VoterSpheres</div>
+                <div className="vs-brand-tagline">
+                  Campaign intelligence operating system
+                </div>
               </div>
 
-              <button
-                type="button"
-                className="vs-button vs-button-secondary"
-                onClick={toggleDemoMode}
-              >
-                {demoMode ? "Disable Demo" : "Enable Demo"}
-              </button>
+              <div className="vs-inline-actions" style={{ marginLeft: "auto" }}>
+                <div className="vs-brand-live">
+                  <span
+                    className={
+                      demoMode ? "vs-live-dot-warning" : "vs-live-dot-success"
+                    }
+                  />
+                  <span>{demoMode ? "Demo Mode" : "Live Mode"}</span>
+                </div>
 
-              {user ? (
                 <button
                   type="button"
                   className="vs-button vs-button-secondary"
-                  onClick={logout}
+                  onClick={toggleDemoMode}
                 >
-                  Log Out
+                  {demoMode ? "Disable Demo" : "Enable Demo"}
                 </button>
+
+                {user ? (
+                  <button
+                    type="button"
+                    className="vs-button vs-button-secondary"
+                    onClick={logout}
+                  >
+                    Log Out
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <nav className="vs-shell-nav" aria-label="Primary navigation">
+              {visiblePrimaryItems.map((item) => (
+                <NavLink key={item.to} to={item.to} className={navClass}>
+                  {item.label}
+                </NavLink>
+              ))}
+
+              {visibleAdminItems.length ? (
+                <>
+                  <span className="vs-nav-divider" aria-hidden="true" />
+                  {visibleAdminItems.map((item) => (
+                    <NavLink key={item.to} to={item.to} className={navClass}>
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </>
               ) : null}
-            </div>
-          </div>
 
-          <nav className="vs-shell-nav" aria-label="Primary navigation">
-            {visiblePrimaryItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navClass}>
-                {item.label}
-              </NavLink>
-            ))}
+              {!user
+                ? publicNavItems.map((item) => (
+                    <NavLink key={item.to} to={item.to} className={navClass}>
+                      {item.label}
+                    </NavLink>
+                  ))
+                : null}
+            </nav>
 
-            {visibleAdminItems.length ? (
-              <>
-                <span className="vs-nav-divider" aria-hidden="true" />
-                {visibleAdminItems.map((item) => (
-                  <NavLink key={item.to} to={item.to} className={navClass}>
-                    {item.label}
-                  </NavLink>
-                ))}
-              </>
+            {demoMode ? (
+              <div
+                className="vs-banner vs-banner-demo"
+                style={{ marginTop: "10px" }}
+              >
+                Global Demo Mode is active. Modules may render fallback data when
+                live endpoints are unavailable.
+              </div>
             ) : null}
+          </div>
+        </header>
 
-            {!user
-              ? publicNavItems.map((item) => (
-                  <NavLink key={item.to} to={item.to} className={navClass}>
-                    {item.label}
-                  </NavLink>
-                ))
-              : null}
-          </nav>
-
-          {demoMode ? (
-            <div className="vs-banner vs-banner-demo" style={{ marginTop: "10px" }}>
-              Global Demo Mode is active. Modules may render fallback data when live endpoints are unavailable.
-            </div>
-          ) : null}
-        </div>
-      </header>
-
-      <main className="vs-shell-main">
-        <Outlet />
-      </main>
-    </div>
+        <main className="vs-shell-main">
+          <Outlet />
+        </main>
+      </div>
+    </>
   );
 }
+
