@@ -11,7 +11,7 @@ const primaryNavItems = [
   { to: "/donors", label: "Donors", permission: PERMISSIONS.VIEW_DONORS },
   { to: "/forecast", label: "Forecast", permission: PERMISSIONS.VIEW_FORECAST },
   { to: "/power-rankings", label: "Rankings", permission: PERMISSIONS.VIEW_POWER_RANKINGS },
-  { to: "/fundraising", label: "Fundraising", permission: PERMISSIONS.VIEW_FUNDRAISING },
+  { to: "/fundraising", label: "Fundraising", permission: PERMISSIONS.VIEW_FUNDRAISING }, 
   { to: "/vendors", label: "Vendors", permission: PERMISSIONS.VIEW_VENDORS },
   { to: "/consultants", label: "Consultants", permission: PERMISSIONS.VIEW_CONSULTANTS },
   { to: "/consultant-intel", label: "Consultant Intel", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
