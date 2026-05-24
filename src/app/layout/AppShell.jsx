@@ -14,25 +14,9 @@ const primaryNavItems = [
   { to: "/fundraising", label: "Fundraising", permission: PERMISSIONS.VIEW_FUNDRAISING },
   { to: "/vendors", label: "Vendors", permission: PERMISSIONS.VIEW_VENDORS },
   { to: "/consultants", label: "Consultants", permission: PERMISSIONS.VIEW_CONSULTANTS },
-
-  {
-    to: "/committee-intel",
-    label: "Committee Intel",
-    permission: PERMISSIONS.VIEW_COMMAND_CENTER
-  },
-
-  {
-    to: "/dark-money-exposure",
-    label: "Dark Money",
-    permission: PERMISSIONS.VIEW_COMMAND_CENTER
-  },
-
-  {
-    to: "/relationship-graph",
-    label: "Relationship Graph",
-    permission: PERMISSIONS.VIEW_COMMAND_CENTER
-  },
-
+  { to: "/committee-intel", label: "Committee Intel", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
+  { to: "/dark-money-exposure", label: "Dark Money", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
+  { to: "/relationship-graph", label: "Relationship Graph", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/mailops", label: "MailOps", permission: PERMISSIONS.VIEW_MAILOPS },
   { to: "/ai-chat", label: "AI Chat", permission: PERMISSIONS.VIEW_AI_CHAT },
   { to: "/war-room", label: "War Room", permission: PERMISSIONS.VIEW_WAR_ROOM },
