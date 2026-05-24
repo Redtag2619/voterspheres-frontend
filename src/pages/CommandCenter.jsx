@@ -671,6 +671,14 @@ export default function CommandCenter() {
 
   const [consultantIntel, setConsultantIntel] = useState(fallbackConsultantIntel);
   const [consultantLoading, setConsultantLoading] = useState(true);
+  const [darkMoneyIntel, setDarkMoneyIntel] = useState({
+  summary: {},
+  top_exposure: [],
+  consultant_clusters: [],
+  candidate_exposure: [],
+});
+
+const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -768,6 +776,45 @@ export default function CommandCenter() {
     }
   }
 
+  async function loadDarkMoneyIntel() {
+  if (demoMode) {
+    setDarkMoneyLoading(false);
+    return;
+  }
+
+  try {
+    setDarkMoneyLoading(true);
+
+    const result = api.darkMoneyExposure
+      ? await api.darkMoneyExposure({ limit: 15 })
+      : await api
+          .get("/dark-money-exposure", {
+            params: { limit: 15 },
+          })
+          .then((r) => r.data);
+
+    setDarkMoneyIntel(
+      result || {
+        summary: {},
+        top_exposure: [],
+        consultant_clusters: [],
+        candidate_exposure: [],
+      }
+    );
+  } catch (error) {
+    console.error("Dark money intelligence failed:", error);
+
+    setDarkMoneyIntel({
+      summary: {},
+      top_exposure: [],
+      consultant_clusters: [],
+      candidate_exposure: [],
+    });
+  } finally {
+    setDarkMoneyLoading(false);
+  }
+}
+  
   async function loadTasks() {
     if (demoMode) {
       setTasks([]);
@@ -792,13 +839,13 @@ export default function CommandCenter() {
 
   async function refreshAll() {
     await Promise.all([
-      loadCommandData(),
-      loadCrossSignal(),
-      loadRelationshipGraph(),
-      loadConsultantIntel(),
-      loadTasks(),
-    ]);
-  }
+    loadCommandData(),
+    loadCrossSignal(),
+    loadRelationshipGraph(),
+    loadConsultantIntel(),
+    loadDarkMoneyIntel(),
+    loadTasks(),
+  ]);
 
   async function runConsultantRiskScore() {
     try {
@@ -821,10 +868,27 @@ export default function CommandCenter() {
   const actions = effectiveData.actions || [];
   const feed = effectiveData.feed || [];
 
-  const executiveDecision = useMemo(
-    () => buildDecision(feed, consultantIntel),
-    [feed, consultantIntel]
-  );
+  const executiveDecision = useMemo(() => {
+  const exposure =
+    darkMoneyIntel?.top_exposure?.find(
+      (item) => Number(item.exposure_score || 0) >= 80
+    ) || null;
+
+  if (exposure) {
+    return {
+      level: "CRITICAL",
+      title: `${exposure.committee_name || exposure.committee_id} shows critical dark money exposure`,
+      actions: [
+        "Review committee relationships",
+        "Audit consultant overlap",
+        "Escalate compliance review",
+      ],
+      link: "/dark-money-exposure",
+    };
+  }
+
+  return buildDecision(feed, consultantIntel);
+}, [feed, consultantIntel, darkMoneyIntel]);
 
   const highSeverityCount = feed.filter((item) =>
     ["high", "critical"].includes(String(item.severity || "").toLowerCase())
@@ -910,6 +974,104 @@ export default function CommandCenter() {
       />
 
       <CrossSignalPanel data={crossSignal} loading={crossLoading} />
+      <SectionCard
+          title="Dark Money Exposure Layer"
+          subtitle="Committee influence chains, consultant overlap, and cross-state exposure tracking."
+          right={
+            <div
+              className="vs-inline-actions"
+              style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+            >
+              <Badge
+                tone={
+                  Number(darkMoneyIntel?.summary?.critical_exposure || 0)
+                    ? "danger"
+                    : "active"
+                }
+              >
+                {darkMoneyIntel?.summary?.critical_exposure || 0} critical
+              </Badge>
+
+              <Link
+                className="vs-button vs-button-secondary"
+                to="/dark-money-exposure"
+              >
+               Open Dark Money Layer
+              </Link>
+            </div>
+          }
+        >
+          {darkMoneyLoading ? (
+            <EmptyState text="Loading dark money exposure intelligence..." />
+          ) : (
+            <div className="vs-stack">
+              <div className="vs-grid-4">
+                <StatCard
+                  label="Tracked Committees"
+                  value={darkMoneyIntel?.summary?.total_committees || 0}
+                  subtext="Mapped committees"
+                />
+
+               <StatCard
+                 label="Critical Exposure"
+                 value={darkMoneyIntel?.summary?.critical_exposure || 0}
+                 subtext="Immediate review"
+               />
+
+              <StatCard
+                label="High Exposure"
+                value={darkMoneyIntel?.summary?.high_exposure || 0}
+                subtext="Elevated activity"
+              />
+
+             <StatCard
+               label="Money Flow"
+               value={money(darkMoneyIntel?.summary?.total_amount || 0)}
+               subtext="Mapped influence flow"
+             />
+           </div>
+
+           {(darkMoneyIntel?.top_exposure || [])
+             .slice(0, 5)
+             .map((item, index) => (
+               <PremiumRow
+                 key={`${item.committee_id}-${index}`}
+                 title={
+                   item.committee_name ||
+                   item.committee_id ||
+                   "Committee"
+                 }
+                 subtitle={item.narrative}
+                 tone={toneFromSeverity(item.severity)}
+                 live={item.severity === "critical"}
+                 meta={[
+                   {
+                     label: "Exposure",
+                     value: item.exposure_score || 0,
+                   },
+                   {
+                     label: "Consultants",
+                     value: item.consultant_count || 0,
+                  },
+                  {
+                     label: "Candidates",
+                     value: item.candidate_count || 0,
+                  },
+                  {
+                     label: "Money Flow",
+                     value: money(item.total_amount),
+                  },
+                 ]}
+                 right={
+                   <Badge tone={toneFromSeverity(item.severity)}>
+                     {item.exposure_tier || "Exposure"}
+                   </Badge>
+                 }
+               />
+             ))}
+         </div>
+       )}
+     </SectionCard>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
         <BattlegroundPanel rows={battlegrounds} />
