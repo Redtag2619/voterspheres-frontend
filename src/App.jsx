@@ -46,6 +46,7 @@ const EnterpriseLeadIntake = lazy(() =>import("./pages/EnterpriseLeadIntake.jsx"
 const CampaignOpportunityHeatmap = lazy(() => import("./pages/CampaignOpportunityHeatmap.jsx"));
 const ConsultantIntel = lazy(() => import("./pages/ConsultantIntel"));
 const ConsultantProfile = lazy(() => import("./pages/ConsultantProfile"));
+const DarkMoneyExposure = lazy(() => import("./pages/DarkMoneyExposure.jsx"));
 
 function LoadingScreen() {
   return (
@@ -203,6 +204,7 @@ function AppRoutes() {
               <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
+              <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
               <Route path="/consultants/:id" element={<ConsultantProfile />} />
               <Route path="/committee-intel" element={<CommitteeIntel />} />
