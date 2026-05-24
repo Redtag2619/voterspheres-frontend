@@ -739,6 +739,15 @@ export const relationshipGraphApi = {
     }),
 };
 
+export const darkMoneyExposureApi = {
+  dashboard: (params = {}) =>
+    tryGet(["/dark-money-exposure"], {
+      params: withWorkspaceParams(params),
+    }),
+  profile: (id, params = {}) =>
+    tryGet([`/dark-money-exposure/profile/${id}`], { params }),
+};
+
 export const publicApi = {
   createEnterpriseLead: (payload) =>
     unwrap(http.post("/public/enterprise-leads", payload)),
@@ -917,6 +926,9 @@ export const api = {
   realtimeStatus: realtimeApi.status,
   
   relationshipGraph: relationshipGraphApi.graph,
+  
+  darkMoneyExposure: darkMoneyExposureApi.dashboard,
+  darkMoneyExposureProfile: darkMoneyExposureApi.profile,
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
 };
