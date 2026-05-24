@@ -160,6 +160,13 @@ const fallbackConsultantIntel = {
   recent_relationships: [],
 };
 
+const fallbackDarkMoneyIntel = {
+  summary: {},
+  top_exposure: [],
+  consultant_clusters: [],
+  candidate_exposure: [],
+};
+
 function number(value, fallback = 0) {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;
@@ -203,19 +210,43 @@ function unwrapGraph(payload) {
   return payload?.graph || payload || null;
 }
 
-function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel) {
-  const urgent = feed.find((item) =>
-    ["high", "critical"].includes(String(item.severity || "").toLowerCase())
-  );
+function buildDecision(
+  feed = [],
+  consultantIntel = fallbackConsultantIntel,
+  darkMoneyIntel = fallbackDarkMoneyIntel
+) {
+  const darkMoneyExposure =
+    darkMoneyIntel?.top_exposure?.find(
+      (item) => number(item.exposure_score) >= 80
+    ) || null;
 
-  const exposure = normalizeList(consultantIntel, "top_exposure").find(
+  if (darkMoneyExposure) {
+    return {
+      level: "CRITICAL",
+      title: `${
+        darkMoneyExposure.committee_name ||
+        darkMoneyExposure.committee_id ||
+        "Committee"
+      } shows critical dark money exposure`,
+      actions: [
+        "Review committee relationships",
+        "Audit consultant overlap",
+        "Escalate compliance review",
+      ],
+      link: "/dark-money-exposure",
+    };
+  }
+
+  const consultantExposure = normalizeList(consultantIntel, "top_exposure").find(
     (item) => number(item.exposure_score) >= 60
   );
 
-  if (exposure) {
+  if (consultantExposure) {
     return {
       level: "HIGH",
-      title: `${exposure.name || "Consultant"} consultant relationship needs review`,
+      title: `${
+        consultantExposure.name || consultantExposure.firm_name || "Consultant"
+      } consultant relationship needs review`,
       actions: [
         "Open Consultant Intelligence",
         "Review candidate relationships",
@@ -225,15 +256,15 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel) {
     };
   }
 
+  const urgent = feed.find((item) =>
+    ["high", "critical"].includes(String(item.severity || "").toLowerCase())
+  );
+
   if (urgent) {
     return {
       level: String(urgent.severity || "HIGH").toUpperCase(),
       title: urgent.title || "High-priority alert detected",
-      actions: [
-        "Assign an owner",
-        "Review response plan",
-        "Monitor impact",
-      ],
+      actions: ["Assign an owner", "Review response plan", "Monitor impact"],
       link: "/command-center",
     };
   }
@@ -282,9 +313,7 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
   const topInfluence = data?.top_influence || data?.topInfluencers || [];
   const topExposure = data?.top_exposure || [];
   const recentRelationships = data?.recent_relationships || [];
-
-  const riskWatch =
-    number(summary.high_exposure) + number(summary.watch_closely);
+  const riskWatch = number(summary.high_exposure) + number(summary.watch_closely);
 
   return (
     <SectionCard
@@ -309,26 +338,10 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
       ) : (
         <div className="vs-stack">
           <div className="vs-grid-4">
-            <StatCard
-              label="FEC Consultants"
-              value={summary.fec_consultants || summary.fec_imported || 0}
-              subtext="Imported consultant records"
-            />
-            <StatCard
-              label="Avg Influence"
-              value={summary.avg_influence || 0}
-              subtext="Overall influence score"
-            />
-            <StatCard
-              label="Avg Exposure"
-              value={summary.avg_exposure || 0}
-              subtext="Cross-campaign risk"
-            />
-            <StatCard
-              label="Needs Review"
-              value={riskWatch}
-              subtext="Consultants needing review"
-            />
+            <StatCard label="FEC Consultants" value={summary.fec_consultants || summary.fec_imported || 0} subtext="Imported consultant records" />
+            <StatCard label="Avg Influence" value={summary.avg_influence || 0} subtext="Overall influence score" />
+            <StatCard label="Avg Exposure" value={summary.avg_exposure || 0} subtext="Cross-campaign risk" />
+            <StatCard label="Needs Review" value={riskWatch} subtext="Consultants needing review" />
           </div>
 
           <div className="vs-grid-2" style={{ alignItems: "start" }}>
@@ -339,10 +352,7 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                   <PremiumRow
                     key={item.id || item.name}
                     title={item.name || item.firm_name || "Consultant"}
-                    subtitle={joinText([
-                      item.category || "Political Consulting",
-                      item.state || "National",
-                    ])}
+                    subtitle={joinText([item.category || "Political Consulting", item.state || "National"])}
                     tone={toneFromScore(item.influence_score)}
                     meta={[
                       { label: "Influence", value: item.influence_score || 0 },
@@ -374,10 +384,7 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                   <PremiumRow
                     key={item.id || item.name}
                     title={item.name || item.firm_name || "Consultant"}
-                    subtitle={
-                      item.risk_summary ||
-                      joinText([item.category || "Political Consulting", item.state || "National"])
-                    }
+                    subtitle={item.risk_summary || joinText([item.category || "Political Consulting", item.state || "National"])}
                     tone={toneFromScore(item.exposure_score)}
                     meta={[
                       { label: "Exposure", value: item.exposure_score || 0 },
@@ -401,11 +408,7 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                 <PremiumRow
                   key={item.id || `${item.consultant_name}-${item.candidate_name}`}
                   title={joinText([item.consultant_name || "Consultant", item.candidate_name || "Candidate"])}
-                  subtitle={joinText([
-                    item.candidate_state || "State N/A",
-                    item.candidate_party || "Party N/A",
-                    item.category || "Consulting",
-                  ])}
+                  subtitle={joinText([item.candidate_state || "State N/A", item.candidate_party || "Party N/A", item.category || "Consulting"])}
                   meta={[
                     { label: "Amount", value: money(item.total_amount) },
                     { label: "Transactions", value: item.transaction_count || 0 },
@@ -429,7 +432,6 @@ function RelationshipIntelligencePanel({ graph, loading }) {
   const topInfluencers = insights.top_influencers || insights.topInfluencers || [];
   const strongestLinks = insights.strongest_links || insights.highStrengthLinks || [];
   const weakCoverage = insights.orphan_candidates || insights.orphanCandidates || [];
-
   const density = counts.nodes
     ? Math.round((number(counts.links) / Math.max(number(counts.nodes), 1)) * 100)
     : 0;
@@ -487,14 +489,8 @@ function RelationshipIntelligencePanel({ graph, loading }) {
               <div className="vs-stat-label">Strongest Connections</div>
               {strongestLinks.length ? (
                 strongestLinks.slice(0, 4).map((link, index) => {
-                  const source =
-                    typeof link.source === "object"
-                      ? link.source.label || link.source.id
-                      : link.source;
-                  const target =
-                    typeof link.target === "object"
-                      ? link.target.label || link.target.id
-                      : link.target;
+                  const source = typeof link.source === "object" ? link.source.label || link.source.id : link.source;
+                  const target = typeof link.target === "object" ? link.target.label || link.target.id : link.target;
 
                   return (
                     <PremiumRow
@@ -514,6 +510,66 @@ function RelationshipIntelligencePanel({ graph, loading }) {
               )}
             </div>
           </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+function DarkMoneyExposurePanel({ data, loading }) {
+  const summary = data?.summary || {};
+  const rows = data?.top_exposure || [];
+
+  return (
+    <SectionCard
+      title="Dark Money Exposure Layer"
+      subtitle="Committee influence chains, consultant overlap, and cross-state exposure tracking."
+      right={
+        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Badge tone={number(summary.critical_exposure) ? "danger" : "active"}>
+            {summary.critical_exposure || 0} critical
+          </Badge>
+          <Link className="vs-button vs-button-secondary" to="/dark-money-exposure">
+            Open Dark Money Layer
+          </Link>
+        </div>
+      }
+    >
+      {loading ? (
+        <EmptyState text="Loading dark money exposure intelligence..." />
+      ) : (
+        <div className="vs-stack">
+          <div className="vs-grid-4">
+            <StatCard label="Tracked Committees" value={summary.total_committees || 0} subtext="Mapped committees" />
+            <StatCard label="Critical Exposure" value={summary.critical_exposure || 0} subtext="Immediate review" />
+            <StatCard label="High Exposure" value={summary.high_exposure || 0} subtext="Elevated activity" />
+            <StatCard label="Money Flow" value={money(summary.total_amount || 0)} subtext="Mapped influence flow" />
+          </div>
+
+          {rows.length ? (
+            rows.slice(0, 5).map((item, index) => (
+              <PremiumRow
+                key={`${item.committee_id || item.committee_name}-${index}`}
+                title={item.committee_name || item.committee_id || "Committee"}
+                subtitle={item.narrative || "Committee exposure signal requires review."}
+                tone={toneFromSeverity(item.severity)}
+                live={String(item.severity || "").toLowerCase() === "critical"}
+                meta={[
+                  { label: "Exposure", value: item.exposure_score || 0 },
+                  { label: "Consultants", value: item.consultant_count || 0 },
+                  { label: "Candidates", value: item.candidate_count || 0 },
+                  { label: "Money Flow", value: money(item.total_amount) },
+                ]}
+                right={
+                  <Badge tone={toneFromSeverity(item.severity)}>
+                    {item.exposure_tier || "Exposure"}
+                  </Badge>
+                }
+              />
+            ))
+          ) : (
+            <EmptyState text="No dark money exposure records loaded yet." />
+          )}
         </div>
       )}
     </SectionCard>
@@ -560,10 +616,7 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
               <PremiumRow
                 key={item.id || `${item.time}-${item.title}`}
                 title={item.title}
-                subtitle={joinText([
-                  item.source || "Command Center",
-                  item.type || "",
-                ])}
+                subtitle={joinText([item.source || "Command Center", item.type || ""])}
                 tone={toneFromSeverity(item.severity)}
                 live={["high", "critical"].includes(String(item.severity || "").toLowerCase())}
                 meta={[
@@ -671,14 +724,9 @@ export default function CommandCenter() {
 
   const [consultantIntel, setConsultantIntel] = useState(fallbackConsultantIntel);
   const [consultantLoading, setConsultantLoading] = useState(true);
-  const [darkMoneyIntel, setDarkMoneyIntel] = useState({
-  summary: {},
-  top_exposure: [],
-  consultant_clusters: [],
-  candidate_exposure: [],
-});
 
-const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
+  const [darkMoneyIntel, setDarkMoneyIntel] = useState(fallbackDarkMoneyIntel);
+  const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -777,44 +825,30 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
   }
 
   async function loadDarkMoneyIntel() {
-  if (demoMode) {
-    setDarkMoneyLoading(false);
-    return;
+    if (demoMode) {
+      setDarkMoneyIntel(fallbackDarkMoneyIntel);
+      setDarkMoneyLoading(false);
+      return;
+    }
+
+    try {
+      setDarkMoneyLoading(true);
+
+      const result = api.darkMoneyExposure
+        ? await api.darkMoneyExposure({ limit: 15 })
+        : await api
+            .get("/dark-money-exposure", { params: { limit: 15 } })
+            .then((r) => r.data);
+
+      setDarkMoneyIntel(result || fallbackDarkMoneyIntel);
+    } catch (error) {
+      console.error("Dark money intelligence failed:", error);
+      setDarkMoneyIntel(fallbackDarkMoneyIntel);
+    } finally {
+      setDarkMoneyLoading(false);
+    }
   }
 
-  try {
-    setDarkMoneyLoading(true);
-
-    const result = api.darkMoneyExposure
-      ? await api.darkMoneyExposure({ limit: 15 })
-      : await api
-          .get("/dark-money-exposure", {
-            params: { limit: 15 },
-          })
-          .then((r) => r.data);
-
-    setDarkMoneyIntel(
-      result || {
-        summary: {},
-        top_exposure: [],
-        consultant_clusters: [],
-        candidate_exposure: [],
-      }
-    );
-  } catch (error) {
-    console.error("Dark money intelligence failed:", error);
-
-    setDarkMoneyIntel({
-      summary: {},
-      top_exposure: [],
-      consultant_clusters: [],
-      candidate_exposure: [],
-    });
-  } finally {
-    setDarkMoneyLoading(false);
-  }
-}
-  
   async function loadTasks() {
     if (demoMode) {
       setTasks([]);
@@ -839,13 +873,14 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
 
   async function refreshAll() {
     await Promise.all([
-    loadCommandData(),
-    loadCrossSignal(),
-    loadRelationshipGraph(),
-    loadConsultantIntel(),
-    loadDarkMoneyIntel(),
-    loadTasks(),
-  ]);
+      loadCommandData(),
+      loadCrossSignal(),
+      loadRelationshipGraph(),
+      loadConsultantIntel(),
+      loadDarkMoneyIntel(),
+      loadTasks(),
+    ]);
+  }
 
   async function runConsultantRiskScore() {
     try {
@@ -868,27 +903,10 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
   const actions = effectiveData.actions || [];
   const feed = effectiveData.feed || [];
 
-  const executiveDecision = useMemo(() => {
-  const exposure =
-    darkMoneyIntel?.top_exposure?.find(
-      (item) => Number(item.exposure_score || 0) >= 80
-    ) || null;
-
-  if (exposure) {
-    return {
-      level: "CRITICAL",
-      title: `${exposure.committee_name || exposure.committee_id} shows critical dark money exposure`,
-      actions: [
-        "Review committee relationships",
-        "Audit consultant overlap",
-        "Escalate compliance review",
-      ],
-      link: "/dark-money-exposure",
-    };
-  }
-
-  return buildDecision(feed, consultantIntel);
-}, [feed, consultantIntel, darkMoneyIntel]);
+  const executiveDecision = useMemo(
+    () => buildDecision(feed, consultantIntel, darkMoneyIntel),
+    [feed, consultantIntel, darkMoneyIntel]
+  );
 
   const highSeverityCount = feed.filter((item) =>
     ["high", "critical"].includes(String(item.severity || "").toLowerCase())
@@ -896,12 +914,13 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
 
   const consultantSummary = consultantIntel?.summary || {};
   const relationshipCounts = relationshipGraph?.counts || {};
+  const darkMoneySummary = darkMoneyIntel?.summary || {};
 
   return (
     <PageShell
       eyebrow="Executive Command Center"
       title="Manage campaign operations from one executive dashboard."
-      description="Review battleground races, consultant activity, relationship networks, alerts, and tasks in one place."
+      description="Review battleground races, consultant activity, relationship networks, dark-money exposure, alerts, and tasks in one place."
       demo={demoMode}
       demoText="Demo Command Center data is active."
     >
@@ -922,6 +941,9 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
           <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>
             {relationshipCounts.links || 0} network connections
           </Badge>
+          <Badge tone={number(darkMoneySummary.critical_exposure) ? "danger" : "active"}>
+            {darkMoneySummary.critical_exposure || 0} dark-money critical
+          </Badge>
         </div>
 
         <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -938,7 +960,7 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
 
       <SectionCard
         title="Recommended Executive Action"
-        subtitle="The top action to review based on alerts, consultant activity, and relationship data."
+        subtitle="The top action to review based on alerts, consultant activity, relationship data, and dark-money exposure."
         right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
       >
         <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 12 }}>
@@ -974,104 +996,11 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
       />
 
       <CrossSignalPanel data={crossSignal} loading={crossLoading} />
-      <SectionCard
-          title="Dark Money Exposure Layer"
-          subtitle="Committee influence chains, consultant overlap, and cross-state exposure tracking."
-          right={
-            <div
-              className="vs-inline-actions"
-              style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-            >
-              <Badge
-                tone={
-                  Number(darkMoneyIntel?.summary?.critical_exposure || 0)
-                    ? "danger"
-                    : "active"
-                }
-              >
-                {darkMoneyIntel?.summary?.critical_exposure || 0} critical
-              </Badge>
 
-              <Link
-                className="vs-button vs-button-secondary"
-                to="/dark-money-exposure"
-              >
-               Open Dark Money Layer
-              </Link>
-            </div>
-          }
-        >
-          {darkMoneyLoading ? (
-            <EmptyState text="Loading dark money exposure intelligence..." />
-          ) : (
-            <div className="vs-stack">
-              <div className="vs-grid-4">
-                <StatCard
-                  label="Tracked Committees"
-                  value={darkMoneyIntel?.summary?.total_committees || 0}
-                  subtext="Mapped committees"
-                />
-
-               <StatCard
-                 label="Critical Exposure"
-                 value={darkMoneyIntel?.summary?.critical_exposure || 0}
-                 subtext="Immediate review"
-               />
-
-              <StatCard
-                label="High Exposure"
-                value={darkMoneyIntel?.summary?.high_exposure || 0}
-                subtext="Elevated activity"
-              />
-
-             <StatCard
-               label="Money Flow"
-               value={money(darkMoneyIntel?.summary?.total_amount || 0)}
-               subtext="Mapped influence flow"
-             />
-           </div>
-
-           {(darkMoneyIntel?.top_exposure || [])
-             .slice(0, 5)
-             .map((item, index) => (
-               <PremiumRow
-                 key={`${item.committee_id}-${index}`}
-                 title={
-                   item.committee_name ||
-                   item.committee_id ||
-                   "Committee"
-                 }
-                 subtitle={item.narrative}
-                 tone={toneFromSeverity(item.severity)}
-                 live={item.severity === "critical"}
-                 meta={[
-                   {
-                     label: "Exposure",
-                     value: item.exposure_score || 0,
-                   },
-                   {
-                     label: "Consultants",
-                     value: item.consultant_count || 0,
-                  },
-                  {
-                     label: "Candidates",
-                     value: item.candidate_count || 0,
-                  },
-                  {
-                     label: "Money Flow",
-                     value: money(item.total_amount),
-                  },
-                 ]}
-                 right={
-                   <Badge tone={toneFromSeverity(item.severity)}>
-                     {item.exposure_tier || "Exposure"}
-                   </Badge>
-                 }
-               />
-             ))}
-         </div>
-       )}
-     </SectionCard>
+      <DarkMoneyExposurePanel
+        data={darkMoneyIntel}
+        loading={darkMoneyLoading}
+      />
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
         <BattlegroundPanel rows={battlegrounds} />
@@ -1094,3 +1023,4 @@ const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
     </PageShell>
   );
 }
+
