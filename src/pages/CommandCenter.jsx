@@ -167,6 +167,11 @@ const fallbackDarkMoneyIntel = {
   candidate_exposure: [],
 };
 
+const fallbackExecutiveAlerts = {
+  counts: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
+  alerts: [],
+};
+
 function number(value, fallback = 0) {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;
@@ -711,6 +716,65 @@ function CrossSignalPanel({ data, loading }) {
   );
 }
 
+
+function ExecutiveAlertEnginePanel({ alerts = [], loading }) {
+  const criticalCount = alerts.filter((alert) =>
+    String(alert.severity || "").toLowerCase() === "critical"
+  ).length;
+
+  const highCount = alerts.filter((alert) =>
+    String(alert.severity || "").toLowerCase() === "high"
+  ).length;
+
+  return (
+    <SectionCard
+      title="Executive Alert Engine"
+      subtitle="Cross-signal operational alerts generated from consultant exposure, dark money, relationship strength, and campaign intelligence."
+      right={
+        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Badge tone={criticalCount ? "danger" : highCount ? "warning" : "active"}>
+            {criticalCount} critical
+          </Badge>
+          <Badge tone={alerts.length ? "info" : "default"}>
+            {alerts.length} active
+          </Badge>
+        </div>
+      }
+    >
+      {loading ? (
+        <EmptyState text="Loading executive alert engine..." />
+      ) : (
+        <div className="vs-stack">
+          {alerts.length ? (
+            alerts.slice(0, 8).map((alert) => (
+              <PremiumRow
+                key={alert.id || `${alert.type}-${alert.title}`}
+                title={alert.title || "Executive alert"}
+                subtitle={alert.recommendation || alert.source || "Review and assign owner."}
+                tone={toneFromSeverity(alert.severity)}
+                live={["critical", "high"].includes(String(alert.severity || "").toLowerCase())}
+                meta={[
+                  { label: "Severity", value: alert.severity || "medium" },
+                  { label: "Type", value: alert.type || "signal" },
+                  { label: "State", value: alert.state || "National" },
+                  { label: "Risk", value: alert.risk || "Monitor" },
+                ]}
+                right={
+                  <Badge tone={toneFromSeverity(alert.severity)}>
+                    {alert.severity || "Signal"}
+                  </Badge>
+                }
+              />
+            ))
+          ) : (
+            <EmptyState text="No executive alerts detected." />
+          )}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 export default function CommandCenter() {
   const [commandData, setCommandData] = useState(fallbackData);
   const [commandLoading, setCommandLoading] = useState(true);
@@ -727,6 +791,9 @@ export default function CommandCenter() {
 
   const [darkMoneyIntel, setDarkMoneyIntel] = useState(fallbackDarkMoneyIntel);
   const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
+
+  const [executiveAlerts, setExecutiveAlerts] = useState(fallbackExecutiveAlerts.alerts);
+  const [executiveAlertsLoading, setExecutiveAlertsLoading] = useState(true);
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -849,6 +916,32 @@ export default function CommandCenter() {
     }
   }
 
+
+  async function loadExecutiveAlerts() {
+    if (demoMode) {
+      setExecutiveAlerts(fallbackExecutiveAlerts.alerts);
+      setExecutiveAlertsLoading(false);
+      return;
+    }
+
+    try {
+      setExecutiveAlertsLoading(true);
+
+      const result = api.executiveAlerts
+        ? await api.executiveAlerts({ limit: 12 })
+        : await api
+            .get("/executive-alerts", { params: { limit: 12 } })
+            .then((r) => r.data);
+
+      setExecutiveAlerts(result?.alerts || []);
+    } catch (error) {
+      console.error("Executive alerts failed:", error);
+      setExecutiveAlerts(fallbackExecutiveAlerts.alerts);
+    } finally {
+      setExecutiveAlertsLoading(false);
+    }
+  }
+
   async function loadTasks() {
     if (demoMode) {
       setTasks([]);
@@ -878,6 +971,7 @@ export default function CommandCenter() {
       loadRelationshipGraph(),
       loadConsultantIntel(),
       loadDarkMoneyIntel(),
+      loadExecutiveAlerts(),
       loadTasks(),
     ]);
   }
@@ -1000,6 +1094,11 @@ export default function CommandCenter() {
       <DarkMoneyExposurePanel
         data={darkMoneyIntel}
         loading={darkMoneyLoading}
+      />
+
+      <ExecutiveAlertEnginePanel
+        alerts={executiveAlerts}
+        loading={executiveAlertsLoading}
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
