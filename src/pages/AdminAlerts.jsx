@@ -8,17 +8,32 @@ import { api } from "../services/api";
 import useRealtimeStream from "../hooks/useRealtimeStream";
 
 function toneForStatus(status) {
-  if (status === "sent") return "active";
-  if (status === "failed") return "danger";
-  if (status === "pending") return "demo";
+  const value = String(status || "").toLowerCase();
+  if (value === "sent") return "active";
+  if (value === "failed") return "danger";
+  if (value === "pending") return "demo";
+  if (value === "acknowledged") return "info";
+  if (value === "escalated") return "danger";
+  if (value === "resolved") return "active";
+  if (value === "dismissed") return "default";
   return "default";
 }
 
 function toneForSeverity(value) {
   const v = String(value || "").toLowerCase();
   if (v === "critical" || v === "high") return "danger";
-  if (v === "medium") return "demo";
-  return "info";
+  if (v === "medium" || v === "watch") return "demo";
+  if (v === "low") return "info";
+  return "default";
+}
+
+function severityRank(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "critical") return 4;
+  if (v === "high") return 3;
+  if (v === "medium") return 2;
+  if (v === "low") return 1;
+  return 0;
 }
 
 function formatDate(value) {
@@ -30,28 +45,74 @@ function formatDate(value) {
 function eventLabel(type = "") {
   return String(type || "alert.signal")
     .replaceAll(".", " ")
+    .replaceAll("_", " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function getPayload(item) {
-  return item?.payload || item?.event || item || {};
+  return item?.payload || item?.event || item?.metadata || item || {};
 }
 
 function signalFamily(payload = {}) {
   const type = String(payload.event_type || payload.type || "").toLowerCase();
   const source = String(payload.source || "").toLowerCase();
 
+  if (type.includes("dark") || source.includes("dark")) return "Dark Money";
+  if (type.includes("consultant") || source.includes("consultant")) return "Consultant";
+  if (type.includes("relationship") || source.includes("relationship")) return "Relationship";
   if (type.includes("mail") || source.includes("mail")) return "MailOps";
-  if (type.includes("fundraising") || source.includes("fec")) return "Finance";
+  if (type.includes("fundraising") || source.includes("fec") || source.includes("finance")) return "Finance";
   if (type.includes("vendor")) return "Vendor";
   if (type.includes("polling")) return "Polling";
   if (type.includes("news")) return "News";
   return "Intelligence";
 }
 
-function DeliveryCard({ item, live = false }) {
+function normalizeExecutiveAlert(alert = {}) {
+  return {
+    id: alert.id || `${alert.type || "alert"}-${alert.title || Date.now()}`,
+    status: alert.status || alert.action_status || "open",
+    channel: alert.channel || "executive",
+    sent_at: alert.sent_at || alert.created_at || alert.generated_at || new Date().toISOString(),
+    payload: {
+      ...alert.metadata,
+      ...alert,
+      event_type: alert.type || alert.event_type || "executive.alert",
+      title: alert.title || "Executive alert",
+      severity: alert.severity || "medium",
+      source: alert.source || "Executive Alert Engine",
+      state: alert.state || "National",
+      office: alert.office || "N/A",
+      risk: alert.risk || alert.risk_label || "Monitor",
+      detail: alert.recommendation || alert.message || alert.detail || "Review and assign owner.",
+    },
+  };
+}
+
+function buildActionPayload(item, status, notes = "") {
+  const payload = getPayload(item);
+  return {
+    alert_key: item.alert_key || item.id || payload.id || `${payload.event_type || payload.type}-${payload.title}`,
+    alert_type: payload.event_type || payload.type || item.type || "executive_alert",
+    campaign_id: item.campaign_id || payload.campaign_id || null,
+    entity_id: item.entity_id || payload.entity_id || null,
+    notes,
+    status,
+  };
+}
+
+function DeliveryCard({
+  item,
+  live = false,
+  onAcknowledge,
+  onEscalate,
+  onResolve,
+  onDismiss,
+}) {
   const payload = getPayload(item);
   const family = signalFamily(payload);
+  const severity = String(payload.severity || item.severity || "medium").toLowerCase();
+  const status = item.local_status || item.status || "open";
 
   return (
     <div
@@ -61,10 +122,12 @@ function DeliveryCard({ item, live = false }) {
         display: "grid",
         gap: 12,
         borderLeft:
-          item.status === "failed"
-            ? "4px solid #f87171"
-            : String(payload.severity || "").toLowerCase() === "high"
+          status === "escalated" || severity === "critical"
+            ? "4px solid #ef4444"
+            : severity === "high"
             ? "4px solid #fb7185"
+            : status === "acknowledged"
+            ? "4px solid #60a5fa"
             : "4px solid #4ade80",
       }}
     >
@@ -80,8 +143,8 @@ function DeliveryCard({ item, live = false }) {
 
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
           {live ? <Badge tone="active">Live</Badge> : null}
-          <Badge tone={toneForStatus(item.status)}>{item.status || "stream"}</Badge>
-          <Badge tone={toneForSeverity(payload.severity)}>{payload.severity || "Medium"}</Badge>
+          <Badge tone={toneForStatus(status)}>{status}</Badge>
+          <Badge tone={toneForSeverity(severity)}>{payload.severity || "Medium"}</Badge>
           <Badge tone="info">{family}</Badge>
           {item.channel ? <Badge tone="default">{item.channel}</Badge> : null}
         </div>
@@ -114,6 +177,21 @@ function DeliveryCard({ item, live = false }) {
         </div>
       ) : null}
 
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button type="button" className="vs-button vs-button-secondary" onClick={() => onAcknowledge(item)}>
+          Acknowledge
+        </button>
+        <button type="button" className="vs-button" onClick={() => onEscalate(item)}>
+          Escalate
+        </button>
+        <button type="button" className="vs-button vs-button-secondary" onClick={() => onResolve(item)}>
+          Resolve
+        </button>
+        <button type="button" className="vs-button vs-button-secondary" onClick={() => onDismiss(item)}>
+          Dismiss
+        </button>
+      </div>
+
       {item.error ? (
         <div className="vs-banner vs-banner-danger" style={{ marginTop: 4 }}>
           {item.error}
@@ -140,7 +218,9 @@ function RuleCard({ rule, onToggle }) {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {(rule.event_types || []).map((type) => (
-          <Badge key={type} tone="info">{eventLabel(type)}</Badge>
+          <Badge key={type} tone="info">
+            {eventLabel(type)}
+          </Badge>
         ))}
       </div>
 
@@ -159,41 +239,60 @@ function RuleCard({ rule, onToggle }) {
 export default function AdminAlerts() {
   const [rules, setRules] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
+  const [executiveAlerts, setExecutiveAlerts] = useState([]);
   const [liveSignals, setLiveSignals] = useState([]);
+  const [localStatuses, setLocalStatuses] = useState({});
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
   const [error, setError] = useState("");
   const [familyFilter, setFamilyFilter] = useState("All");
+  const [severityFilter, setSeverityFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   useRealtimeStream(null, (event) => {
     if (!event?.type) return;
 
     const payload = event.payload?.alert || event.payload?.event || event.payload || {};
 
-    setLiveSignals((prev) => [
-      {
-        id: event.id || `live-${Date.now()}`,
-        status: "stream",
-        channel: "realtime",
-        timestamp: event.timestamp || new Date().toISOString(),
-        payload: {
-          ...payload,
-          type: event.type,
-          event_type: payload.event_type || event.type,
+    setLiveSignals((prev) =>
+      [
+        {
+          id: event.id || `live-${Date.now()}`,
+          status: "stream",
+          channel: "realtime",
+          timestamp: event.timestamp || new Date().toISOString(),
+          payload: {
+            ...payload,
+            type: event.type,
+            event_type: payload.event_type || event.type,
+          },
         },
-      },
-      ...prev,
-    ].slice(0, 30));
+        ...prev,
+      ].slice(0, 30)
+    );
   });
 
+  function applyLocalStatus(item) {
+    const id = item.id || item.alert_key || item.payload?.id;
+    if (!id || !localStatuses[id]) return item;
+    return {
+      ...item,
+      local_status: localStatuses[id],
+    };
+  }
+
   async function loadAlerts() {
-    const [rulesRes, deliveriesRes] = await Promise.all([
+    const [rulesRes, deliveriesRes, executiveRes] = await Promise.all([
       api.get("/alerts/rules"),
       api.get("/alerts/deliveries?limit=100"),
+      api.executiveAlerts
+        ? api.executiveAlerts({ limit: 100 })
+        : api.get("/executive-alerts", { params: { limit: 100 } }).then((r) => r.data),
     ]);
 
     setRules(rulesRes?.data?.results || []);
     setDeliveries(deliveriesRes?.data?.results || []);
+    setExecutiveAlerts((executiveRes?.alerts || []).map(normalizeExecutiveAlert));
   }
 
   useEffect(() => {
@@ -213,6 +312,7 @@ export default function AdminAlerts() {
     }
 
     load();
+
     return () => {
       active = false;
     };
@@ -240,32 +340,116 @@ export default function AdminAlerts() {
     }
   }
 
-  const filteredDeliveries = useMemo(() => {
-    if (familyFilter === "All") return deliveries;
-    return deliveries.filter((item) => signalFamily(getPayload(item)) === familyFilter);
-  }, [deliveries, familyFilter]);
+  function markLocal(item, status) {
+    const id = item.id || item.alert_key || item.payload?.id;
+    if (!id) return;
 
-  const filteredLiveSignals = useMemo(() => {
-    if (familyFilter === "All") return liveSignals;
-    return liveSignals.filter((item) => signalFamily(getPayload(item)) === familyFilter);
-  }, [liveSignals, familyFilter]);
+    setLocalStatuses((prev) => ({
+      ...prev,
+      [id]: status,
+    }));
+  }
+
+  function acknowledgeAlert(item) {
+    markLocal(item, "acknowledged");
+  }
+
+  async function escalateAlert(item) {
+    try {
+      markLocal(item, "escalated");
+      await api.post("/alerts/dispatch", {
+        ...buildActionPayload(item, "escalated", "Escalated from Executive Alert Terminal"),
+        escalation: true,
+      });
+      await loadAlerts();
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Failed to escalate alert");
+    }
+  }
+
+  async function resolveAlert(item) {
+    try {
+      markLocal(item, "resolved");
+      await api.post("/alerts/resolve", buildActionPayload(item, "resolved", "Resolved from Executive Alert Terminal"));
+      await loadAlerts();
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Failed to resolve alert");
+    }
+  }
+
+  async function dismissAlert(item) {
+    try {
+      markLocal(item, "dismissed");
+      await api.post("/alerts/dismiss", buildActionPayload(item, "dismissed", "Dismissed from Executive Alert Terminal"));
+      await loadAlerts();
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Failed to dismiss alert");
+    }
+  }
+
+  const allTerminalItems = useMemo(() => {
+    return [...executiveAlerts, ...deliveries, ...liveSignals]
+      .map(applyLocalStatus)
+      .sort((a, b) => {
+        const ap = getPayload(a);
+        const bp = getPayload(b);
+
+        const severityDiff =
+          severityRank(bp.severity || b.severity) - severityRank(ap.severity || a.severity);
+
+        if (severityDiff !== 0) return severityDiff;
+
+        return (
+          new Date(b.sent_at || b.created_at || b.timestamp || 0).getTime() -
+          new Date(a.sent_at || a.created_at || a.timestamp || 0).getTime()
+        );
+      });
+  }, [executiveAlerts, deliveries, liveSignals, localStatuses]);
+
+  const filteredItems = useMemo(() => {
+    return allTerminalItems.filter((item) => {
+      const payload = getPayload(item);
+      const family = signalFamily(payload);
+      const severity = String(payload.severity || item.severity || "").toLowerCase();
+      const status = String(item.local_status || item.status || "open").toLowerCase();
+
+      const familyOk = familyFilter === "All" || family === familyFilter;
+      const severityOk = severityFilter === "All" || severity === severityFilter.toLowerCase();
+      const statusOk = statusFilter === "All" || status === statusFilter.toLowerCase();
+
+      return familyOk && severityOk && statusOk;
+    });
+  }, [allTerminalItems, familyFilter, severityFilter, statusFilter]);
 
   const grouped = useMemo(() => {
     return {
-      critical: filteredDeliveries.filter((d) => String(d.payload?.severity || "").toLowerCase() === "critical"),
-      high: filteredDeliveries.filter((d) => String(d.payload?.severity || "").toLowerCase() === "high"),
-      medium: filteredDeliveries.filter((d) => String(d.payload?.severity || "").toLowerCase() === "medium"),
-      failed: filteredDeliveries.filter((d) => d.status === "failed"),
-      sent: filteredDeliveries.filter((d) => d.status === "sent"),
+      critical: filteredItems.filter((d) => String(getPayload(d).severity || "").toLowerCase() === "critical"),
+      high: filteredItems.filter((d) => String(getPayload(d).severity || "").toLowerCase() === "high"),
+      medium: filteredItems.filter((d) => String(getPayload(d).severity || "").toLowerCase() === "medium"),
+      failed: filteredItems.filter((d) => String(d.status || "").toLowerCase() === "failed"),
+      escalated: filteredItems.filter((d) => String(d.local_status || d.status || "").toLowerCase() === "escalated"),
+      acknowledged: filteredItems.filter((d) => String(d.local_status || d.status || "").toLowerCase() === "acknowledged"),
     };
-  }, [filteredDeliveries]);
+  }, [filteredItems]);
 
   const metrics = [
     {
-      label: "Active Rules",
-      value: String(rules.filter((r) => r.is_active).length),
-      delta: `${rules.length} total rules`,
-      tone: "up",
+      label: "Executive Alerts",
+      value: String(executiveAlerts.length),
+      delta: "Generated by alert engine",
+      tone: executiveAlerts.length ? "down" : "up",
+    },
+    {
+      label: "Critical / High",
+      value: String(grouped.critical.length + grouped.high.length),
+      delta: "Needs executive review",
+      tone: grouped.critical.length || grouped.high.length ? "down" : "up",
+    },
+    {
+      label: "Escalated",
+      value: String(grouped.escalated.length),
+      delta: "Manually escalated",
+      tone: grouped.escalated.length ? "down" : "up",
     },
     {
       label: "Live Stream",
@@ -273,31 +457,33 @@ export default function AdminAlerts() {
       delta: "Realtime session signals",
       tone: "up",
     },
-    {
-      label: "Failed Alerts",
-      value: String(grouped.failed.length),
-      delta: grouped.failed.length ? "Needs attention" : "Clean",
-      tone: grouped.failed.length ? "down" : "up",
-    },
-    {
-      label: "High Priority",
-      value: String(grouped.high.length + grouped.critical.length),
-      delta: "Executive-level signals",
-      tone: grouped.high.length || grouped.critical.length ? "down" : "up",
-    },
   ];
 
-  const families = ["All", "MailOps", "Finance", "Vendor", "Polling", "News", "Intelligence"];
+  const families = [
+    "All",
+    "Dark Money",
+    "Consultant",
+    "Relationship",
+    "MailOps",
+    "Finance",
+    "Vendor",
+    "Polling",
+    "News",
+    "Intelligence",
+  ];
+
+  const severities = ["All", "critical", "high", "medium", "low"];
+  const statuses = ["All", "open", "sent", "stream", "acknowledged", "escalated", "resolved", "dismissed", "failed"];
 
   return (
     <PageShell
       eyebrow="Admin"
-      title="Live Alert Terminal"
-      description="Bloomberg-style grouped alert monitoring for email, Slack, MailOps, finance, vendor gaps, polling, news, and executive feed signals."
+      title="Executive Alert Terminal"
+      description="Manage, filter, acknowledge, resolve, dismiss, and escalate executive alerts from consultant exposure, dark money, relationship graph, MailOps, finance, vendor gaps, polling, and news signals."
       tickerItems={[
-        { label: "Live", value: `${liveSignals.length}`, dotClass: "vs-live-dot-success" },
-        { label: "High", value: `${grouped.high.length + grouped.critical.length}`, dotClass: "vs-live-dot" },
-        { label: "Failed", value: `${grouped.failed.length}`, dotClass: grouped.failed.length ? "vs-live-dot" : "vs-live-dot-success" },
+        { label: "Executive", value: `${executiveAlerts.length}`, dotClass: "vs-live-dot-success" },
+        { label: "Critical/High", value: `${grouped.critical.length + grouped.high.length}`, dotClass: "vs-live-dot" },
+        { label: "Escalated", value: `${grouped.escalated.length}`, dotClass: grouped.escalated.length ? "vs-live-dot" : "vs-live-dot-success" },
       ]}
     >
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
@@ -321,17 +507,83 @@ export default function AdminAlerts() {
         </button>
       </div>
 
-      <div className="vs-grid-4">
-        {metrics.map((m) => <StatCard key={m.label} {...m} />)}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {severities.map((severity) => (
+          <button
+            key={severity}
+            type="button"
+            className={severityFilter === severity ? "vs-button" : "vs-button vs-button-secondary"}
+            onClick={() => setSeverityFilter(severity)}
+          >
+            {severity === "All" ? "All Severities" : eventLabel(severity)}
+          </button>
+        ))}
       </div>
 
-      <SectionCard title="Realtime Stream" subtitle="Signals arriving through the live SSE intelligence bus." right={<Badge tone="active">{filteredLiveSignals.length} live</Badge>}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {statuses.map((status) => (
+          <button
+            key={status}
+            type="button"
+            className={statusFilter === status ? "vs-button" : "vs-button vs-button-secondary"}
+            onClick={() => setStatusFilter(status)}
+          >
+            {status === "All" ? "All Statuses" : eventLabel(status)}
+          </button>
+        ))}
+      </div>
+
+      <div className="vs-grid-4">
+        {metrics.map((m) => (
+          <StatCard key={m.label} {...m} />
+        ))}
+      </div>
+
+      <SectionCard
+        title="Executive Alert Queue"
+        subtitle="Highest-priority actionable alerts from the Executive Alert Engine and live delivery system."
+        right={<Badge tone={filteredItems.length ? "danger" : "active"}>{filteredItems.length} visible</Badge>}
+      >
         <div className="vs-stack">
-          {!filteredLiveSignals.length ? (
+          {loading ? (
+            <EmptyState text="Loading executive alert terminal..." />
+          ) : filteredItems.length ? (
+            filteredItems.slice(0, 25).map((item) => (
+              <DeliveryCard
+                key={item.id || item.alert_key}
+                item={item}
+                live={String(item.status || "").toLowerCase() === "stream"}
+                onAcknowledge={acknowledgeAlert}
+                onEscalate={escalateAlert}
+                onResolve={resolveAlert}
+                onDismiss={dismissAlert}
+              />
+            ))
+          ) : (
+            <EmptyState text="No alerts match the current filters." />
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Realtime Stream"
+        subtitle="Signals arriving through the live SSE intelligence bus."
+        right={<Badge tone="active">{liveSignals.length} live</Badge>}
+      >
+        <div className="vs-stack">
+          {!liveSignals.length ? (
             <EmptyState text="No realtime alerts received in this browser session yet." />
           ) : (
-            filteredLiveSignals.slice(0, 8).map((item) => (
-              <DeliveryCard key={item.id} item={item} live />
+            liveSignals.slice(0, 8).map((item) => (
+              <DeliveryCard
+                key={item.id}
+                item={applyLocalStatus(item)}
+                live
+                onAcknowledge={acknowledgeAlert}
+                onEscalate={escalateAlert}
+                onResolve={resolveAlert}
+                onDismiss={dismissAlert}
+              />
             ))
           )}
         </div>
@@ -340,28 +592,57 @@ export default function AdminAlerts() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
         <SectionCard title="Critical / High" subtitle="Top-priority executive alerts." right={<Badge tone="danger">{grouped.critical.length + grouped.high.length}</Badge>}>
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading priority alerts..." /> : [...grouped.critical, ...grouped.high].length ? (
-              [...grouped.critical, ...grouped.high].slice(0, 8).map((item) => <DeliveryCard key={item.id} item={item} />)
+            {loading ? (
+              <EmptyState text="Loading priority alerts..." />
+            ) : [...grouped.critical, ...grouped.high].length ? (
+              [...grouped.critical, ...grouped.high].slice(0, 8).map((item) => (
+                <DeliveryCard
+                  key={item.id}
+                  item={item}
+                  onAcknowledge={acknowledgeAlert}
+                  onEscalate={escalateAlert}
+                  onResolve={resolveAlert}
+                  onDismiss={dismissAlert}
+                />
+              ))
             ) : (
               <EmptyState text="No critical or high alerts." />
             )}
           </div>
         </SectionCard>
 
-        <SectionCard title="Medium" subtitle="Monitor-level alerts and watch items." right={<Badge tone="demo">{grouped.medium.length}</Badge>}>
+        <SectionCard title="Acknowledged / Escalated" subtitle="Manually triaged alerts." right={<Badge tone="info">{grouped.acknowledged.length + grouped.escalated.length}</Badge>}>
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading medium alerts..." /> : grouped.medium.length ? (
-              grouped.medium.slice(0, 8).map((item) => <DeliveryCard key={item.id} item={item} />)
+            {[...grouped.escalated, ...grouped.acknowledged].length ? (
+              [...grouped.escalated, ...grouped.acknowledged].slice(0, 8).map((item) => (
+                <DeliveryCard
+                  key={item.id}
+                  item={item}
+                  onAcknowledge={acknowledgeAlert}
+                  onEscalate={escalateAlert}
+                  onResolve={resolveAlert}
+                  onDismiss={dismissAlert}
+                />
+              ))
             ) : (
-              <EmptyState text="No medium alerts." />
+              <EmptyState text="No acknowledged or escalated alerts yet." />
             )}
           </div>
         </SectionCard>
 
         <SectionCard title="Failures" subtitle="Delivery attempts needing attention." right={<Badge tone={grouped.failed.length ? "danger" : "active"}>{grouped.failed.length}</Badge>}>
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading failures..." /> : grouped.failed.length ? (
-              grouped.failed.slice(0, 8).map((item) => <DeliveryCard key={item.id} item={item} />)
+            {grouped.failed.length ? (
+              grouped.failed.slice(0, 8).map((item) => (
+                <DeliveryCard
+                  key={item.id}
+                  item={item}
+                  onAcknowledge={acknowledgeAlert}
+                  onEscalate={escalateAlert}
+                  onResolve={resolveAlert}
+                  onDismiss={dismissAlert}
+                />
+              ))
             ) : (
               <EmptyState text="No failed deliveries." />
             )}
@@ -372,7 +653,9 @@ export default function AdminAlerts() {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 0.9fr) minmax(0, 1.1fr)", gap: 16 }}>
         <SectionCard title="Alert Rules" subtitle="Control what channels receive each signal type.">
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading rules..." /> : !rules.length ? (
+            {loading ? (
+              <EmptyState text="Loading rules..." />
+            ) : !rules.length ? (
               <EmptyState text="No alert rules configured yet." />
             ) : (
               rules.map((rule) => <RuleCard key={rule.id} rule={rule} onToggle={toggleRule} />)
@@ -380,12 +663,23 @@ export default function AdminAlerts() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Delivery Tape" subtitle="Most recent delivery attempts across the filtered terminal." right={<Badge tone="info">{filteredDeliveries.length} recent</Badge>}>
+        <SectionCard title="Delivery Tape" subtitle="Most recent delivery attempts across the filtered terminal." right={<Badge tone="info">{deliveries.length} recent</Badge>}>
           <div className="vs-stack">
-            {loading ? <EmptyState text="Loading delivery tape..." /> : !filteredDeliveries.length ? (
+            {loading ? (
+              <EmptyState text="Loading delivery tape..." />
+            ) : !deliveries.length ? (
               <EmptyState text="No deliveries yet." />
             ) : (
-              filteredDeliveries.slice(0, 20).map((item) => <DeliveryCard key={item.id} item={item} />)
+              deliveries.slice(0, 20).map((item) => (
+                <DeliveryCard
+                  key={item.id}
+                  item={applyLocalStatus(item)}
+                  onAcknowledge={acknowledgeAlert}
+                  onEscalate={escalateAlert}
+                  onResolve={resolveAlert}
+                  onDismiss={dismissAlert}
+                />
+              ))
             )}
           </div>
         </SectionCard>
