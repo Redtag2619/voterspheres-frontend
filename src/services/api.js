@@ -648,6 +648,7 @@ export const mailOpsApi = {
     tryPost(["/mailops/events"], withWorkspacePayload(payload)),
   updateEvent: (eventId, payload) =>
     tryPatch([`/mailops/events/${eventId}`], withWorkspacePayload(payload)),
+  options: () => tryGet(["/mailops/options"]),
 };
 
 export const alertsApi = {
@@ -897,6 +898,7 @@ export const api = {
 
   mailOpsDashboard: mailOpsApi.dashboard,
   mailOpsEvents: mailOpsApi.events,
+  mailOpsOptions: mailOpsApi.options,
   createMailOpsEvent: mailOpsApi.createEvent,
   updateMailOpsEvent: mailOpsApi.updateEvent,
 
