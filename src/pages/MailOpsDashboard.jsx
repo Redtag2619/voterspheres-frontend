@@ -11,8 +11,95 @@ import { useDemoMode } from "../context/DemoModeContext.jsx";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 import useRealtimeStream from "../hooks/useRealtimeStream";
 
-const USPS_POLITICAL_MAIL_ALERT_URL = "https://tools.usps.com/political-mail-alert.htm";
-const USPS_POLITICAL_MAIL_ISSUE_URL = "https://tools.usps.com/political-mail-issue.htm";
+const USPS_POLITICAL_MAIL_ALERT_URL =
+  "https://tools.usps.com/political-mail-alert.htm";
+const USPS_POLITICAL_MAIL_ISSUE_URL =
+  "https://tools.usps.com/political-mail-issue.htm";
+const USPS_INFORMED_DELIVERY_CAMPAIGN_URL =
+  "https://id.usps.com/rminMailerPortal/pages/secure/dashboard.action";
+
+const STATE_OPTIONS = [
+  ["", "Select State"],
+  ["AL", "Alabama"],
+  ["AK", "Alaska"],
+  ["AZ", "Arizona"],
+  ["AR", "Arkansas"],
+  ["CA", "California"],
+  ["CO", "Colorado"],
+  ["CT", "Connecticut"],
+  ["DE", "Delaware"],
+  ["FL", "Florida"],
+  ["GA", "Georgia"],
+  ["HI", "Hawaii"],
+  ["IA", "Iowa"],
+  ["ID", "Idaho"],
+  ["IL", "Illinois"],
+  ["IN", "Indiana"],
+  ["KS", "Kansas"],
+  ["KY", "Kentucky"],
+  ["LA", "Louisiana"],
+  ["MA", "Massachusetts"],
+  ["MD", "Maryland"],
+  ["ME", "Maine"],
+  ["MI", "Michigan"],
+  ["MN", "Minnesota"],
+  ["MO", "Missouri"],
+  ["MS", "Mississippi"],
+  ["MT", "Montana"],
+  ["NC", "North Carolina"],
+  ["ND", "North Dakota"],
+  ["NE", "Nebraska"],
+  ["NH", "New Hampshire"],
+  ["NJ", "New Jersey"],
+  ["NM", "New Mexico"],
+  ["NV", "Nevada"],
+  ["NY", "New York"],
+  ["OH", "Ohio"],
+  ["OK", "Oklahoma"],
+  ["OR", "Oregon"],
+  ["PA", "Pennsylvania"],
+  ["RI", "Rhode Island"],
+  ["SC", "South Carolina"],
+  ["SD", "South Dakota"],
+  ["TN", "Tennessee"],
+  ["TX", "Texas"],
+  ["UT", "Utah"],
+  ["VA", "Virginia"],
+  ["VT", "Vermont"],
+  ["WA", "Washington"],
+  ["WI", "Wisconsin"],
+  ["WV", "West Virginia"],
+  ["WY", "Wyoming"],
+  ["DC", "District of Columbia"],
+];
+
+const SCF_OPTIONS = [
+  { name: "", address: "" },
+  { name: "Atlanta SCF", address: "1605 Boggs Rd NW, Duluth, GA 30096" },
+  { name: "Philadelphia SCF", address: "7500 Lindbergh Blvd, Philadelphia, PA 19176" },
+  { name: "Pittsburgh SCF", address: "1001 California Ave, Pittsburgh, PA 15290" },
+  { name: "Phoenix SCF", address: "4949 E Van Buren St, Phoenix, AZ 85026" },
+  { name: "Detroit SCF", address: "1401 W Fort St, Detroit, MI 48233" },
+  { name: "Milwaukee SCF", address: "345 W Saint Paul Ave, Milwaukee, WI 53203" },
+  { name: "Las Vegas SCF", address: "1001 E Sunset Rd, Las Vegas, NV 89199" },
+  { name: "Charlotte SCF", address: "2901 Scott Futrell Dr, Charlotte, NC 28228" },
+  { name: "Dallas SCF", address: "401 Tom Landry Hwy, Dallas, TX 75260" },
+  { name: "Los Angeles SCF", address: "7001 S Central Ave, Los Angeles, CA 90052" },
+  { name: "New York SCF", address: "341 9th Ave, New York, NY 10199" },
+  { name: "Chicago SCF", address: "433 W Harrison St, Chicago, IL 60699" },
+];
+
+const NDC_OPTIONS = [
+  { name: "", address: "" },
+  { name: "Atlanta NDC", address: "1800 James Jackson Pkwy NW, Atlanta, GA 30369" },
+  { name: "Philadelphia NDC", address: "1900 Byberry Rd, Philadelphia, PA 19116" },
+  { name: "Pittsburgh NDC", address: "300 Brush Creek Rd, Warrendale, PA 15095" },
+  { name: "Dallas NDC", address: "2400 Tom Landry Hwy, Dallas, TX 75211" },
+  { name: "Los Angeles NDC", address: "16800 Valley View Ave, La Mirada, CA 90638" },
+  { name: "Chicago NDC", address: "7500 Roosevelt Rd, Forest Park, IL 60130" },
+  { name: "New Jersey NDC", address: "80 County Rd, Jersey City, NJ 07097" },
+  { name: "Denver NDC", address: "7755 E 56th Ave, Denver, CO 80266" },
+];
 
 function toneForStatus(value) {
   const v = String(value || "").toLowerCase();
@@ -58,6 +145,11 @@ function getRisk(row = {}) {
   return row.delivery_risk || row.risk || "Monitor";
 }
 
+function fileNameFromInput(fileInput) {
+  const file = fileInput?.target?.files?.[0];
+  return file?.name || "";
+}
+
 function Field({ label, value }) {
   return (
     <div>
@@ -73,7 +165,9 @@ function DropRow({ row }) {
   return (
     <ResponsiveRow
       title={row.campaign || row.job_number || "Mail job"}
-      subtitle={`${row.location || row.scf || "Location TBD"} • In-home ${formatDate(row.actual_in_home_date || row.estimated_in_home_date || row.in_home)}`}
+      subtitle={`${row.location || row.scf || "Location TBD"} • In-home ${formatDate(
+        row.actual_in_home_date || row.estimated_in_home_date || row.in_home
+      )}`}
       meta={[
         { label: "Job #", value: row.job_number || "N/A" },
         { label: "Assigned", value: row.assigned_to || "Unassigned" },
@@ -98,8 +192,8 @@ function AlertRow({ row }) {
       meta={[
         { label: "Severity", value: row.severity },
         { label: "Job #", value: row.job_number || "N/A" },
-        { label: "Vendor", value: row.print_vendor || "N/A" },
-        { label: "Risk", value: row.risk || "Monitor" },
+        { label: "Alert #", value: row.political_mail_alert_confirmation || "N/A" },
+        { label: "Issue #", value: row.political_mail_issue_confirmation || "N/A" },
       ]}
       alert={
         ["high", "critical"].includes(String(row.severity || "").toLowerCase())
@@ -145,6 +239,9 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
             <a className="vs-button vs-button-secondary" href={USPS_POLITICAL_MAIL_ISSUE_URL} target="_blank" rel="noreferrer">
               USPS Mail Issue
             </a>
+            <a className="vs-button" href={row.informed_delivery_campaign_url || USPS_INFORMED_DELIVERY_CAMPAIGN_URL} target="_blank" rel="noreferrer">
+              Create Informed Delivery Campaign
+            </a>
           </div>
         </div>
 
@@ -156,21 +253,48 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
         </div>
 
         <div className="vs-grid-4">
-          <Field label="Quantity" value={(row.quantity || row.pieces_mailed || 0).toLocaleString?.() || row.quantity || row.pieces_mailed} />
-          <Field label="Mail Class" value={row.mail_class} />
-          <Field label="Format" value={row.mail_format} />
-          <Field label="Tracking Source" value={row.tracking_source || "manual"} />
+          <Field label="Political Alert Confirmation" value={row.political_mail_alert_confirmation} />
+          <Field label="Political Issue Confirmation" value={row.political_mail_issue_confirmation} />
+          <Field label="Mail Piece" value={row.mail_piece_file_name} />
+          <Field label="PS Forms" value={[row.ps_form_3602_file_name, row.ps_form_8125_file_name].filter(Boolean).join(" / ")} />
         </div>
 
         <div className="vs-grid-4">
           <Field label="USPS Status" value={row.usps_status} />
           <Field label="Last Scan" value={formatDateTime(row.usps_last_scan_date)} />
-          <Field label="Facility" value={row.usps_last_scan_facility} />
-          <Field label="IMb / MID" value={row.imb_mid || row.mid} />
+          <Field label="SCF Address" value={row.scf_address} />
+          <Field label="NDC Address" value={row.ndc_address} />
         </div>
 
         <div style={{ fontSize: 13, color: "var(--vs-text-muted)", lineHeight: 1.6 }}>
           {row.note || row.notes || "No notes yet."}
+        </div>
+
+        <div className="vs-grid-4">
+          <input
+            className="vs-input"
+            placeholder="Political Alert Confirmation #"
+            value={draft.political_mail_alert_confirmation || ""}
+            onChange={(e) => onDraftChange(row.id, { ...draft, political_mail_alert_confirmation: e.target.value })}
+          />
+          <input
+            className="vs-input"
+            placeholder="Political Mail Problem Confirmation #"
+            value={draft.political_mail_issue_confirmation || ""}
+            onChange={(e) => onDraftChange(row.id, { ...draft, political_mail_issue_confirmation: e.target.value })}
+          />
+          <input
+            className="vs-input"
+            placeholder="Informed Delivery Campaign Name"
+            value={draft.informed_delivery_campaign_name || ""}
+            onChange={(e) => onDraftChange(row.id, { ...draft, informed_delivery_campaign_name: e.target.value })}
+          />
+          <input
+            className="vs-input"
+            placeholder="Informed Delivery Campaign ID"
+            value={draft.informed_delivery_campaign_id || ""}
+            onChange={(e) => onDraftChange(row.id, { ...draft, informed_delivery_campaign_id: e.target.value })}
+          />
         </div>
 
         <div className="vs-grid-3">
@@ -241,7 +365,7 @@ const fallbackData = {
     { label: "Mail Jobs", value: "0", delta: "No live jobs", tone: "up" },
     { label: "Delivery Risk", value: "0", delta: "No elevated risk", tone: "up" },
     { label: "SCF Pending", value: "0", delta: "Awaiting SCF arrival", tone: "neutral" },
-    { label: "On-Time Rate", value: "0%", delta: "No on-track drops yet", tone: "up" },
+    { label: "USPS Confirmations", value: "0", delta: "Confirmation posture clean", tone: "up" },
   ],
   drops: [],
   alerts: [],
@@ -291,7 +415,9 @@ const emptyComposer = {
   expected_scf_arrival_date: "",
   actual_scf_arrival_date: "",
   scf: "",
+  scf_address: "",
   ndc: "",
+  ndc_address: "",
   estimated_in_home_date: "",
   actual_in_home_date: "",
   delivery_risk: "Watch",
@@ -301,6 +427,19 @@ const emptyComposer = {
   tracking_source: "manual",
   issue_status: "",
   issue_notes: "",
+
+  political_mail_alert_confirmation: "",
+  political_mail_issue_confirmation: "",
+  informed_delivery_campaign_name: "",
+  informed_delivery_campaign_id: "",
+  informed_delivery_campaign_url: USPS_INFORMED_DELIVERY_CAMPAIGN_URL,
+
+  mail_piece_file_name: "",
+  mail_piece_url: "",
+  ps_form_3602_file_name: "",
+  ps_form_3602_url: "",
+  ps_form_8125_file_name: "",
+  ps_form_8125_url: "",
 };
 
 export default function MailOpsDashboard() {
@@ -454,15 +593,46 @@ export default function MailOpsDashboard() {
         severity: event.severity || "Medium",
         note: event.note || "",
         actual_scf_arrival_date: event.actual_scf_arrival_date || "",
+        political_mail_alert_confirmation: event.political_mail_alert_confirmation || "",
+        political_mail_issue_confirmation: event.political_mail_issue_confirmation || "",
+        informed_delivery_campaign_name: event.informed_delivery_campaign_name || "",
+        informed_delivery_campaign_id: event.informed_delivery_campaign_id || "",
+        informed_delivery_campaign_url: event.informed_delivery_campaign_url || USPS_INFORMED_DELIVERY_CAMPAIGN_URL,
       };
     });
     setEventDrafts(nextDrafts);
   }, [events]);
 
-  const elevatedDrops = drops.filter((row) => ["elevated", "delayed", "high"].includes(String(getRisk(row)).toLowerCase())).length;
-  const highAlerts = alerts.filter((row) => ["high", "critical"].includes(String(row.severity || "").toLowerCase())).length;
+  const elevatedDrops = drops.filter((row) =>
+    ["elevated", "delayed", "high"].includes(String(getRisk(row)).toLowerCase())
+  ).length;
+
+  const highAlerts = alerts.filter((row) =>
+    ["high", "critical"].includes(String(row.severity || "").toLowerCase())
+  ).length;
+
   const totalPieces = events.reduce((sum, row) => sum + number(row.quantity || row.pieces_mailed), 0);
   const scfArrived = events.filter((row) => row.actual_scf_arrival_date).length;
+
+  function updateComposer(patch) {
+    setComposer((prev) => ({ ...prev, ...patch }));
+  }
+
+  function handleScfChange(value) {
+    const selected = SCF_OPTIONS.find((item) => item.name === value);
+    updateComposer({
+      scf: value,
+      scf_address: selected?.address || "",
+    });
+  }
+
+  function handleNdcChange(value) {
+    const selected = NDC_OPTIONS.find((item) => item.name === value);
+    updateComposer({
+      ndc: value,
+      ndc_address: selected?.address || "",
+    });
+  }
 
   async function handleCreateEvent(e) {
     e.preventDefault();
@@ -531,7 +701,7 @@ export default function MailOpsDashboard() {
     <PageShell
       eyebrow="MailOps Intelligence"
       title="Track political mail execution, USPS risk, SCF movement, and vendor performance."
-      description="A full mail operations terminal for job tracking, USPS political mail escalation, IV-MTR readiness, SCF arrivals, SnailWorks-style ingestion, and delivery risk monitoring."
+      description="A full mail operations terminal for job tracking, USPS political mail escalation, IV-MTR readiness, SCF arrivals, SnailWorks-style ingestion, Informed Delivery campaigns, and delivery risk monitoring."
       demo={demoMode}
       demoText="Global Demo Mode is active. This module can render fallback MailOps data when live endpoints are unavailable."
       tickerItems={[
@@ -549,7 +719,7 @@ export default function MailOpsDashboard() {
 
       <SectionCard
         title="USPS Political Mail Actions"
-        subtitle="Fast links for official USPS political mail notices, issue reporting, and future IV-MTR tracking integration."
+        subtitle="Fast links for official USPS political mail notices, issue reporting, Informed Delivery campaign setup, and future IV-MTR tracking integration."
         right={<Badge tone="info">USPS / IV-MTR Ready</Badge>}
       >
         <div className="vs-inline-actions" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -559,21 +729,12 @@ export default function MailOpsDashboard() {
           <a className="vs-button vs-button-secondary" href={USPS_POLITICAL_MAIL_ISSUE_URL} target="_blank" rel="noreferrer">
             Report USPS Mailing Problem
           </a>
+          <a className="vs-button vs-button-secondary" href={USPS_INFORMED_DELIVERY_CAMPAIGN_URL} target="_blank" rel="noreferrer">
+            Create Informed Delivery Campaign
+          </a>
           <button type="button" className="vs-button vs-button-secondary" onClick={() => Promise.all([refreshEvents(), loadDashboard()])}>
             Refresh Mail Tracking
           </button>
-        </div>
-
-        <div className="vs-grid-3" style={{ marginTop: 14 }}>
-          <div className="vs-banner" style={{ margin: 0 }}>
-            <strong>USPS IV-MTR:</strong> Store IMb/MID, CRID, permit, postage statement, scan facility, SCF, and last scan values now. API ingestion can be attached later.
-          </div>
-          <div className="vs-banner" style={{ margin: 0 }}>
-            <strong>SnailWorks-style ingestion:</strong> Ready for CSV, SFTP, API webhook, job status, SCF rollups, and delivery-percent import.
-          </div>
-          <div className="vs-banner" style={{ margin: 0 }}>
-            <strong>Escalation workflow:</strong> Use USPS alert/issue buttons when jobs miss expected SCF arrival or in-home timing.
-          </div>
         </div>
       </SectionCard>
 
@@ -585,7 +746,7 @@ export default function MailOpsDashboard() {
 
       <SectionCard
         title="Mail Job Composer"
-        subtitle="Create a full political mail job with USPS, SCF, vendor, and SnailWorks-ready tracking fields."
+        subtitle="Create a political mail job with USPS confirmation fields, mail class/type dropdowns, state dropdown, attachment metadata, SCF/NDC location data, and Informed Delivery campaign tracking."
         right={
           <div className="vs-inline-actions">
             <Badge tone={isDemoEvents ? "demo" : "active"}>{isDemoEvents ? "Demo Event Layer" : "Live Event Layer"}</Badge>
@@ -598,36 +759,55 @@ export default function MailOpsDashboard() {
         {composerOpen ? (
           <form onSubmit={handleCreateEvent} className="vs-stack">
             <div className="vs-grid-4">
-              <input className="vs-input" placeholder="Job Number" value={composer.job_number} onChange={(e) => setComposer((p) => ({ ...p, job_number: e.target.value }))} />
-              <input className="vs-input" placeholder="Campaign" value={composer.campaign} onChange={(e) => setComposer((p) => ({ ...p, campaign: e.target.value }))} required />
-              <input className="vs-input" placeholder="Assigned To" value={composer.assigned_to} onChange={(e) => setComposer((p) => ({ ...p, assigned_to: e.target.value }))} />
-              <input className="vs-input" type="date" value={composer.date_submitted} onChange={(e) => setComposer((p) => ({ ...p, date_submitted: e.target.value }))} />
+              <input className="vs-input" placeholder="Job Number" value={composer.job_number} onChange={(e) => updateComposer({ job_number: e.target.value })} />
+              <input className="vs-input" placeholder="Campaign" value={composer.campaign} onChange={(e) => updateComposer({ campaign: e.target.value })} required />
+              <input className="vs-input" placeholder="Assigned To" value={composer.assigned_to} onChange={(e) => updateComposer({ assigned_to: e.target.value })} />
+              <input className="vs-input" type="date" value={composer.date_submitted} onChange={(e) => updateComposer({ date_submitted: e.target.value })} />
             </div>
 
             <div className="vs-grid-4">
-              <input className="vs-input" placeholder="State" value={composer.state} onChange={(e) => setComposer((p) => ({ ...p, state: e.target.value }))} required />
-              <input className="vs-input" placeholder="Office" value={composer.office} onChange={(e) => setComposer((p) => ({ ...p, office: e.target.value }))} required />
-              <input className="vs-input" placeholder="Location / Facility" value={composer.location} onChange={(e) => setComposer((p) => ({ ...p, location: e.target.value }))} required />
-              <input className="vs-input" placeholder="Print Vendor" value={composer.print_vendor} onChange={(e) => setComposer((p) => ({ ...p, print_vendor: e.target.value, vendor_name: e.target.value }))} />
+              <select className="vs-select" value={composer.state} onChange={(e) => updateComposer({ state: e.target.value })} required>
+                {STATE_OPTIONS.map(([value, label]) => (
+                  <option key={value || "blank"} value={value}>{label}</option>
+                ))}
+              </select>
+              <input className="vs-input" placeholder="Office" value={composer.office} onChange={(e) => updateComposer({ office: e.target.value })} required />
+              <input className="vs-input" placeholder="Location / Facility" value={composer.location} onChange={(e) => updateComposer({ location: e.target.value })} required />
+              <input className="vs-input" placeholder="Print Vendor" value={composer.print_vendor} onChange={(e) => updateComposer({ print_vendor: e.target.value, vendor_name: e.target.value })} />
             </div>
 
             <div className="vs-grid-4">
-              <select className="vs-select" value={composer.event_type} onChange={(e) => setComposer((p) => ({ ...p, event_type: e.target.value }))}>
-                {["mail_update", "job_created", "drop_created", "print_vendor_update", "entered_usps", "scan_update", "scf_arrival", "delay_alert", "delivery_update", "vendor_update", "issue_opened", "issue_resolved", "snailworks_import", "usps_ivmtr_import"].map((v) => <option key={v} value={v}>{v}</option>)}
+              <select className="vs-select" value={composer.mail_class} onChange={(e) => updateComposer({ mail_class: e.target.value })}>
+                <option value="Marketing Mail">Marketing Mail</option>
+                <option value="First-Class Mail">First-Class Mail</option>
               </select>
 
-              <select className="vs-select" value={composer.status} onChange={(e) => setComposer((p) => ({ ...p, status: e.target.value }))}>
+              <select className="vs-select" value={composer.mail_format} onChange={(e) => updateComposer({ mail_format: e.target.value })}>
+                <option value="Letter">Letter</option>
+                <option value="Flat">Flat</option>
+              </select>
+
+              <input className="vs-input" placeholder="Quantity" type="number" value={composer.quantity} onChange={(e) => updateComposer({ quantity: e.target.value, pieces_mailed: e.target.value })} />
+              <input className="vs-input" placeholder="Postage Statement ID" value={composer.postage_statement_id} onChange={(e) => updateComposer({ postage_statement_id: e.target.value })} />
+            </div>
+
+            <div className="vs-grid-4">
+              <select className="vs-select" value={composer.event_type} onChange={(e) => updateComposer({ event_type: e.target.value })}>
+                {["mail_update", "job_created", "drop_created", "print_vendor_update", "entered_usps", "scan_update", "scf_arrival", "delay_alert", "delivery_update", "vendor_update", "issue_opened", "issue_resolved", "snailworks_import", "usps_ivmtr_import", "informed_delivery_campaign"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+
+              <select className="vs-select" value={composer.status} onChange={(e) => updateComposer({ status: e.target.value })}>
                 {["Pending", "Scheduled", "At Printer", "At Mailshop", "Entered USPS", "In Transit", "Arrived SCF", "On Track", "Elevated", "Delivered", "Delayed", "Issue Opened", "Resolved"].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
 
-              <select className="vs-select" value={composer.severity} onChange={(e) => setComposer((p) => ({ ...p, severity: e.target.value }))}>
+              <select className="vs-select" value={composer.severity} onChange={(e) => updateComposer({ severity: e.target.value })}>
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
                 <option value="Critical">Critical</option>
               </select>
 
-              <select className="vs-select" value={composer.delivery_risk} onChange={(e) => setComposer((p) => ({ ...p, delivery_risk: e.target.value, risk: e.target.value }))}>
+              <select className="vs-select" value={composer.delivery_risk} onChange={(e) => updateComposer({ delivery_risk: e.target.value, risk: e.target.value })}>
                 <option value="Stable">Stable</option>
                 <option value="Watch">Watch</option>
                 <option value="Elevated">Elevated</option>
@@ -636,39 +816,84 @@ export default function MailOpsDashboard() {
             </div>
 
             <div className="vs-grid-4">
-              <input className="vs-input" placeholder="SCF" value={composer.scf} onChange={(e) => setComposer((p) => ({ ...p, scf: e.target.value }))} />
-              <input className="vs-input" placeholder="NDC" value={composer.ndc} onChange={(e) => setComposer((p) => ({ ...p, ndc: e.target.value }))} />
-              <input className="vs-input" type="date" title="Expected SCF Arrival" value={composer.expected_scf_arrival_date} onChange={(e) => setComposer((p) => ({ ...p, expected_scf_arrival_date: e.target.value }))} />
-              <input className="vs-input" type="date" title="Estimated In Home" value={composer.estimated_in_home_date} onChange={(e) => setComposer((p) => ({ ...p, estimated_in_home_date: e.target.value, in_home: e.target.value }))} />
+              <select className="vs-select" value={composer.scf} onChange={(e) => handleScfChange(e.target.value)}>
+                {SCF_OPTIONS.map((item) => (
+                  <option key={item.name || "blank-scf"} value={item.name}>
+                    {item.name || "Select SCF"}
+                  </option>
+                ))}
+              </select>
+              <input className="vs-input" placeholder="SCF Address" value={composer.scf_address} onChange={(e) => updateComposer({ scf_address: e.target.value })} />
+
+              <select className="vs-select" value={composer.ndc} onChange={(e) => handleNdcChange(e.target.value)}>
+                {NDC_OPTIONS.map((item) => (
+                  <option key={item.name || "blank-ndc"} value={item.name}>
+                    {item.name || "Select NDC"}
+                  </option>
+                ))}
+              </select>
+              <input className="vs-input" placeholder="NDC Address" value={composer.ndc_address} onChange={(e) => updateComposer({ ndc_address: e.target.value })} />
             </div>
 
             <div className="vs-grid-4">
-              <input className="vs-input" placeholder="Mail Class" value={composer.mail_class} onChange={(e) => setComposer((p) => ({ ...p, mail_class: e.target.value }))} />
-              <input className="vs-input" placeholder="Format" value={composer.mail_format} onChange={(e) => setComposer((p) => ({ ...p, mail_format: e.target.value }))} />
-              <input className="vs-input" placeholder="Quantity" type="number" value={composer.quantity} onChange={(e) => setComposer((p) => ({ ...p, quantity: e.target.value, pieces_mailed: e.target.value }))} />
-              <input className="vs-input" placeholder="Postage Statement ID" value={composer.postage_statement_id} onChange={(e) => setComposer((p) => ({ ...p, postage_statement_id: e.target.value }))} />
+              <input className="vs-input" type="date" title="Expected SCF Arrival" value={composer.expected_scf_arrival_date} onChange={(e) => updateComposer({ expected_scf_arrival_date: e.target.value })} />
+              <input className="vs-input" type="date" title="Actual SCF Arrival" value={composer.actual_scf_arrival_date} onChange={(e) => updateComposer({ actual_scf_arrival_date: e.target.value })} />
+              <input className="vs-input" type="date" title="Estimated In Home" value={composer.estimated_in_home_date} onChange={(e) => updateComposer({ estimated_in_home_date: e.target.value, in_home: e.target.value })} />
+              <input className="vs-input" type="date" title="Actual In Home" value={composer.actual_in_home_date} onChange={(e) => updateComposer({ actual_in_home_date: e.target.value })} />
             </div>
 
             <div className="vs-grid-4">
-              <input className="vs-input" placeholder="Permit Number" value={composer.permit_number} onChange={(e) => setComposer((p) => ({ ...p, permit_number: e.target.value }))} />
-              <input className="vs-input" placeholder="CRID" value={composer.crid} onChange={(e) => setComposer((p) => ({ ...p, crid: e.target.value }))} />
-              <input className="vs-input" placeholder="MID / IMb MID" value={composer.imb_mid} onChange={(e) => setComposer((p) => ({ ...p, imb_mid: e.target.value, mid: e.target.value }))} />
-              <input className="vs-input" placeholder="IMb Serial Range" value={composer.imb_serial_range} onChange={(e) => setComposer((p) => ({ ...p, imb_serial_range: e.target.value }))} />
+              <input className="vs-input" placeholder="Permit Number" value={composer.permit_number} onChange={(e) => updateComposer({ permit_number: e.target.value })} />
+              <input className="vs-input" placeholder="CRID" value={composer.crid} onChange={(e) => updateComposer({ crid: e.target.value })} />
+              <input className="vs-input" placeholder="MID / IMb MID" value={composer.imb_mid} onChange={(e) => updateComposer({ imb_mid: e.target.value, mid: e.target.value })} />
+              <input className="vs-input" placeholder="IMb Serial Range" value={composer.imb_serial_range} onChange={(e) => updateComposer({ imb_serial_range: e.target.value })} />
             </div>
 
             <div className="vs-grid-4">
-              <input className="vs-input" placeholder="USPS Status" value={composer.usps_status} onChange={(e) => setComposer((p) => ({ ...p, usps_status: e.target.value }))} />
-              <input className="vs-input" type="datetime-local" title="USPS Last Scan" value={composer.usps_last_scan_date} onChange={(e) => setComposer((p) => ({ ...p, usps_last_scan_date: e.target.value }))} />
-              <input className="vs-input" placeholder="Last Scan Facility" value={composer.usps_last_scan_facility} onChange={(e) => setComposer((p) => ({ ...p, usps_last_scan_facility: e.target.value }))} />
-              <input className="vs-input" placeholder="SnailWorks Job ID" value={composer.snailworks_job_id} onChange={(e) => setComposer((p) => ({ ...p, snailworks_job_id: e.target.value }))} />
+              <input className="vs-input" placeholder="USPS Status" value={composer.usps_status} onChange={(e) => updateComposer({ usps_status: e.target.value })} />
+              <input className="vs-input" type="datetime-local" title="USPS Last Scan" value={composer.usps_last_scan_date} onChange={(e) => updateComposer({ usps_last_scan_date: e.target.value })} />
+              <input className="vs-input" placeholder="Last Scan Facility" value={composer.usps_last_scan_facility} onChange={(e) => updateComposer({ usps_last_scan_facility: e.target.value })} />
+              <input className="vs-input" placeholder="SnailWorks Job ID" value={composer.snailworks_job_id} onChange={(e) => updateComposer({ snailworks_job_id: e.target.value })} />
             </div>
 
-            <textarea className="vs-textarea" rows={4} placeholder="Operational notes" value={composer.note} onChange={(e) => setComposer((p) => ({ ...p, note: e.target.value }))} />
+            <div className="vs-grid-4">
+              <input className="vs-input" placeholder="Political Alert Confirmation #" value={composer.political_mail_alert_confirmation} onChange={(e) => updateComposer({ political_mail_alert_confirmation: e.target.value })} />
+              <input className="vs-input" placeholder="Political Mail Problem Confirmation #" value={composer.political_mail_issue_confirmation} onChange={(e) => updateComposer({ political_mail_issue_confirmation: e.target.value })} />
+              <input className="vs-input" placeholder="Informed Delivery Campaign Name" value={composer.informed_delivery_campaign_name} onChange={(e) => updateComposer({ informed_delivery_campaign_name: e.target.value })} />
+              <input className="vs-input" placeholder="Informed Delivery Campaign ID" value={composer.informed_delivery_campaign_id} onChange={(e) => updateComposer({ informed_delivery_campaign_id: e.target.value })} />
+            </div>
+
+            <SectionCard title="Attachments" subtitle="Store file names now. Real file upload storage can be wired next with multer/S3/Render disk.">
+              <div className="vs-grid-3">
+                <label className="vs-card-muted" style={{ padding: 12 }}>
+                  <div className="vs-stat-label">Mail Piece PDF/Image</div>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ mail_piece_file_name: fileNameFromInput(e) })} />
+                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.mail_piece_file_name || "No file selected"}</div>
+                </label>
+
+                <label className="vs-card-muted" style={{ padding: 12 }}>
+                  <div className="vs-stat-label">PS Form 3602</div>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ ps_form_3602_file_name: fileNameFromInput(e) })} />
+                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.ps_form_3602_file_name || "No file selected"}</div>
+                </label>
+
+                <label className="vs-card-muted" style={{ padding: 12 }}>
+                  <div className="vs-stat-label">PS Form 8125</div>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ ps_form_8125_file_name: fileNameFromInput(e) })} />
+                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.ps_form_8125_file_name || "No file selected"}</div>
+                </label>
+              </div>
+            </SectionCard>
+
+            <textarea className="vs-textarea" rows={4} placeholder="Operational notes" value={composer.note} onChange={(e) => updateComposer({ note: e.target.value })} />
 
             <div className="vs-inline-actions">
               <button type="submit" className="vs-button vs-button-primary" disabled={creatingEvent}>
                 {creatingEvent ? "Creating..." : "Create Mail Job"}
               </button>
+              <a className="vs-button vs-button-secondary" href={USPS_INFORMED_DELIVERY_CAMPAIGN_URL} target="_blank" rel="noreferrer">
+                Open Informed Delivery Portal
+              </a>
             </div>
           </form>
         ) : null}
@@ -697,7 +922,7 @@ export default function MailOpsDashboard() {
         </div>
       </SectionCard>
 
-      <SectionCard title="MailOps Job Queue" subtitle="Update job status, severity, actual SCF arrival, and operational notes.">
+      <SectionCard title="MailOps Job Queue" subtitle="Update confirmation numbers, Informed Delivery campaign IDs, job status, severity, actual SCF arrival, and operational notes.">
         <div className="vs-stack">
           {loadingEvents ? (
             <EmptyState text="Loading MailOps jobs..." />
@@ -713,6 +938,10 @@ export default function MailOpsDashboard() {
                   severity: row.severity || "Medium",
                   note: row.note || "",
                   actual_scf_arrival_date: row.actual_scf_arrival_date || "",
+                  political_mail_alert_confirmation: row.political_mail_alert_confirmation || "",
+                  political_mail_issue_confirmation: row.political_mail_issue_confirmation || "",
+                  informed_delivery_campaign_name: row.informed_delivery_campaign_name || "",
+                  informed_delivery_campaign_id: row.informed_delivery_campaign_id || "",
                 }}
                 onDraftChange={handleDraftChange}
                 onSave={handleSaveEvent}
