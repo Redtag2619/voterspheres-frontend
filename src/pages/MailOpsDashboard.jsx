@@ -942,41 +942,7 @@ export default function MailOpsDashboard() {
               />
             </div>
 
-            <div className="vs-grid-4">
-              <input
-                className="vs-input"
-                placeholder="SCF"
-                list="mailops-scf-list"
-                value={composer.scf}
-                onChange={(e) => handleScfChange(e.target.value)}
-              />
-
-              <input
-                className="vs-input"
-                placeholder="SCF Address"
-                list="mailops-scf-addresses"
-                value={composer.scf_address}
-                onChange={(e) => updateComposer({ scf_address: e.target.value })}
-              />
-
-              <input
-                className="vs-input"
-                placeholder="NDC"
-                list="mailops-ndc-list"
-                value={composer.ndc}
-                onChange={(e) => handleNdcChange(e.target.value)}
-              />
-
-              <input
-                className="vs-input"
-                placeholder="NDC Address"
-                list="mailops-ndc-addresses"
-                value={composer.ndc_address}
-                onChange={(e) => updateComposer({ ndc_address: e.target.value })}
-              />
-            </div>
-
-            <div className="vs-grid-4">
+             <div className="vs-grid-4">
               <input className="vs-input" type="date" title="Expected SCF Arrival" value={composer.expected_scf_arrival_date} onChange={(e) => updateComposer({ expected_scf_arrival_date: e.target.value })} />
               <input className="vs-input" type="date" title="Actual SCF Arrival" value={composer.actual_scf_arrival_date} onChange={(e) => updateComposer({ actual_scf_arrival_date: e.target.value })} />
               <input className="vs-input" type="date" title="Actual In Home" value={composer.actual_in_home_date} onChange={(e) => updateComposer({ actual_in_home_date: e.target.value })} />
