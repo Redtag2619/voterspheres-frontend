@@ -237,7 +237,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
           <Field label="Political Alert Confirmation" value={row.political_mail_alert_confirmation} />
           <Field label="Political Issue Confirmation" value={row.political_mail_issue_confirmation} />
           <Field label="Mail Piece" value={row.mail_piece_file_name} />
-          <Field label="PS Forms" value={[row.ps_form_3602_file_name, row.ps_form_8125_file_name].filter(Boolean).join(" / ")} />
+          <Field label="PS Forms" value={[row.ps_form_3602_file_name, row.ps_form_3607_file_name].filter(Boolean).join(" / ")} />
         </div>
 
         <div className="vs-grid-4">
@@ -430,8 +430,8 @@ const emptyComposer = {
   mail_piece_url: "",
   ps_form_3602_file_name: "",
   ps_form_3602_url: "",
-  ps_form_8125_file_name: "",
-  ps_form_8125_url: "",
+  ps_form_3607_file_name: "",
+  ps_form_3607_url: "",
 };
 
 export default function MailOpsDashboard() {
@@ -985,9 +985,9 @@ export default function MailOpsDashboard() {
                 </label>
 
                 <label className="vs-card-muted" style={{ padding: 12 }}>
-                  <div className="vs-stat-label">PS Form 8125</div>
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ ps_form_8125_file_name: fileNameFromInput(e) })} />
-                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.ps_form_8125_file_name || "No file selected"}</div>
+                  <div className="vs-stat-label">PS Form 3607</div>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ ps_form_3607_file_name: fileNameFromInput(e) })} />
+                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.ps_form_3607_file_name || "No file selected"}</div>
                 </label>
               </div>
             </SectionCard>
