@@ -179,6 +179,7 @@ export default function Vendors() {
   const [taskMessage, setTaskMessage] = useState("");
   const [resolutionMessage, setResolutionMessage] = useState("");
   const [creatingTaskId, setCreatingTaskId] = useState("");
+  const [performance, setPerformance] = useState([]);
   const [existingTaskIds, setExistingTaskIds] = useState(() => new Set());
 
   const [sourceContext] = useState(initialUrl.source);
@@ -326,6 +327,8 @@ export default function Vendors() {
           vendor_action: action
         }
       });
+      
+      const perf = await api.vendorPerformance?.(); setPerformance(perf?.results || []);
 
       setExistingTaskIds((prev) => {
         const next = new Set(prev);
@@ -360,7 +363,7 @@ export default function Vendors() {
 
   const gapCount = Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
   const resolvedGapCount = Number(summary.resolved_gap_states || intel?.resolved_gaps?.length || 0);
-
+  
   const highlightedRowsCount = useMemo(() => {
     if (!highlightedState) return 0;
     return rows.filter((row) => statesMatch(row.state || row.primary_state, highlightedState)).length;
