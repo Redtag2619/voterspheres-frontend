@@ -766,6 +766,13 @@ export const publicApi = {
     unwrap(http.post("/public/enterprise-leads", payload)),
 };
 
+export const operationsMapApi = {
+  dashboard: (params = {}) =>
+    tryGet(["/operations-map"], {
+      params: withWorkspaceParams(params),
+    }),
+};
+
 export const tasksApi = {
   list: (params = {}) =>
     tryGet(["/tasks"], {
@@ -947,6 +954,8 @@ export const api = {
   darkMoneyExposureProfile: darkMoneyExposureApi.profile,
   
   executiveAlerts: executiveAlertsApi.list,
+  
+  operationsMap: operationsMapApi.dashboard,
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
 };
