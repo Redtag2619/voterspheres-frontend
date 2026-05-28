@@ -420,6 +420,19 @@ export default function ExecutiveOperationsMap() {
             <div className="ops-map-inner">
               <div className="ops-map-grid" />
 
+              <div className="ops-map-us-outline" aria-hidden="true">
+                <svg viewBox="0 0 860 560" role="img">
+                  <path d="M170 145 L230 120 L315 125 L390 135 L455 130 L520 150 L575 180 L650 190 L710 220 L735 275 L700 325 L675 375 L640 420 L565 450 L485 435 L430 455 L355 425 L300 385 L235 360 L185 315 L150 260 Z" />
+                  <path d="M170 145 L145 210 L135 275 L160 340 L205 375" />
+                  <path d="M315 125 L300 205 L320 285 L300 385" />
+                  <path d="M455 130 L450 220 L455 305 L430 455" />
+                  <path d="M575 180 L565 260 L585 330 L565 450" />
+                  <path d="M710 220 L675 280 L685 330" />
+                  <path d="M150 470 L210 440 L255 465 L205 500 Z" />
+                  <path d="M285 485 L320 470 L350 492 L310 510 Z" />
+                </svg>
+              </div>
+
               <div className="ops-map-label">
                 <h3>Executive Operations Map</h3>
                 <p>Current layer: {layer}</p>
