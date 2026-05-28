@@ -620,8 +620,11 @@ export const vendorsApi = {
   },
 
   scoring: () => tryGet(["/vendors/intelligence/scoring"]),
-  
-  vendorPerformance: () => tryGet(["/vendor-performance"]),
+
+  performance: (params = {}) =>
+    tryGet(["/vendor-performance"], {
+      params: withWorkspaceParams(params),
+    }),
 
   dispatchAlerts: () =>
     tryPost(["/vendors/intelligence/dispatch-alerts"], {}),
@@ -894,6 +897,7 @@ export const api = {
   vendorStatuses: vendorsApi.statuses,
   vendors: vendorsApi.list,
   vendorScoring: vendorsApi.scoring,
+  vendorPerformance: vendorsApi.performance,
   dispatchVendorAlerts: vendorsApi.dispatchAlerts,
   vendorPerformance: vendorsApi.performance,
 
