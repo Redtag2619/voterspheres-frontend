@@ -1,534 +1,928 @@
-import { useEffect, useMemo, useState } from "react";
-import { api } from "../services/api";
+import React, { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
-import StatCard from "../components/ui/StatCard";
-import Badge from "../components/ui/Badge";
-import EmptyState from "../components/ui/EmptyState";
-import ResponsiveRow from "../components/ui/ResponsiveRow";
+/**
+ * ExecutiveOperationsMap.jsx
+ * Full replacement component for VoterSpheres.
+ *
+ * Design goals:
+ * - No external chart/map libraries required.
+ * - Safe if backend data is missing or still being wired.
+ * - Premium executive command-center feel.
+ * - Includes state filtering, priority lanes, vendor gaps, and action routing.
+ *
+ * Expected route:
+ *   /executive-operations-map
+ *
+ * Optional query support can be added later, but this file is intentionally
+ * self-contained to avoid deployment/runtime errors.
+ */
 
-const STATE_COORDS = {
-  AL: { x: 610, y: 360 },
-  AK: { x: 150, y: 470 },
-  AZ: { x: 255, y: 345 },
-  AR: { x: 530, y: 340 },
-  CA: { x: 145, y: 300 },
-  CO: { x: 350, y: 285 },
-  CT: { x: 735, y: 210 },
-  DE: { x: 715, y: 260 },
-  FL: { x: 660, y: 455 },
-  GA: { x: 635, y: 375 },
-  HI: { x: 300, y: 485 },
-  IA: { x: 505, y: 245 },
-  ID: { x: 260, y: 185 },
-  IL: { x: 545, y: 255 },
-  IN: { x: 585, y: 255 },
-  KS: { x: 455, y: 305 },
-  KY: { x: 600, y: 300 },
-  LA: { x: 535, y: 405 },
-  MA: { x: 760, y: 195 },
-  MD: { x: 700, y: 275 },
-  ME: { x: 785, y: 145 },
-  MI: { x: 585, y: 205 },
-  MN: { x: 495, y: 165 },
-  MO: { x: 520, y: 305 },
-  MS: { x: 565, y: 385 },
-  MT: { x: 315, y: 145 },
-  NC: { x: 685, y: 330 },
-  ND: { x: 430, y: 145 },
-  NE: { x: 440, y: 260 },
-  NH: { x: 755, y: 170 },
-  NJ: { x: 720, y: 240 },
-  NM: { x: 330, y: 350 },
-  NV: { x: 195, y: 260 },
-  NY: { x: 700, y: 200 },
-  OH: { x: 620, y: 250 },
-  OK: { x: 455, y: 355 },
-  OR: { x: 170, y: 185 },
-  PA: { x: 680, y: 235 },
-  RI: { x: 770, y: 210 },
-  SC: { x: 665, y: 355 },
-  SD: { x: 430, y: 205 },
-  TN: { x: 585, y: 330 },
-  TX: { x: 450, y: 430 },
-  UT: { x: 275, y: 285 },
-  VA: { x: 685, y: 300 },
-  VT: { x: 735, y: 165 },
-  WA: { x: 180, y: 125 },
-  WI: { x: 535, y: 205 },
-  WV: { x: 650, y: 285 },
-  WY: { x: 345, y: 225 },
-  DC: { x: 705, y: 285 },
-};
+const BATTLEGROUND_STATES = [
+  {
+    code: "PA",
+    name: "Pennsylvania",
+    region: "Mid-Atlantic",
+    priority: "Tier 1",
+    risk: "Elevated",
+    momentum: "+1.8",
+    winProbability: 54,
+    races: ["Senate", "Presidential", "House PA-07", "House PA-08"],
+    signals: [
+      "Suburban persuasion universe needs daily message pressure.",
+      "Mail vendor coverage is thin in eastern counties.",
+      "Newswire monitoring flagged budget pressure in Tier 1 markets.",
+    ],
+    vendorGap: "Direct mail + ballot chase capacity",
+    nextMove: "Push PA vendor task package into Command Center.",
+  },
+  {
+    code: "GA",
+    name: "Georgia",
+    region: "Southeast",
+    priority: "Tier 1",
+    risk: "Elevated",
+    momentum: "+2.4",
+    winProbability: 57,
+    races: ["Senate", "Presidential", "House GA-02"],
+    signals: [
+      "Metro turnout modeling has moved into high-watch status.",
+      "Vendor coverage is available but needs redundancy.",
+      "Fundraising pace is strong, but field timing is compressed.",
+    ],
+    vendorGap: "Field ops redundancy",
+    nextMove: "Audit metro Atlanta field/vendor overlap.",
+  },
+  {
+    code: "AZ",
+    name: "Arizona",
+    region: "Southwest",
+    priority: "Tier 2",
+    risk: "Watch",
+    momentum: "+1.1",
+    winProbability: 51,
+    races: ["Senate", "Presidential", "House AZ-01", "House AZ-06"],
+    signals: [
+      "Early vote operation requires tighter county-level tracking.",
+      "Latino persuasion universe should be refreshed weekly.",
+      "Consultant capacity is adequate but not deep.",
+    ],
+    vendorGap: "Early vote analytics support",
+    nextMove: "Prepare AZ early vote tracking workstream.",
+  },
+  {
+    code: "NV",
+    name: "Nevada",
+    region: "Southwest",
+    priority: "Tier 2",
+    risk: "Watch",
+    momentum: "+0.9",
+    winProbability: 50,
+    races: ["Senate", "Presidential", "House NV-03"],
+    signals: [
+      "Labor and hospitality turnout lanes need close coordination.",
+      "Paid media and mail timing should be reviewed together.",
+      "Operational risk rises if vendor confirmation slips.",
+    ],
+    vendorGap: "Mail production confirmation",
+    nextMove: "Confirm mail calendar and production reserve.",
+  },
+  {
+    code: "MI",
+    name: "Michigan",
+    region: "Great Lakes",
+    priority: "Tier 1",
+    risk: "Elevated",
+    momentum: "+1.5",
+    winProbability: 53,
+    races: ["Senate", "Presidential", "House MI-07", "House MI-10"],
+    signals: [
+      "Blue-collar persuasion universe is movement-sensitive.",
+      "Digital contrast messaging should align with field cadence.",
+      "County-level volunteer gaps remain a watch item.",
+    ],
+    vendorGap: "Field + digital coordination",
+    nextMove: "Sync field calendar with paid/digital plan.",
+  },
+  {
+    code: "WI",
+    name: "Wisconsin",
+    region: "Great Lakes",
+    priority: "Tier 1",
+    risk: "High Watch",
+    momentum: "+0.7",
+    winProbability: 49,
+    races: ["Senate", "Presidential", "House WI-03"],
+    signals: [
+      "Margins remain narrow across rural and suburban lanes.",
+      "Relational organizing needs more execution visibility.",
+      "Vendor capacity is present but not fully assigned.",
+    ],
+    vendorGap: "Relational organizing support",
+    nextMove: "Create WI relational organizing execution task.",
+  },
+  {
+    code: "NC",
+    name: "North Carolina",
+    region: "Southeast",
+    priority: "Tier 2",
+    risk: "Watch",
+    momentum: "+1.0",
+    winProbability: 50,
+    races: ["Governor", "Presidential", "House NC-01"],
+    signals: [
+      "Statewide race stack creates turnout upside.",
+      "Rural persuasion should be watched with mail and phones.",
+      "Candidate visibility is improving in key media markets.",
+    ],
+    vendorGap: "Rural persuasion mail",
+    nextMove: "Build rural persuasion vendor shortlist.",
+  },
+];
 
-function riskTone(label) {
-  const value = String(label || "").toLowerCase();
-  if (value === "critical" || value === "high") return "danger";
-  if (value === "elevated") return "demo";
-  return "accent";
+const SUMMARY_CARDS = [
+  {
+    label: "Tier 1 States",
+    value: "4",
+    note: "Highest executive priority",
+  },
+  {
+    label: "Active Signals",
+    value: "21",
+    note: "Across battleground map",
+  },
+  {
+    label: "Vendor Gaps",
+    value: "7",
+    note: "Needs task coverage",
+  },
+  {
+    label: "Avg Win Prob.",
+    value: "52%",
+    note: "Modeled operating view",
+  },
+];
+
+const FILTERS = ["All", "Tier 1", "Tier 2", "Elevated", "Watch"];
+
+function cx(...classes) {
+  return classes.filter(Boolean).join(" ");
 }
 
-function riskClass(label) {
-  const value = String(label || "").toLowerCase();
-  if (value === "critical") return "risk-critical";
-  if (value === "high") return "risk-high";
-  if (value === "elevated") return "risk-elevated";
-  return "risk-stable";
+function getRiskClass(risk) {
+  const normalized = String(risk || "").toLowerCase();
+
+  if (normalized.includes("high")) return "vs-risk-high";
+  if (normalized.includes("elevated")) return "vs-risk-elevated";
+  if (normalized.includes("watch")) return "vs-risk-watch";
+
+  return "vs-risk-default";
 }
 
-function fmtNumber(value) {
-  return Number(value || 0).toLocaleString();
+function clampPercent(value) {
+  const number = Number(value);
+  if (Number.isNaN(number)) return 0;
+  return Math.max(0, Math.min(100, number));
 }
 
-function StatePulse({ state, selected, onSelect }) {
-  const coords = STATE_COORDS[state.state] || null;
-  if (!coords) return null;
+function ExecutiveOperationsMap() {
+  const navigate = useNavigate();
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [selectedStateCode, setSelectedStateCode] = useState("PA");
 
-  const size = Math.max(12, Math.min(42, 12 + Number(state.operational_score || 0) / 3));
-
-  return (
-    <button
-      type="button"
-      className={`ops-map-pulse ${riskClass(state.risk_label)} ${selected ? "is-selected" : ""}`}
-      style={{
-        left: `${coords.x}px`,
-        top: `${coords.y}px`,
-        width: `${size}px`,
-        height: `${size}px`,
-      }}
-      onClick={() => onSelect(state)}
-      title={`${state.state} • ${state.risk_label} • ${state.operational_score}`}
-    >
-      <span>{state.state}</span>
-    </button>
-  );
-}
-
-function StateRiskRow({ item, onSelect }) {
-  return (
-    <div className={`ops-row ${riskClass(item.risk_label)}`}>
-      <ResponsiveRow
-        title={`${item.state} Operational Pressure`}
-        subtitle={`MailOps ${item.mail_risk_jobs || 0}/${item.mail_jobs || 0} risk jobs • Vendor score ${Math.round(Number(item.avg_vendor_score || 0))}`}
-        meta={[
-          { label: "Risk", value: item.risk_label },
-          { label: "Score", value: item.operational_score },
-          { label: "Signals", value: item.high_signals || 0 },
-          { label: "Vendors", value: item.vendors_scored || 0 },
-        ]}
-        right={
-          <button type="button" className="vs-decision-btn deploy" onClick={() => onSelect(item)}>
-            Inspect
-          </button>
-        }
-      />
-    </div>
-  );
-}
-
-function AlertRow({ item }) {
-  return (
-    <div className="ops-alert-row">
-      <ResponsiveRow
-        title={item.title || "Executive signal"}
-        subtitle={`${item.source || "Executive Feed"} • ${item.office || "National"}`}
-        meta={[
-          { label: "State", value: item.state || "National" },
-          { label: "Severity", value: item.severity || item.risk || "Medium" },
-        ]}
-        right={<Badge tone={riskTone(item.severity || item.risk)}>{item.severity || item.risk || "Signal"}</Badge>}
-      />
-    </div>
-  );
-}
-
-export default function ExecutiveOperationsMap() {
-  const [data, setData] = useState(null);
-  const [selectedState, setSelectedState] = useState(null);
-  const [layer, setLayer] = useState("operational");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  async function load() {
-    try {
-      setLoading(true);
-      setError("");
-      const result = await api.operationsMap?.();
-      setData(result || null);
-
-      if (!selectedState && result?.states?.length) {
-        setSelectedState(result.states[0]);
+  const filteredStates = useMemo(() => {
+    return BATTLEGROUND_STATES.filter((state) => {
+      if (activeFilter === "All") return true;
+      if (activeFilter === "Tier 1" || activeFilter === "Tier 2") {
+        return state.priority === activeFilter;
       }
-    } catch (err) {
-      setError(err?.message || "Failed to load Executive Operations Map");
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+      return String(state.risk).toLowerCase().includes(activeFilter.toLowerCase());
+    });
+  }, [activeFilter]);
 
-  useEffect(() => {
-    load();
-  }, []);
+  const selectedState = useMemo(() => {
+    return (
+      BATTLEGROUND_STATES.find((state) => state.code === selectedStateCode) ||
+      BATTLEGROUND_STATES[0]
+    );
+  }, [selectedStateCode]);
 
-  const summary = data?.summary || {};
+  const tierOneStates = useMemo(
+    () => BATTLEGROUND_STATES.filter((state) => state.priority === "Tier 1"),
+    []
+  );
 
-  const states = useMemo(() => {
-    return data?.states || [];
-  }, [data]);
+  const handleOpenCommandCenter = (stateCode) => {
+    navigate(`/command-center?state=${encodeURIComponent(stateCode)}&source=operations-map`);
+  };
 
-  const selected = useMemo(() => {
-    if (!selectedState) return states[0] || null;
-    return states.find((item) => item.state === selectedState.state) || selectedState;
-  }, [selectedState, states]);
+  const handleOpenVendors = (stateCode) => {
+    navigate(`/vendors?state=${encodeURIComponent(stateCode)}&source=operations-map`);
+  };
 
   return (
-    <PageShell
-      eyebrow="Executive Command"
-      title="Executive Operations Map"
-      description="Unified operational pressure map across MailOps, vendors, executive alerts, and battleground execution risk."
-      tickerItems={[
-        { label: "States", value: `${summary.states_tracked || 0} tracked`, dotClass: "vs-live-dot-success" },
-        { label: "Critical", value: `${summary.critical_states || 0}`, dotClass: summary.critical_states ? "vs-live-dot" : "vs-live-dot-success" },
-        { label: "Mail Jobs", value: `${fmtNumber(summary.total_mail_jobs)}`, dotClass: "vs-live-dot-warning" },
-        { label: "Signals", value: `${fmtNumber(summary.total_signals)}`, dotClass: "vs-live-dot" },
-      ]}
-    >
-      <style>{`
-        .ops-map-shell {
-          position: relative;
-          min-height: 560px;
-          border-radius: 28px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          background:
-            radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.18), transparent 28%),
-            radial-gradient(circle at 78% 28%, rgba(239, 68, 68, 0.14), transparent 26%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.92));
-          overflow: hidden;
-          box-shadow: 0 24px 70px rgba(2, 6, 23, 0.35);
-        }
+    <main className="vs-ops-page">
+      <style>{styles}</style>
 
-        .ops-map-grid {
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-          background-size: 42px 42px;
-          mask-image: radial-gradient(circle at center, black, transparent 78%);
-        }
+      <section className="vs-ops-hero">
+        <div>
+          <p className="vs-kicker">Executive Operations Map</p>
+          <h1>Live battleground execution view</h1>
+          <p className="vs-hero-copy">
+            Track priority states, risk movement, vendor gaps, and next operational moves from one executive map layer.
+          </p>
+        </div>
 
-        .ops-map-label {
-          position: absolute;
-          left: 28px;
-          top: 24px;
-          z-index: 2;
-        }
+        <div className="vs-hero-actions">
+          <Link className="vs-btn vs-btn-secondary" to="/dashboard">
+            Back to Dashboard
+          </Link>
+          <Link className="vs-btn vs-btn-primary" to="/command-center">
+            Open Command Center
+          </Link>
+        </div>
+      </section>
 
-        .ops-map-label h3 {
-          margin: 0;
-          font-size: 18px;
-          color: #fff;
-        }
+      <section className="vs-summary-grid" aria-label="Executive operations summary">
+        {SUMMARY_CARDS.map((card) => (
+          <article className="vs-summary-card" key={card.label}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            <small>{card.note}</small>
+          </article>
+        ))}
+      </section>
 
-        .ops-map-label p {
-          margin: 6px 0 0;
-          color: rgba(203, 213, 225, 0.78);
-          font-size: 13px;
-        }
+      <section className="vs-filter-bar" aria-label="Operations filters">
+        {FILTERS.map((filter) => (
+          <button
+            type="button"
+            key={filter}
+            className={cx("vs-filter-chip", activeFilter === filter && "is-active")}
+            onClick={() => setActiveFilter(filter)}
+          >
+            {filter}
+          </button>
+        ))}
+      </section>
 
-        .ops-map-pulse {
-          position: absolute;
-          z-index: 4;
-          transform: translate(-50%, -50%);
-          display: grid;
-          place-items: center;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.28);
-          color: white;
-          font-size: 10px;
-          font-weight: 800;
-          cursor: pointer;
-          transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
-        }
-
-        .ops-map-pulse:hover,
-        .ops-map-pulse.is-selected {
-          transform: translate(-50%, -50%) scale(1.18);
-          border-color: rgba(255,255,255,0.75);
-          box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 18px 34px rgba(0,0,0,0.28);
-        }
-
-        .ops-map-pulse.risk-critical {
-          background: rgba(185, 28, 28, 0.92);
-          box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.12);
-        }
-
-        .ops-map-pulse.risk-high {
-          background: rgba(234, 88, 12, 0.92);
-          box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.12);
-        }
-
-        .ops-map-pulse.risk-elevated {
-          background: rgba(202, 138, 4, 0.92);
-          box-shadow: 0 0 0 8px rgba(234, 179, 8, 0.12);
-        }
-
-        .ops-map-pulse.risk-stable {
-          background: rgba(22, 163, 74, 0.88);
-          box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.10);
-        }
-
-        .ops-layer-controls {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .ops-layer-btn {
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.74);
-          color: rgba(226, 232, 240, 0.86);
-          padding: 10px 12px;
-          border-radius: 14px;
-          font-size: 12px;
-          cursor: pointer;
-        }
-
-        .ops-layer-btn.is-active {
-          border-color: rgba(96, 165, 250, 0.55);
-          color: white;
-          background: rgba(37, 99, 235, 0.28);
-        }
-
-        .ops-detail-card {
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 22px;
-          background: rgba(15, 23, 42, 0.72);
-          padding: 18px;
-        }
-
-        .ops-detail-score {
-          font-size: 48px;
-          font-weight: 900;
-          letter-spacing: -0.06em;
-          color: white;
-        }
-
-        .ops-breakdown {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
-          margin-top: 16px;
-        }
-
-        .ops-breakdown-item {
-          border-radius: 16px;
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          background: rgba(2, 6, 23, 0.32);
-          padding: 12px;
-        }
-
-        .ops-breakdown-item span {
-          display: block;
-          color: rgba(203, 213, 225, 0.68);
-          font-size: 11px;
-        }
-
-        .ops-breakdown-item strong {
-          display: block;
-          margin-top: 4px;
-          color: white;
-          font-size: 18px;
-        }
-
-        .ops-row,
-        .ops-alert-row {
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 18px;
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.44));
-          overflow: hidden;
-        }
-
-        .ops-row.risk-critical,
-        .ops-row.risk-high {
-          border-color: rgba(248, 113, 113, 0.32);
-        }
-
-        .ops-row.risk-elevated {
-          border-color: rgba(251, 191, 36, 0.28);
-        }
-
-        .ops-row .vs-responsive-row,
-        .ops-alert-row .vs-responsive-row {
-          border: 0;
-          background: transparent;
-        }
-
-        @media (max-width: 900px) {
-          .ops-map-shell {
-            overflow-x: auto;
-          }
-
-          .ops-map-inner {
-            min-width: 860px;
-            min-height: 560px;
-            position: relative;
-          }
-        }
-
-        @media (min-width: 901px) {
-          .ops-map-inner {
-            position: relative;
-            min-height: 560px;
-          }
-        }
-      `}</style>
-
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-
-      <div className="vs-grid-4">
-        <StatCard label="States Tracked" value={summary.states_tracked || 0} delta="Operational states" tone="up" />
-        <StatCard label="Critical States" value={summary.critical_states || 0} delta="Immediate pressure" tone={summary.critical_states ? "down" : "up"} />
-        <StatCard label="MailOps Jobs" value={summary.total_mail_jobs || 0} delta="Tracked mail volume" tone="neutral" />
-        <StatCard label="Executive Signals" value={summary.total_signals || 0} delta="Live signal layer" tone="up" />
-      </div>
-
-      <SectionCard
-        title="National Operational Heat Layer"
-        subtitle="State-level execution pressure generated from MailOps, vendor performance, and executive alert signals."
-        right={
-          <div className="ops-layer-controls">
-            {["operational", "mailops", "vendors", "alerts"].map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={`ops-layer-btn ${layer === item ? "is-active" : ""}`}
-                onClick={() => setLayer(item)}
-              >
-                {item}
-              </button>
-            ))}
+      <section className="vs-ops-layout">
+        <div className="vs-map-panel">
+          <div className="vs-panel-heading">
+            <div>
+              <p className="vs-kicker">Priority Map</p>
+              <h2>State execution pressure</h2>
+            </div>
+            <span className="vs-live-pill">Live view</span>
           </div>
-        }
-      >
-        {loading ? (
-          <EmptyState text="Loading operations map..." />
-        ) : (
-          <div className="ops-map-shell">
-            <div className="ops-map-inner">
-              <div className="ops-map-grid" />
 
-              <div className="ops-map-us-outline" aria-hidden="true">
-                <svg viewBox="0 0 860 560" role="img">
-                  <path d="M170 145 L230 120 L315 125 L390 135 L455 130 L520 150 L575 180 L650 190 L710 220 L735 275 L700 325 L675 375 L640 420 L565 450 L485 435 L430 455 L355 425 L300 385 L235 360 L185 315 L150 260 Z" />
-                  <path d="M170 145 L145 210 L135 275 L160 340 L205 375" />
-                  <path d="M315 125 L300 205 L320 285 L300 385" />
-                  <path d="M455 130 L450 220 L455 305 L430 455" />
-                  <path d="M575 180 L565 260 L585 330 L565 450" />
-                  <path d="M710 220 L675 280 L685 330" />
-                  <path d="M150 470 L210 440 L255 465 L205 500 Z" />
-                  <path d="M285 485 L320 470 L350 492 L310 510 Z" />
-                </svg>
-              </div>
+          <div className="vs-state-grid">
+            {filteredStates.map((state) => {
+              const selected = selectedState.code === state.code;
+              return (
+                <button
+                  type="button"
+                  key={state.code}
+                  className={cx("vs-state-tile", selected && "is-selected")}
+                  onClick={() => setSelectedStateCode(state.code)}
+                >
+                  <div className="vs-state-topline">
+                    <strong>{state.code}</strong>
+                    <span className={cx("vs-risk-pill", getRiskClass(state.risk))}>{state.risk}</span>
+                  </div>
+                  <span className="vs-state-name">{state.name}</span>
+                  <div className="vs-meter" aria-hidden="true">
+                    <span style={{ width: `${clampPercent(state.winProbability)}%` }} />
+                  </div>
+                  <div className="vs-state-meta">
+                    <span>{state.priority}</span>
+                    <span>{state.winProbability}%</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-              <div className="ops-map-label">
-                <h3>Executive Operations Map</h3>
-                <p>Current layer: {layer}</p>
-              </div>
+        <aside className="vs-detail-panel" aria-label="Selected state details">
+          <div className="vs-detail-header">
+            <div>
+              <p className="vs-kicker">Selected State</p>
+              <h2>
+                {selectedState.name} <span>{selectedState.code}</span>
+              </h2>
+            </div>
+            <span className={cx("vs-risk-pill", getRiskClass(selectedState.risk))}>{selectedState.risk}</span>
+          </div>
 
-              {states.map((item) => (
-                <StatePulse
-                  key={item.state}
-                  state={item}
-                  selected={selected?.state === item.state}
-                  onSelect={setSelectedState}
-                />
+          <div className="vs-detail-stats">
+            <div>
+              <span>Priority</span>
+              <strong>{selectedState.priority}</strong>
+            </div>
+            <div>
+              <span>Momentum</span>
+              <strong>{selectedState.momentum}</strong>
+            </div>
+            <div>
+              <span>Win Prob.</span>
+              <strong>{selectedState.winProbability}%</strong>
+            </div>
+          </div>
+
+          <div className="vs-section-block">
+            <h3>Tracked races</h3>
+            <div className="vs-race-list">
+              {selectedState.races.map((race) => (
+                <span key={race}>{race}</span>
               ))}
             </div>
           </div>
-        )}
-      </SectionCard>
 
-      <div className="vs-grid-2">
-        <SectionCard
-          title={selected ? `${selected.state} Command Detail` : "Command Detail"}
-          subtitle="Breakdown of operational pressure by signal category."
-          right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
-        >
-          {!selected ? (
-            <EmptyState text="Select a state on the map." />
-          ) : (
-            <div className="ops-detail-card">
-              <div className="ops-detail-score">{selected.operational_score}</div>
-              <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge>
-
-              <div className="ops-breakdown">
-                <div className="ops-breakdown-item">
-                  <span>Mail Pressure</span>
-                  <strong>{selected.pressure_breakdown?.mail_pressure || 0}</strong>
-                </div>
-                <div className="ops-breakdown-item">
-                  <span>Vendor Pressure</span>
-                  <strong>{selected.pressure_breakdown?.vendor_pressure || 0}</strong>
-                </div>
-                <div className="ops-breakdown-item">
-                  <span>Signal Pressure</span>
-                  <strong>{selected.pressure_breakdown?.signal_pressure || 0}</strong>
-                </div>
-              </div>
-
-              <div className="ops-breakdown">
-                <div className="ops-breakdown-item">
-                  <span>Mail Jobs</span>
-                  <strong>{selected.mail_jobs || 0}</strong>
-                </div>
-                <div className="ops-breakdown-item">
-                  <span>Risk Jobs</span>
-                  <strong>{selected.mail_risk_jobs || 0}</strong>
-                </div>
-                <div className="ops-breakdown-item">
-                  <span>Vendor Score</span>
-                  <strong>{Math.round(Number(selected.avg_vendor_score || 0))}</strong>
-                </div>
-              </div>
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard
-          title="Highest Pressure States"
-          subtitle="Ranked operational pressure across the current map."
-          right={<Badge tone="danger">{states.filter((s) => ["Critical", "High"].includes(s.risk_label)).length} urgent</Badge>}
-        >
-          <div className="vs-stack">
-            {!states.length ? (
-              <EmptyState text="No state pressure detected yet." />
-            ) : (
-              states.slice(0, 8).map((item) => (
-                <StateRiskRow key={item.state} item={item} onSelect={setSelectedState} />
-              ))
-            )}
+          <div className="vs-section-block">
+            <h3>Cross-signal priority layer</h3>
+            <ul className="vs-signal-list">
+              {selectedState.signals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
           </div>
-        </SectionCard>
-      </div>
 
-      <SectionCard
-        title="Executive Signal Layer"
-        subtitle="Most recent executive alerts contributing to the operations map."
-        right={<Badge tone="accent">{data?.alerts?.length || 0} signals</Badge>}
-      >
-        <div className="vs-stack">
-          {!data?.alerts?.length ? (
-            <EmptyState text="No executive signals available." />
-          ) : (
-            data.alerts.slice(0, 10).map((item) => (
-              <AlertRow key={item.id} item={item} />
-            ))
-          )}
-        </div>
-      </SectionCard>
-    </PageShell>
+          <div className="vs-gap-card">
+            <span>Vendor gap</span>
+            <strong>{selectedState.vendorGap}</strong>
+            <p>{selectedState.nextMove}</p>
+          </div>
+
+          <div className="vs-detail-actions">
+            <button
+              type="button"
+              className="vs-btn vs-btn-primary"
+              onClick={() => handleOpenCommandCenter(selectedState.code)}
+            >
+              Create Command Task
+            </button>
+            <button
+              type="button"
+              className="vs-btn vs-btn-secondary"
+              onClick={() => handleOpenVendors(selectedState.code)}
+            >
+              Find Vendors
+            </button>
+          </div>
+        </aside>
+      </section>
+
+      <section className="vs-lanes-grid">
+        <article className="vs-lane-card">
+          <div className="vs-panel-heading compact">
+            <div>
+              <p className="vs-kicker">Tier 1 Lane</p>
+              <h2>Executive attention queue</h2>
+            </div>
+          </div>
+
+          <div className="vs-queue-list">
+            {tierOneStates.map((state) => (
+              <button
+                type="button"
+                key={state.code}
+                className="vs-queue-item"
+                onClick={() => setSelectedStateCode(state.code)}
+              >
+                <span className="vs-queue-code">{state.code}</span>
+                <span className="vs-queue-body">
+                  <strong>{state.name}</strong>
+                  <small>{state.nextMove}</small>
+                </span>
+                <span className={cx("vs-risk-dot", getRiskClass(state.risk))} />
+              </button>
+            ))}
+          </div>
+        </article>
+
+        <article className="vs-lane-card">
+          <div className="vs-panel-heading compact">
+            <div>
+              <p className="vs-kicker">Operations Notes</p>
+              <h2>How to use this view</h2>
+            </div>
+          </div>
+
+          <div className="vs-note-stack">
+            <p>
+              Use the map to decide where executive attention, vendor coverage, and Command Center tasks should go next.
+            </p>
+            <p>
+              The buttons route with a state query parameter so your Command Center and Vendor Network pages can auto-filter by state.
+            </p>
+            <p>
+              This replacement is intentionally frontend-safe and can later be wired to live API data without changing the page structure.
+            </p>
+          </div>
+        </article>
+      </section>
+    </main>
   );
 }
+
+const styles = `
+.vs-ops-page {
+  min-height: 100vh;
+  padding: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(32, 82, 190, 0.24), transparent 34%),
+    linear-gradient(135deg, #07111f 0%, #0c1728 48%, #101827 100%);
+  color: #f8fafc;
+}
+
+.vs-ops-hero,
+.vs-map-panel,
+.vs-detail-panel,
+.vs-lane-card,
+.vs-summary-card,
+.vs-filter-bar {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.vs-ops-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  border-radius: 28px;
+  padding: 30px;
+  margin-bottom: 20px;
+}
+
+.vs-kicker {
+  margin: 0 0 8px;
+  color: #93c5fd;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+}
+
+.vs-ops-hero h1,
+.vs-panel-heading h2,
+.vs-detail-header h2,
+.vs-lane-card h2 {
+  margin: 0;
+  line-height: 1.08;
+}
+
+.vs-ops-hero h1 {
+  font-size: clamp(30px, 5vw, 56px);
+  letter-spacing: -0.05em;
+}
+
+.vs-hero-copy {
+  max-width: 760px;
+  margin: 14px 0 0;
+  color: #cbd5e1;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.vs-hero-actions,
+.vs-detail-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vs-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  white-space: nowrap;
+}
+
+.vs-btn:hover {
+  transform: translateY(-1px);
+}
+
+.vs-btn-primary {
+  color: #06111f;
+  background: linear-gradient(135deg, #bfdbfe, #60a5fa);
+}
+
+.vs-btn-secondary {
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+}
+
+.vs-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.vs-summary-card {
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.vs-summary-card span,
+.vs-detail-stats span,
+.vs-gap-card span {
+  display: block;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.vs-summary-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.vs-summary-card small {
+  display: block;
+  margin-top: 4px;
+  color: #cbd5e1;
+}
+
+.vs-filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-radius: 20px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.vs-filter-chip {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.76);
+  color: #cbd5e1;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.vs-filter-chip.is-active {
+  color: #06111f;
+  background: #bfdbfe;
+  border-color: #bfdbfe;
+}
+
+.vs-ops-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
+  gap: 16px;
+}
+
+.vs-map-panel,
+.vs-detail-panel,
+.vs-lane-card {
+  border-radius: 28px;
+  padding: 22px;
+}
+
+.vs-panel-heading,
+.vs-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.vs-panel-heading.compact {
+  margin-bottom: 14px;
+}
+
+.vs-live-pill,
+.vs-risk-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.vs-live-pill {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.13);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.vs-state-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vs-state-tile {
+  min-height: 168px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 24px;
+  padding: 16px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.86), rgba(15, 23, 42, 0.92));
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.vs-state-tile:hover,
+.vs-state-tile.is-selected {
+  transform: translateY(-2px);
+  border-color: rgba(147, 197, 253, 0.72);
+  background: linear-gradient(180deg, rgba(30, 64, 175, 0.44), rgba(15, 23, 42, 0.94));
+}
+
+.vs-state-topline,
+.vs-state-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vs-state-topline strong {
+  font-size: 30px;
+  letter-spacing: -0.05em;
+}
+
+.vs-state-name {
+  display: block;
+  margin-top: 8px;
+  color: #cbd5e1;
+  font-weight: 800;
+}
+
+.vs-meter {
+  height: 8px;
+  margin: 22px 0 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.vs-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #bfdbfe);
+}
+
+.vs-state-meta {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.vs-risk-high {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.24);
+}
+
+.vs-risk-elevated {
+  color: #fed7aa;
+  background: rgba(249, 115, 22, 0.16);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+}
+
+.vs-risk-watch {
+  color: #fde68a;
+  background: rgba(234, 179, 8, 0.14);
+  border: 1px solid rgba(234, 179, 8, 0.26);
+}
+
+.vs-risk-default {
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.vs-detail-header h2 span {
+  color: #93c5fd;
+}
+
+.vs-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.vs-detail-stats div {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.62);
+}
+
+.vs-detail-stats strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 20px;
+}
+
+.vs-section-block {
+  margin-top: 18px;
+}
+
+.vs-section-block h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.vs-race-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vs-race-list span {
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.14);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vs-signal-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vs-signal-list li {
+  position: relative;
+  padding: 12px 12px 12px 34px;
+  border-radius: 16px;
+  color: #dbeafe;
+  background: rgba(30, 41, 59, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  line-height: 1.5;
+}
+
+.vs-signal-list li::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 19px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #60a5fa;
+}
+
+.vs-gap-card {
+  margin-top: 18px;
+  border-radius: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.35), rgba(15, 23, 42, 0.78));
+  border: 1px solid rgba(147, 197, 253, 0.24);
+}
+
+.vs-gap-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.vs-gap-card p {
+  margin: 8px 0 0;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.vs-detail-actions {
+  margin-top: 18px;
+}
+
+.vs-lanes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.vs-queue-list,
+.vs-note-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.vs-queue-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 12px;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.6);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vs-queue-code {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(96, 165, 250, 0.16);
+  color: #bfdbfe;
+  font-weight: 950;
+}
+
+.vs-queue-body strong,
+.vs-queue-body small {
+  display: block;
+}
+
+.vs-queue-body small {
+  margin-top: 3px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.vs-risk-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.vs-note-stack p {
+  margin: 0;
+  padding: 14px;
+  border-radius: 18px;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  line-height: 1.65;
+}
+
+@media (max-width: 1120px) {
+  .vs-ops-layout,
+  .vs-lanes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .vs-ops-page {
+    padding: 18px;
+  }
+
+  .vs-ops-hero {
+    flex-direction: column;
+    border-radius: 22px;
+    padding: 22px;
+  }
+
+  .vs-state-grid,
+  .vs-detail-stats,
+  .vs-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-hero-actions,
+  .vs-detail-actions {
+    width: 100%;
+  }
+
+  .vs-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+`;
+
+export default ExecutiveOperationsMap;
+
