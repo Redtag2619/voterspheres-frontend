@@ -24,6 +24,7 @@ const primaryNavItems = [
   { to: "/war-room", label: "War Room", permission: PERMISSIONS.VIEW_WAR_ROOM },
   { to: "/command-center", label: "Command Center", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/billing", label: "Billing", permission: PERMISSIONS.VIEW_BILLING },
+  { to: "/operations-map", label: "Operations Map", short: "OM" },
 ];
 
 const adminNavItems = [
