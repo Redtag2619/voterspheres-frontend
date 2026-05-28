@@ -13,6 +13,7 @@ const navItems = [
   { to: "/rankings", label: "Power Rankings", short: "PR" },
   { to: "/marketplace", label: "Marketplace", short: "MK" },
   { to: "/simulator", label: "Simulator", short: "SM" },
+  { to: "/operations-map", label: "Operations Map", short: "OM" },
   { to: "/ai", label: "AI Chat", short: "AI" }
 ];
 
