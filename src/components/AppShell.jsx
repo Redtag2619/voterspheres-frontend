@@ -23,6 +23,7 @@ const secondaryItems = [
   { label: "Relationship Graph", to: "/relationship-graph"},
   { label: "Dark Money", to: "/dark-money-exposure" },
   { label: "Opportunity Map", to: "/campaign-opportunity-heatmap"},
+  { label: "Operations Map", to: "/operations-map" },
   { label: "MailOps", to: "/mailops" },
   { label: "Pricing", to: "/pricing" },
   { label: "Billing", to: "/billing" },
