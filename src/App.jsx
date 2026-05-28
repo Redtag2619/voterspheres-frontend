@@ -47,6 +47,7 @@ const CampaignOpportunityHeatmap = lazy(() => import("./pages/CampaignOpportunit
 const ConsultantIntel = lazy(() => import("./pages/ConsultantIntel"));
 const ConsultantProfile = lazy(() => import("./pages/ConsultantProfile"));
 const DarkMoneyExposure = lazy(() => import("./pages/DarkMoneyExposure.jsx"));
+const ExecutiveOperationsMap = lazy(() => import("./pages/ExecutiveOperationsMap.jsx"));
 
 function LoadingScreen() {
   return (
@@ -208,6 +209,7 @@ function AppRoutes() {
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
               <Route path="/consultants/:id" element={<ConsultantProfile />} />
               <Route path="/committee-intel" element={<CommitteeIntel />} />
+              <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}>
