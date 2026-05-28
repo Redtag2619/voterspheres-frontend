@@ -14,34 +14,62 @@ function fmtMoney(value) {
 
 function normalizeList(data, keys = []) {
   if (Array.isArray(data)) return data;
+
   for (const key of keys) {
     if (Array.isArray(data?.[key])) return data[key];
   }
+
   return data?.results || data?.vendors || data?.rows || [];
 }
 
 function severityTone(value) {
   const v = String(value || "").toLowerCase();
+
   if (v === "high" || v === "critical" || v === "elevated") return "danger";
   if (v === "medium" || v === "watch") return "demo";
+
   return "accent";
 }
 
+function performanceTone(score) {
+  const next = Number(score || 0);
+
+  if (next >= 85) return "accent";
+  if (next >= 70) return "demo";
+
+  return "danger";
+}
+
+function performanceLabel(score) {
+  const next = Number(score || 0);
+
+  if (next >= 85) return "Strong";
+  if (next >= 70) return "Watch";
+
+  return "Risk";
+}
+
 function getActionKey(action = {}, fallback = "") {
-  return String(action.id || `${action.state || "National"}-${action.title || fallback || "vendor-action"}`);
+  return String(
+    action.id ||
+      `${action.state || "National"}-${action.title || fallback || "vendor-action"}`
+  );
 }
 
 function getInitialUrlParams() {
   if (typeof window === "undefined") return { state: "", source: "" };
+
   const params = new URLSearchParams(window.location.search);
+
   return {
     state: params.get("state") || "",
-    source: params.get("source") || ""
+    source: params.get("source") || "",
   };
 }
 
 function updateUrlState(state) {
   if (typeof window === "undefined") return;
+
   const url = new URL(window.location.href);
 
   if (state) url.searchParams.set("state", state);
@@ -57,6 +85,7 @@ function updateUrlState(state) {
 function statesMatch(a, b) {
   const left = String(a || "").trim().toLowerCase();
   const right = String(b || "").trim().toLowerCase();
+
   return Boolean(left && right && left === right);
 }
 
@@ -75,14 +104,18 @@ function VendorRow({ vendor, highlighted = false }) {
     "Campaign operations and political services";
 
   return (
-    <div className={`vs-premium-row-card ${highlighted ? "is-highlighted-vendor" : ""}`}>
+    <div
+      className={`vs-premium-row-card ${
+        highlighted ? "is-highlighted-vendor" : ""
+      }`}
+    >
       <ResponsiveRow
         title={name}
         subtitle={`${state} • ${category}`}
         meta={[
           { label: "Coverage", value: vendor.coverage_area || state || "—" },
           { label: "Contract", value: fmtMoney(vendor.contract_value) },
-          { label: "Services", value: services }
+          { label: "Services", value: services },
         ]}
         right={
           <div className="vs-inline-actions">
@@ -99,15 +132,51 @@ function RiskRow({ item }) {
   const severity = item.severity || item.priority || "Medium";
 
   return (
-    <div className={`vs-premium-row-card ${severity === "High" ? "is-elevated" : ""}`}>
+    <div
+      className={`vs-premium-row-card ${
+        severity === "High" ? "is-elevated" : ""
+      }`}
+    >
       <ResponsiveRow
         title={item.title || "Vendor intelligence signal"}
-        subtitle={item.detail || "Review vendor coverage and operational readiness."}
+        subtitle={
+          item.detail || "Review vendor coverage and operational readiness."
+        }
         meta={[
           { label: "Severity", value: severity },
-          { label: "State", value: item.state || "National" }
+          { label: "State", value: item.state || "National" },
         ]}
         right={<Badge tone={severityTone(severity)}>{severity}</Badge>}
+      />
+    </div>
+  );
+}
+
+function PerformanceRow({ item }) {
+  const score = Number(item.overall_score || 0);
+  const onTime = Number(item.on_time_score || 0);
+  const reliability = Number(item.reliability_score || 0);
+  const risk = Number(item.risk_score || 0);
+  const delayedJobs = Number(item.delayed_jobs || 0);
+  const totalJobs = Number(item.total_jobs || 0);
+
+  return (
+    <div className={`vs-premium-row-card ${score < 70 ? "is-elevated" : ""}`}>
+      <ResponsiveRow
+        title={item.vendor_name || "Unnamed Vendor"}
+        subtitle={`${item.state || "National"} • ${totalJobs} MailOps job${
+          totalJobs === 1 ? "" : "s"
+        }`}
+        meta={[
+          { label: "Overall", value: `${score}%` },
+          { label: "On-Time", value: `${onTime}%` },
+          { label: "Reliability", value: `${reliability}%` },
+          { label: "Risk", value: `${risk}%` },
+          { label: "Delayed", value: delayedJobs },
+        ]}
+        right={
+          <Badge tone={performanceTone(score)}>{performanceLabel(score)}</Badge>
+        }
       />
     </div>
   );
@@ -118,11 +187,14 @@ function ResolvedGapRow({ item }) {
     <div className="vs-premium-row-card is-resolved-gap">
       <ResponsiveRow
         title={item.title || `${item.state || "State"} vendor gap resolved`}
-        subtitle={item.detail || "This vendor coverage gap has been resolved by a completed task."}
+        subtitle={
+          item.detail ||
+          "This vendor coverage gap has been resolved by a completed task."
+        }
         meta={[
           { label: "State", value: item.state || "National" },
           { label: "Score", value: item.coverage_score ?? "—" },
-          { label: "Status", value: "Resolved" }
+          { label: "Status", value: "Resolved" },
         ]}
         right={<Badge tone="active">Resolved by Task</Badge>}
       />
@@ -134,14 +206,18 @@ function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
   const severity = action.priority || action.severity || "Medium";
 
   return (
-    <div className={`vs-premium-row-card ${severity === "High" ? "is-elevated" : "is-action"}`}>
+    <div
+      className={`vs-premium-row-card ${
+        severity === "High" ? "is-elevated" : "is-action"
+      }`}
+    >
       <ResponsiveRow
         title={action.title || "Review vendor coverage"}
         subtitle={action.detail || "Generated by vendor scoring."}
         meta={[
           { label: "Owner", value: action.owner || "Operations" },
           { label: "Due", value: action.due || "This Week" },
-          { label: "State", value: action.state || "National" }
+          { label: "State", value: action.state || "National" },
         ]}
         right={
           taskExists ? (
@@ -171,15 +247,17 @@ export default function Vendors() {
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [intel, setIntel] = useState(null);
+  const [performance, setPerformance] = useState([]);
+  const [performanceSummary, setPerformanceSummary] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [intelLoading, setIntelLoading] = useState(true);
+  const [performanceLoading, setPerformanceLoading] = useState(true);
   const [error, setError] = useState("");
   const [dispatchMessage, setDispatchMessage] = useState("");
   const [taskMessage, setTaskMessage] = useState("");
   const [resolutionMessage, setResolutionMessage] = useState("");
   const [creatingTaskId, setCreatingTaskId] = useState("");
-  const [performance, setPerformance] = useState([]);
   const [existingTaskIds, setExistingTaskIds] = useState(() => new Set());
 
   const [sourceContext] = useState(initialUrl.source);
@@ -190,7 +268,7 @@ export default function Vendors() {
     category: "",
     status: "",
     page: 1,
-    limit: 12
+    limit: 12,
   });
 
   const isFromExecutionBoard = sourceContext === "execution-board";
@@ -208,7 +286,7 @@ export default function Vendors() {
         const [stateData, categoryData, statusData] = await Promise.all([
           api.vendorStates?.(),
           api.vendorCategories?.(),
-          api.vendorStatuses?.()
+          api.vendorStatuses?.(),
         ]);
 
         if (!active) return;
@@ -236,12 +314,15 @@ export default function Vendors() {
       try {
         setLoading(true);
         setError("");
+
         const data = await api.vendors(filters);
 
         if (!active) return;
+
         setRows(normalizeList(data, ["results", "vendors", "rows"]));
       } catch (err) {
         if (!active) return;
+
         setError(err?.message || "Failed to load vendors");
         setRows([]);
       } finally {
@@ -258,14 +339,19 @@ export default function Vendors() {
 
   async function loadIntel() {
     setIntelLoading(true);
+
     try {
       const data = await api.vendorScoring?.();
+
       setIntel(data || null);
 
       const resolvedCount = data?.resolved_gaps?.length || 0;
+
       if (resolvedCount) {
         setResolutionMessage(
-          `${resolvedCount} vendor gap${resolvedCount === 1 ? "" : "s"} resolved by completed task.`
+          `${resolvedCount} vendor gap${
+            resolvedCount === 1 ? "" : "s"
+          } resolved by completed task.`
         );
       } else {
         setResolutionMessage("");
@@ -283,12 +369,45 @@ export default function Vendors() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    async function loadPerformance() {
+      try {
+        setPerformanceLoading(true);
+
+        const data = await api.vendorPerformance?.({
+          state: filters.state,
+          limit: 25,
+        });
+
+        if (!active) return;
+
+        setPerformance(data?.results || []);
+        setPerformanceSummary(data?.summary || null);
+      } catch {
+        if (!active) return;
+
+        setPerformance([]);
+        setPerformanceSummary(null);
+      } finally {
+        if (active) setPerformanceLoading(false);
+      }
+    }
+
+    loadPerformance();
+
+    return () => {
+      active = false;
+    };
+  }, [filters.state]);
+
+  useEffect(() => {
     if (!isFromExecutionBoard || loading || !rows.length) return;
 
     const timer = setTimeout(() => {
       vendorDirectoryRef.current?.scrollIntoView({
         behavior: "smooth",
-        block: "start"
+        block: "start",
       });
     }, 250);
 
@@ -298,8 +417,12 @@ export default function Vendors() {
   async function dispatchVendorAlerts() {
     try {
       setDispatchMessage("Dispatching vendor alerts...");
+
       const result = await api.dispatchVendorAlerts?.();
-      setDispatchMessage(`Dispatched ${result?.dispatched || 0} vendor intelligence alerts.`);
+
+      setDispatchMessage(
+        `Dispatched ${result?.dispatched || 0} vendor intelligence alerts.`
+      );
     } catch (err) {
       setDispatchMessage(err?.message || "Failed to dispatch vendor alerts.");
     }
@@ -310,11 +433,14 @@ export default function Vendors() {
 
     try {
       setCreatingTaskId(taskKey);
-      setTaskMessage(`Creating task: ${action.title || "Review vendor coverage"}`);
+      setTaskMessage(
+        `Creating task: ${action.title || "Review vendor coverage"}`
+      );
 
       const result = await api.createTask?.({
         title: action.title || "Review vendor coverage",
-        description: action.detail || "Generated from Vendor Network intelligence.",
+        description:
+          action.detail || "Generated from Vendor Network intelligence.",
         source: "vendor_network",
         state: action.state || "National",
         office: "Statewide",
@@ -324,11 +450,9 @@ export default function Vendors() {
         due_label: action.priority === "High" ? "Today" : action.due || "This Week",
         metadata: {
           vendor_action_id: taskKey,
-          vendor_action: action
-        }
+          vendor_action: action,
+        },
       });
-      
-      const perf = await api.vendorPerformance?.(); setPerformance(perf?.results || []);
 
       setExistingTaskIds((prev) => {
         const next = new Set(prev);
@@ -350,35 +474,67 @@ export default function Vendors() {
   }
 
   const summary = useMemo(() => {
-    return intel?.summary || {
-      total_vendors: rows.length,
-      active_vendors: rows.filter((row) => String(row.status || "").toLowerCase() === "active").length,
-      states_covered: new Set(rows.map((row) => row.state).filter(Boolean)).size,
-      categories_covered: new Set(rows.map((row) => row.category).filter(Boolean)).size,
-      high_gap_states: 0,
-      medium_gap_states: 0,
-      resolved_gap_states: 0
-    };
+    return (
+      intel?.summary || {
+        total_vendors: rows.length,
+        active_vendors: rows.filter(
+          (row) => String(row.status || "").toLowerCase() === "active"
+        ).length,
+        states_covered: new Set(rows.map((row) => row.state).filter(Boolean)).size,
+        categories_covered: new Set(
+          rows.map((row) => row.category).filter(Boolean)
+        ).size,
+        high_gap_states: 0,
+        medium_gap_states: 0,
+        resolved_gap_states: 0,
+      }
+    );
   }, [intel, rows]);
 
-  const gapCount = Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
-  const resolvedGapCount = Number(summary.resolved_gap_states || intel?.resolved_gaps?.length || 0);
-  
+  const gapCount =
+    Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
+
+  const resolvedGapCount = Number(
+    summary.resolved_gap_states || intel?.resolved_gaps?.length || 0
+  );
+
+  const strongPerformanceCount = Number(performanceSummary?.strong_vendors || 0);
+  const riskPerformanceCount = Number(performanceSummary?.risk_vendors || 0);
+
   const highlightedRowsCount = useMemo(() => {
     if (!highlightedState) return 0;
-    return rows.filter((row) => statesMatch(row.state || row.primary_state, highlightedState)).length;
+
+    return rows.filter((row) =>
+      statesMatch(row.state || row.primary_state, highlightedState)
+    ).length;
   }, [rows, highlightedState]);
 
   return (
     <PageShell
       eyebrow="Vendor Intelligence"
       title="Vendor Network"
-      description="Live campaign vendor coverage, gap detection, operational readiness, and execution tasking."
+      description="Live campaign vendor coverage, performance scoring, operational readiness, and execution tasking."
       tickerItems={[
-        { label: "Vendors", value: `${summary.total_vendors || 0} live`, dotClass: "vs-live-dot-success" },
-        { label: "Coverage", value: `${summary.states_covered || 0} states`, dotClass: "vs-live-dot-warning" },
-        { label: "Gaps", value: `${gapCount} active`, dotClass: gapCount ? "vs-live-dot" : "vs-live-dot-success" },
-        { label: "Resolved", value: `${resolvedGapCount} closed`, dotClass: "vs-live-dot-success" }
+        {
+          label: "Vendors",
+          value: `${summary.total_vendors || 0} live`,
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "Coverage",
+          value: `${summary.states_covered || 0} states`,
+          dotClass: "vs-live-dot-warning",
+        },
+        {
+          label: "Gaps",
+          value: `${gapCount} active`,
+          dotClass: gapCount ? "vs-live-dot" : "vs-live-dot-success",
+        },
+        {
+          label: "Performance",
+          value: `${strongPerformanceCount} strong / ${riskPerformanceCount} risk`,
+          dotClass: riskPerformanceCount ? "vs-live-dot" : "vs-live-dot-success",
+        },
       ]}
     >
       <style>{`
@@ -470,34 +626,75 @@ export default function Vendors() {
       {isFromExecutionBoard ? (
         <div className="vs-banner vs-live-banner-pulse vs-execution-filter-banner">
           <div className="vs-execution-filter-banner-copy">
-            Filtered from Execution Board — highlighting vendor coverage connected to this task
-            {filters.state ? ` in ${filters.state}` : ""}.
-            {highlightedRowsCount ? ` ${highlightedRowsCount} matching vendor${highlightedRowsCount === 1 ? "" : "s"} highlighted.` : ""}
+            Filtered from Execution Board — highlighting vendor coverage connected
+            to this task{filters.state ? ` in ${filters.state}` : ""}.
+            {highlightedRowsCount
+              ? ` ${highlightedRowsCount} matching vendor${
+                  highlightedRowsCount === 1 ? "" : "s"
+                } highlighted.`
+              : ""}
           </div>
 
-          <button type="button" className="vs-button vs-button-secondary" onClick={goToCommandCenter}>
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={goToCommandCenter}
+          >
             Back to Command Center
           </button>
         </div>
       ) : null}
 
-      {resolutionMessage ? <div className="vs-banner vs-live-banner-pulse">{resolutionMessage}</div> : null}
+      {resolutionMessage ? (
+        <div className="vs-banner vs-live-banner-pulse">
+          {resolutionMessage}
+        </div>
+      ) : null}
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+
       {dispatchMessage ? <div className="vs-banner">{dispatchMessage}</div> : null}
-      {taskMessage ? <div className="vs-banner vs-live-banner-pulse">{taskMessage}</div> : null}
+
+      {taskMessage ? (
+        <div className="vs-banner vs-live-banner-pulse">{taskMessage}</div>
+      ) : null}
 
       <div className="vs-grid-4">
-        <StatCard label="Total Vendors" value={summary.total_vendors || 0} delta="Live vendor records" tone="up" />
-        <StatCard label="Active Vendors" value={summary.active_vendors || 0} delta="Ready capacity" tone="up" />
-        <StatCard label="Active Gaps" value={gapCount} delta="Open coverage pressure" tone={gapCount ? "down" : "up"} />
-        <StatCard label="Resolved Gaps" value={resolvedGapCount} delta="Closed by completed task" tone="up" />
+        <StatCard
+          label="Total Vendors"
+          value={summary.total_vendors || 0}
+          delta="Live vendor records"
+          tone="up"
+        />
+        <StatCard
+          label="Active Vendors"
+          value={summary.active_vendors || 0}
+          delta="Ready capacity"
+          tone="up"
+        />
+        <StatCard
+          label="Active Gaps"
+          value={gapCount}
+          delta="Open coverage pressure"
+          tone={gapCount ? "down" : "up"}
+        />
+        <StatCard
+          label="Risk Vendors"
+          value={riskPerformanceCount}
+          delta="MailOps-linked performance risk"
+          tone={riskPerformanceCount ? "down" : "up"}
+        />
       </div>
 
       <SectionCard
         title="Vendor Controls"
         subtitle="Filter the live vendor network and dispatch vendor intelligence alerts."
         right={
-          <button type="button" className="vs-decision-btn deploy" onClick={dispatchVendorAlerts}>
+          <button
+            type="button"
+            className="vs-decision-btn deploy"
+            onClick={dispatchVendorAlerts}
+          >
             Dispatch Vendor Alerts
           </button>
         }
@@ -507,17 +704,30 @@ export default function Vendors() {
             className="vs-input"
             placeholder="Search vendors"
             value={filters.q}
-            onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value, page: 1 }))}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                q: e.target.value,
+                page: 1,
+              }))
+            }
           />
 
           <select
             className="vs-input"
             value={filters.state}
-            onChange={(e) => setFilters((prev) => ({ ...prev, state: e.target.value, page: 1 }))}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                state: e.target.value,
+                page: 1,
+              }))
+            }
           >
             <option value="">All states</option>
             {states.map((item, index) => {
               const value = item.name || item.state || item;
+
               return (
                 <option key={`${value}-${index}`} value={value}>
                   {value}
@@ -529,11 +739,18 @@ export default function Vendors() {
           <select
             className="vs-input"
             value={filters.category}
-            onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value, page: 1 }))}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                category: e.target.value,
+                page: 1,
+              }))
+            }
           >
             <option value="">All categories</option>
             {categories.map((item, index) => {
               const value = item.name || item.category || item;
+
               return (
                 <option key={`${value}-${index}`} value={value}>
                   {value}
@@ -545,11 +762,18 @@ export default function Vendors() {
           <select
             className="vs-input"
             value={filters.status}
-            onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value, page: 1 }))}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                status: e.target.value,
+                page: 1,
+              }))
+            }
           >
             <option value="">All statuses</option>
             {statuses.map((item, index) => {
               const value = item.name || item.status || item;
+
               return (
                 <option key={`${value}-${index}`} value={value}>
                   {value}
@@ -557,6 +781,27 @@ export default function Vendors() {
               );
             })}
           </select>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Top Vendor Performance"
+        subtitle="MailOps-linked vendor reliability, delivery risk, and operational execution scoring."
+        right={<Badge tone="accent">{performance.length} scored</Badge>}
+      >
+        <div className="vs-stack">
+          {performanceLoading ? (
+            <EmptyState text="Loading vendor performance..." />
+          ) : !performance.length ? (
+            <EmptyState text="No vendor performance history yet." />
+          ) : (
+            performance.slice(0, 8).map((item) => (
+              <PerformanceRow
+                key={item.id || item.vendor_id || item.vendor_name}
+                item={item}
+              />
+            ))
+          )}
         </div>
       </SectionCard>
 
@@ -585,7 +830,11 @@ export default function Vendors() {
 
                   return (
                     <VendorRow
-                      key={vendor.id ?? vendor.vendor_id ?? `${vendor.name || vendor.vendor_name}-${index}`}
+                      key={
+                        vendor.id ??
+                        vendor.vendor_id ??
+                        `${vendor.name || vendor.vendor_name}-${index}`
+                      }
                       vendor={vendor}
                       highlighted={highlighted}
                     />
@@ -600,7 +849,11 @@ export default function Vendors() {
           <SectionCard
             title="Active Coverage Gaps"
             subtitle="Open vendor coverage gaps that still require operational action."
-            right={<Badge tone={gapCount ? "danger" : "accent"}>{gapCount} active</Badge>}
+            right={
+              <Badge tone={gapCount ? "danger" : "accent"}>
+                {gapCount} active
+              </Badge>
+            }
           >
             <div className="vs-stack">
               {intelLoading ? (
@@ -608,9 +861,11 @@ export default function Vendors() {
               ) : !intel?.gaps?.length ? (
                 <EmptyState text="No active vendor coverage gaps." />
               ) : (
-                intel.gaps.slice(0, 6).map((gap, index) => (
-                  <RiskRow key={`${gap.state}-${index}`} item={gap} />
-                ))
+                intel.gaps
+                  .slice(0, 6)
+                  .map((gap, index) => (
+                    <RiskRow key={`${gap.state}-${index}`} item={gap} />
+                  ))
               )}
             </div>
           </SectionCard>
@@ -626,9 +881,11 @@ export default function Vendors() {
               ) : !intel?.resolved_gaps?.length ? (
                 <EmptyState text="No resolved vendor gaps yet." />
               ) : (
-                intel.resolved_gaps.slice(0, 6).map((gap, index) => (
-                  <ResolvedGapRow key={`${gap.state}-${index}`} item={gap} />
-                ))
+                intel.resolved_gaps
+                  .slice(0, 6)
+                  .map((gap, index) => (
+                    <ResolvedGapRow key={`${gap.state}-${index}`} item={gap} />
+                  ))
               )}
             </div>
           </SectionCard>
@@ -636,7 +893,11 @@ export default function Vendors() {
           <SectionCard
             title="Recommended Actions"
             subtitle="Create execution tasks directly from active vendor intelligence."
-            right={<Badge tone="demo">{intel?.recommended_actions?.length || 0} actions</Badge>}
+            right={
+              <Badge tone="demo">
+                {intel?.recommended_actions?.length || 0} actions
+              </Badge>
+            }
           >
             <div className="vs-stack">
               {!intel?.recommended_actions?.length ? (
@@ -663,3 +924,4 @@ export default function Vendors() {
     </PageShell>
   );
 }
+
