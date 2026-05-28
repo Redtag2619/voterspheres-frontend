@@ -19,7 +19,6 @@ const primaryNavItems = [
   { to: "/dark-money-exposure", label: "Dark Money", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/relationship-graph", label: "Relationship Graph", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
   { to: "/mailops", label: "MailOps", permission: PERMISSIONS.VIEW_MAILOPS },
-  { to: "/operations-map", label: "Operations Map", short: "OM" },
   { to: "/ai-chat", label: "AI Chat", permission: PERMISSIONS.VIEW_AI_CHAT },
   { to: "/war-room", label: "War Room", permission: PERMISSIONS.VIEW_WAR_ROOM },
   { to: "/command-center", label: "Command Center", permission: PERMISSIONS.VIEW_COMMAND_CENTER },
