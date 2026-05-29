@@ -48,6 +48,7 @@ const ConsultantIntel = lazy(() => import("./pages/ConsultantIntel"));
 const ConsultantProfile = lazy(() => import("./pages/ConsultantProfile"));
 const DarkMoneyExposure = lazy(() => import("./pages/DarkMoneyExposure.jsx"));
 const ExecutiveOperationsMap = lazy(() => import("./pages/ExecutiveOperationsMap.jsx"));
+const StateOperationsDrilldown = lazy(() => import("./pages/StateOperationsDrilldown.jsx"));
 
 function LoadingScreen() {
   return (
@@ -227,7 +228,9 @@ function AppRoutes() {
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
           </Route>
-        </Route>
+          
+            <Route path="/state-operations/:state" element={<ProtectedRoute> <AppShell> <StateOperationsDrilldown /> </AppShell></ProtectedRoute>} />
+          </Route>
 
         <Route path="*" element={<NotFound />} />
       </Routes>
