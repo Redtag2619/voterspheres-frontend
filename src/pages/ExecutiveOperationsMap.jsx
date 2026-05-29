@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+} from "react-simple-maps";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -8,58 +14,40 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-const STATE_COORDS = {
-  AL: { x: 610, y: 360 },
-  AK: { x: 150, y: 470 },
-  AZ: { x: 255, y: 345 },
-  AR: { x: 530, y: 340 },
-  CA: { x: 145, y: 300 },
-  CO: { x: 350, y: 285 },
-  CT: { x: 735, y: 210 },
-  DE: { x: 715, y: 260 },
-  FL: { x: 660, y: 455 },
-  GA: { x: 635, y: 375 },
-  HI: { x: 300, y: 485 },
-  IA: { x: 505, y: 245 },
-  ID: { x: 260, y: 185 },
-  IL: { x: 545, y: 255 },
-  IN: { x: 585, y: 255 },
-  KS: { x: 455, y: 305 },
-  KY: { x: 600, y: 300 },
-  LA: { x: 535, y: 405 },
-  MA: { x: 760, y: 195 },
-  MD: { x: 700, y: 275 },
-  ME: { x: 785, y: 145 },
-  MI: { x: 585, y: 205 },
-  MN: { x: 495, y: 165 },
-  MO: { x: 520, y: 305 },
-  MS: { x: 565, y: 385 },
-  MT: { x: 315, y: 145 },
-  NC: { x: 685, y: 330 },
-  ND: { x: 430, y: 145 },
-  NE: { x: 440, y: 260 },
-  NH: { x: 755, y: 170 },
-  NJ: { x: 720, y: 240 },
-  NM: { x: 330, y: 350 },
-  NV: { x: 195, y: 260 },
-  NY: { x: 700, y: 200 },
-  OH: { x: 620, y: 250 },
-  OK: { x: 455, y: 355 },
-  OR: { x: 170, y: 185 },
-  PA: { x: 680, y: 235 },
-  RI: { x: 770, y: 210 },
-  SC: { x: 665, y: 355 },
-  SD: { x: 430, y: 205 },
-  TN: { x: 585, y: 330 },
-  TX: { x: 450, y: 430 },
-  UT: { x: 275, y: 285 },
-  VA: { x: 685, y: 300 },
-  VT: { x: 735, y: 165 },
-  WA: { x: 180, y: 125 },
-  WI: { x: 535, y: 205 },
-  WV: { x: 650, y: 285 },
-  WY: { x: 345, y: 225 },
-  DC: { x: 705, y: 285 },
+const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
+const STATE_FIPS_TO_ABBR = {
+  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
+  "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
+  "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
+  "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+  "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
+  "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
+  "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
+  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+  "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+  "56": "WY",
+};
+
+const STATE_MARKERS = {
+  AL: [-86.8, 32.8], AK: [-152.4, 64.2], AZ: [-111.7, 34.2],
+  AR: [-92.4, 34.9], CA: [-119.6, 37.2], CO: [-105.5, 39],
+  CT: [-72.7, 41.6], DE: [-75.5, 39], DC: [-77, 38.9],
+  FL: [-81.7, 27.8], GA: [-83.4, 32.7], HI: [-157.8, 20.9],
+  IA: [-93.5, 42.1], ID: [-114.6, 44.2], IL: [-89.4, 40],
+  IN: [-86.1, 40], KS: [-98.3, 38.5], KY: [-85.3, 37.8],
+  LA: [-91.9, 31], MA: [-71.8, 42.2], MD: [-76.7, 39],
+  ME: [-69.2, 45.2], MI: [-85.5, 44.3], MN: [-94.6, 46.3],
+  MO: [-92.5, 38.5], MS: [-89.7, 32.7], MT: [-110.4, 46.9],
+  NC: [-79, 35.5], ND: [-100.5, 47.5], NE: [-99.7, 41.5],
+  NH: [-71.6, 43.8], NJ: [-74.5, 40.1], NM: [-106, 34.4],
+  NV: [-116.6, 39.3], NY: [-75.5, 42.9], OH: [-82.8, 40.2],
+  OK: [-97.5, 35.5], OR: [-120.5, 44], PA: [-77.8, 41],
+  RI: [-71.5, 41.7], SC: [-80.9, 33.8], SD: [-100, 44.4],
+  TN: [-86.4, 35.8], TX: [-99.3, 31.4], UT: [-111.7, 39.3],
+  VA: [-78.7, 37.5], VT: [-72.7, 44], WA: [-120.5, 47.4],
+  WI: [-89.8, 44.6], WV: [-80.6, 38.6], WY: [-107.5, 43],
 };
 
 function riskTone(label) {
@@ -81,28 +69,17 @@ function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
 }
 
-function StatePulse({ state, selected, onSelect }) {
-  const coords = STATE_COORDS[state.state] || null;
-  if (!coords) return null;
+function getStateFill(state) {
+  const label = String(state?.risk_label || "").toLowerCase();
+  if (label === "critical") return "rgba(220, 38, 38, 0.88)";
+  if (label === "high") return "rgba(234, 88, 12, 0.86)";
+  if (label === "elevated") return "rgba(202, 138, 4, 0.82)";
+  if (label === "stable") return "rgba(22, 163, 74, 0.72)";
+  return "rgba(30, 41, 59, 0.82)";
+}
 
-  const size = Math.max(12, Math.min(42, 12 + Number(state.operational_score || 0) / 3));
-
-  return (
-    <button
-      type="button"
-      className={`ops-map-pulse ${riskClass(state.risk_label)} ${selected ? "is-selected" : ""}`}
-      style={{
-        left: `${coords.x}px`,
-        top: `${coords.y}px`,
-        width: `${size}px`,
-        height: `${size}px`,
-      }}
-      onClick={() => onSelect(state)}
-      title={`${state.state} • ${state.risk_label} • ${state.operational_score}`}
-    >
-      <span>{state.state}</span>
-    </button>
-  );
+function getMarkerRadius(state) {
+  return Math.max(4, Math.min(12, 4 + Number(state?.operational_score || 0) / 12));
 }
 
 function StateRiskRow({ item, onSelect }) {
@@ -110,7 +87,9 @@ function StateRiskRow({ item, onSelect }) {
     <div className={`ops-row ${riskClass(item.risk_label)}`}>
       <ResponsiveRow
         title={`${item.state} Operational Pressure`}
-        subtitle={`MailOps ${item.mail_risk_jobs || 0}/${item.mail_jobs || 0} risk jobs • Vendor score ${Math.round(Number(item.avg_vendor_score || 0))}`}
+        subtitle={`MailOps ${item.mail_risk_jobs || 0}/${item.mail_jobs || 0} risk jobs • Vendor score ${Math.round(
+          Number(item.avg_vendor_score || 0)
+        )}`}
         meta={[
           { label: "Risk", value: item.risk_label },
           { label: "Score", value: item.operational_score },
@@ -154,6 +133,7 @@ export default function ExecutiveOperationsMap() {
     try {
       setLoading(true);
       setError("");
+
       const result = await api.operationsMap?.();
       setData(result || null);
 
@@ -174,14 +154,21 @@ export default function ExecutiveOperationsMap() {
 
   const summary = data?.summary || {};
 
-  const states = useMemo(() => {
-    return data?.states || [];
-  }, [data]);
+  const states = useMemo(() => data?.states || [], [data]);
+
+  const stateLookup = useMemo(() => {
+    return states.reduce((acc, item) => {
+      acc[item.state] = item;
+      return acc;
+    }, {});
+  }, [states]);
 
   const selected = useMemo(() => {
     if (!selectedState) return states[0] || null;
     return states.find((item) => item.state === selectedState.state) || selectedState;
   }, [selectedState, states]);
+
+  const urgentCount = states.filter((s) => ["Critical", "High"].includes(s.risk_label)).length;
 
   return (
     <PageShell
@@ -219,11 +206,18 @@ export default function ExecutiveOperationsMap() {
           mask-image: radial-gradient(circle at center, black, transparent 78%);
         }
 
+        .ops-map-inner {
+          position: relative;
+          z-index: 2;
+          min-height: 560px;
+          padding: 74px 22px 24px;
+        }
+
         .ops-map-label {
           position: absolute;
           left: 28px;
           top: 24px;
-          z-index: 2;
+          z-index: 4;
         }
 
         .ops-map-label h3 {
@@ -238,47 +232,86 @@ export default function ExecutiveOperationsMap() {
           font-size: 13px;
         }
 
-        .ops-map-pulse {
-          position: absolute;
-          z-index: 4;
-          transform: translate(-50%, -50%);
-          display: grid;
-          place-items: center;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.28);
-          color: white;
-          font-size: 10px;
-          font-weight: 800;
+        .ops-geo-map {
+          width: 100%;
+          height: auto;
+          filter: drop-shadow(0 28px 38px rgba(0,0,0,0.28));
+        }
+
+        .ops-geography {
+          outline: none;
+          stroke: rgba(226, 232, 240, 0.42);
+          stroke-width: 0.55;
           cursor: pointer;
-          transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+          transition: opacity 160ms ease, filter 160ms ease;
         }
 
-        .ops-map-pulse:hover,
-        .ops-map-pulse.is-selected {
-          transform: translate(-50%, -50%) scale(1.18);
-          border-color: rgba(255,255,255,0.75);
-          box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 18px 34px rgba(0,0,0,0.28);
+        .ops-geography:hover {
+          opacity: 0.92;
+          filter: brightness(1.16);
         }
 
-        .ops-map-pulse.risk-critical {
-          background: rgba(185, 28, 28, 0.92);
-          box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.12);
+        .ops-geography.is-selected {
+          stroke: rgba(255,255,255,0.95);
+          stroke-width: 1.35;
+          filter: brightness(1.22);
         }
 
-        .ops-map-pulse.risk-high {
-          background: rgba(234, 88, 12, 0.92);
-          box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.12);
+        .ops-marker {
+          pointer-events: none;
         }
 
-        .ops-map-pulse.risk-elevated {
-          background: rgba(202, 138, 4, 0.92);
-          box-shadow: 0 0 0 8px rgba(234, 179, 8, 0.12);
+        .ops-marker-core {
+          fill: rgba(255, 255, 255, 0.95);
+          stroke-width: 1.5;
         }
 
-        .ops-map-pulse.risk-stable {
-          background: rgba(22, 163, 74, 0.88);
-          box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.10);
+        .ops-marker-ring {
+          fill: transparent;
+          stroke: rgba(255, 255, 255, 0.34);
+          stroke-width: 2;
+          animation: opsPulse 1.9s ease-out infinite;
         }
+
+        @keyframes opsPulse {
+          0% { opacity: 0.85; transform: scale(0.7); }
+          100% { opacity: 0; transform: scale(2.2); }
+        }
+
+        .ops-map-legend {
+          position: absolute;
+          right: 22px;
+          bottom: 20px;
+          z-index: 5;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          padding: 12px;
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: rgba(2, 6, 23, 0.58);
+          backdrop-filter: blur(14px);
+        }
+
+        .ops-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          color: rgba(226, 232, 240, 0.84);
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .ops-legend-dot {
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+        }
+
+        .ops-legend-dot.critical { background: rgba(220, 38, 38, 0.95); }
+        .ops-legend-dot.high { background: rgba(234, 88, 12, 0.95); }
+        .ops-legend-dot.elevated { background: rgba(202, 138, 4, 0.95); }
+        .ops-legend-dot.stable { background: rgba(22, 163, 74, 0.92); }
 
         .ops-layer-controls {
           display: flex;
@@ -294,6 +327,7 @@ export default function ExecutiveOperationsMap() {
           border-radius: 14px;
           font-size: 12px;
           cursor: pointer;
+          text-transform: capitalize;
         }
 
         .ops-layer-btn.is-active {
@@ -373,15 +407,10 @@ export default function ExecutiveOperationsMap() {
 
           .ops-map-inner {
             min-width: 860px;
-            min-height: 560px;
-            position: relative;
           }
-        }
 
-        @media (min-width: 901px) {
-          .ops-map-inner {
-            position: relative;
-            min-height: 560px;
+          .ops-breakdown {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
@@ -397,7 +426,7 @@ export default function ExecutiveOperationsMap() {
 
       <SectionCard
         title="National Operational Heat Layer"
-        subtitle="State-level execution pressure generated from MailOps, vendor performance, and executive alert signals."
+        subtitle="Live state-level execution pressure generated from MailOps, vendor performance, and executive alert signals."
         right={
           <div className="ops-layer-controls">
             {["operational", "mailops", "vendors", "alerts"].map((item) => (
@@ -416,15 +445,87 @@ export default function ExecutiveOperationsMap() {
         {loading ? (
           <EmptyState text="Loading operations map..." />
         ) : (
-         <ComposableMap>
-           <Geographies geography={US_TOPO_JSON}>
-             ...
-           </Geographies>
+          <div className="ops-map-shell">
+            <div className="ops-map-grid" />
 
-           <Marker />
-         </ComposableMap>
+            <div className="ops-map-label">
+              <h3>U.S. Live Geo Command View</h3>
+              <p>Click any active state to inspect operational pressure.</p>
+            </div>
+
+            <div className="ops-map-inner">
+              <ComposableMap
+                projection="geoAlbersUsa"
+                className="ops-geo-map"
+                width={980}
+                height={560}
+              >
+                <Geographies geography={US_TOPO_JSON}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      const abbr = STATE_FIPS_TO_ABBR[String(geo.id).padStart(2, "0")];
+                      const stateData = stateLookup[abbr];
+                      const isSelected = selected?.state === abbr;
+
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          className={`ops-geography ${isSelected ? "is-selected" : ""}`}
+                          fill={getStateFill(stateData)}
+                          onClick={() => {
+                            if (stateData) setSelectedState(stateData);
+                          }}
+                          style={{
+                            default: { outline: "none" },
+                            hover: { outline: "none" },
+                            pressed: { outline: "none" },
+                          }}
+                        />
+                      );
+                    })
+                  }
+                </Geographies>
+
+                {states.map((item) => {
+                  const coords = STATE_MARKERS[item.state];
+                  if (!coords) return null;
+
+                  const radius = getMarkerRadius(item);
+
+                  return (
+                    <Marker key={item.state} coordinates={coords} className="ops-marker">
+                      <circle className="ops-marker-ring" r={radius + 6} />
+                      <circle
+                        className="ops-marker-core"
+                        r={radius}
+                        stroke={getStateFill(item)}
+                      />
+                      <text
+                        textAnchor="middle"
+                        y={radius + 15}
+                        style={{
+                          fill: "rgba(255,255,255,0.92)",
+                          fontSize: 10,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {item.state}
+                      </text>
+                    </Marker>
+                  );
+                })}
+              </ComposableMap>
+            </div>
+
+            <div className="ops-map-legend">
+              <span className="ops-legend-item"><span className="ops-legend-dot critical" /> Critical</span>
+              <span className="ops-legend-item"><span className="ops-legend-dot high" /> High</span>
+              <span className="ops-legend-item"><span className="ops-legend-dot elevated" /> Elevated</span>
+              <span className="ops-legend-item"><span className="ops-legend-dot stable" /> Stable</span>
+            </div>
+          </div>
         )}
-        
       </SectionCard>
 
       <div className="vs-grid-2">
@@ -476,7 +577,7 @@ export default function ExecutiveOperationsMap() {
         <SectionCard
           title="Highest Pressure States"
           subtitle="Ranked operational pressure across the current map."
-          right={<Badge tone="danger">{states.filter((s) => ["Critical", "High"].includes(s.risk_label)).length} urgent</Badge>}
+          right={<Badge tone="danger">{urgentCount} urgent</Badge>}
         >
           <div className="vs-stack">
             {!states.length ? (
