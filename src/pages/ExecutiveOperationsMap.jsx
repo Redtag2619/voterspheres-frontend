@@ -416,26 +416,15 @@ export default function ExecutiveOperationsMap() {
         {loading ? (
           <EmptyState text="Loading operations map..." />
         ) : (
-          <div className="ops-map-shell">
-            <div className="ops-map-inner">
-              <div className="ops-map-grid" />
+         <ComposableMap>
+           <Geographies geography={US_TOPO_JSON}>
+             ...
+           </Geographies>
 
-              <div className="ops-map-label">
-                <h3>Executive Operations Map</h3>
-                <p>Current layer: {layer}</p>
-              </div>
-
-              {states.map((item) => (
-                <StatePulse
-                  key={item.state}
-                  state={item}
-                  selected={selected?.state === item.state}
-                  onSelect={setSelectedState}
-                />
-              ))}
-            </div>
-          </div>
+           <Marker />
+         </ComposableMap>
         )}
+        
       </SectionCard>
 
       <div className="vs-grid-2">
