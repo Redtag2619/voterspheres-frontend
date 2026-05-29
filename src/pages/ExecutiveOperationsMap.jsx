@@ -253,6 +253,7 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
             <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>View Vendors</button>
             <button type="button" onClick={() => openPath("/warroom")}>Escalate War Room</button>
             <button type="button" onClick={onRefresh}>Refresh Intel</button>
+            <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>County Drilldown</button>
           </div>
         </>
       ) : (
