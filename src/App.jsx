@@ -227,10 +227,14 @@ function AppRoutes() {
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
+            <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
+
+            <Route 
+              path="/state-operations/:state" 
+              element={<StateOperationsDrilldown />}
+              />
           </Route>
-          
-            <Route path="/state-operations/:state" element={<ProtectedRoute> <AppShell> <StateOperationsDrilldown /> </AppShell></ProtectedRoute>} />
-          </Route>
+         </Route>
 
         <Route path="*" element={<NotFound />} />
       </Routes>
