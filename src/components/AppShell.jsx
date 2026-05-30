@@ -116,7 +116,7 @@ function WorkspaceModal({
               <input
                 value={form.state}
                 onChange={(event) => onChange("state", event.target.value)}
-                placeholder="Georgia"
+                placeholder
               />
             </label>
 
