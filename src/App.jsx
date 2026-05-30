@@ -49,6 +49,7 @@ const ConsultantProfile = lazy(() => import("./pages/ConsultantProfile"));
 const DarkMoneyExposure = lazy(() => import("./pages/DarkMoneyExposure.jsx"));
 const ExecutiveOperationsMap = lazy(() => import("./pages/ExecutiveOperationsMap.jsx"));
 const StateOperationsDrilldown = lazy(() => import("./pages/StateOperationsDrilldown.jsx"));
+const StateOperationsIndex = lazy(() => import("./pages/StateOperationsIndex.jsx"));
 
 function LoadingScreen() {
   return (
@@ -211,6 +212,7 @@ function AppRoutes() {
               <Route path="/consultants/:id" element={<ConsultantProfile />} />
               <Route path="/committee-intel" element={<CommitteeIntel />} />
               <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
+              <Route path="/state-operations" element={<StateOperationsIndex />} />
               <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
             </Route>
 
