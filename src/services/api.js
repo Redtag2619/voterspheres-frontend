@@ -473,11 +473,6 @@ export const candidatesApi = {
     return normalizeListResult(data, ["states"]);
   },
 
-  stateOperationsDrilldown: async (state) => {
-  const response = await client.get(`/api/operations/state/${state}`);
-  return response.data;
-},
-
   offices: async () => {
     const data = await tryGet(["/candidates/offices"]);
     return normalizeListResult(data, ["offices"]);
@@ -961,6 +956,11 @@ export const api = {
   executiveAlerts: executiveAlertsApi.list,
   
   operationsMap: operationsMapApi.dashboard,
+
+  stateOperationsDrilldown: (state) =>
+    tryGet([`/operations/state/${state}`]),
+
+  createEnterpriseLead: publicApi.createEnterpriseLead,
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
 };
