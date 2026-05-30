@@ -130,6 +130,7 @@ export default function StateOperationsIndex() {
 
   const summary = data?.summary || {};
   const states = data?.states || [];
+  const tacticalFeed = data?.tacticalFeed || [];
 
   const filteredStates = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -421,7 +422,40 @@ export default function StateOperationsIndex() {
             ))}
           </div>
         )}
-      </SectionCard>
+    <SectionCard
+  title="National Tactical Intelligence Feed"
+  subtitle="Live state-level heat alerts generated from county/parish tactical scoring."
+  right={<Badge tone="danger">{tacticalFeed.length} alerts</Badge>}
+>
+  <div className="state-index-list">
+    {!tacticalFeed.length ? (
+      <EmptyState text="No tactical state alerts detected." />
+    ) : (
+      tacticalFeed.map((item) => (
+        <div key={item.id} className={`state-index-row ${riskClass(item.severity)}`}>
+          <ResponsiveRow
+            title={item.title}
+            subtitle={`${item.source} • ${item.layer}`}
+            meta={[
+              { label: "State", value: item.state },
+              { label: "Severity", value: item.severity },
+              { label: "Heat", value: item.heat_score },
+            ]}
+            right={
+              <button
+                type="button"
+                className="vs-decision-btn deploy"
+                onClick={() => openState(item.state)}
+              >
+                Inspect
+              </button>
+            }
+          />
+        </div>
+      ))
+    )}
+  </div>
+</SectionCard>
     </PageShell>
   );
 }
