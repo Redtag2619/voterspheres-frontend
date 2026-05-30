@@ -28,7 +28,7 @@ const secondaryItems = [
   { label: "Pricing", to: "/pricing" },
   { label: "Billing", to: "/billing" },
   { label: "Alerts", to: "/admin/alerts" },
-  { label: "State Operations", to: "/operations-map" },
+  { label: "State Operations", to: "/state-operations/GA" },
   { label: "Live Intel", to: "/admin/live-intelligence" }
 ];
 
