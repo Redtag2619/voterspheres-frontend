@@ -473,6 +473,11 @@ export const candidatesApi = {
     return normalizeListResult(data, ["states"]);
   },
 
+  stateOperationsDrilldown: async (state) => {
+  const response = await client.get(`/api/operations/state/${state}`);
+  return response.data;
+},
+
   offices: async () => {
     const data = await tryGet(["/candidates/offices"]);
     return normalizeListResult(data, ["offices"]);
