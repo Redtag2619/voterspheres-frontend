@@ -9,17 +9,6 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-const result =
-  typeof api.stateOperationsDrilldown === "function"
-    ? await api.stateOperationsDrilldown(stateCode)
-    : null;
-
-if (!result) {
-  throw new Error("State operations endpoint is not available.");
-}
-
-setData(result);
-
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
   if (value === "critical" || value === "high") return "danger";
@@ -44,7 +33,9 @@ function openPath(path) {
 }
 
 function buildRecommendation(state, county) {
-  if (!county) return `Select a county or parish in ${state} to generate a tactical recommendation.`;
+  if (!county) {
+    return `Select a county or parish in ${state} to generate a tactical recommendation.`;
+  }
 
   if (county.risk === "Critical") {
     return `${county.name} is in critical execution pressure. Deploy vendor support, inspect MailOps risk jobs, and create a Command Center task immediately.`;
@@ -71,9 +62,9 @@ function CountyCard({ item, selected, onSelect }) {
       <div className="state-county-head">
         <div>
           <strong>{item.name}</strong>
-          <span>{item.type || "County"} • {item.dma || "Local DMA"}</span>
+          <span>{item.type || item.locality_type || "County"} • {item.dma || "Local DMA"}</span>
         </div>
-        <Badge tone={riskTone(item.risk)}>{item.risk}</Badge>
+        <Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>
       </div>
 
       <div className="state-pressure-bar">
@@ -81,7 +72,7 @@ function CountyCard({ item, selected, onSelect }) {
       </div>
 
       <div className="state-county-metrics">
-        <span>Pressure <b>{item.pressure}</b></span>
+        <span>Pressure <b>{item.pressure || 0}</b></span>
         <span>MailOps <b>{item.mail_jobs || 0}</b></span>
         <span>Vendors <b>{item.vendor_score || 0}</b></span>
         <span>Alerts <b>{item.alerts || 0}</b></span>
@@ -97,12 +88,12 @@ function DmaRow({ item }) {
         title={item.name}
         subtitle={`${item.counties || 0} counties/parishes • ${item.market_type || "Media market"}`}
         meta={[
-          { label: "Risk", value: item.risk },
-          { label: "Pressure", value: item.pressure },
+          { label: "Risk", value: item.risk || "Stable" },
+          { label: "Pressure", value: item.pressure || 0 },
           { label: "MailOps", value: item.mail_jobs || 0 },
           { label: "Vendor", value: item.vendor_score || 0 },
         ]}
-        right={<Badge tone={riskTone(item.risk)}>{item.risk}</Badge>}
+        right={<Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>}
       />
     </div>
   );
@@ -126,7 +117,7 @@ function AlertRow({ item }) {
 
 export default function StateOperationsDrilldown() {
   const { state } = useParams();
-  const stateCode = String(state || "").toUpperCase();
+  const stateCode = String(state || "GA").toUpperCase();
 
   const [data, setData] = useState(null);
   const [selectedCounty, setSelectedCounty] = useState(null);
@@ -143,43 +134,52 @@ export default function StateOperationsDrilldown() {
 
       setError("");
 
-      const result =
-        typeof api.stateOperationsDrilldown === "function"
-          ? await api.stateOperationsDrilldown(stateCode)
-          : null;
+      if (typeof api.stateOperationsDrilldown !== "function") {
+        throw new Error("State operations API client is not available.");
+      }
 
-      const fallback = {
+      const result = await api.stateOperationsDrilldown(stateCode);
+
+      const nextData = result || {
         summary: {
-          counties_tracked: SAMPLE_COUNTIES.length,
-          critical_counties: SAMPLE_COUNTIES.filter((c) => c.risk === "Critical").length,
-          total_mail_jobs: SAMPLE_COUNTIES.reduce((sum, c) => sum + Number(c.mail_jobs || 0), 0),
-          total_alerts: SAMPLE_COUNTIES.reduce((sum, c) => sum + Number(c.alerts || 0), 0),
-          vendor_gap_count: SAMPLE_COUNTIES.filter((c) => Number(c.vendor_score || 0) < 60).length,
+          counties_tracked: 0,
+          critical_counties: 0,
+          total_mail_jobs: 0,
+          total_alerts: 0,
+          vendor_gap_count: 0,
         },
-        counties: SAMPLE_COUNTIES,
-        dmas: [
-          { name: "Birmingham DMA", counties: 3, risk: "Critical", pressure: 82, mail_jobs: 24, vendor_score: 48, market_type: "Media + turnout" },
-          { name: "Mobile-Pensacola DMA", counties: 1, risk: "High", pressure: 73, mail_jobs: 12, vendor_score: 55, market_type: "Coastal media" },
-          { name: "Montgomery-Selma DMA", counties: 1, risk: "High", pressure: 66, mail_jobs: 10, vendor_score: 61, market_type: "Capital region" },
-          { name: "Huntsville DMA", counties: 1, risk: "Elevated", pressure: 51, mail_jobs: 8, vendor_score: 70, market_type: "North state" },
-        ],
-        alerts: [
-          { id: "a1", title: "MailOps risk spike detected", county: "Jefferson", severity: "Critical", source: "MailOps", layer: "Mail" },
-          { id: "a2", title: "Vendor readiness below target", county: "Mobile", severity: "High", source: "Vendor Network", layer: "Vendors" },
-          { id: "a3", title: "DMA pressure rising", county: "Montgomery", severity: "High", source: "Executive Feed", layer: "Media" },
-        ],
+        counties: [],
+        dmas: [],
+        alerts: [],
       };
 
-      const nextData = result || fallback;
       setData(nextData);
 
-      if (!selectedCounty && nextData?.counties?.length) {
-        setSelectedCounty(nextData.counties[0]);
+      if (nextData?.counties?.length) {
+        setSelectedCounty((prev) => {
+          if (!prev) return nextData.counties[0];
+          return nextData.counties.find((item) => item.name === prev.name) || nextData.counties[0];
+        });
+      } else {
+        setSelectedCounty(null);
       }
 
       setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
-      setError(err?.message || `Failed to load ${stateCode} operations drilldown`);
+      setError(err?.response?.data?.error || err?.message || `Failed to load ${stateCode} operations drilldown`);
+      setData({
+        summary: {
+          counties_tracked: 0,
+          critical_counties: 0,
+          total_mail_jobs: 0,
+          total_alerts: 0,
+          vendor_gap_count: 0,
+        },
+        counties: [],
+        dmas: [],
+        alerts: [],
+      });
+      setSelectedCounty(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -241,6 +241,7 @@ export default function StateOperationsDrilldown() {
           border-radius: 14px;
           font-size: 12px;
           cursor: pointer;
+          text-transform: capitalize;
         }
 
         .state-layer-btn.is-active {
@@ -539,7 +540,7 @@ export default function StateOperationsDrilldown() {
               ) : (
                 counties.map((item) => (
                   <CountyCard
-                    key={item.name}
+                    key={item.full_fips || item.id || item.name}
                     item={item}
                     selected={selected?.name === item.name}
                     onSelect={setSelectedCounty}
@@ -586,7 +587,7 @@ export default function StateOperationsDrilldown() {
                   <div className="state-action-grid">
                     <button type="button" onClick={() => openPath("/command-center")}>Create Command Task</button>
                     <button type="button" onClick={() => openPath(`/vendors?state=${stateCode}&source=state-drilldown`)}>View Vendors</button>
-                    <button type="button" onClick={() => openPath("/warroom")}>Escalate War Room</button>
+                    <button type="button" onClick={() => openPath("/war-room")}>Escalate War Room</button>
                     <button type="button" onClick={() => load({ quiet: true })}>Refresh Intel</button>
                   </div>
                 </>
