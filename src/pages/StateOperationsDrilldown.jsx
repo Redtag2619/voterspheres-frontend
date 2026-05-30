@@ -9,14 +9,16 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-const SAMPLE_COUNTIES = [
-  { name: "Jefferson", type: "County", pressure: 84, risk: "Critical", dma: "Birmingham", mail_jobs: 18, vendor_score: 42, alerts: 5 },
-  { name: "Mobile", type: "County", pressure: 76, risk: "High", dma: "Mobile-Pensacola", mail_jobs: 12, vendor_score: 55, alerts: 3 },
-  { name: "Montgomery", type: "County", pressure: 68, risk: "High", dma: "Montgomery-Selma", mail_jobs: 10, vendor_score: 61, alerts: 2 },
-  { name: "Madison", type: "County", pressure: 52, risk: "Elevated", dma: "Huntsville", mail_jobs: 8, vendor_score: 70, alerts: 1 },
-  { name: "Tuscaloosa", type: "County", pressure: 44, risk: "Elevated", dma: "Birmingham", mail_jobs: 6, vendor_score: 74, alerts: 1 },
-  { name: "Shelby", type: "County", pressure: 31, risk: "Stable", dma: "Birmingham", mail_jobs: 4, vendor_score: 83, alerts: 0 },
-];
+const result =
+  typeof api.stateOperationsDrilldown === "function"
+    ? await api.stateOperationsDrilldown(stateCode)
+    : null;
+
+if (!result) {
+  throw new Error("State operations endpoint is not available.");
+}
+
+setData(result);
 
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
