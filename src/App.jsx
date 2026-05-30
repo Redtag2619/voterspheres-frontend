@@ -211,6 +211,7 @@ function AppRoutes() {
               <Route path="/consultants/:id" element={<ConsultantProfile />} />
               <Route path="/committee-intel" element={<CommitteeIntel />} />
               <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
+              <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}>
@@ -228,6 +229,7 @@ function AppRoutes() {
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
             <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
+            <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
 
             <Route 
               path="/state-operations/:state" 
