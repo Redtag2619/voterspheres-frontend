@@ -28,7 +28,7 @@ const secondaryItems = [
   { label: "Pricing", to: "/pricing" },
   { label: "Billing", to: "/billing" },
   { label: "Alerts", to: "/admin/alerts" },
-  { label: "State Operations", to: "/state-operations/GA" },
+  { label: "State Operations", to: "/state-operations" },
   { label: "Live Intel", to: "/admin/live-intelligence" }
 ];
 
@@ -116,7 +116,7 @@ function WorkspaceModal({
               <input
                 value={form.state}
                 onChange={(event) => onChange("state", event.target.value)}
-                placeholder
+                placeholder="Georgia"
               />
             </label>
 
