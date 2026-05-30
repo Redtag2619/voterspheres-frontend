@@ -955,14 +955,15 @@ export const api = {
   
   executiveAlerts: executiveAlertsApi.list,
   
-  operationsMap: operationsMapApi.dashboard,
+ operationsMap: operationsMapApi.dashboard,
 
-  stateOperationsDrilldown: (state) =>
-    tryGet([`/operations/state/${state}`]),
+ stateOperationsIndex: () =>
+   tryGet(["/operations/states"]),
 
-  createEnterpriseLead: publicApi.createEnterpriseLead,
+ stateOperationsDrilldown: (state) =>
+   tryGet([`/operations/state/${state}`]),
 
-  createEnterpriseLead: publicApi.createEnterpriseLead,
+ createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
 export {
