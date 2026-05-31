@@ -32,6 +32,52 @@ function fmtDecimal(value, digits = 2) {
   return Number(value || 0).toFixed(digits);
 }
 
+function getRecommendation(county) {
+  if (!county) return "Select a county or parish to generate an operational recommendation.";
+
+  const drivers = county.top_drivers || [];
+  const primaryDriver = drivers[0]?.label || "Operational Heat";
+
+  if (county.risk === "Critical") {
+    return `Immediate escalation recommended. Primary driver: ${primaryDriver}. Review vendor coverage, MailOps timing, turnout pressure, and Command Center task readiness.`;
+  }
+
+  if (county.risk === "High") {
+    return `Monitor closely and prepare an action plan. Primary driver: ${primaryDriver}. Inspect county-level readiness before the next campaign action window.`;
+  }
+
+  if (county.risk === "Elevated") {
+    return `Keep this locality under watch. Primary driver: ${primaryDriver}. Pressure is building across one or more operational layers.`;
+  }
+
+  return `Stable locality. Continue routine monitoring through the tactical feed and county heat scoring engine.`;
+}
+
+function DriverBar({ item }) {
+  const value = Number(item.value || 0);
+
+  return (
+    <div className="ops-driver-row">
+      <div className="ops-driver-head">
+        <span>{item.label}</span>
+        <strong>{fmtDecimal(value)}</strong>
+      </div>
+      <div className="ops-driver-bar">
+        <i style={{ width: `${Math.min(100, value)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MetricMiniCard({ label, value }) {
+  return (
+    <div className="ops-mini-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function CountyRow({ item, onSelect, selected }) {
   const active = selected?.id === item.id || selected?.full_fips === item.full_fips;
   const heat = item.heat_score || item.pressure || 0;
@@ -58,35 +104,12 @@ function CountyRow({ item, onSelect, selected }) {
       </div>
 
       <div className="ops-county-grid">
-        <span>
-          Heat
-          <b>{fmtDecimal(heat)}</b>
-        </span>
-
-        <span>
-          Vendor
-          <b>{fmtDecimal(item.vendor_score)}</b>
-        </span>
-
-        <span>
-          Gaps
-          <b>{fmtDecimal(item.vendor_gap_score)}</b>
-        </span>
-
-        <span>
-          MailOps
-          <b>{fmtDecimal(item.mailops_score || item.mail_jobs)}</b>
-        </span>
-
-        <span>
-          Alerts
-          <b>{fmtNumber(item.alerts || 0)}</b>
-        </span>
-
-        <span>
-          Turnout
-          <b>{fmtDecimal(item.turnout_pressure)}</b>
-        </span>
+        <span>Heat <b>{fmtDecimal(heat)}</b></span>
+        <span>Vendor <b>{fmtDecimal(item.vendor_score)}</b></span>
+        <span>Gaps <b>{fmtDecimal(item.vendor_gap_score)}</b></span>
+        <span>MailOps <b>{fmtDecimal(item.mailops_score || item.mail_jobs)}</b></span>
+        <span>Alerts <b>{fmtNumber(item.alerts || 0)}</b></span>
+        <span>Turnout <b>{fmtDecimal(item.turnout_pressure)}</b></span>
       </div>
     </button>
   );
@@ -253,6 +276,9 @@ export default function StateOperationsDrilldown() {
       : 0);
 
   const selectedHeat = selectedCounty?.heat_score || selectedCounty?.pressure || 0;
+  const selectedDrivers = selectedCounty?.top_drivers || [];
+  const selectedBreakdown = selectedCounty?.scoring_breakdown || {};
+  const selectedSignals = selectedCounty?.live_signal_counts || {};
 
   return (
     <PageShell
@@ -483,31 +509,102 @@ export default function StateOperationsDrilldown() {
           font-size: 12px;
         }
 
-        .ops-intel-grid {
+        .ops-intel-grid,
+        .ops-signal-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 12px;
           margin-top: 18px;
         }
 
-        .ops-intel-grid div {
+        .ops-intel-grid div,
+        .ops-mini-metric {
           border-radius: 16px;
           border: 1px solid rgba(148,163,184,0.12);
           background: rgba(15,23,42,0.54);
           padding: 12px;
         }
 
-        .ops-intel-grid span {
+        .ops-intel-grid span,
+        .ops-mini-metric span {
           display: block;
           color: rgba(203,213,225,0.64);
           font-size: 11px;
         }
 
-        .ops-intel-grid strong {
+        .ops-intel-grid strong,
+        .ops-mini-metric strong {
           display: block;
           margin-top: 4px;
           color: white;
           font-size: 18px;
+        }
+
+        .ops-panel-section {
+          margin-top: 18px;
+          border-top: 1px solid rgba(148,163,184,0.12);
+          padding-top: 16px;
+        }
+
+        .ops-panel-title {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .ops-panel-title strong {
+          color: white;
+          font-size: 14px;
+          font-weight: 900;
+        }
+
+        .ops-panel-title span {
+          color: rgba(203,213,225,0.58);
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ops-driver-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .ops-driver-row {
+          border-radius: 16px;
+          border: 1px solid rgba(148,163,184,0.12);
+          background: rgba(15,23,42,0.44);
+          padding: 12px;
+        }
+
+        .ops-driver-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          color: rgba(226,232,240,0.9);
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .ops-driver-head strong {
+          color: white;
+        }
+
+        .ops-driver-bar {
+          margin-top: 9px;
+          height: 7px;
+          border-radius: 999px;
+          background: rgba(2,6,23,0.72);
+          overflow: hidden;
+        }
+
+        .ops-driver-bar i {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(96,165,250,0.92), rgba(248,113,113,0.92));
         }
 
         .ops-recommendation {
@@ -547,7 +644,8 @@ export default function StateOperationsDrilldown() {
 
         @media (max-width: 760px) {
           .ops-county-grid,
-          .ops-intel-grid {
+          .ops-intel-grid,
+          .ops-signal-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
@@ -687,7 +785,7 @@ export default function StateOperationsDrilldown() {
         <div className="ops-column">
           <SectionCard
             title="Executive Intelligence Panel"
-            subtitle="Live operational intelligence for the selected locality."
+            subtitle="Top heat drivers, live signal counts, and scoring breakdown for the selected locality."
           >
             {!selectedCounty ? (
               <EmptyState text="Select a county/parish to inspect operational readiness." />
@@ -760,14 +858,62 @@ export default function StateOperationsDrilldown() {
                   </div>
                 </div>
 
+                <div className="ops-panel-section">
+                  <div className="ops-panel-title">
+                    <strong>Top Heat Drivers</strong>
+                    <span>Primary risk sources</span>
+                  </div>
+
+                  {!selectedDrivers.length ? (
+                    <EmptyState text="No driver breakdown available." />
+                  ) : (
+                    <div className="ops-driver-list">
+                      {selectedDrivers.map((driver) => (
+                        <DriverBar
+                          key={driver.label}
+                          item={driver}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="ops-panel-section">
+                  <div className="ops-panel-title">
+                    <strong>Live Signal Counts</strong>
+                    <span>Connected data</span>
+                  </div>
+
+                  <div className="ops-signal-grid">
+                    <MetricMiniCard label="Vendors" value={fmtNumber(selectedSignals.vendors || 0)} />
+                    <MetricMiniCard label="MailOps" value={fmtNumber(selectedSignals.mailops || 0)} />
+                    <MetricMiniCard label="Tasks" value={fmtNumber(selectedSignals.tasks || 0)} />
+                    <MetricMiniCard label="Alerts" value={fmtNumber(selectedSignals.alerts || 0)} />
+                    <MetricMiniCard label="Fundraising" value={fmtNumber(selectedSignals.fundraising || 0)} />
+                    <MetricMiniCard label="Baseline" value={fmtDecimal(selectedBreakdown.baseline || 0)} />
+                  </div>
+                </div>
+
+                <div className="ops-panel-section">
+                  <div className="ops-panel-title">
+                    <strong>Scoring Breakdown</strong>
+                    <span>Heat model</span>
+                  </div>
+
+                  <div className="ops-signal-grid">
+                    <MetricMiniCard label="Battleground" value={fmtDecimal(selectedBreakdown.battleground_weight || 0)} />
+                    <MetricMiniCard label="Vendor Gap" value={fmtDecimal(selectedBreakdown.vendor_gap_score || 0)} />
+                    <MetricMiniCard label="MailOps" value={fmtDecimal(selectedBreakdown.mailops_score || 0)} />
+                    <MetricMiniCard label="Turnout" value={fmtDecimal(selectedBreakdown.turnout_pressure || 0)} />
+                    <MetricMiniCard label="Tasks" value={fmtDecimal(selectedBreakdown.task_pressure || 0)} />
+                    <MetricMiniCard label="Alerts" value={fmtDecimal(selectedBreakdown.alert_pressure || 0)} />
+                    <MetricMiniCard label="Fundraising" value={fmtDecimal(selectedBreakdown.fundraising_pressure || 0)} />
+                    <MetricMiniCard label="Total Heat" value={fmtDecimal(selectedBreakdown.heat_score || selectedHeat)} />
+                  </div>
+                </div>
+
                 <div className="ops-recommendation">
-                  {selectedCounty.risk === "Critical"
-                    ? "Immediate escalation recommended. Review vendor coverage, MailOps timing, and deployment readiness."
-                    : selectedCounty.risk === "High"
-                      ? "Monitor closely and inspect operational readiness before the next campaign action window."
-                      : selectedCounty.risk === "Elevated"
-                        ? "Keep this locality under watch. Pressure is building across one or more operational layers."
-                        : "Stable locality. Continue routine monitoring through the tactical feed."}
+                  {getRecommendation(selectedCounty)}
                 </div>
               </div>
             )}
