@@ -11,29 +11,30 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
-
   if (value === "critical" || value === "high") return "danger";
   if (value === "elevated") return "demo";
-
   return "accent";
 }
 
 function riskClass(label) {
   const value = String(label || "").toLowerCase();
-
   if (value === "critical") return "risk-critical";
   if (value === "high") return "risk-high";
   if (value === "elevated") return "risk-elevated";
-
   return "risk-stable";
 }
 
-function fmt(value) {
+function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
 }
 
+function fmtDecimal(value, digits = 2) {
+  return Number(value || 0).toFixed(digits);
+}
+
 function CountyRow({ item, onSelect, selected }) {
-  const active = selected?.id === item.id;
+  const active = selected?.id === item.id || selected?.full_fips === item.full_fips;
+  const heat = item.heat_score || item.pressure || 0;
 
   return (
     <button
@@ -49,44 +50,42 @@ function CountyRow({ item, onSelect, selected }) {
           </span>
         </div>
 
-        <Badge tone={riskTone(item.risk)}>
-          {item.risk || "Stable"}
-        </Badge>
+        <Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>
       </div>
 
       <div className="ops-county-bar">
-        <i style={{ width: `${Math.min(100, Number(item.heat_score || item.pressure || 0))}%` }} />
+        <i style={{ width: `${Math.min(100, Number(heat || 0))}%` }} />
       </div>
 
       <div className="ops-county-grid">
         <span>
           Heat
-          <b>{item.heat_score || item.pressure || 0}</b>
+          <b>{fmtDecimal(heat)}</b>
         </span>
 
         <span>
           Vendor
-          <b>{item.vendor_score || 0}</b>
+          <b>{fmtDecimal(item.vendor_score)}</b>
         </span>
 
         <span>
           Gaps
-          <b>{item.vendor_gap_score || 0}</b>
+          <b>{fmtDecimal(item.vendor_gap_score)}</b>
         </span>
 
         <span>
           MailOps
-          <b>{item.mail_jobs || 0}</b>
+          <b>{fmtDecimal(item.mailops_score || item.mail_jobs)}</b>
         </span>
 
         <span>
           Alerts
-          <b>{item.alerts || 0}</b>
+          <b>{fmtNumber(item.alerts || 0)}</b>
         </span>
 
         <span>
           Turnout
-          <b>{item.turnout_pressure || 0}</b>
+          <b>{fmtDecimal(item.turnout_pressure)}</b>
         </span>
       </div>
     </button>
@@ -103,7 +102,7 @@ function TacticalAlert({ item }) {
           { label: "County", value: item.county || "—" },
           { label: "State", value: item.state || "—" },
           { label: "Severity", value: item.severity || "Signal" },
-          { label: "Heat", value: item.heat_score || 0 },
+          { label: "Heat", value: fmtDecimal(item.heat_score || 0) },
         ]}
       />
     </div>
@@ -111,16 +110,18 @@ function TacticalAlert({ item }) {
 }
 
 function DMARow({ item }) {
+  const heat = item.heat_score || item.pressure || 0;
+
   return (
     <div className={`ops-dma-row ${riskClass(item.risk)}`}>
       <ResponsiveRow
         title={item.name}
         subtitle={`${item.market_type || "DMA"} • ${item.counties || 0} localities`}
         meta={[
-          { label: "Heat", value: item.heat_score || item.pressure || 0 },
+          { label: "Heat", value: fmtDecimal(heat) },
           { label: "Risk", value: item.risk || "Stable" },
-          { label: "MailOps", value: item.mail_jobs || 0 },
-          { label: "Vendor", value: item.vendor_score || 0 },
+          { label: "MailOps", value: fmtNumber(item.mail_jobs || 0) },
+          { label: "Vendor", value: fmtDecimal(item.vendor_score) },
         ]}
       />
     </div>
@@ -155,16 +156,31 @@ export default function StateOperationsDrilldown() {
 
       const result = await api.stateOperationsDrilldown(stateCode);
 
-      setData(result || {
+      const nextData = result || {
         summary: {},
         counties: [],
         tacticalFeed: [],
+        alerts: [],
         dmas: [],
+      };
+
+      setData(nextData);
+
+      const counties = nextData.counties || [];
+      const firstCounty = counties[0] || null;
+
+      setSelectedCounty((current) => {
+        if (!current) return firstCounty;
+
+        return (
+          counties.find(
+            (item) =>
+              item.id === current.id ||
+              item.full_fips === current.full_fips ||
+              item.name === current.name
+          ) || firstCounty
+        );
       });
-
-      const firstCounty = result?.counties?.[0] || null;
-
-      setSelectedCounty((current) => current || firstCounty);
 
       setLastUpdated(
         new Date().toLocaleTimeString([], {
@@ -183,8 +199,11 @@ export default function StateOperationsDrilldown() {
         summary: {},
         counties: [],
         tacticalFeed: [],
+        alerts: [],
         dmas: [],
       });
+
+      setSelectedCounty(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -213,8 +232,7 @@ export default function StateOperationsDrilldown() {
       const risk = String(item.risk || "").toLowerCase();
 
       const matchesSearch =
-        !term ||
-        String(item.name || "").toLowerCase().includes(term);
+        !term || String(item.name || "").toLowerCase().includes(term);
 
       const matchesFilter =
         filter === "all" ||
@@ -225,6 +243,17 @@ export default function StateOperationsDrilldown() {
     });
   }, [counties, search, filter]);
 
+  const stateHeat =
+    summary.heat_score ||
+    (counties.length
+      ? counties.reduce(
+          (sum, item) => sum + Number(item.heat_score || item.pressure || 0),
+          0
+        ) / counties.length
+      : 0);
+
+  const selectedHeat = selectedCounty?.heat_score || selectedCounty?.pressure || 0;
+
   return (
     <PageShell
       eyebrow="Operational Drilldown"
@@ -233,40 +262,37 @@ export default function StateOperationsDrilldown() {
       tickerItems={[
         {
           label: "Heat",
-          value: `${summary.heat_score || 0}%`,
+          value: `${fmtDecimal(stateHeat)}%`,
           dotClass:
-            Number(summary.heat_score || 0) >= 65
+            Number(stateHeat || 0) >= 65
               ? "vs-live-dot-warning"
               : "vs-live-dot-success",
         },
         {
           label: "Critical",
           value: `${summary.critical_counties || 0}`,
-          dotClass:
-            summary.critical_counties
-              ? "vs-live-dot-warning"
-              : "vs-live-dot-success",
+          dotClass: summary.critical_counties
+            ? "vs-live-dot-warning"
+            : "vs-live-dot-success",
         },
         {
           label: "Counties",
-          value: `${summary.counties_tracked || 0}`,
+          value: `${summary.counties_tracked || counties.length || 0}`,
           dotClass: "vs-live-dot-success",
         },
         {
           label: "Alerts",
           value: `${summary.total_alerts || tacticalFeed.length || 0}`,
-          dotClass:
-            summary.total_alerts
-              ? "vs-live-dot-warning"
-              : "vs-live-dot-success",
+          dotClass: summary.total_alerts
+            ? "vs-live-dot-warning"
+            : "vs-live-dot-success",
         },
         {
           label: "Updated",
           value: lastUpdated || "Live",
-          dotClass:
-            refreshing
-              ? "vs-live-dot-warning"
-              : "vs-live-dot-success",
+          dotClass: refreshing
+            ? "vs-live-dot-warning"
+            : "vs-live-dot-success",
         },
       ]}
     >
@@ -323,6 +349,7 @@ export default function StateOperationsDrilldown() {
         .ops-column {
           display: grid;
           gap: 18px;
+          align-content: start;
         }
 
         .ops-county-list,
@@ -341,7 +368,7 @@ export default function StateOperationsDrilldown() {
           padding: 16px;
           text-align: left;
           cursor: pointer;
-          transition: transform 160ms ease, border-color 160ms ease;
+          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
         }
 
         .ops-county-row:hover {
@@ -483,6 +510,17 @@ export default function StateOperationsDrilldown() {
           font-size: 18px;
         }
 
+        .ops-recommendation {
+          margin-top: 16px;
+          border-radius: 18px;
+          border: 1px solid rgba(96,165,250,0.22);
+          background: rgba(37,99,235,0.12);
+          padding: 14px;
+          color: rgba(226,232,240,0.86);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
         .ops-alert,
         .ops-dma-row {
           border-radius: 18px;
@@ -508,7 +546,8 @@ export default function StateOperationsDrilldown() {
         }
 
         @media (max-width: 760px) {
-          .ops-county-grid {
+          .ops-county-grid,
+          .ops-intel-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
@@ -522,18 +561,14 @@ export default function StateOperationsDrilldown() {
         }
       `}</style>
 
-      {error ? (
-        <div className="vs-banner vs-banner-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
         <StatCard
           label="State Heat"
-          value={`${summary.heat_score || 0}%`}
+          value={`${fmtDecimal(stateHeat)}%`}
           delta="Operational pressure"
-          tone={Number(summary.heat_score || 0) >= 65 ? "down" : "up"}
+          tone={Number(stateHeat || 0) >= 65 ? "down" : "up"}
         />
 
         <StatCard
@@ -545,14 +580,14 @@ export default function StateOperationsDrilldown() {
 
         <StatCard
           label="Vendor Gaps"
-          value={summary.vendor_gap_count || 0}
+          value={fmtNumber(summary.vendor_gap_count || 0)}
           delta="Coverage weakness"
           tone={summary.vendor_gap_count ? "down" : "up"}
         />
 
         <StatCard
           label="MailOps Jobs"
-          value={fmt(summary.total_mail_jobs || 0)}
+          value={fmtNumber(summary.total_mail_jobs || 0)}
           delta="Operational volume"
           tone="up"
         />
@@ -563,11 +598,7 @@ export default function StateOperationsDrilldown() {
           <SectionCard
             title={`${stateCode} County / Parish Heat`}
             subtitle="Live tactical scoring generated from operational pressure, vendor readiness, turnout intensity, and MailOps activity."
-            right={
-              <Badge tone="accent">
-                {filteredCounties.length} localities
-              </Badge>
-            }
+            right={<Badge tone="accent">{filteredCounties.length} localities</Badge>}
           >
             <div className="ops-toolbar">
               <input
@@ -607,7 +638,7 @@ export default function StateOperationsDrilldown() {
               <div className="ops-county-list">
                 {filteredCounties.map((item) => (
                   <CountyRow
-                    key={item.full_fips || item.id}
+                    key={item.full_fips || item.id || item.name}
                     item={item}
                     selected={selectedCounty}
                     onSelect={setSelectedCounty}
@@ -620,11 +651,7 @@ export default function StateOperationsDrilldown() {
           <SectionCard
             title="Tactical Intelligence Feed"
             subtitle="Escalation feed generated from live county heat scoring."
-            right={
-              <Badge tone="danger">
-                {tacticalFeed.length} alerts
-              </Badge>
-            }
+            right={<Badge tone="danger">{tacticalFeed.length} alerts</Badge>}
           >
             {!tacticalFeed.length ? (
               <EmptyState text="No tactical alerts detected." />
@@ -643,21 +670,14 @@ export default function StateOperationsDrilldown() {
           <SectionCard
             title="DMA / Regional Operations"
             subtitle="Regional media market and operational readiness overlays."
-            right={
-              <Badge tone="accent">
-                {dmas.length} DMAs
-              </Badge>
-            }
+            right={<Badge tone="accent">{dmas.length} DMAs</Badge>}
           >
             {!dmas.length ? (
               <EmptyState text="No DMA overlays detected." />
             ) : (
               <div className="ops-dma-list">
                 {dmas.map((item) => (
-                  <DMARow
-                    key={item.name}
-                    item={item}
-                  />
+                  <DMARow key={item.name} item={item} />
                 ))}
               </div>
             )}
@@ -678,22 +698,20 @@ export default function StateOperationsDrilldown() {
                     <strong>{selectedCounty.name}</strong>
 
                     <span>
-                      {selectedCounty.locality_type || selectedCounty.type || "County"} • {selectedCounty.state_code}
+                      {selectedCounty.locality_type || selectedCounty.type || "County"} •{" "}
+                      {selectedCounty.state_code}
                     </span>
                   </div>
 
                   <Badge tone={riskTone(selectedCounty.risk)}>
-                    {selectedCounty.risk}
+                    {selectedCounty.risk || "Stable"}
                   </Badge>
                 </div>
 
                 <div className="ops-county-bar" style={{ marginTop: 18 }}>
                   <i
                     style={{
-                      width: `${Math.min(
-                        100,
-                        Number(selectedCounty.heat_score || selectedCounty.pressure || 0)
-                      )}%`,
+                      width: `${Math.min(100, Number(selectedHeat || 0))}%`,
                     }}
                   />
                 </div>
@@ -701,43 +719,55 @@ export default function StateOperationsDrilldown() {
                 <div className="ops-intel-grid">
                   <div>
                     <span>Heat Score</span>
-                    <strong>{selectedCounty.heat_score || selectedCounty.pressure || 0}</strong>
+                    <strong>{fmtDecimal(selectedHeat)}</strong>
                   </div>
 
                   <div>
                     <span>Vendor Readiness</span>
-                    <strong>{selectedCounty.vendor_score || 0}</strong>
+                    <strong>{fmtDecimal(selectedCounty.vendor_score)}</strong>
                   </div>
 
                   <div>
                     <span>Vendor Gap</span>
-                    <strong>{selectedCounty.vendor_gap_score || 0}</strong>
+                    <strong>{fmtDecimal(selectedCounty.vendor_gap_score)}</strong>
                   </div>
 
                   <div>
                     <span>MailOps Pressure</span>
-                    <strong>{selectedCounty.mailops_score || 0}</strong>
+                    <strong>
+                      {fmtDecimal(selectedCounty.mailops_score || selectedCounty.mail_jobs)}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Turnout Pressure</span>
-                    <strong>{selectedCounty.turnout_pressure || 0}</strong>
+                    <strong>{fmtDecimal(selectedCounty.turnout_pressure)}</strong>
                   </div>
 
                   <div>
                     <span>Fundraising</span>
-                    <strong>{selectedCounty.fundraising_pressure || 0}</strong>
+                    <strong>{fmtDecimal(selectedCounty.fundraising_pressure)}</strong>
                   </div>
 
                   <div>
                     <span>Alerts</span>
-                    <strong>{selectedCounty.alerts || 0}</strong>
+                    <strong>{fmtNumber(selectedCounty.alerts || 0)}</strong>
                   </div>
 
                   <div>
                     <span>DMA</span>
                     <strong>{selectedCounty.dma || "Regional"}</strong>
                   </div>
+                </div>
+
+                <div className="ops-recommendation">
+                  {selectedCounty.risk === "Critical"
+                    ? "Immediate escalation recommended. Review vendor coverage, MailOps timing, and deployment readiness."
+                    : selectedCounty.risk === "High"
+                      ? "Monitor closely and inspect operational readiness before the next campaign action window."
+                      : selectedCounty.risk === "Elevated"
+                        ? "Keep this locality under watch. Pressure is building across one or more operational layers."
+                        : "Stable locality. Continue routine monitoring through the tactical feed."}
                 </div>
               </div>
             )}
