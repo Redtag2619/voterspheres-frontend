@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -11,117 +11,132 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
+
   if (value === "critical" || value === "high") return "danger";
   if (value === "elevated") return "demo";
+
   return "accent";
 }
 
 function riskClass(label) {
   const value = String(label || "").toLowerCase();
+
   if (value === "critical") return "risk-critical";
   if (value === "high") return "risk-high";
   if (value === "elevated") return "risk-elevated";
+
   return "risk-stable";
 }
 
-function fmtNumber(value) {
+function fmt(value) {
   return Number(value || 0).toLocaleString();
 }
 
-function openPath(path) {
-  window.location.href = path;
-}
+function CountyRow({ item, onSelect, selected }) {
+  const active = selected?.id === item.id;
 
-function buildRecommendation(state, county) {
-  if (!county) {
-    return `Select a county or parish in ${state} to generate a tactical recommendation.`;
-  }
-
-  if (county.risk === "Critical") {
-    return `${county.name} is in critical execution pressure. Deploy vendor support, inspect MailOps risk jobs, and create a Command Center task immediately.`;
-  }
-
-  if (county.risk === "High") {
-    return `${county.name} is showing high pressure. Review vendor capacity and active field/mail signals before the next refresh.`;
-  }
-
-  if (county.risk === "Elevated") {
-    return `${county.name} should be monitored closely. Keep tactical readiness active and watch DMA movement.`;
-  }
-
-  return `${county.name} is currently stable. Continue monitoring county-level signals.`;
-}
-
-function CountyCard({ item, selected, onSelect }) {
   return (
     <button
       type="button"
-      className={`state-county-card ${riskClass(item.risk)} ${selected ? "is-selected" : ""}`}
+      className={`ops-county-row ${riskClass(item.risk)} ${active ? "is-active" : ""}`}
       onClick={() => onSelect(item)}
     >
-      <div className="state-county-head">
+      <div className="ops-county-row-top">
         <div>
           <strong>{item.name}</strong>
-          <span>{item.type || item.locality_type || "County"} • {item.dma || "Local DMA"}</span>
+          <span>
+            {item.locality_type || item.type || "County"} • {item.dma || "Regional DMA"}
+          </span>
         </div>
-        <Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>
+
+        <Badge tone={riskTone(item.risk)}>
+          {item.risk || "Stable"}
+        </Badge>
       </div>
 
-      <div className="state-pressure-bar">
-        <i style={{ width: `${Math.min(100, Number(item.pressure || 0))}%` }} />
+      <div className="ops-county-bar">
+        <i style={{ width: `${Math.min(100, Number(item.heat_score || item.pressure || 0))}%` }} />
       </div>
 
-      <div className="state-county-metrics">
-        <span>Pressure <b>{item.pressure || 0}</b></span>
-        <span>MailOps <b>{item.mail_jobs || 0}</b></span>
-        <span>Vendors <b>{item.vendor_score || 0}</b></span>
-        <span>Alerts <b>{item.alerts || 0}</b></span>
+      <div className="ops-county-grid">
+        <span>
+          Heat
+          <b>{item.heat_score || item.pressure || 0}</b>
+        </span>
+
+        <span>
+          Vendor
+          <b>{item.vendor_score || 0}</b>
+        </span>
+
+        <span>
+          Gaps
+          <b>{item.vendor_gap_score || 0}</b>
+        </span>
+
+        <span>
+          MailOps
+          <b>{item.mail_jobs || 0}</b>
+        </span>
+
+        <span>
+          Alerts
+          <b>{item.alerts || 0}</b>
+        </span>
+
+        <span>
+          Turnout
+          <b>{item.turnout_pressure || 0}</b>
+        </span>
       </div>
     </button>
   );
 }
 
-function DmaRow({ item }) {
+function TacticalAlert({ item }) {
   return (
-    <div className={`state-dma-row ${riskClass(item.risk)}`}>
+    <div className={`ops-alert ${riskClass(item.severity)}`}>
       <ResponsiveRow
-        title={item.name}
-        subtitle={`${item.counties || 0} counties/parishes • ${item.market_type || "Media market"}`}
+        title={item.title || "Operational escalation"}
+        subtitle={`${item.source || "Tactical Intelligence"} • ${item.layer || "County Heat"}`}
         meta={[
-          { label: "Risk", value: item.risk || "Stable" },
-          { label: "Pressure", value: item.pressure || 0 },
-          { label: "MailOps", value: item.mail_jobs || 0 },
-          { label: "Vendor", value: item.vendor_score || 0 },
+          { label: "County", value: item.county || "—" },
+          { label: "State", value: item.state || "—" },
+          { label: "Severity", value: item.severity || "Signal" },
+          { label: "Heat", value: item.heat_score || 0 },
         ]}
-        right={<Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>}
       />
     </div>
   );
 }
 
-function AlertRow({ item }) {
+function DMARow({ item }) {
   return (
-    <div className="state-alert-row">
+    <div className={`ops-dma-row ${riskClass(item.risk)}`}>
       <ResponsiveRow
-        title={item.title || "County signal"}
-        subtitle={`${item.source || "Executive Feed"} • ${item.county || item.state || "Statewide"}`}
+        title={item.name}
+        subtitle={`${item.market_type || "DMA"} • ${item.counties || 0} localities`}
         meta={[
-          { label: "Severity", value: item.severity || item.risk || "Signal" },
-          { label: "Layer", value: item.layer || "Operations" },
+          { label: "Heat", value: item.heat_score || item.pressure || 0 },
+          { label: "Risk", value: item.risk || "Stable" },
+          { label: "MailOps", value: item.mail_jobs || 0 },
+          { label: "Vendor", value: item.vendor_score || 0 },
         ]}
-        right={<Badge tone={riskTone(item.severity || item.risk)}>{item.severity || item.risk || "Signal"}</Badge>}
       />
     </div>
   );
 }
 
 export default function StateOperationsDrilldown() {
+  const navigate = useNavigate();
   const { state } = useParams();
+
   const stateCode = String(state || "GA").toUpperCase();
 
   const [data, setData] = useState(null);
   const [selectedCounty, setSelectedCounty] = useState(null);
-  const [layer, setLayer] = useState("county");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -135,51 +150,41 @@ export default function StateOperationsDrilldown() {
       setError("");
 
       if (typeof api.stateOperationsDrilldown !== "function") {
-        throw new Error("State operations API client is not available.");
+        throw new Error("State operations endpoint is not available.");
       }
 
       const result = await api.stateOperationsDrilldown(stateCode);
 
-      const nextData = result || {
-        summary: {
-          counties_tracked: 0,
-          critical_counties: 0,
-          total_mail_jobs: 0,
-          total_alerts: 0,
-          vendor_gap_count: 0,
-        },
+      setData(result || {
+        summary: {},
         counties: [],
+        tacticalFeed: [],
         dmas: [],
-        alerts: [],
-      };
-
-      setData(nextData);
-
-      if (nextData?.counties?.length) {
-        setSelectedCounty((prev) => {
-          if (!prev) return nextData.counties[0];
-          return nextData.counties.find((item) => item.name === prev.name) || nextData.counties[0];
-        });
-      } else {
-        setSelectedCounty(null);
-      }
-
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
-    } catch (err) {
-      setError(err?.response?.data?.error || err?.message || `Failed to load ${stateCode} operations drilldown`);
-      setData({
-        summary: {
-          counties_tracked: 0,
-          critical_counties: 0,
-          total_mail_jobs: 0,
-          total_alerts: 0,
-          vendor_gap_count: 0,
-        },
-        counties: [],
-        dmas: [],
-        alerts: [],
       });
-      setSelectedCounty(null);
+
+      const firstCounty = result?.counties?.[0] || null;
+
+      setSelectedCounty((current) => current || firstCounty);
+
+      setLastUpdated(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load state operations drilldown."
+      );
+
+      setData({
+        summary: {},
+        counties: [],
+        tacticalFeed: [],
+        dmas: [],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -198,435 +203,546 @@ export default function StateOperationsDrilldown() {
 
   const summary = data?.summary || {};
   const counties = data?.counties || [];
+  const tacticalFeed = data?.tacticalFeed || data?.alerts || [];
   const dmas = data?.dmas || [];
-  const alerts = data?.alerts || [];
 
-  const selected = useMemo(() => {
-    if (!selectedCounty) return counties[0] || null;
-    return counties.find((item) => item.name === selectedCounty.name) || selectedCounty;
-  }, [selectedCounty, counties]);
+  const filteredCounties = useMemo(() => {
+    const term = search.trim().toLowerCase();
 
-  const pressureAverage = Math.round(
-    counties.length
-      ? counties.reduce((sum, item) => sum + Number(item.pressure || 0), 0) / counties.length
-      : 0
-  );
+    return counties.filter((item) => {
+      const risk = String(item.risk || "").toLowerCase();
 
-  const urgentCount = counties.filter((item) => ["Critical", "High"].includes(item.risk)).length;
+      const matchesSearch =
+        !term ||
+        String(item.name || "").toLowerCase().includes(term);
+
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "urgent" && ["critical", "high"].includes(risk)) ||
+        filter === risk;
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [counties, search, filter]);
 
   return (
     <PageShell
-      eyebrow="State Command"
-      title={`${stateCode} Operations Drilldown`}
-      description="County, parish, DMA, vendor, MailOps, and executive signal readiness for state-level campaign execution."
+      eyebrow="Operational Drilldown"
+      title={`${stateCode} Operations`}
+      description="County, parish, DMA, tactical intelligence, vendor readiness, and live operational heat scoring."
       tickerItems={[
-        { label: "Pressure", value: `${pressureAverage}%`, dotClass: pressureAverage >= 65 ? "vs-live-dot" : "vs-live-dot-success" },
-        { label: "Urgent", value: `${urgentCount} counties`, dotClass: urgentCount ? "vs-live-dot-warning" : "vs-live-dot-success" },
-        { label: "Vendor Gaps", value: `${summary.vendor_gap_count || 0}`, dotClass: summary.vendor_gap_count ? "vs-live-dot-warning" : "vs-live-dot-success" },
-        { label: "Updated", value: lastUpdated || "Live", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        {
+          label: "Heat",
+          value: `${summary.heat_score || 0}%`,
+          dotClass:
+            Number(summary.heat_score || 0) >= 65
+              ? "vs-live-dot-warning"
+              : "vs-live-dot-success",
+        },
+        {
+          label: "Critical",
+          value: `${summary.critical_counties || 0}`,
+          dotClass:
+            summary.critical_counties
+              ? "vs-live-dot-warning"
+              : "vs-live-dot-success",
+        },
+        {
+          label: "Counties",
+          value: `${summary.counties_tracked || 0}`,
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "Alerts",
+          value: `${summary.total_alerts || tacticalFeed.length || 0}`,
+          dotClass:
+            summary.total_alerts
+              ? "vs-live-dot-warning"
+              : "vs-live-dot-success",
+        },
+        {
+          label: "Updated",
+          value: lastUpdated || "Live",
+          dotClass:
+            refreshing
+              ? "vs-live-dot-warning"
+              : "vs-live-dot-success",
+        },
       ]}
     >
       <style>{`
-        .state-drilldown-controls {
+        .ops-toolbar {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .ops-search {
+          min-width: min(340px, 100%);
+          border-radius: 16px;
+          border: 1px solid rgba(148,163,184,0.18);
+          background: rgba(15,23,42,0.74);
+          color: white;
+          padding: 12px 14px;
+          outline: none;
+        }
+
+        .ops-controls {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
         }
 
-        .state-layer-btn {
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.74);
-          color: rgba(226, 232, 240, 0.86);
-          padding: 10px 12px;
+        .ops-btn {
+          border: 1px solid rgba(148,163,184,0.16);
+          background: rgba(15,23,42,0.74);
+          color: rgba(226,232,240,0.84);
           border-radius: 14px;
+          padding: 10px 12px;
           font-size: 12px;
           cursor: pointer;
           text-transform: capitalize;
         }
 
-        .state-layer-btn.is-active {
-          border-color: rgba(96, 165, 250, 0.62);
+        .ops-btn.is-active {
+          border-color: rgba(96,165,250,0.62);
+          background: rgba(37,99,235,0.28);
           color: white;
-          background: rgba(37, 99, 235, 0.32);
           box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
         }
 
-        .state-command-layout {
+        .ops-layout {
           display: grid;
-          grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.8fr);
+          grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.9fr);
           gap: 18px;
-          align-items: start;
         }
 
-        .state-county-grid {
+        .ops-column {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px;
+          gap: 18px;
         }
 
-        .state-county-card {
-          text-align: left;
-          border-radius: 22px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
+        .ops-county-list,
+        .ops-alert-list,
+        .ops-dma-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .ops-county-row {
+          border-radius: 20px;
+          border: 1px solid rgba(148,163,184,0.16);
           background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 36%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.62));
+            radial-gradient(circle at top right, rgba(59,130,246,0.1), transparent 34%),
+            linear-gradient(135deg, rgba(15,23,42,0.82), rgba(2,6,23,0.66));
           padding: 16px;
+          text-align: left;
           cursor: pointer;
-          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+          transition: transform 160ms ease, border-color 160ms ease;
         }
 
-        .state-county-card:hover,
-        .state-county-card.is-selected {
+        .ops-county-row:hover {
           transform: translateY(-2px);
-          border-color: rgba(96, 165, 250, 0.48);
-          box-shadow: 0 18px 45px rgba(2, 6, 23, 0.25);
+          border-color: rgba(96,165,250,0.42);
         }
 
-        .state-county-card.risk-critical {
-          border-color: rgba(248, 113, 113, 0.32);
+        .ops-county-row.is-active {
+          border-color: rgba(96,165,250,0.62);
+          box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
         }
 
-        .state-county-card.risk-high {
-          border-color: rgba(251, 146, 60, 0.28);
+        .risk-critical {
+          border-color: rgba(248,113,113,0.38) !important;
         }
 
-        .state-county-card.risk-elevated {
-          border-color: rgba(251, 191, 36, 0.24);
+        .risk-high {
+          border-color: rgba(251,146,60,0.34) !important;
         }
 
-        .state-county-head {
+        .risk-elevated {
+          border-color: rgba(251,191,36,0.28) !important;
+        }
+
+        .ops-county-row-top {
           display: flex;
           justify-content: space-between;
           gap: 12px;
           align-items: flex-start;
         }
 
-        .state-county-head strong {
+        .ops-county-row-top strong {
           display: block;
           color: white;
           font-size: 16px;
-          font-weight: 900;
+          font-weight: 850;
         }
 
-        .state-county-head span {
+        .ops-county-row-top span {
           display: block;
-          margin-top: 5px;
-          color: rgba(203, 213, 225, 0.66);
+          margin-top: 4px;
+          color: rgba(203,213,225,0.66);
           font-size: 12px;
         }
 
-        .state-pressure-bar {
-          margin-top: 15px;
+        .ops-county-bar {
+          margin-top: 14px;
           height: 8px;
           border-radius: 999px;
-          background: rgba(15, 23, 42, 0.85);
+          background: rgba(15,23,42,0.92);
           overflow: hidden;
         }
 
-        .state-pressure-bar i {
+        .ops-county-bar i {
           display: block;
           height: 100%;
           border-radius: inherit;
-          background: linear-gradient(90deg, rgba(59,130,246,0.9), rgba(239,68,68,0.9));
+          background: linear-gradient(
+            90deg,
+            rgba(59,130,246,0.92),
+            rgba(239,68,68,0.92)
+          );
         }
 
-        .state-county-metrics {
+        .ops-county-grid {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
           margin-top: 14px;
         }
 
-        .state-county-metrics span {
+        .ops-county-grid span {
           display: block;
-          color: rgba(203, 213, 225, 0.62);
+          color: rgba(203,213,225,0.62);
           font-size: 11px;
         }
 
-        .state-county-metrics b {
+        .ops-county-grid b {
           display: block;
           margin-top: 3px;
           color: white;
-          font-size: 14px;
+          font-size: 15px;
         }
 
-        .state-intel-panel {
-          position: sticky;
-          top: 18px;
-          border-radius: 28px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
+        .ops-intel-panel {
+          border-radius: 24px;
+          border: 1px solid rgba(148,163,184,0.16);
           background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 34%),
-            linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.82));
-          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.28);
-          padding: 18px;
+            radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 36%),
+            linear-gradient(135deg, rgba(15,23,42,0.86), rgba(2,6,23,0.7));
+          padding: 20px;
         }
 
-        .state-panel-top {
+        .ops-intel-top {
           display: flex;
           justify-content: space-between;
-          gap: 14px;
+          gap: 12px;
           align-items: flex-start;
-          margin-bottom: 16px;
         }
 
-        .state-kicker {
+        .ops-intel-top strong {
           display: block;
-          color: rgba(96, 165, 250, 0.88);
-          font-size: 11px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-        }
-
-        .state-panel-top h3 {
-          margin: 6px 0 0;
           color: white;
-          font-size: 20px;
-          letter-spacing: -0.04em;
-        }
-
-        .state-panel-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .state-panel-grid div {
-          border-radius: 18px;
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          background: rgba(2, 6, 23, 0.35);
-          padding: 13px;
-        }
-
-        .state-panel-grid span {
-          display: block;
-          color: rgba(203, 213, 225, 0.65);
-          font-size: 11px;
-          font-weight: 800;
-        }
-
-        .state-panel-grid strong {
-          display: block;
-          margin-top: 5px;
-          color: white;
-          font-size: 20px;
+          font-size: 24px;
           font-weight: 950;
         }
 
-        .state-ai-card {
-          margin-top: 14px;
-          border-radius: 20px;
-          border: 1px solid rgba(96, 165, 250, 0.22);
-          background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(15, 23, 42, 0.44));
-          padding: 15px;
-        }
-
-        .state-ai-card span {
+        .ops-intel-top span {
           display: block;
-          color: rgba(147, 197, 253, 0.9);
-          font-size: 11px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
+          margin-top: 4px;
+          color: rgba(203,213,225,0.68);
+          font-size: 12px;
         }
 
-        .state-ai-card p {
-          margin: 8px 0 0;
-          color: rgba(226, 232, 240, 0.9);
-          font-size: 13px;
-          line-height: 1.55;
-        }
-
-        .state-action-grid {
+        .ops-intel-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-          margin-top: 14px;
+          gap: 12px;
+          margin-top: 18px;
         }
 
-        .state-action-grid button {
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.74);
-          color: rgba(226, 232, 240, 0.92);
-          border-radius: 15px;
-          padding: 11px 10px;
-          font-size: 12px;
-          font-weight: 850;
-          cursor: pointer;
+        .ops-intel-grid div {
+          border-radius: 16px;
+          border: 1px solid rgba(148,163,184,0.12);
+          background: rgba(15,23,42,0.54);
+          padding: 12px;
         }
 
-        .state-action-grid button:hover {
-          border-color: rgba(96, 165, 250, 0.48);
-          background: rgba(37, 99, 235, 0.24);
+        .ops-intel-grid span {
+          display: block;
+          color: rgba(203,213,225,0.64);
+          font-size: 11px;
+        }
+
+        .ops-intel-grid strong {
+          display: block;
+          margin-top: 4px;
           color: white;
+          font-size: 18px;
         }
 
-        .state-dma-row,
-        .state-alert-row {
-          border: 1px solid rgba(148, 163, 184, 0.16);
+        .ops-alert,
+        .ops-dma-row {
           border-radius: 18px;
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.44));
+          border: 1px solid rgba(148,163,184,0.16);
           overflow: hidden;
+          background: linear-gradient(
+            135deg,
+            rgba(15,23,42,0.76),
+            rgba(15,23,42,0.44)
+          );
         }
 
-        .state-dma-row.risk-critical,
-        .state-dma-row.risk-high {
-          border-color: rgba(248, 113, 113, 0.32);
-        }
-
-        .state-dma-row .vs-responsive-row,
-        .state-alert-row .vs-responsive-row {
+        .ops-alert .vs-responsive-row,
+        .ops-dma-row .vs-responsive-row {
           border: 0;
           background: transparent;
         }
 
         @media (max-width: 1100px) {
-          .state-command-layout {
+          .ops-layout {
             grid-template-columns: 1fr;
-          }
-
-          .state-intel-panel {
-            position: relative;
-            top: auto;
           }
         }
 
-        @media (max-width: 800px) {
-          .state-county-grid,
-          .state-county-metrics,
-          .state-panel-grid,
-          .state-action-grid {
-            grid-template-columns: 1fr;
+        @media (max-width: 760px) {
+          .ops-county-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .ops-toolbar {
+            align-items: stretch;
+          }
+
+          .ops-search {
+            width: 100%;
           }
         }
       `}</style>
 
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+      {error ? (
+        <div className="vs-banner vs-banner-danger">
+          {error}
+        </div>
+      ) : null}
 
       <div className="vs-grid-4">
-        <StatCard label="Counties Tracked" value={summary.counties_tracked || counties.length || 0} delta="County/parish readiness" tone="up" />
-        <StatCard label="Critical Counties" value={summary.critical_counties || 0} delta="Immediate action" tone={summary.critical_counties ? "down" : "up"} />
-        <StatCard label="MailOps Jobs" value={fmtNumber(summary.total_mail_jobs || 0)} delta="County-level mail" tone="neutral" />
-        <StatCard label="Executive Alerts" value={summary.total_alerts || alerts.length || 0} delta="Live tactical signals" tone="up" />
+        <StatCard
+          label="State Heat"
+          value={`${summary.heat_score || 0}%`}
+          delta="Operational pressure"
+          tone={Number(summary.heat_score || 0) >= 65 ? "down" : "up"}
+        />
+
+        <StatCard
+          label="Critical Counties"
+          value={summary.critical_counties || 0}
+          delta="Highest-risk localities"
+          tone={summary.critical_counties ? "down" : "up"}
+        />
+
+        <StatCard
+          label="Vendor Gaps"
+          value={summary.vendor_gap_count || 0}
+          delta="Coverage weakness"
+          tone={summary.vendor_gap_count ? "down" : "up"}
+        />
+
+        <StatCard
+          label="MailOps Jobs"
+          value={fmt(summary.total_mail_jobs || 0)}
+          delta="Operational volume"
+          tone="up"
+        />
       </div>
 
-      <SectionCard
-        title={`${stateCode} County / Parish Tactical Grid`}
-        subtitle="County-level pressure, vendor coverage, MailOps activity, DMA exposure, and executive signal readiness."
-        right={
-          <div className="state-drilldown-controls">
-            {["county", "dma", "vendors", "mailops", "alerts", "ai"].map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={`state-layer-btn ${layer === item ? "is-active" : ""}`}
-                onClick={() => setLayer(item)}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        {loading ? (
-          <EmptyState text={`Loading ${stateCode} drilldown...`} />
-        ) : (
-          <div className="state-command-layout">
-            <div className="state-county-grid">
-              {!counties.length ? (
-                <EmptyState text="No county or parish intelligence available yet." />
-              ) : (
-                counties.map((item) => (
-                  <CountyCard
-                    key={item.full_fips || item.id || item.name}
-                    item={item}
-                    selected={selected?.name === item.name}
-                    onSelect={setSelectedCounty}
-                  />
-                ))
-              )}
+      <div className="ops-layout">
+        <div className="ops-column">
+          <SectionCard
+            title={`${stateCode} County / Parish Heat`}
+            subtitle="Live tactical scoring generated from operational pressure, vendor readiness, turnout intensity, and MailOps activity."
+            right={
+              <Badge tone="accent">
+                {filteredCounties.length} localities
+              </Badge>
+            }
+          >
+            <div className="ops-toolbar">
+              <input
+                className="ops-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search county or parish..."
+              />
+
+              <div className="ops-controls">
+                {["all", "urgent", "critical", "high", "elevated", "stable"].map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`ops-btn ${filter === item ? "is-active" : ""}`}
+                    onClick={() => setFilter(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  className="ops-btn"
+                  onClick={() => navigate("/state-operations")}
+                >
+                  Back
+                </button>
+              </div>
             </div>
 
-            <aside className="state-intel-panel">
-              <div className="state-panel-top">
-                <div>
-                  <span className="state-kicker">County Intelligence</span>
-                  <h3>{selected ? selected.name : stateCode}</h3>
-                </div>
-                {selected ? <Badge tone={riskTone(selected.risk)}>{selected.risk}</Badge> : null}
+            {loading ? (
+              <EmptyState text="Loading tactical county intelligence..." />
+            ) : !filteredCounties.length ? (
+              <EmptyState text="No counties/parishes match current filters." />
+            ) : (
+              <div className="ops-county-list">
+                {filteredCounties.map((item) => (
+                  <CountyRow
+                    key={item.full_fips || item.id}
+                    item={item}
+                    selected={selectedCounty}
+                    onSelect={setSelectedCounty}
+                  />
+                ))}
               </div>
+            )}
+          </SectionCard>
 
-              {selected ? (
-                <>
-                  <div className="state-panel-grid">
-                    <div>
-                      <span>Pressure</span>
-                      <strong>{selected.pressure || 0}</strong>
-                    </div>
-                    <div>
-                      <span>DMA</span>
-                      <strong>{selected.dma || "—"}</strong>
-                    </div>
-                    <div>
-                      <span>MailOps</span>
-                      <strong>{selected.mail_jobs || 0}</strong>
-                    </div>
-                    <div>
-                      <span>Vendor</span>
-                      <strong>{selected.vendor_score || 0}</strong>
-                    </div>
-                  </div>
+          <SectionCard
+            title="Tactical Intelligence Feed"
+            subtitle="Escalation feed generated from live county heat scoring."
+            right={
+              <Badge tone="danger">
+                {tacticalFeed.length} alerts
+              </Badge>
+            }
+          >
+            {!tacticalFeed.length ? (
+              <EmptyState text="No tactical alerts detected." />
+            ) : (
+              <div className="ops-alert-list">
+                {tacticalFeed.map((item) => (
+                  <TacticalAlert
+                    key={item.id || `${item.state}-${item.title}`}
+                    item={item}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
 
-                  <div className="state-ai-card">
-                    <span>AI Recommendation</span>
-                    <p>{buildRecommendation(stateCode, selected)}</p>
-                  </div>
-
-                  <div className="state-action-grid">
-                    <button type="button" onClick={() => openPath("/command-center")}>Create Command Task</button>
-                    <button type="button" onClick={() => openPath(`/vendors?state=${stateCode}&source=state-drilldown`)}>View Vendors</button>
-                    <button type="button" onClick={() => openPath("/war-room")}>Escalate War Room</button>
-                    <button type="button" onClick={() => load({ quiet: true })}>Refresh Intel</button>
-                  </div>
-                </>
-              ) : (
-                <EmptyState text="Select a county or parish." />
-              )}
-            </aside>
-          </div>
-        )}
-      </SectionCard>
-
-      <div className="vs-grid-2">
-        <SectionCard
-          title="DMA / Media Market Readiness"
-          subtitle="Media market pressure, county coverage, vendor readiness, and MailOps exposure."
-          right={<Badge tone="accent">{dmas.length} markets</Badge>}
-        >
-          <div className="vs-stack">
+          <SectionCard
+            title="DMA / Regional Operations"
+            subtitle="Regional media market and operational readiness overlays."
+            right={
+              <Badge tone="accent">
+                {dmas.length} DMAs
+              </Badge>
+            }
+          >
             {!dmas.length ? (
-              <EmptyState text="No DMA intelligence available yet." />
+              <EmptyState text="No DMA overlays detected." />
             ) : (
-              dmas.map((item) => <DmaRow key={item.name} item={item} />)
+              <div className="ops-dma-list">
+                {dmas.map((item) => (
+                  <DMARow
+                    key={item.name}
+                    item={item}
+                  />
+                ))}
+              </div>
             )}
-          </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
 
-        <SectionCard
-          title="County-Level Executive Signals"
-          subtitle="Live signals contributing to the state drilldown model."
-          right={<Badge tone="danger">{alerts.length} signals</Badge>}
-        >
-          <div className="vs-stack">
-            {!alerts.length ? (
-              <EmptyState text="No county-level signals available." />
+        <div className="ops-column">
+          <SectionCard
+            title="Executive Intelligence Panel"
+            subtitle="Live operational intelligence for the selected locality."
+          >
+            {!selectedCounty ? (
+              <EmptyState text="Select a county/parish to inspect operational readiness." />
             ) : (
-              alerts.map((item) => <AlertRow key={item.id || item.title} item={item} />)
+              <div className={`ops-intel-panel ${riskClass(selectedCounty.risk)}`}>
+                <div className="ops-intel-top">
+                  <div>
+                    <strong>{selectedCounty.name}</strong>
+
+                    <span>
+                      {selectedCounty.locality_type || selectedCounty.type || "County"} • {selectedCounty.state_code}
+                    </span>
+                  </div>
+
+                  <Badge tone={riskTone(selectedCounty.risk)}>
+                    {selectedCounty.risk}
+                  </Badge>
+                </div>
+
+                <div className="ops-county-bar" style={{ marginTop: 18 }}>
+                  <i
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Number(selectedCounty.heat_score || selectedCounty.pressure || 0)
+                      )}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="ops-intel-grid">
+                  <div>
+                    <span>Heat Score</span>
+                    <strong>{selectedCounty.heat_score || selectedCounty.pressure || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>Vendor Readiness</span>
+                    <strong>{selectedCounty.vendor_score || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>Vendor Gap</span>
+                    <strong>{selectedCounty.vendor_gap_score || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>MailOps Pressure</span>
+                    <strong>{selectedCounty.mailops_score || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>Turnout Pressure</span>
+                    <strong>{selectedCounty.turnout_pressure || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>Fundraising</span>
+                    <strong>{selectedCounty.fundraising_pressure || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>Alerts</span>
+                    <strong>{selectedCounty.alerts || 0}</strong>
+                  </div>
+
+                  <div>
+                    <span>DMA</span>
+                    <strong>{selectedCounty.dma || "Regional"}</strong>
+                  </div>
+                </div>
+              </div>
             )}
-          </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
       </div>
     </PageShell>
   );
