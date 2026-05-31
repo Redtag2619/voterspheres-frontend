@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
+
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
@@ -16,133 +17,19 @@ const fallbackData = {
     { label: "Fundraising Pulse", value: "$12.8M", delta: "+9.4%", tone: "up" },
     { label: "Persuasion Opportunity", value: "8.9", delta: "+0.8", tone: "up" },
   ],
-  battlegrounds: [
-    {
-      race: "GA Senate",
-      state: "Georgia",
-      office: "Senate",
-      probability: "57%",
-      momentum: "+2.4",
-      risk: "Elevated",
-      priority: "Tier 1",
-    },
-    {
-      race: "PA Senate",
-      state: "Pennsylvania",
-      office: "Senate",
-      probability: "54%",
-      momentum: "+1.8",
-      risk: "Watch",
-      priority: "Tier 1",
-    },
-    {
-      race: "AZ Senate",
-      state: "Arizona",
-      office: "Senate",
-      probability: "51%",
-      momentum: "+1.1",
-      risk: "Watch",
-      priority: "Tier 2",
-    },
-  ],
-  actions: [
-    {
-      title: "Deploy suburban affordability contrast",
-      owner: "War Room",
-      due: "Now",
-      detail: "Shift message weight into metro persuadable voter clusters.",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated",
-    },
-    {
-      title: "Escalate MailOps delay response",
-      owner: "MailOps",
-      due: "45 min",
-      detail: "Coordinate with vendor and USPS contacts to protect weekend delivery.",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated",
-    },
-    {
-      title: "Refresh surrogate briefing memo",
-      owner: "Comms",
-      due: "2 hrs",
-      detail: "Update talking points around education and cost-of-living pressure.",
-      state: "Pennsylvania",
-      office: "Senate",
-      risk: "Watch",
-    },
-  ],
-  feed: [
-    {
-      id: 1,
-      time: "08:12",
-      title: "Opposition affordability attack accelerating",
-      source: "War Room",
-      severity: "High",
-      type: "warroom.threat_detected",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated",
-    },
-    {
-      id: 2,
-      time: "08:41",
-      title: "Mail delay detected at Atlanta NDC",
-      source: "Mail Intelligence",
-      severity: "High",
-      type: "mail.delay_detected",
-      state: "Georgia",
-      office: "Senate",
-      risk: "Elevated",
-    },
-    {
-      id: 3,
-      time: "09:05",
-      title: "Forecast updated for PA Senate",
-      source: "Forecast Engine",
-      severity: "Medium",
-      type: "forecast.updated",
-      state: "Pennsylvania",
-      office: "Senate",
-      risk: "Watch",
-    },
-  ],
+  battlegrounds: [],
+  actions: [],
+  feed: [],
 };
 
 const fallbackCrossSignal = {
   summary: {
-    states_tracked: 3,
-    critical_states: 1,
-    high_states: 2,
-    vendor_gap_states: 1,
+    states_tracked: 0,
+    critical_states: 0,
+    high_states: 0,
+    vendor_gap_states: 0,
   },
-  top_priorities: [
-    {
-      state: "Georgia",
-      severity: "High",
-      risk: "Elevated",
-      priority_score: 91,
-      recommended_actions: [
-        "Escalate MailOps response.",
-        "Increase suburban persuasion pressure.",
-      ],
-      finance: { receipts: 12800000 },
-      vendors: { coverage_status: "Tight" },
-      mailops: { mail_risks: 2 },
-    },
-    {
-      state: "Arizona",
-      severity: "High",
-      risk: "Elevated",
-      priority_score: 84,
-      recommended_actions: ["Audit vendor coverage.", "Prepare backup vendor lane."],
-      finance: { receipts: 9400000 },
-      vendors: { coverage_status: "Gap" },
-      mailops: { mail_risks: 1 },
-    },
-  ],
+  top_priorities: [],
   results: [],
 };
 
@@ -172,9 +59,23 @@ const fallbackExecutiveAlerts = {
   alerts: [],
 };
 
+const TASK_FILTERS = [
+  { id: "all", label: "All Tasks" },
+  { id: "county", label: "County Escalations" },
+  { id: "vendor", label: "Vendor Tasks" },
+  { id: "mailops", label: "MailOps Tasks" },
+  { id: "critical", label: "Critical" },
+  { id: "open", label: "Open" },
+  { id: "completed", label: "Completed" },
+];
+
 function number(value, fallback = 0) {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;
+}
+
+function fmtDecimal(value, digits = 2) {
+  return Number(value || 0).toFixed(digits);
 }
 
 function money(value) {
@@ -188,11 +89,69 @@ function joinText(values = []) {
   return values.filter(Boolean).join(" - ");
 }
 
+function safeJson(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function getTaskMetadata(task) {
+  return safeJson(task.metadata);
+}
+
+function getTaskStatus(task) {
+  return String(task.status || task.task_status || "open").toLowerCase();
+}
+
+function getTaskPriority(task) {
+  return String(task.priority || task.risk || task.severity || "").toLowerCase();
+}
+
+function getTaskTitle(task) {
+  return task.title || task.name || task.subject || "Untitled task";
+}
+
+function getTaskDescription(task) {
+  return task.description || task.details || task.detail || "";
+}
+
+function isCountyEscalationTask(task) {
+  const metadata = getTaskMetadata(task);
+  const source = String(task.source || metadata.source || "").toLowerCase();
+  const type = String(task.type || task.category || metadata.tactical_source || "").toLowerCase();
+
+  return (
+    source.includes("state_operations") ||
+    source.includes("state operations") ||
+    type.includes("county") ||
+    type.includes("heat") ||
+    Boolean(metadata.county && metadata.heat_score)
+  );
+}
+
+function isVendorTask(task) {
+  const metadata = getTaskMetadata(task);
+  const source = String(task.source || metadata.source || task.category || task.type || "").toLowerCase();
+  const title = getTaskTitle(task).toLowerCase();
+  return source.includes("vendor") || title.includes("vendor");
+}
+
+function isMailOpsTask(task) {
+  const metadata = getTaskMetadata(task);
+  const source = String(task.source || metadata.source || task.category || task.type || "").toLowerCase();
+  const title = getTaskTitle(task).toLowerCase();
+  return source.includes("mail") || title.includes("mailops") || title.includes("mail");
+}
+
 function toneFromSeverity(value) {
   const next = String(value || "").toLowerCase();
   if (["critical", "high", "elevated", "severe"].includes(next)) return "danger";
   if (["medium", "watch", "warning"].includes(next)) return "warning";
-  if (["complete", "resolved", "active"].includes(next)) return "active";
+  if (["complete", "completed", "resolved", "active"].includes(next)) return "active";
   return "default";
 }
 
@@ -208,6 +167,7 @@ function normalizeList(payload, key = "results") {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.[key])) return payload[key];
   if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.tasks)) return payload.tasks;
   return [];
 }
 
@@ -215,29 +175,15 @@ function unwrapGraph(payload) {
   return payload?.graph || payload || null;
 }
 
-function buildDecision(
-  feed = [],
-  consultantIntel = fallbackConsultantIntel,
-  darkMoneyIntel = fallbackDarkMoneyIntel
-) {
+function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, darkMoneyIntel = fallbackDarkMoneyIntel) {
   const darkMoneyExposure =
-    darkMoneyIntel?.top_exposure?.find(
-      (item) => number(item.exposure_score) >= 80
-    ) || null;
+    darkMoneyIntel?.top_exposure?.find((item) => number(item.exposure_score) >= 80) || null;
 
   if (darkMoneyExposure) {
     return {
       level: "CRITICAL",
-      title: `${
-        darkMoneyExposure.committee_name ||
-        darkMoneyExposure.committee_id ||
-        "Committee"
-      } shows critical dark money exposure`,
-      actions: [
-        "Review committee relationships",
-        "Audit consultant overlap",
-        "Escalate compliance review",
-      ],
+      title: `${darkMoneyExposure.committee_name || darkMoneyExposure.committee_id || "Committee"} shows critical dark money exposure`,
+      actions: ["Review committee relationships", "Audit consultant overlap", "Escalate compliance review"],
       link: "/dark-money-exposure",
     };
   }
@@ -249,14 +195,8 @@ function buildDecision(
   if (consultantExposure) {
     return {
       level: "HIGH",
-      title: `${
-        consultantExposure.name || consultantExposure.firm_name || "Consultant"
-      } consultant relationship needs review`,
-      actions: [
-        "Open Consultant Intelligence",
-        "Review candidate relationships",
-        "Assign analyst review",
-      ],
+      title: `${consultantExposure.name || consultantExposure.firm_name || "Consultant"} consultant relationship needs review`,
+      actions: ["Open Consultant Intelligence", "Review candidate relationships", "Assign analyst review"],
       link: "/consultant-intel",
     };
   }
@@ -313,17 +253,89 @@ function PremiumRow({ title, subtitle, meta = [], tone = "default", right, live 
   );
 }
 
+function CountyEscalationTaskCard({ task }) {
+  const metadata = getTaskMetadata(task);
+  const status = getTaskStatus(task);
+  const priority = getTaskPriority(task);
+  const county = metadata.county || task.county || task.county_name || "County / Parish";
+  const state = metadata.state || task.state || task.state_code || "State";
+  const risk = metadata.risk || task.risk || task.severity || task.priority || "Signal";
+  const heat = metadata.heat_score || task.heat_score || task.pressure || 0;
+  const topDriver = metadata.top_driver || metadata.top_drivers?.[0]?.label || "Operational Heat";
+  const recommendation = metadata.recommendation || getTaskDescription(task);
+
+  return (
+    <div className={`county-task-card ${toneFromSeverity(risk)}`}>
+      <div className="county-task-top">
+        <div>
+          <span className="county-task-kicker">County Escalation Task</span>
+          <strong>{getTaskTitle(task)}</strong>
+          <p>{county} • {state}</p>
+        </div>
+
+        <div className="county-task-badges">
+          <Badge tone={toneFromSeverity(risk)}>{risk}</Badge>
+          <Badge tone={status === "completed" || status === "complete" ? "active" : "info"}>
+            {status}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="county-task-grid">
+        <div><span>State</span><b>{state}</b></div>
+        <div><span>County / Parish</span><b>{county}</b></div>
+        <div><span>Heat Score</span><b>{fmtDecimal(heat)}</b></div>
+        <div><span>Top Driver</span><b>{topDriver}</b></div>
+        <div><span>Priority</span><b>{priority || "normal"}</b></div>
+        <div><span>Source</span><b>State Operations</b></div>
+      </div>
+
+      {recommendation ? (
+        <div className="county-task-recommendation">
+          {recommendation}
+        </div>
+      ) : null}
+
+      <div className="county-task-actions">
+        <Link className="vs-button vs-button-secondary" to={`/state-operations/${String(state).toUpperCase()}`}>
+          Open State
+        </Link>
+        <Link className="vs-button" to="/command-center">
+          Command Center
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function TaskFilterBar({ activeFilter, onFilter, counts }) {
+  return (
+    <div className="task-filter-bar">
+      {TASK_FILTERS.map((filter) => (
+        <button
+          key={filter.id}
+          type="button"
+          className={`task-filter-btn ${activeFilter === filter.id ? "is-active" : ""}`}
+          onClick={() => onFilter(filter.id)}
+        >
+          <span>{filter.label}</span>
+          <b>{counts[filter.id] || 0}</b>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
   const summary = data?.summary || {};
   const topInfluence = data?.top_influence || data?.topInfluencers || [];
   const topExposure = data?.top_exposure || [];
-  const recentRelationships = data?.recent_relationships || [];
   const riskWatch = number(summary.high_exposure) + number(summary.watch_closely);
 
   return (
     <SectionCard
       title="Consultant Intelligence"
-      subtitle="Track which consultants are working with candidates, where they are active, and which relationships may require review."
+      subtitle="Track consultants, candidate relationships, and review signals."
       right={
         <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Badge tone={riskWatch ? "danger" : "active"}>
@@ -365,16 +377,7 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                       { label: "Clients", value: item.clients_count || item.mapped_candidates || 0 },
                       { label: "Spend", value: money(item.total_fec_disbursements || item.mapped_amount) },
                     ]}
-                    right={
-                      <div className="vs-inline-actions">
-                        <Badge tone={toneFromScore(item.influence_score)}>
-                          {item.influence_score || 0}
-                        </Badge>
-                        <Link className="vs-button vs-button-secondary" to={`/consultants/${item.id}`}>
-                          Open
-                        </Link>
-                      </div>
-                    }
+                    right={<Badge tone={toneFromScore(item.influence_score)}>{item.influence_score || 0}</Badge>}
                   />
                 ))
               ) : (
@@ -405,26 +408,6 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
               )}
             </div>
           </div>
-
-          {recentRelationships.length ? (
-            <div className="vs-stack">
-              <div className="vs-stat-label">Recent Consultant Payments</div>
-              {recentRelationships.slice(0, 3).map((item) => (
-                <PremiumRow
-                  key={item.id || `${item.consultant_name}-${item.candidate_name}`}
-                  title={joinText([item.consultant_name || "Consultant", item.candidate_name || "Candidate"])}
-                  subtitle={joinText([item.candidate_state || "State N/A", item.candidate_party || "Party N/A", item.category || "Consulting"])}
-                  meta={[
-                    { label: "Amount", value: money(item.total_amount) },
-                    { label: "Transactions", value: item.transaction_count || 0 },
-                    { label: "Influence", value: item.influence_score || 0 },
-                    { label: "Risk", value: item.risk_label || "Signal" },
-                  ]}
-                  right={<Badge tone="info">FEC</Badge>}
-                />
-              ))}
-            </div>
-          ) : null}
         </div>
       )}
     </SectionCard>
@@ -565,11 +548,7 @@ function DarkMoneyExposurePanel({ data, loading }) {
                   { label: "Candidates", value: item.candidate_count || 0 },
                   { label: "Money Flow", value: money(item.total_amount) },
                 ]}
-                right={
-                  <Badge tone={toneFromSeverity(item.severity)}>
-                    {item.exposure_tier || "Exposure"}
-                  </Badge>
-                }
+                right={<Badge tone={toneFromSeverity(item.severity)}>{item.exposure_tier || "Exposure"}</Badge>}
               />
             ))
           ) : (
@@ -716,7 +695,6 @@ function CrossSignalPanel({ data, loading }) {
   );
 }
 
-
 function ExecutiveAlertEnginePanel({ alerts = [], loading }) {
   const criticalCount = alerts.filter((alert) =>
     String(alert.severity || "").toLowerCase() === "critical"
@@ -759,11 +737,7 @@ function ExecutiveAlertEnginePanel({ alerts = [], loading }) {
                   { label: "State", value: alert.state || "National" },
                   { label: "Risk", value: alert.risk || "Monitor" },
                 ]}
-                right={
-                  <Badge tone={toneFromSeverity(alert.severity)}>
-                    {alert.severity || "Signal"}
-                  </Badge>
-                }
+                right={<Badge tone={toneFromSeverity(alert.severity)}>{alert.severity || "Signal"}</Badge>}
               />
             ))
           ) : (
@@ -797,6 +771,7 @@ export default function CommandCenter() {
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [taskFilter, setTaskFilter] = useState("all");
 
   const demoMode =
     typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
@@ -903,19 +878,15 @@ export default function CommandCenter() {
 
       const result = api.darkMoneyExposure
         ? await api.darkMoneyExposure({ limit: 15 })
-        : await api
-            .get("/dark-money-exposure", { params: { limit: 15 } })
-            .then((r) => r.data);
+        : await api.get("/dark-money-exposure", { params: { limit: 15 } }).then((r) => r.data);
 
       setDarkMoneyIntel(result || fallbackDarkMoneyIntel);
-    } catch (error) {
-      console.error("Dark money intelligence failed:", error);
+    } catch {
       setDarkMoneyIntel(fallbackDarkMoneyIntel);
     } finally {
       setDarkMoneyLoading(false);
     }
   }
-
 
   async function loadExecutiveAlerts() {
     if (demoMode) {
@@ -929,13 +900,10 @@ export default function CommandCenter() {
 
       const result = api.executiveAlerts
         ? await api.executiveAlerts({ limit: 12 })
-        : await api
-            .get("/executive-alerts", { params: { limit: 12 } })
-            .then((r) => r.data);
+        : await api.get("/executive-alerts", { params: { limit: 12 } }).then((r) => r.data);
 
       setExecutiveAlerts(result?.alerts || []);
-    } catch (error) {
-      console.error("Executive alerts failed:", error);
+    } catch {
       setExecutiveAlerts(fallbackExecutiveAlerts.alerts);
     } finally {
       setExecutiveAlertsLoading(false);
@@ -997,6 +965,44 @@ export default function CommandCenter() {
   const actions = effectiveData.actions || [];
   const feed = effectiveData.feed || [];
 
+  const taskCounts = useMemo(() => {
+    return {
+      all: tasks.length,
+      county: tasks.filter(isCountyEscalationTask).length,
+      vendor: tasks.filter(isVendorTask).length,
+      mailops: tasks.filter(isMailOpsTask).length,
+      critical: tasks.filter((task) => ["critical", "high"].includes(getTaskPriority(task))).length,
+      open: tasks.filter((task) => !["complete", "completed", "done", "resolved", "archived"].includes(getTaskStatus(task))).length,
+      completed: tasks.filter((task) => ["complete", "completed", "done", "resolved"].includes(getTaskStatus(task))).length,
+    };
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const status = getTaskStatus(task);
+      const priority = getTaskPriority(task);
+
+      if (taskFilter === "county") return isCountyEscalationTask(task);
+      if (taskFilter === "vendor") return isVendorTask(task);
+      if (taskFilter === "mailops") return isMailOpsTask(task);
+      if (taskFilter === "critical") return ["critical", "high"].includes(priority);
+      if (taskFilter === "open") return !["complete", "completed", "done", "resolved", "archived"].includes(status);
+      if (taskFilter === "completed") return ["complete", "completed", "done", "resolved"].includes(status);
+
+      return true;
+    });
+  }, [tasks, taskFilter]);
+
+  const countyEscalationTasks = useMemo(
+    () => filteredTasks.filter(isCountyEscalationTask),
+    [filteredTasks]
+  );
+
+  const standardTasks = useMemo(
+    () => filteredTasks.filter((task) => !isCountyEscalationTask(task)),
+    [filteredTasks]
+  );
+
   const executiveDecision = useMemo(
     () => buildDecision(feed, consultantIntel, darkMoneyIntel),
     [feed, consultantIntel, darkMoneyIntel]
@@ -1014,10 +1020,171 @@ export default function CommandCenter() {
     <PageShell
       eyebrow="Executive Command Center"
       title="Manage campaign operations from one executive dashboard."
-      description="Review battleground races, consultant activity, relationship networks, dark-money exposure, alerts, and tasks in one place."
+      description="Review battleground races, consultant activity, relationship networks, dark-money exposure, alerts, and county escalation tasks in one place."
       demo={demoMode}
       demoText="Demo Command Center data is active."
     >
+      <style>{`
+        .task-filter-bar {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+        }
+
+        .task-filter-btn {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.84);
+          border-radius: 16px;
+          padding: 10px 12px;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .task-filter-btn b {
+          color: white;
+          background: rgba(59, 130, 246, 0.22);
+          border: 1px solid rgba(96, 165, 250, 0.22);
+          border-radius: 999px;
+          padding: 2px 7px;
+          font-size: 11px;
+        }
+
+        .task-filter-btn.is-active {
+          border-color: rgba(96, 165, 250, 0.62);
+          color: white;
+          background: rgba(37, 99, 235, 0.32);
+          box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+        }
+
+        .county-task-grid-wrap {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          margin-bottom: 18px;
+        }
+
+        .county-task-card {
+          border-radius: 24px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.68));
+          padding: 18px;
+          box-shadow: 0 18px 45px rgba(2, 6, 23, 0.18);
+        }
+
+        .county-task-card.danger {
+          border-color: rgba(248, 113, 113, 0.34);
+        }
+
+        .county-task-card.warning {
+          border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .county-task-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: flex-start;
+        }
+
+        .county-task-kicker {
+          display: block;
+          color: rgba(96, 165, 250, 0.92);
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-bottom: 6px;
+        }
+
+        .county-task-top strong {
+          display: block;
+          color: white;
+          font-size: 17px;
+          font-weight: 950;
+          line-height: 1.25;
+        }
+
+        .county-task-top p {
+          margin: 6px 0 0;
+          color: rgba(203, 213, 225, 0.68);
+          font-size: 12px;
+        }
+
+        .county-task-badges {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .county-task-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: 16px;
+        }
+
+        .county-task-grid div {
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          background: rgba(15, 23, 42, 0.54);
+          padding: 11px;
+        }
+
+        .county-task-grid span {
+          display: block;
+          color: rgba(203, 213, 225, 0.62);
+          font-size: 11px;
+        }
+
+        .county-task-grid b {
+          display: block;
+          color: white;
+          font-size: 14px;
+          margin-top: 4px;
+          overflow-wrap: anywhere;
+        }
+
+        .county-task-recommendation {
+          margin-top: 14px;
+          border-radius: 18px;
+          border: 1px solid rgba(96, 165, 250, 0.22);
+          background: rgba(37, 99, 235, 0.12);
+          padding: 13px;
+          color: rgba(226, 232, 240, 0.86);
+          font-size: 13px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+        }
+
+        .county-task-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 14px;
+        }
+
+        @media (max-width: 1100px) {
+          .county-task-grid-wrap {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .county-task-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+      `}</style>
+
       {commandError ? (
         <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
           {commandError}
@@ -1028,6 +1195,9 @@ export default function CommandCenter() {
         <div className="vs-chip-row">
           <Badge tone={highSeverityCount ? "danger" : "active"}>
             {highSeverityCount ? `${highSeverityCount} high-priority alerts` : "No urgent alerts"}
+          </Badge>
+          <Badge tone={taskCounts.county ? "danger" : "active"}>
+            {taskCounts.county} county escalations
           </Badge>
           <Badge tone={number(consultantSummary.fec_consultants) ? "info" : "default"}>
             {consultantSummary.fec_consultants || 0} consultants imported
@@ -1078,6 +1248,41 @@ export default function CommandCenter() {
         </div>
       </SectionCard>
 
+      <SectionCard
+        title="Execution Board"
+        subtitle="Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."
+        right={<Badge tone={filteredTasks.length ? "info" : "default"}>{filteredTasks.length} shown</Badge>}
+      >
+        {tasksLoading ? (
+          <EmptyState text="Loading execution board..." />
+        ) : (
+          <>
+            <TaskFilterBar
+              activeFilter={taskFilter}
+              onFilter={setTaskFilter}
+              counts={taskCounts}
+            />
+
+            {countyEscalationTasks.length ? (
+              <div className="county-task-grid-wrap">
+                {countyEscalationTasks.slice(0, 12).map((task) => (
+                  <CountyEscalationTaskCard
+                    key={task.id || task.task_id || getTaskTitle(task)}
+                    task={task}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {standardTasks.length ? (
+              <ExecutionBoard tasks={standardTasks} compact />
+            ) : countyEscalationTasks.length ? null : (
+              <EmptyState text="No tasks match the selected filter." />
+            )}
+          </>
+        )}
+      </SectionCard>
+
       <ConsultantIntelligencePanel
         data={consultantIntel}
         loading={consultantLoading}
@@ -1107,19 +1312,6 @@ export default function CommandCenter() {
       </div>
 
       <ExecutiveFeedPanel feed={feed} loading={commandLoading} />
-
-      <SectionCard
-        title="Execution Board"
-        subtitle="Tasks connected to campaign intelligence and operations."
-        right={<Badge tone={tasks.length ? "info" : "default"}>{tasks.length} tasks</Badge>}
-      >
-        {tasksLoading ? (
-          <EmptyState text="Loading execution board..." />
-        ) : (
-          <ExecutionBoard tasks={tasks} compact />
-        )}
-      </SectionCard>
     </PageShell>
   );
 }
-
