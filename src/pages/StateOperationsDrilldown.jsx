@@ -35,8 +35,7 @@ function fmtDecimal(value, digits = 2) {
 function getRecommendation(county) {
   if (!county) return "Select a county or parish to generate an operational recommendation.";
 
-  const drivers = county.top_drivers || [];
-  const primaryDriver = drivers[0]?.label || "Operational Heat";
+  const primaryDriver = county.top_drivers?.[0]?.label || "Operational Heat";
 
   if (county.risk === "Critical") {
     return `Immediate escalation recommended. Primary driver: ${primaryDriver}. Review vendor coverage, MailOps timing, turnout pressure, and Command Center task readiness.`;
@@ -50,7 +49,7 @@ function getRecommendation(county) {
     return `Keep this locality under watch. Primary driver: ${primaryDriver}. Pressure is building across one or more operational layers.`;
   }
 
-  return `Stable locality. Continue routine monitoring through the tactical feed and county heat scoring engine.`;
+  return "Stable locality. Continue routine monitoring through the tactical feed and county heat scoring engine.";
 }
 
 function DriverBar({ item }) {
@@ -163,6 +162,8 @@ export default function StateOperationsDrilldown() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [taskMessage, setTaskMessage] = useState("");
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
 
@@ -230,6 +231,48 @@ export default function StateOperationsDrilldown() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  }
+
+  async function handleCreateCommandTask() {
+    if (!selectedCounty) return;
+
+    try {
+      setCreatingTask(true);
+      setTaskMessage("");
+
+      if (typeof api.createCountyCommandTask !== "function") {
+        throw new Error("County command task API client is not available.");
+      }
+
+      const topDriver = selectedCounty.top_drivers?.[0]?.label || "Operational Heat";
+
+      await api.createCountyCommandTask({
+        state: selectedCounty.state_code || stateCode,
+        state_code: selectedCounty.state_code || stateCode,
+        county: selectedCounty.name,
+        county_name: selectedCounty.name,
+        county_fips: selectedCounty.county_fips,
+        full_fips: selectedCounty.full_fips,
+        risk: selectedCounty.risk,
+        heat_score: selectedCounty.heat_score || selectedCounty.pressure || 0,
+        pressure: selectedCounty.pressure || selectedCounty.heat_score || 0,
+        top_driver: topDriver,
+        top_drivers: selectedCounty.top_drivers || [],
+        scoring_breakdown: selectedCounty.scoring_breakdown || {},
+        live_signal_counts: selectedCounty.live_signal_counts || {},
+        recommendation: getRecommendation(selectedCounty),
+      });
+
+      setTaskMessage("Command Center task created.");
+    } catch (err) {
+      setTaskMessage(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to create Command Center task."
+      );
+    } finally {
+      setCreatingTask(false);
     }
   }
 
@@ -452,11 +495,7 @@ export default function StateOperationsDrilldown() {
           display: block;
           height: 100%;
           border-radius: inherit;
-          background: linear-gradient(
-            90deg,
-            rgba(59,130,246,0.92),
-            rgba(239,68,68,0.92)
-          );
+          background: linear-gradient(90deg, rgba(59,130,246,0.92), rgba(239,68,68,0.92));
         }
 
         .ops-county-grid {
@@ -607,6 +646,22 @@ export default function StateOperationsDrilldown() {
           background: linear-gradient(90deg, rgba(96,165,250,0.92), rgba(248,113,113,0.92));
         }
 
+        .ops-action-btn {
+          width: 100%;
+          border: 1px solid rgba(96,165,250,0.36);
+          background: linear-gradient(135deg, rgba(37,99,235,0.38), rgba(15,23,42,0.78));
+          color: white;
+          border-radius: 16px;
+          padding: 12px 14px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .ops-action-btn:disabled {
+          cursor: not-allowed;
+          opacity: 0.62;
+        }
+
         .ops-recommendation {
           margin-top: 16px;
           border-radius: 18px;
@@ -623,11 +678,7 @@ export default function StateOperationsDrilldown() {
           border-radius: 18px;
           border: 1px solid rgba(148,163,184,0.16);
           overflow: hidden;
-          background: linear-gradient(
-            135deg,
-            rgba(15,23,42,0.76),
-            rgba(15,23,42,0.44)
-          );
+          background: linear-gradient(135deg, rgba(15,23,42,0.76), rgba(15,23,42,0.44));
         }
 
         .ops-alert .vs-responsive-row,
@@ -785,7 +836,7 @@ export default function StateOperationsDrilldown() {
         <div className="ops-column">
           <SectionCard
             title="Executive Intelligence Panel"
-            subtitle="Top heat drivers, live signal counts, and scoring breakdown for the selected locality."
+            subtitle="Top heat drivers, live signal counts, scoring breakdown, and Command Center tasking."
           >
             {!selectedCounty ? (
               <EmptyState text="Select a county/parish to inspect operational readiness." />
@@ -794,7 +845,6 @@ export default function StateOperationsDrilldown() {
                 <div className="ops-intel-top">
                   <div>
                     <strong>{selectedCounty.name}</strong>
-
                     <span>
                       {selectedCounty.locality_type || selectedCounty.type || "County"} •{" "}
                       {selectedCounty.state_code}
@@ -807,55 +857,38 @@ export default function StateOperationsDrilldown() {
                 </div>
 
                 <div className="ops-county-bar" style={{ marginTop: 18 }}>
-                  <i
-                    style={{
-                      width: `${Math.min(100, Number(selectedHeat || 0))}%`,
-                    }}
-                  />
+                  <i style={{ width: `${Math.min(100, Number(selectedHeat || 0))}%` }} />
                 </div>
 
                 <div className="ops-intel-grid">
-                  <div>
-                    <span>Heat Score</span>
-                    <strong>{fmtDecimal(selectedHeat)}</strong>
+                  <div><span>Heat Score</span><strong>{fmtDecimal(selectedHeat)}</strong></div>
+                  <div><span>Vendor Readiness</span><strong>{fmtDecimal(selectedCounty.vendor_score)}</strong></div>
+                  <div><span>Vendor Gap</span><strong>{fmtDecimal(selectedCounty.vendor_gap_score)}</strong></div>
+                  <div><span>MailOps Pressure</span><strong>{fmtDecimal(selectedCounty.mailops_score || selectedCounty.mail_jobs)}</strong></div>
+                  <div><span>Turnout Pressure</span><strong>{fmtDecimal(selectedCounty.turnout_pressure)}</strong></div>
+                  <div><span>Fundraising</span><strong>{fmtDecimal(selectedCounty.fundraising_pressure)}</strong></div>
+                  <div><span>Alerts</span><strong>{fmtNumber(selectedCounty.alerts || 0)}</strong></div>
+                  <div><span>DMA</span><strong>{selectedCounty.dma || "Regional"}</strong></div>
+                </div>
+
+                <div className="ops-panel-section">
+                  <div className="ops-panel-title">
+                    <strong>Command Action</strong>
+                    <span>Execution workflow</span>
                   </div>
 
-                  <div>
-                    <span>Vendor Readiness</span>
-                    <strong>{fmtDecimal(selectedCounty.vendor_score)}</strong>
-                  </div>
+                  <button
+                    type="button"
+                    className="ops-action-btn"
+                    onClick={handleCreateCommandTask}
+                    disabled={creatingTask}
+                  >
+                    {creatingTask ? "Creating Command Task..." : "Create Command Task"}
+                  </button>
 
-                  <div>
-                    <span>Vendor Gap</span>
-                    <strong>{fmtDecimal(selectedCounty.vendor_gap_score)}</strong>
-                  </div>
-
-                  <div>
-                    <span>MailOps Pressure</span>
-                    <strong>
-                      {fmtDecimal(selectedCounty.mailops_score || selectedCounty.mail_jobs)}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Turnout Pressure</span>
-                    <strong>{fmtDecimal(selectedCounty.turnout_pressure)}</strong>
-                  </div>
-
-                  <div>
-                    <span>Fundraising</span>
-                    <strong>{fmtDecimal(selectedCounty.fundraising_pressure)}</strong>
-                  </div>
-
-                  <div>
-                    <span>Alerts</span>
-                    <strong>{fmtNumber(selectedCounty.alerts || 0)}</strong>
-                  </div>
-
-                  <div>
-                    <span>DMA</span>
-                    <strong>{selectedCounty.dma || "Regional"}</strong>
-                  </div>
+                  {taskMessage ? (
+                    <div className="ops-recommendation">{taskMessage}</div>
+                  ) : null}
                 </div>
 
                 <div className="ops-panel-section">
@@ -869,10 +902,7 @@ export default function StateOperationsDrilldown() {
                   ) : (
                     <div className="ops-driver-list">
                       {selectedDrivers.map((driver) => (
-                        <DriverBar
-                          key={driver.label}
-                          item={driver}
-                        />
+                        <DriverBar key={driver.label} item={driver} />
                       ))}
                     </div>
                   )}
