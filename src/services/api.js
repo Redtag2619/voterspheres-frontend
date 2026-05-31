@@ -966,6 +966,9 @@ export const api = {
  createCountyCommandTask: (payload) =>
    tryPost(["/operations/tasks/county"], payload),
 
+ updateCountyCommandTaskStatus: (id, payload) =>
+   tryPut([`/operations/tasks/county/${id}/status`], payload),
+
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
