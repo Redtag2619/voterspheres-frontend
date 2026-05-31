@@ -28,6 +28,10 @@ function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
 }
 
+function fmtDecimal(value, digits = 2) {
+  return Number(value || 0).toFixed(digits);
+}
+
 function StateOpsCard({ item, onOpen }) {
   const stateCode = item.state || item.state_code;
   const heat = item.heat_score || item.pressure || 0;
@@ -51,12 +55,24 @@ function StateOpsCard({ item, onOpen }) {
       </div>
 
       <div className="state-index-grid">
-        <span>County/Parish <b>{fmtNumber(item.locality_count || item.counties_tracked || 0)}</b></span>
-        <span>Heat <b>{heat}</b></span>
-        <span>Critical <b>{fmtNumber(item.critical_counties || 0)}</b></span>
-        <span>High <b>{fmtNumber(item.high_counties || 0)}</b></span>
-        <span>MailOps <b>{fmtNumber(item.total_mail_jobs || 0)}</b></span>
-        <span>Vendor Gaps <b>{fmtNumber(item.vendor_gap_count || 0)}</b></span>
+        <span>
+          County/Parish <b>{fmtNumber(item.locality_count || item.counties_tracked || 0)}</b>
+        </span>
+        <span>
+          Heat <b>{fmtDecimal(heat)}</b>
+        </span>
+        <span>
+          Critical <b>{fmtNumber(item.critical_counties || 0)}</b>
+        </span>
+        <span>
+          High <b>{fmtNumber(item.high_counties || 0)}</b>
+        </span>
+        <span>
+          MailOps <b>{fmtNumber(item.total_mail_jobs || 0)}</b>
+        </span>
+        <span>
+          Vendor Gaps <b>{fmtNumber(item.vendor_gap_count || 0)}</b>
+        </span>
       </div>
     </button>
   );
@@ -73,7 +89,7 @@ function StateOpsRow({ item, onOpen }) {
         subtitle={`${fmtNumber(item.locality_count || item.counties_tracked || 0)} counties/parishes • ${fmtNumber(item.vendor_gap_count || 0)} vendor gaps`}
         meta={[
           { label: "Risk", value: item.risk || "Stable" },
-          { label: "Heat", value: `${heat}%` },
+          { label: "Heat", value: fmtDecimal(heat) },
           { label: "Critical", value: item.critical_counties || 0 },
           { label: "MailOps", value: item.total_mail_jobs || 0 },
         ]}
@@ -100,7 +116,7 @@ function TacticalFeedRow({ item, onOpen }) {
         meta={[
           { label: "State", value: item.state || "—" },
           { label: "Severity", value: item.severity || "Signal" },
-          { label: "Heat", value: item.heat_score || 0 },
+          { label: "Heat", value: fmtDecimal(item.heat_score || 0) },
         ]}
         right={
           <button
@@ -141,11 +157,13 @@ export default function StateOperationsIndex() {
 
       const result = await api.stateOperationsIndex();
 
-      setData(result || {
-        summary: {},
-        states: [],
-        tacticalFeed: [],
-      });
+      setData(
+        result || {
+          summary: {},
+          states: [],
+          tacticalFeed: [],
+        }
+      );
 
       setLastUpdated(
         new Date().toLocaleTimeString([], {
@@ -214,12 +232,10 @@ export default function StateOperationsIndex() {
     summary.national_heat_score ||
     summary.heat_score ||
     (states.length
-      ? Math.round(
-          states.reduce(
-            (sum, item) => sum + Number(item.heat_score || item.pressure || 0),
-            0
-          ) / states.length
-        )
+      ? states.reduce(
+          (sum, item) => sum + Number(item.heat_score || item.pressure || 0),
+          0
+        ) / states.length
       : 0);
 
   return (
@@ -230,8 +246,9 @@ export default function StateOperationsIndex() {
       tickerItems={[
         {
           label: "National Heat",
-          value: `${nationalHeat}%`,
-          dotClass: nationalHeat >= 65 ? "vs-live-dot-warning" : "vs-live-dot-success",
+          value: `${fmtDecimal(nationalHeat)}%`,
+          dotClass:
+            Number(nationalHeat || 0) >= 65 ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
         {
           label: "States",
@@ -445,9 +462,9 @@ export default function StateOperationsIndex() {
       <div className="vs-grid-4">
         <StatCard
           label="National Heat"
-          value={`${nationalHeat}%`}
+          value={`${fmtDecimal(nationalHeat)}%`}
           delta="Tactical scoring"
-          tone={nationalHeat >= 65 ? "down" : "up"}
+          tone={Number(nationalHeat || 0) >= 65 ? "down" : "up"}
         />
         <StatCard
           label="States Tracked"
