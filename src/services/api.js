@@ -962,6 +962,9 @@ export const api = {
 
  stateOperationsDrilldown: (state) =>
    tryGet([`/operations/state/${state}`]),
+  
+ createCountyCommandTask: (payload) =>
+   tryPost(["/operations/tasks/county"], payload),
 
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
