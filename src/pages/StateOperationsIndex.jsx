@@ -29,27 +29,32 @@ function fmtNumber(value) {
 }
 
 function StateOpsCard({ item, onOpen }) {
+  const stateCode = item.state || item.state_code;
+  const heat = item.heat_score || item.pressure || 0;
+
   return (
     <button
       type="button"
       className={`state-index-card ${riskClass(item.risk)}`}
-      onClick={() => onOpen(item.state || item.state_code)}
+      onClick={() => onOpen(stateCode)}
     >
       <div className="state-index-head">
         <div>
-          <strong>{item.state || item.state_code}</strong>
+          <strong>{stateCode}</strong>
           <span>{item.state_name}</span>
         </div>
         <Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>
       </div>
 
       <div className="state-index-pressure">
-        <i style={{ width: `${Math.min(100, Number(item.pressure || 0))}%` }} />
+        <i style={{ width: `${Math.min(100, Number(heat || 0))}%` }} />
       </div>
 
       <div className="state-index-grid">
         <span>County/Parish <b>{fmtNumber(item.locality_count || item.counties_tracked || 0)}</b></span>
+        <span>Heat <b>{heat}</b></span>
         <span>Critical <b>{fmtNumber(item.critical_counties || 0)}</b></span>
+        <span>High <b>{fmtNumber(item.high_counties || 0)}</b></span>
         <span>MailOps <b>{fmtNumber(item.total_mail_jobs || 0)}</b></span>
         <span>Vendor Gaps <b>{fmtNumber(item.vendor_gap_count || 0)}</b></span>
       </div>
@@ -58,14 +63,17 @@ function StateOpsCard({ item, onOpen }) {
 }
 
 function StateOpsRow({ item, onOpen }) {
+  const stateCode = item.state || item.state_code;
+  const heat = item.heat_score || item.pressure || 0;
+
   return (
     <div className={`state-index-row ${riskClass(item.risk)}`}>
       <ResponsiveRow
-        title={`${item.state || item.state_code} — ${item.state_name}`}
+        title={`${stateCode} — ${item.state_name}`}
         subtitle={`${fmtNumber(item.locality_count || item.counties_tracked || 0)} counties/parishes • ${fmtNumber(item.vendor_gap_count || 0)} vendor gaps`}
         meta={[
           { label: "Risk", value: item.risk || "Stable" },
-          { label: "Pressure", value: `${item.pressure || 0}%` },
+          { label: "Heat", value: `${heat}%` },
           { label: "Critical", value: item.critical_counties || 0 },
           { label: "MailOps", value: item.total_mail_jobs || 0 },
         ]}
@@ -73,9 +81,34 @@ function StateOpsRow({ item, onOpen }) {
           <button
             type="button"
             className="vs-decision-btn deploy"
-            onClick={() => onOpen(item.state || item.state_code)}
+            onClick={() => onOpen(stateCode)}
           >
             Open
+          </button>
+        }
+      />
+    </div>
+  );
+}
+
+function TacticalFeedRow({ item, onOpen }) {
+  return (
+    <div className={`state-index-row ${riskClass(item.severity)}`}>
+      <ResponsiveRow
+        title={item.title || "Tactical pressure alert"}
+        subtitle={`${item.source || "Tactical Intelligence"} • ${item.layer || "State Heat"}`}
+        meta={[
+          { label: "State", value: item.state || "—" },
+          { label: "Severity", value: item.severity || "Signal" },
+          { label: "Heat", value: item.heat_score || 0 },
+        ]}
+        right={
+          <button
+            type="button"
+            className="vs-decision-btn deploy"
+            onClick={() => onOpen(item.state)}
+          >
+            Inspect
           </button>
         }
       />
@@ -107,11 +140,31 @@ export default function StateOperationsIndex() {
       }
 
       const result = await api.stateOperationsIndex();
-      setData(result || { summary: {}, states: [] });
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+
+      setData(result || {
+        summary: {},
+        states: [],
+        tacticalFeed: [],
+      });
+
+      setLastUpdated(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Failed to load state operations index.");
-      setData({ summary: {}, states: [] });
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load state operations index."
+      );
+
+      setData({
+        summary: {},
+        states: [],
+        tacticalFeed: [],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -130,7 +183,7 @@ export default function StateOperationsIndex() {
 
   const summary = data?.summary || {};
   const states = data?.states || [];
-  const tacticalFeed = data?.tacticalFeed || [];
+  const tacticalFeed = data?.tacticalFeed || data?.alerts || [];
 
   const filteredStates = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -140,7 +193,9 @@ export default function StateOperationsIndex() {
       const stateCode = String(item.state || item.state_code || "").toLowerCase();
       const stateName = String(item.state_name || "").toLowerCase();
 
-      const matchesSearch = !term || stateCode.includes(term) || stateName.includes(term);
+      const matchesSearch =
+        !term || stateCode.includes(term) || stateName.includes(term);
+
       const matchesFilter =
         filter === "all" ||
         (filter === "urgent" && ["critical", "high"].includes(risk)) ||
@@ -155,16 +210,49 @@ export default function StateOperationsIndex() {
     navigate(`/state-operations/${String(stateCode).toUpperCase()}`);
   }
 
+  const nationalHeat =
+    summary.national_heat_score ||
+    summary.heat_score ||
+    (states.length
+      ? Math.round(
+          states.reduce(
+            (sum, item) => sum + Number(item.heat_score || item.pressure || 0),
+            0
+          ) / states.length
+        )
+      : 0);
+
   return (
     <PageShell
       eyebrow="State Command"
       title="State Operations"
-      description="All-state command index for county, parish, DMA, vendor, MailOps, and executive readiness."
+      description="All-state command index for county, parish, DMA, vendor, MailOps, tactical feed, and live heat scoring."
       tickerItems={[
-        { label: "States", value: `${summary.states_tracked || states.length || 0}`, dotClass: "vs-live-dot-success" },
-        { label: "Localities", value: `${fmtNumber(summary.localities_tracked || 0)}`, dotClass: "vs-live-dot-success" },
-        { label: "Urgent", value: `${summary.urgent_states || 0}`, dotClass: summary.urgent_states ? "vs-live-dot-warning" : "vs-live-dot-success" },
-        { label: "Updated", value: lastUpdated || "Live", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        {
+          label: "National Heat",
+          value: `${nationalHeat}%`,
+          dotClass: nationalHeat >= 65 ? "vs-live-dot-warning" : "vs-live-dot-success",
+        },
+        {
+          label: "States",
+          value: `${summary.states_tracked || states.length || 0}`,
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "Localities",
+          value: `${fmtNumber(summary.localities_tracked || 0)}`,
+          dotClass: "vs-live-dot-success",
+        },
+        {
+          label: "Urgent",
+          value: `${summary.urgent_states || 0}`,
+          dotClass: summary.urgent_states ? "vs-live-dot-warning" : "vs-live-dot-success",
+        },
+        {
+          label: "Updated",
+          value: lastUpdated || "Live",
+          dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success",
+        },
       ]}
     >
       <style>{`
@@ -324,6 +412,13 @@ export default function StateOperationsIndex() {
           background: transparent;
         }
 
+        .state-feed-note {
+          margin: 0 0 14px;
+          color: rgba(203, 213, 225, 0.72);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
         @media (max-width: 1100px) {
           .state-index-grid-wrap {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -348,15 +443,35 @@ export default function StateOperationsIndex() {
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
-        <StatCard label="States Tracked" value={summary.states_tracked || states.length || 0} delta="All-state readiness" tone="up" />
-        <StatCard label="Counties / Parishes" value={fmtNumber(summary.localities_tracked || 0)} delta="Imported localities" tone="up" />
-        <StatCard label="Urgent States" value={summary.urgent_states || 0} delta="Critical or high" tone={summary.urgent_states ? "down" : "up"} />
-        <StatCard label="Vendor Gaps" value={summary.vendor_gap_count || 0} delta="Coverage pressure" tone={summary.vendor_gap_count ? "down" : "up"} />
+        <StatCard
+          label="National Heat"
+          value={`${nationalHeat}%`}
+          delta="Tactical scoring"
+          tone={nationalHeat >= 65 ? "down" : "up"}
+        />
+        <StatCard
+          label="States Tracked"
+          value={summary.states_tracked || states.length || 0}
+          delta="All-state readiness"
+          tone="up"
+        />
+        <StatCard
+          label="Counties / Parishes"
+          value={fmtNumber(summary.localities_tracked || 0)}
+          delta="Imported localities"
+          tone="up"
+        />
+        <StatCard
+          label="Urgent States"
+          value={summary.urgent_states || 0}
+          delta="Critical or high"
+          tone={summary.urgent_states ? "down" : "up"}
+        />
       </div>
 
       <SectionCard
         title="All-State Operations Index"
-        subtitle="Open any state to inspect county, parish, DMA, vendor, MailOps, and executive signal readiness."
+        subtitle="Open any state to inspect county, parish, DMA, vendor, MailOps, and tactical heat readiness."
         right={<Badge tone="accent">{filteredStates.length} shown</Badge>}
       >
         <div className="state-index-toolbar">
@@ -422,40 +537,32 @@ export default function StateOperationsIndex() {
             ))}
           </div>
         )}
-    <SectionCard
-  title="National Tactical Intelligence Feed"
-  subtitle="Live state-level heat alerts generated from county/parish tactical scoring."
-  right={<Badge tone="danger">{tacticalFeed.length} alerts</Badge>}
->
-  <div className="state-index-list">
-    {!tacticalFeed.length ? (
-      <EmptyState text="No tactical state alerts detected." />
-    ) : (
-      tacticalFeed.map((item) => (
-        <div key={item.id} className={`state-index-row ${riskClass(item.severity)}`}>
-          <ResponsiveRow
-            title={item.title}
-            subtitle={`${item.source} • ${item.layer}`}
-            meta={[
-              { label: "State", value: item.state },
-              { label: "Severity", value: item.severity },
-              { label: "Heat", value: item.heat_score },
-            ]}
-            right={
-              <button
-                type="button"
-                className="vs-decision-btn deploy"
-                onClick={() => openState(item.state)}
-              >
-                Inspect
-              </button>
-            }
-          />
+      </SectionCard>
+
+      <SectionCard
+        title="National Tactical Intelligence Feed"
+        subtitle="Live state-level heat alerts generated from county/parish tactical scoring."
+        right={<Badge tone="danger">{tacticalFeed.length} alerts</Badge>}
+      >
+        <p className="state-feed-note">
+          This feed highlights states where county-level heat, vendor gaps, MailOps pressure,
+          and executive alert signals are creating the most urgent operational pressure.
+        </p>
+
+        <div className="state-index-list">
+          {!tacticalFeed.length ? (
+            <EmptyState text="No tactical state alerts detected." />
+          ) : (
+            tacticalFeed.map((item) => (
+              <TacticalFeedRow
+                key={item.id || `${item.state}-${item.title}`}
+                item={item}
+                onOpen={openState}
+              />
+            ))
+          )}
         </div>
-      ))
-    )}
-  </div>
-</SectionCard>
+      </SectionCard>
     </PageShell>
   );
 }
