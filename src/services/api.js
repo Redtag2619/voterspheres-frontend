@@ -957,12 +957,15 @@ export const api = {
   
  operationsMap: operationsMapApi.dashboard,
 
+ operationsMap: () =>
+   tryGet(["/operations/map"]),
+
  stateOperationsIndex: () =>
    tryGet(["/operations/states"]),
 
  stateOperationsDrilldown: (state) =>
    tryGet([`/operations/state/${state}`]),
-  
+
  createCountyCommandTask: (payload) =>
    tryPost(["/operations/tasks/county"], payload),
 
