@@ -1004,6 +1004,9 @@ export const api = {
 
  updateWorkspace: (id, payload) =>
    workspacesApi.update(id, payload),
+  
+ crossWorkspaceExecutiveOverview: () =>
+   tryGet(["/workspace-intelligence/executive-overview"]),
 
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
