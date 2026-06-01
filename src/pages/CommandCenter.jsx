@@ -99,12 +99,20 @@ function safeJson(value) {
   }
 }
 
+function getTaskId(task) {
+  return task.id || task.task_id || task.uuid || null;
+}
+
 function getTaskMetadata(task) {
   return safeJson(task.metadata);
 }
 
 function getTaskStatus(task) {
   return String(task.status || task.task_status || "open").toLowerCase();
+}
+
+function isTaskCompleted(task) {
+  return ["complete", "completed", "done", "resolved"].includes(getTaskStatus(task));
 }
 
 function getTaskPriority(task) {
@@ -122,13 +130,14 @@ function getTaskDescription(task) {
 function isCountyEscalationTask(task) {
   const metadata = getTaskMetadata(task);
   const source = String(task.source || metadata.source || "").toLowerCase();
-  const type = String(task.type || task.category || metadata.tactical_source || "").toLowerCase();
+  const type = String(task.type || task.category || metadata.tactical_source || metadata.task_kind || "").toLowerCase();
 
   return (
     source.includes("state_operations") ||
     source.includes("state operations") ||
     type.includes("county") ||
     type.includes("heat") ||
+    type.includes("county_escalation") ||
     Boolean(metadata.county && metadata.heat_score)
   );
 }
@@ -253,9 +262,10 @@ function PremiumRow({ title, subtitle, meta = [], tone = "default", right, live 
   );
 }
 
-function CountyEscalationTaskCard({ task }) {
+function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
   const metadata = getTaskMetadata(task);
   const status = getTaskStatus(task);
+  const completed = isTaskCompleted(task);
   const priority = getTaskPriority(task);
   const county = metadata.county || task.county || task.county_name || "County / Parish";
   const state = metadata.state || task.state || task.state_code || "State";
@@ -263,21 +273,22 @@ function CountyEscalationTaskCard({ task }) {
   const heat = metadata.heat_score || task.heat_score || task.pressure || 0;
   const topDriver = metadata.top_driver || metadata.top_drivers?.[0]?.label || "Operational Heat";
   const recommendation = metadata.recommendation || getTaskDescription(task);
+  const taskId = getTaskId(task);
 
   return (
-    <div className={`county-task-card ${toneFromSeverity(risk)}`}>
+    <div className={`county-task-card ${toneFromSeverity(risk)} ${completed ? "is-completed" : ""}`}>
       <div className="county-task-top">
         <div>
-          <span className="county-task-kicker">County Escalation Task</span>
+          <span className="county-task-kicker">
+            {completed ? "Resolved County Escalation" : "County Escalation Task"}
+          </span>
           <strong>{getTaskTitle(task)}</strong>
           <p>{county} • {state}</p>
         </div>
 
         <div className="county-task-badges">
           <Badge tone={toneFromSeverity(risk)}>{risk}</Badge>
-          <Badge tone={status === "completed" || status === "complete" ? "active" : "info"}>
-            {status}
-          </Badge>
+          <Badge tone={completed ? "active" : "info"}>{status}</Badge>
         </div>
       </div>
 
@@ -300,9 +311,19 @@ function CountyEscalationTaskCard({ task }) {
         <Link className="vs-button vs-button-secondary" to={`/state-operations/${String(state).toUpperCase()}`}>
           Open State
         </Link>
-        <Link className="vs-button" to="/command-center">
-          Command Center
-        </Link>
+
+        <button
+          type="button"
+          className={completed ? "vs-button vs-button-secondary" : "vs-button"}
+          disabled={!taskId || changing}
+          onClick={() => onStatusChange(task, completed ? "open" : "completed")}
+        >
+          {changing
+            ? "Updating..."
+            : completed
+              ? "Reopen"
+              : "Complete"}
+        </button>
       </div>
     </div>
   );
@@ -772,6 +793,8 @@ export default function CommandCenter() {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [taskFilter, setTaskFilter] = useState("all");
+  const [changingTaskId, setChangingTaskId] = useState(null);
+  const [taskSyncMessage, setTaskSyncMessage] = useState("");
 
   const demoMode =
     typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
@@ -954,6 +977,33 @@ export default function CommandCenter() {
     }
   }
 
+  async function handleCountyTaskStatus(task, status) {
+    const id = getTaskId(task);
+    if (!id) return;
+
+    try {
+      setChangingTaskId(id);
+      setTaskSyncMessage("");
+
+      if (typeof api.updateCountyCommandTaskStatus === "function") {
+        await api.updateCountyCommandTaskStatus(id, { status });
+      } else {
+        await api.put(`/operations/tasks/county/${id}/status`, { status });
+      }
+
+      setTaskSyncMessage(status === "completed" ? "County task completed." : "County task reopened.");
+      await loadTasks();
+    } catch (error) {
+      setTaskSyncMessage(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Failed to sync county task status."
+      );
+    } finally {
+      setChangingTaskId(null);
+    }
+  }
+
   useEffect(() => {
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1077,6 +1127,12 @@ export default function CommandCenter() {
             linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.68));
           padding: 18px;
           box-shadow: 0 18px 45px rgba(2, 6, 23, 0.18);
+          opacity: 1;
+        }
+
+        .county-task-card.is-completed {
+          opacity: 0.72;
+          border-color: rgba(34, 197, 94, 0.34);
         }
 
         .county-task-card.danger {
@@ -1102,6 +1158,10 @@ export default function CommandCenter() {
           text-transform: uppercase;
           letter-spacing: 0.08em;
           margin-bottom: 6px;
+        }
+
+        .county-task-card.is-completed .county-task-kicker {
+          color: rgba(74, 222, 128, 0.95);
         }
 
         .county-task-top strong {
@@ -1172,6 +1232,16 @@ export default function CommandCenter() {
           margin-top: 14px;
         }
 
+        .task-sync-message {
+          margin-bottom: 14px;
+          border-radius: 16px;
+          border: 1px solid rgba(96, 165, 250, 0.22);
+          background: rgba(37, 99, 235, 0.12);
+          color: rgba(226, 232, 240, 0.9);
+          padding: 12px 14px;
+          font-size: 13px;
+        }
+
         @media (max-width: 1100px) {
           .county-task-grid-wrap {
             grid-template-columns: 1fr;
@@ -1199,8 +1269,8 @@ export default function CommandCenter() {
           <Badge tone={taskCounts.county ? "danger" : "active"}>
             {taskCounts.county} county escalations
           </Badge>
-          <Badge tone={number(consultantSummary.fec_consultants) ? "info" : "default"}>
-            {consultantSummary.fec_consultants || 0} consultants imported
+          <Badge tone={taskCounts.completed ? "active" : "default"}>
+            {taskCounts.completed} completed
           </Badge>
           <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>
             {relationshipCounts.links || 0} network connections
@@ -1263,12 +1333,18 @@ export default function CommandCenter() {
               counts={taskCounts}
             />
 
+            {taskSyncMessage ? (
+              <div className="task-sync-message">{taskSyncMessage}</div>
+            ) : null}
+
             {countyEscalationTasks.length ? (
               <div className="county-task-grid-wrap">
                 {countyEscalationTasks.slice(0, 12).map((task) => (
                   <CountyEscalationTaskCard
-                    key={task.id || task.task_id || getTaskTitle(task)}
+                    key={getTaskId(task) || getTaskTitle(task)}
                     task={task}
+                    onStatusChange={handleCountyTaskStatus}
+                    changing={changingTaskId === getTaskId(task)}
                   />
                 ))}
               </div>
