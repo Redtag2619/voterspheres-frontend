@@ -203,7 +203,6 @@ function AppRoutes() {
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
-              <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
@@ -228,6 +227,7 @@ function AppRoutes() {
             <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
+            <Route path="/workspaces" element={<CampaignWorkspaces />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
           </Route>
         </Route>
