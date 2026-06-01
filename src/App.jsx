@@ -236,14 +236,8 @@ function AppRoutes() {
             <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
             <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
             <Route path="/workspaces" element={<CampaignWorkspaces />} />
-
-            <Route 
-              path="/state-operations/:state" 
-              element={<StateOperationsDrilldown />}
-              />
           </Route>
-         </Route>
-
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
