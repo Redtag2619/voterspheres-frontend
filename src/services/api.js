@@ -972,6 +972,24 @@ export const api = {
  updateCountyCommandTaskStatus: (id, payload) =>
    tryPut([`/operations/tasks/county/${id}/status`], payload),
 
+ campaignWorkspaces: () =>
+   tryGet(["/workspaces"]),
+
+ campaignWorkspace: (id) =>
+   tryGet([`/workspaces/${id}`]),
+
+ createCampaignWorkspace: (payload) =>
+   tryPost(["/workspaces"], payload),
+
+ updateCampaignWorkspace: (id, payload) =>
+   tryPut([`/workspaces/${id}`], payload),
+
+ addCampaignWorkspaceMember: (id, payload) =>
+   tryPost([`/workspaces/${id}/members`], payload),
+
+ addCampaignWorkspaceTarget: (id, payload) =>
+   tryPost([`/workspaces/${id}/targets`], payload),
+
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
