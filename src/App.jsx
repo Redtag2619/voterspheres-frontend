@@ -203,6 +203,7 @@ function AppRoutes() {
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
+              <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
