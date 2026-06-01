@@ -990,6 +990,21 @@ export const api = {
  addCampaignWorkspaceTarget: (id, payload) =>
    tryPost([`/workspaces/${id}/targets`], payload),
 
+ workspaceIntelligence: (id) =>
+   tryGet([`/workspaces/${id}/intelligence`]),
+
+ workspaces: () =>
+   workspacesApi.list(),
+
+ getWorkspace: (id) =>
+   workspacesApi.get(id),
+
+ createWorkspace: (payload) =>
+   workspacesApi.create(payload),
+
+ updateWorkspace: (id, payload) =>
+   workspacesApi.update(id, payload),
+
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
