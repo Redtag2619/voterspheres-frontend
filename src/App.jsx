@@ -228,7 +228,6 @@ function AppRoutes() {
             <Route path="/warroom" element={<Navigate to="/war-room" replace />} />
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
-            <Route path="/workspaces" element={<CampaignWorkspaces />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
           </Route>
         </Route>
