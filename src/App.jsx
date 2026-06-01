@@ -201,8 +201,8 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_COMMAND_CENTER]} />}>
               <Route path="/command-center" element={<CommandCenter />} />
-              <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
-              <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
+              <Route path="/campaign-workspace" element={<CampaignWorkspaces />} />
+              <Route path="/campaign-workspace/:id" element={<CampaignWorkspaces />} />
               <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
