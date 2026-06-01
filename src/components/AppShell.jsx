@@ -12,6 +12,7 @@ const primaryItems = [
   { label: "Fundraising", to: "/fundraising" },
   { label: "Vendors", to: "/vendors" },
   { label: "Consultant Intel", to: "/consultant-intel" }, 
+  { label: "Workspace", to: "/campaign-workspace" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
