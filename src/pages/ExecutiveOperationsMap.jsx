@@ -1100,41 +1100,7 @@ export default function ExecutiveOperationsMap() {
                     />
                   ))}
 
-                  {states.map((item) => {
-                    const coords = STATE_MARKERS[item.state];
-                    if (!coords) return null;
-
-                    const radius = getMarkerRadius(item, layer);
-
-                    return (
-                      <Marker
-                        key={item.state}
-                        coordinates={coords}
-                        className="ops-marker"
-                        onClick={() => setSelectedState(item)}
-                      >
-                        <circle className="ops-marker-ring" r={radius + 7} />
-                        <circle
-                          className="ops-marker-core"
-                          r={radius}
-                          stroke={getStateFill(item, layer)}
-                        />
-                        <text
-                          textAnchor="middle"
-                          y={radius + 16}
-                          style={{
-                            fill: "rgba(255,255,255,0.94)",
-                            fontSize: 10,
-                            fontWeight: 900,
-                            pointerEvents: "none",
-                          }}
-                        >
-                          {item.state}
-                        </text>
-                      </Marker>
-                    );
-                  })}
-                </ComposableMap>
+             </ComposableMap>
               </div>
 
               <div className="ops-map-legend">
