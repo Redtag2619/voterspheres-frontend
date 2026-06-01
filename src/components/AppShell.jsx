@@ -13,6 +13,7 @@ const primaryItems = [
   { label: "Vendors", to: "/vendors" },
   { label: "Consultant Intel", to: "/consultant-intel" }, 
   { label: "Workspace", to: "/campaign-workspace" },
+  { label: "Executive Intel", to: "/executive-intelligence" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
