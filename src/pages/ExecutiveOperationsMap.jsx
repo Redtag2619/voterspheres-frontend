@@ -52,18 +52,22 @@ const STATE_MARKERS = {
 };
 
 const LAYERS = [
-  { id: "operational", label: "Operational", metric: "operational_score" },
-  { id: "mailops", label: "MailOps", metric: "mail_risk_jobs" },
-  { id: "vendors", label: "Vendors", metric: "avg_vendor_score" },
-  { id: "fundraising", label: "Fundraising", metric: "fundraising_pressure" },
-  { id: "polling", label: "Polling", metric: "polling_pressure" },
-  { id: "turnout", label: "Turnout", metric: "turnout_pressure" },
-  { id: "alerts", label: "Alerts", metric: "high_signals" },
-  { id: "ai", label: "AI Risk", metric: "ai_risk_score" },
+  { id: "operational", label: "Operational" },
+  { id: "countyHeat", label: "County Heat" },
+  { id: "active", label: "Active Tasks" },
+  { id: "resolved", label: "Resolved" },
+  { id: "vendors", label: "Vendors" },
+  { id: "mailops", label: "MailOps" },
+  { id: "turnout", label: "Turnout" },
+  { id: "alerts", label: "Alerts" },
 ];
 
 function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
+}
+
+function fmtDecimal(value, digits = 2) {
+  return Number(value || 0).toFixed(digits);
 }
 
 function riskTone(label) {
@@ -81,16 +85,49 @@ function riskClass(label) {
   return "risk-stable";
 }
 
+function normalizeRisk(value) {
+  return value || "Stable";
+}
+
+function normalizeState(row = {}) {
+  const state = row.state || row.state_code;
+
+  return {
+    ...row,
+    state,
+    state_code: state,
+    state_name: row.state_name || state,
+    operational_score: Number(row.heat_score || row.pressure || row.operational_score || 0),
+    risk_label: normalizeRisk(row.risk || row.risk_label),
+    mail_risk_jobs: Number(row.total_alerts || row.mail_risk_jobs || 0),
+    mail_jobs: Number(row.total_mail_jobs || row.mail_jobs || 0),
+    avg_vendor_score: Number(100 - Number(row.vendor_gap_count || 0)),
+    vendors_scored: Number(row.vendor_gap_count || row.vendors_scored || 0),
+    high_signals: Number(row.active_task_count || row.total_alerts || row.high_signals || 0),
+    active_task_count: Number(row.active_task_count || 0),
+    resolved_task_count: Number(row.resolved_task_count || 0),
+    max_county_heat_score: Number(row.max_county_heat_score || row.heat_score || 0),
+    average_heat_score: Number(row.average_heat_score || row.heat_score || 0),
+    data_coverage_label: row.data_coverage_label || "Sparse Live",
+    data_coverage_score: Number(row.data_coverage_score || 0),
+    pressure_breakdown: {
+      mail_pressure: Number(row.total_mail_jobs || 0),
+      vendor_pressure: Number(row.vendor_gap_count || 0),
+      signal_pressure: Number(row.active_task_count || row.total_alerts || 0),
+    },
+  };
+}
+
 function normalizedRiskScore(state, layer) {
   if (!state) return 0;
 
-  if (layer === "mailops") return Number(state.mail_risk_jobs || 0) * 18;
+  if (layer === "active") return Number(state.active_task_count || 0) > 0 ? 90 : 0;
+  if (layer === "resolved") return Number(state.resolved_task_count || 0) > 0 ? 68 : 0;
+  if (layer === "mailops") return Number(state.mail_jobs || 0) * 8;
   if (layer === "vendors") return Math.max(0, 100 - Number(state.avg_vendor_score || 0));
   if (layer === "alerts") return Number(state.high_signals || 0) * 22;
-  if (layer === "fundraising") return Number(state.fundraising_pressure || state.fundraising_delta || state.operational_score || 0);
-  if (layer === "polling") return Number(state.polling_pressure || state.momentum_risk || state.operational_score || 0);
-  if (layer === "turnout") return Number(state.turnout_pressure || state.turnout_risk || state.operational_score || 0);
-  if (layer === "ai") return Number(state.ai_risk_score || state.operational_score || 0);
+  if (layer === "turnout") return Number(state.turnout_pressure || state.operational_score || 0);
+  if (layer === "countyHeat") return Number(state.max_county_heat_score || state.operational_score || 0);
 
   return Number(state.operational_score || 0);
 }
@@ -101,6 +138,9 @@ function getStateFill(state, layer) {
   const score = normalizedRiskScore(state, layer);
   const label = String(state.risk_label || "").toLowerCase();
 
+  if (state.active_task_count > 0 && layer === "active") return "rgba(220, 38, 38, 0.96)";
+  if (state.resolved_task_count > 0 && layer === "resolved") return "rgba(34, 197, 94, 0.84)";
+
   if (label === "critical" || score >= 82) return "rgba(220, 38, 38, 0.92)";
   if (label === "high" || score >= 65) return "rgba(234, 88, 12, 0.9)";
   if (label === "elevated" || score >= 42) return "rgba(202, 138, 4, 0.86)";
@@ -109,19 +149,19 @@ function getStateFill(state, layer) {
 
 function getMarkerRadius(state, layer) {
   const score = normalizedRiskScore(state, layer);
-  return Math.max(4, Math.min(14, 4 + score / 11));
+  return Math.max(4, Math.min(15, 4 + score / 10));
 }
 
 function getLayerValue(state, layer) {
   if (!state) return 0;
-  if (layer === "mailops") return state.mail_risk_jobs || 0;
+  if (layer === "active") return state.active_task_count || 0;
+  if (layer === "resolved") return state.resolved_task_count || 0;
+  if (layer === "mailops") return state.mail_jobs || 0;
   if (layer === "vendors") return Math.round(Number(state.avg_vendor_score || 0));
   if (layer === "alerts") return state.high_signals || 0;
-  if (layer === "fundraising") return state.fundraising_pressure || state.fundraising_delta || state.operational_score || 0;
-  if (layer === "polling") return state.polling_pressure || state.momentum_risk || state.operational_score || 0;
-  if (layer === "turnout") return state.turnout_pressure || state.turnout_risk || state.operational_score || 0;
-  if (layer === "ai") return state.ai_risk_score || state.operational_score || 0;
-  return state.operational_score || 0;
+  if (layer === "turnout") return fmtDecimal(state.turnout_pressure || state.operational_score || 0);
+  if (layer === "countyHeat") return fmtDecimal(state.max_county_heat_score || state.operational_score || 0);
+  return fmtDecimal(state.operational_score || 0);
 }
 
 function getRecommendation(state) {
@@ -129,12 +169,16 @@ function getRecommendation(state) {
 
   const label = String(state.risk_label || "").toLowerCase();
 
+  if (state.active_task_count > 0) {
+    return `${state.state} has active county escalation tasking. Open State Operations to inspect county pressure and Command Center task status.`;
+  }
+
   if (label === "critical") {
     return `Immediate escalation recommended in ${state.state}. Deploy executive resources, inspect vendor readiness, and open Command Center tasking.`;
   }
 
   if (label === "high") {
-    return `${state.state} is showing high operational pressure. Review MailOps risk jobs, vendor capacity, and active executive signals.`;
+    return `${state.state} is showing high operational pressure. Review county heat, MailOps risk, vendor gaps, and active executive signals.`;
   }
 
   if (label === "elevated") {
@@ -163,14 +207,12 @@ function StateRiskRow({ item, onSelect }) {
     <div className={`ops-row ${riskClass(item.risk_label)}`}>
       <ResponsiveRow
         title={`${item.state} Operational Pressure`}
-        subtitle={`MailOps ${item.mail_risk_jobs || 0}/${item.mail_jobs || 0} risk jobs • Vendor score ${Math.round(
-          Number(item.avg_vendor_score || 0)
-        )}`}
+        subtitle={`County heat ${fmtDecimal(item.max_county_heat_score)} • Active tasks ${item.active_task_count || 0} • Coverage ${item.data_coverage_label}`}
         meta={[
           { label: "Risk", value: item.risk_label },
-          { label: "Score", value: item.operational_score },
-          { label: "Signals", value: item.high_signals || 0 },
-          { label: "Vendors", value: item.vendors_scored || 0 },
+          { label: "Score", value: fmtDecimal(item.operational_score) },
+          { label: "Max County", value: fmtDecimal(item.max_county_heat_score) },
+          { label: "Resolved", value: item.resolved_task_count || 0 },
         ]}
         right={
           <button type="button" className="vs-decision-btn deploy" onClick={() => onSelect(item)}>
@@ -187,10 +229,12 @@ function AlertRow({ item }) {
     <div className="ops-alert-row">
       <ResponsiveRow
         title={item.title || "Executive signal"}
-        subtitle={`${item.source || "Executive Feed"} • ${item.office || "National"}`}
+        subtitle={`${item.source || "Executive Feed"} • ${item.layer || "National"}`}
         meta={[
           { label: "State", value: item.state || "National" },
+          { label: "County", value: item.county || "—" },
           { label: "Severity", value: item.severity || item.risk || "Medium" },
+          { label: "Heat", value: fmtDecimal(item.heat_score || 0) },
         ]}
         right={<Badge tone={riskTone(item.severity || item.risk)}>{item.severity || item.risk || "Signal"}</Badge>}
       />
@@ -225,22 +269,12 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
       {selected ? (
         <>
           <div className="ops-panel-grid">
-            <div>
-              <span>Operational</span>
-              <strong>{selected.operational_score || 0}</strong>
-            </div>
-            <div>
-              <span>Mail Risk</span>
-              <strong>{selected.mail_risk_jobs || 0}</strong>
-            </div>
-            <div>
-              <span>Vendor Score</span>
-              <strong>{Math.round(Number(selected.avg_vendor_score || 0))}</strong>
-            </div>
-            <div>
-              <span>Signals</span>
-              <strong>{selected.high_signals || 0}</strong>
-            </div>
+            <div><span>State Heat</span><strong>{fmtDecimal(selected.operational_score)}</strong></div>
+            <div><span>Max County</span><strong>{fmtDecimal(selected.max_county_heat_score)}</strong></div>
+            <div><span>Active Tasks</span><strong>{selected.active_task_count || 0}</strong></div>
+            <div><span>Resolved</span><strong>{selected.resolved_task_count || 0}</strong></div>
+            <div><span>Vendor Gap</span><strong>{selected.vendors_scored || 0}</strong></div>
+            <div><span>MailOps</span><strong>{selected.mail_jobs || 0}</strong></div>
           </div>
 
           <div className="ops-ai-card">
@@ -300,16 +334,31 @@ export default function ExecutiveOperationsMap() {
 
       setError("");
 
-      const result = await api.operationsMap?.();
-      setData(result || null);
-
-      if (!selectedState && result?.states?.length) {
-        setSelectedState(result.states[0]);
+      if (typeof api.operationsMap !== "function") {
+        throw new Error("Missing api.operationsMap. Add operationsMap: () => tryGet([\"/operations/map\"]) to src/services/api.js.");
       }
+
+      const result = await api.operationsMap();
+
+      const normalizedStates = (result?.states || []).map(normalizeState);
+
+      const normalizedData = {
+        ...(result || {}),
+        states: normalizedStates,
+        alerts: result?.tacticalFeed || result?.alerts || [],
+      };
+
+      setData(normalizedData);
+
+      setSelectedState((current) => {
+        if (!normalizedStates.length) return null;
+        if (!current) return normalizedStates[0];
+        return normalizedStates.find((item) => item.state === current.state) || normalizedStates[0];
+      });
 
       setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
-      setError(err?.message || "Failed to load Executive Operations Map");
+      setError(err?.response?.data?.error || err?.message || "Failed to load Executive Operations Map");
       if (!quiet) setData(null);
     } finally {
       setLoading(false);
@@ -345,14 +394,23 @@ export default function ExecutiveOperationsMap() {
     return states.find((item) => item.state === selectedState.state) || selectedState;
   }, [selectedState, states]);
 
+  const rankedStates = useMemo(() => {
+    return [...states].sort((a, b) => Number(b.operational_score || 0) - Number(a.operational_score || 0));
+  }, [states]);
+
   const urgentStates = states.filter((s) => ["Critical", "High"].includes(s.risk_label));
   const criticalStates = states.filter((s) => String(s.risk_label).toLowerCase() === "critical");
-  const vendorShortages = states.filter((s) => Number(s.avg_vendor_score || 0) < 55).length;
+  const activeEscalationStates = states.filter((s) => Number(s.active_task_count || 0) > 0);
+  const vendorShortages = states.filter((s) => Number(s.vendors_scored || 0) > 0).length;
   const mailFailures = states.reduce((sum, s) => sum + Number(s.mail_risk_jobs || 0), 0);
+
   const nationalPressure = Math.round(
-    states.length
-      ? states.reduce((sum, item) => sum + Number(item.operational_score || 0), 0) / states.length
-      : 0
+    Number(
+      summary.national_heat_score ||
+        (states.length
+          ? states.reduce((sum, item) => sum + Number(item.operational_score || 0), 0) / states.length
+          : 0)
+    )
   );
 
   const routeLines = useMemo(() => {
@@ -371,11 +429,11 @@ export default function ExecutiveOperationsMap() {
     <PageShell
       eyebrow="Executive Command"
       title="Executive Operations Map"
-      description="Live national command layer for MailOps pressure, vendor gaps, executive alerts, AI risk, and battleground execution readiness."
+      description="Live national command layer wired to /api/operations/map for county heat, active escalations, resolved task relief, vendor gaps, and tactical signals."
       tickerItems={[
         { label: "National Pressure", value: `${nationalPressure || 0}%`, dotClass: nationalPressure >= 65 ? "vs-live-dot" : "vs-live-dot-success" },
         { label: "Critical", value: `${criticalStates.length}`, dotClass: criticalStates.length ? "vs-live-dot" : "vs-live-dot-success" },
-        { label: "Vendor Gaps", value: `${vendorShortages}`, dotClass: vendorShortages ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Active Tasks", value: `${activeEscalationStates.length}`, dotClass: activeEscalationStates.length ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "Updated", value: lastUpdated || "Live", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
@@ -409,17 +467,9 @@ export default function ExecutiveOperationsMap() {
           animation: opsThreatGlow 3.8s ease-in-out infinite;
         }
 
-        .ops-threat-metric.danger {
-          border-color: rgba(248, 113, 113, 0.32);
-        }
-
-        .ops-threat-metric.warning {
-          border-color: rgba(251, 191, 36, 0.3);
-        }
-
-        .ops-threat-metric.success {
-          border-color: rgba(74, 222, 128, 0.24);
-        }
+        .ops-threat-metric.danger { border-color: rgba(248, 113, 113, 0.32); }
+        .ops-threat-metric.warning { border-color: rgba(251, 191, 36, 0.3); }
+        .ops-threat-metric.success { border-color: rgba(74, 222, 128, 0.24); }
 
         .ops-threat-metric span,
         .ops-threat-metric small,
@@ -595,9 +645,7 @@ export default function ExecutiveOperationsMap() {
           to { stroke-dashoffset: -32; }
         }
 
-        .ops-marker {
-          cursor: pointer;
-        }
+        .ops-marker { cursor: pointer; }
 
         .ops-marker-core {
           fill: rgba(255, 255, 255, 0.95);
@@ -960,29 +1008,29 @@ export default function ExecutiveOperationsMap() {
           subtext="Critical or high risk"
         />
         <ThreatMetric
-          label="Vendor Shortages"
-          value={vendorShortages}
-          tone={vendorShortages ? "warning" : "success"}
-          subtext="Low readiness markets"
+          label="Active Tasks"
+          value={activeEscalationStates.length}
+          tone={activeEscalationStates.length ? "danger" : "success"}
+          subtext="Open county escalations"
         />
         <ThreatMetric
-          label="MailOps Failures"
+          label="MailOps Signals"
           value={mailFailures}
-          tone={mailFailures ? "danger" : "success"}
-          subtext="Risk jobs detected"
+          tone={mailFailures ? "warning" : "success"}
+          subtext="Tracked operational jobs"
         />
       </div>
 
       <div className="vs-grid-4">
         <StatCard label="States Tracked" value={summary.states_tracked || states.length || 0} delta="Operational states" tone="up" />
         <StatCard label="Critical States" value={summary.critical_states || criticalStates.length || 0} delta="Immediate pressure" tone={criticalStates.length ? "down" : "up"} />
-        <StatCard label="MailOps Jobs" value={summary.total_mail_jobs || 0} delta="Tracked mail volume" tone="neutral" />
-        <StatCard label="Executive Signals" value={summary.total_signals || alerts.length || 0} delta="Live signal layer" tone="up" />
+        <StatCard label="Counties Tracked" value={fmtNumber(summary.counties_tracked || 0)} delta="County/parish heat layer" tone="up" />
+        <StatCard label="Executive Signals" value={summary.total_signals || alerts.length || 0} delta="Live tactical feed" tone="up" />
       </div>
 
       <SectionCard
         title="Live Tactical Operations Layer"
-        subtitle="Animated national command surface with operational heat, executive signals, tactical routes, and AI risk overlays."
+        subtitle="Animated national command surface with county heat, active escalations, resolved task relief, and tactical signal overlays."
         right={
           <div className="ops-layer-controls">
             {LAYERS.map((item) => (
@@ -1111,28 +1159,28 @@ export default function ExecutiveOperationsMap() {
       <div className="vs-grid-2">
         <SectionCard
           title={selected ? `${selected.state} Command Detail` : "Command Detail"}
-          subtitle="Breakdown of operational pressure by signal category."
+          subtitle="Breakdown of operational pressure by live State Operations signals."
           right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
         >
           {!selected ? (
             <EmptyState text="Select a state on the map." />
           ) : (
             <div className="ops-detail-card">
-              <div className="ops-detail-score">{selected.operational_score}</div>
+              <div className="ops-detail-score">{fmtDecimal(selected.operational_score)}</div>
               <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge>
 
               <div className="ops-breakdown">
                 <div className="ops-breakdown-item">
-                  <span>Mail Pressure</span>
-                  <strong>{selected.pressure_breakdown?.mail_pressure || 0}</strong>
+                  <span>Average Heat</span>
+                  <strong>{fmtDecimal(selected.average_heat_score || 0)}</strong>
                 </div>
                 <div className="ops-breakdown-item">
-                  <span>Vendor Pressure</span>
-                  <strong>{selected.pressure_breakdown?.vendor_pressure || 0}</strong>
+                  <span>Max County Heat</span>
+                  <strong>{fmtDecimal(selected.max_county_heat_score || 0)}</strong>
                 </div>
                 <div className="ops-breakdown-item">
-                  <span>Signal Pressure</span>
-                  <strong>{selected.pressure_breakdown?.signal_pressure || 0}</strong>
+                  <span>Coverage</span>
+                  <strong>{selected.data_coverage_label || "Sparse Live"}</strong>
                 </div>
               </div>
 
@@ -1142,12 +1190,12 @@ export default function ExecutiveOperationsMap() {
                   <strong>{selected.mail_jobs || 0}</strong>
                 </div>
                 <div className="ops-breakdown-item">
-                  <span>Risk Jobs</span>
-                  <strong>{selected.mail_risk_jobs || 0}</strong>
+                  <span>Active Tasks</span>
+                  <strong>{selected.active_task_count || 0}</strong>
                 </div>
                 <div className="ops-breakdown-item">
-                  <span>Vendor Score</span>
-                  <strong>{Math.round(Number(selected.avg_vendor_score || 0))}</strong>
+                  <span>Resolved Tasks</span>
+                  <strong>{selected.resolved_task_count || 0}</strong>
                 </div>
               </div>
             </div>
@@ -1160,10 +1208,10 @@ export default function ExecutiveOperationsMap() {
           right={<Badge tone="danger">{urgentStates.length} urgent</Badge>}
         >
           <div className="vs-stack">
-            {!states.length ? (
+            {!rankedStates.length ? (
               <EmptyState text="No state pressure detected yet." />
             ) : (
-              states.slice(0, 8).map((item) => (
+              rankedStates.slice(0, 8).map((item) => (
                 <StateRiskRow key={item.state} item={item} onSelect={setSelectedState} />
               ))
             )}
@@ -1173,7 +1221,7 @@ export default function ExecutiveOperationsMap() {
 
       <SectionCard
         title="Executive Signal Layer"
-        subtitle="Most recent executive alerts contributing to the operations map."
+        subtitle="Most recent tactical alerts contributing to the operations map."
         right={<Badge tone="accent">{alerts.length || 0} signals</Badge>}
       >
         <div className="vs-stack">
