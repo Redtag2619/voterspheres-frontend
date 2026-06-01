@@ -15,6 +15,7 @@ import PlanProtectedRoute from "./components/PlanProtectedRoute.jsx";
 import RelationshipGraph from "./pages/RelationshipGraph";
 import CommitteeIntel from "./pages/CommitteeIntel.jsx";
 import StateOperationsMap from "./pages/StateOperationsMap";
+import CampaignWorkspaces from "./pages/CampaignWorkspaces";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -234,6 +235,7 @@ function AppRoutes() {
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
             <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
             <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
+            <Route path="/workspaces" element={<CampaignWorkspaces />} />
 
             <Route 
               path="/state-operations/:state" 
