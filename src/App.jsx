@@ -10,12 +10,9 @@ import { useAuth } from "./context/AuthContext.jsx";
 import { PERMISSIONS } from "./lib/permissions.js";
 import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 import AdminAlerts from "./pages/AdminAlerts";
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import PlanProtectedRoute from "./components/PlanProtectedRoute.jsx";
 import RelationshipGraph from "./pages/RelationshipGraph";
 import CommitteeIntel from "./pages/CommitteeIntel.jsx";
 import StateOperationsMap from "./pages/StateOperationsMap";
-import CampaignWorkspaces from "./pages/CampaignWorkspaces";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -39,12 +36,13 @@ const AIChat = lazy(() => import("./pages/AIChat.jsx"));
 const AIWarRoom = lazy(() => import("./pages/AIWarRoom.jsx"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter.jsx"));
 const CampaignWorkspace = lazy(() => import("./pages/CampaignWorkspace.jsx"));
+const CampaignWorkspaces = lazy(() => import("./pages/CampaignWorkspaces.jsx"));
 const Billing = lazy(() => import("./pages/Billing.jsx"));
 const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const MailOpsDashboard = lazy(() => import("./pages/MailOpsDashboard.jsx"));
-const EnterpriseLeadIntake = lazy(() =>import("./pages/EnterpriseLeadIntake.jsx"));
+const EnterpriseLeadIntake = lazy(() => import("./pages/EnterpriseLeadIntake.jsx"));
 const CampaignOpportunityHeatmap = lazy(() => import("./pages/CampaignOpportunityHeatmap.jsx"));
 const ConsultantIntel = lazy(() => import("./pages/ConsultantIntel"));
 const ConsultantProfile = lazy(() => import("./pages/ConsultantProfile"));
@@ -124,7 +122,7 @@ function AppRoutes() {
         <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        
+
         <Route element={<PublicOnly />}>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -190,9 +188,6 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_CONSULTANTS]} />}>
               <Route path="/consultants" element={<ConsultantMarketplace />} />
-            </Route>
-
-            <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_CONSULTANTS]} />}>
               <Route path="/campaign-opportunity-heatmap" element={<CampaignOpportunityHeatmap />} />
             </Route>
 
@@ -208,6 +203,7 @@ function AppRoutes() {
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspace />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspace />} />
+              <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
@@ -233,11 +229,9 @@ function AppRoutes() {
             <Route path="/fundraising-dashboard" element={<Navigate to="/fundraising" replace />} />
             <Route path="/rankings" element={<Navigate to="/power-rankings" replace />} />
             <Route path="/mail-ops" element={<Navigate to="/mailops" replace />} />
-            <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
-            <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
-            <Route path="/workspaces" element={<CampaignWorkspaces />} />
           </Route>
-        
+        </Route>
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
