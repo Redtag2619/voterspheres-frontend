@@ -3,8 +3,6 @@ import {
   ComposableMap,
   Geographies,
   Geography,
-  Marker,
-  Line,
 } from "react-simple-maps";
 import { api } from "../services/api";
 
@@ -29,26 +27,6 @@ const STATE_FIPS_TO_ABBR = {
   "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
   "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
   "56": "WY",
-};
-
-const STATE_MARKERS = {
-  AL: [-86.8, 32.8], AK: [-152.4, 64.2], AZ: [-111.7, 34.2],
-  AR: [-92.4, 34.9], CA: [-119.6, 37.2], CO: [-105.5, 39],
-  CT: [-72.7, 41.6], DE: [-75.5, 39], DC: [-77, 38.9],
-  FL: [-81.7, 27.8], GA: [-83.4, 32.7], HI: [-157.8, 20.9],
-  IA: [-93.5, 42.1], ID: [-114.6, 44.2], IL: [-89.4, 40],
-  IN: [-86.1, 40], KS: [-98.3, 38.5], KY: [-85.3, 37.8],
-  LA: [-91.9, 31], MA: [-71.8, 42.2], MD: [-76.7, 39],
-  ME: [-69.2, 45.2], MI: [-85.5, 44.3], MN: [-94.6, 46.3],
-  MO: [-92.5, 38.5], MS: [-89.7, 32.7], MT: [-110.4, 46.9],
-  NC: [-79, 35.5], ND: [-100.5, 47.5], NE: [-99.7, 41.5],
-  NH: [-71.6, 43.8], NJ: [-74.5, 40.1], NM: [-106, 34.4],
-  NV: [-116.6, 39.3], NY: [-75.5, 42.9], OH: [-82.8, 40.2],
-  OK: [-97.5, 35.5], OR: [-120.5, 44], PA: [-77.8, 41],
-  RI: [-71.5, 41.7], SC: [-80.9, 33.8], SD: [-100, 44.4],
-  TN: [-86.4, 35.8], TX: [-99.3, 31.4], UT: [-111.7, 39.3],
-  VA: [-78.7, 37.5], VT: [-72.7, 44], WA: [-120.5, 47.4],
-  WI: [-89.8, 44.6], WV: [-80.6, 38.6], WY: [-107.5, 43],
 };
 
 const LAYERS = [
@@ -147,11 +125,6 @@ function getStateFill(state, layer) {
   return "rgba(22, 163, 74, 0.72)";
 }
 
-function getMarkerRadius(state, layer) {
-  const score = normalizedRiskScore(state, layer);
-  return Math.max(4, Math.min(15, 4 + score / 10));
-}
-
 function getLayerValue(state, layer) {
   if (!state) return 0;
   if (layer === "active") return state.active_task_count || 0;
@@ -242,6 +215,149 @@ function AlertRow({ item }) {
   );
 }
 
+function CountyIntelRow({ item, onCreateTask }) {
+  const heat = item.heat_score || item.pressure || 0;
+  const isActive = item.task_active || item.command_status === "Task Active";
+  const isResolved = item.task_resolved || item.command_status === "Resolved";
+
+  return (
+    <div className={`county-intel-row ${riskClass(item.risk)} ${isActive ? "task-active" : ""} ${isResolved ? "task-resolved" : ""}`}>
+      <div className="county-intel-top">
+        <div>
+          <strong>{item.name}</strong>
+          <span>{item.type || "County"} • {item.dma || "Regional DMA"}</span>
+        </div>
+        <div className="county-intel-badges">
+          <Badge tone={riskTone(item.risk)}>{item.risk || "Stable"}</Badge>
+          <Badge tone={isActive ? "danger" : isResolved ? "active" : "accent"}>
+            {item.command_status || (isActive ? "Task Active" : isResolved ? "Resolved" : "No Task")}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="county-intel-meter">
+        <i style={{ width: `${Math.min(100, Number(heat || 0))}%` }} />
+      </div>
+
+      <div className="county-intel-grid">
+        <div><span>Heat</span><b>{fmtDecimal(heat)}</b></div>
+        <div><span>Vendor Gap</span><b>{fmtDecimal(item.vendor_gap_score || 0)}</b></div>
+        <div><span>MailOps</span><b>{fmtDecimal(item.mailops_score || 0)}</b></div>
+        <div><span>Turnout</span><b>{fmtDecimal(item.turnout_pressure || 0)}</b></div>
+      </div>
+
+      <div className="county-driver-row">
+        {(item.top_drivers || []).slice(0, 3).map((driver) => (
+          <span key={driver.label}>
+            {driver.label}: <b>{fmtDecimal(driver.value)}</b>
+          </span>
+        ))}
+        {!item.top_drivers?.length ? <span>No driver breakdown</span> : null}
+      </div>
+
+      <div className="county-intel-actions">
+        <button type="button" onClick={() => openPath(`/state-operations/${item.state_code || item.state}`)}>
+          Open Drilldown
+        </button>
+        <button type="button" onClick={() => onCreateTask(item)} disabled={isActive}>
+          {isActive ? "Task Active" : "Create Task"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CountyIntelligenceDrawer({
+  selected,
+  counties,
+  activeCounties,
+  resolvedCounties,
+  onCreateTask,
+  creatingCountyKey,
+  taskMessage,
+}) {
+  const [tab, setTab] = useState("top");
+
+  const topCounties = useMemo(() => {
+    return counties
+      .filter((item) => item.state_code === selected?.state || item.state === selected?.state)
+      .sort((a, b) => Number(b.heat_score || b.pressure || 0) - Number(a.heat_score || a.pressure || 0))
+      .slice(0, 8);
+  }, [counties, selected]);
+
+  const active = useMemo(() => {
+    return activeCounties
+      .filter((item) => item.state_code === selected?.state || item.state === selected?.state)
+      .slice(0, 8);
+  }, [activeCounties, selected]);
+
+  const resolved = useMemo(() => {
+    return resolvedCounties
+      .filter((item) => item.state_code === selected?.state || item.state === selected?.state)
+      .slice(0, 8);
+  }, [resolvedCounties, selected]);
+
+  const visible = tab === "active" ? active : tab === "resolved" ? resolved : topCounties;
+
+  return (
+    <SectionCard
+      title="County Intelligence Drawer"
+      subtitle={selected ? `${selected.state} county heat, escalations, resolved pressure, and driver intelligence.` : "Select a state to inspect county intelligence."}
+      right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
+    >
+      {!selected ? (
+        <EmptyState text="Select a state from the executive map." />
+      ) : (
+        <div className="county-drawer">
+          <div className="county-drawer-summary">
+            <div><span>Top County Heat</span><strong>{fmtDecimal(selected.max_county_heat_score || 0)}</strong></div>
+            <div><span>Active</span><strong>{selected.active_task_count || 0}</strong></div>
+            <div><span>Resolved</span><strong>{selected.resolved_task_count || 0}</strong></div>
+            <div><span>Coverage</span><strong>{selected.data_coverage_label || "Sparse Live"}</strong></div>
+          </div>
+
+          <div className="county-drawer-tabs">
+            {[
+              ["top", "Top Heat"],
+              ["active", "Active"],
+              ["resolved", "Resolved"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={tab === id ? "is-active" : ""}
+                onClick={() => setTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {taskMessage ? <div className="county-task-message">{taskMessage}</div> : null}
+
+          <div className="county-drawer-list">
+            {!visible.length ? (
+              <EmptyState text="No counties found for this drawer tab." />
+            ) : (
+              visible.map((item) => {
+                const key = item.full_fips || item.id || `${item.state_code}-${item.name}`;
+                return (
+                  <CountyIntelRow
+                    key={key}
+                    item={item}
+                    creating={creatingCountyKey === key}
+                    onCreateTask={onCreateTask}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefresh }) {
   const stateAlerts = alerts.filter((item) => !selected?.state || item.state === selected.state).slice(0, 4);
 
@@ -323,6 +439,8 @@ export default function ExecutiveOperationsMap() {
   const [layer, setLayer] = useState("operational");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [creatingCountyKey, setCreatingCountyKey] = useState("");
+  const [taskMessage, setTaskMessage] = useState("");
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const intervalRef = useRef(null);
@@ -339,13 +457,15 @@ export default function ExecutiveOperationsMap() {
       }
 
       const result = await api.operationsMap();
-
       const normalizedStates = (result?.states || []).map(normalizeState);
 
       const normalizedData = {
         ...(result || {}),
         states: normalizedStates,
         alerts: result?.tacticalFeed || result?.alerts || [],
+        counties: result?.counties || [],
+        activeEscalations: result?.activeEscalations || [],
+        resolvedEscalations: result?.resolvedEscalations || [],
       };
 
       setData(normalizedData);
@@ -366,6 +486,44 @@ export default function ExecutiveOperationsMap() {
     }
   }
 
+  async function handleCreateCountyTask(county) {
+    try {
+      const key = county.full_fips || county.id || `${county.state_code}-${county.name}`;
+      setCreatingCountyKey(key);
+      setTaskMessage("");
+
+      if (typeof api.createCountyCommandTask !== "function") {
+        throw new Error("Missing api.createCountyCommandTask.");
+      }
+
+      const topDriver = county.top_drivers?.[0]?.label || "Operational Heat";
+
+      await api.createCountyCommandTask({
+        state: county.state_code || county.state,
+        state_code: county.state_code || county.state,
+        county: county.name,
+        county_name: county.name,
+        county_fips: county.county_fips,
+        full_fips: county.full_fips,
+        risk: county.risk,
+        heat_score: county.heat_score || county.pressure || 0,
+        pressure: county.pressure || county.heat_score || 0,
+        top_driver: topDriver,
+        top_drivers: county.top_drivers || [],
+        scoring_breakdown: county.scoring_breakdown || {},
+        live_signal_counts: county.live_signal_counts || {},
+        recommendation: `Executive Map escalation for ${county.name}, ${county.state_code || county.state}. Top driver: ${topDriver}.`,
+      });
+
+      setTaskMessage(`Command task created for ${county.name}.`);
+      await load({ quiet: true });
+    } catch (err) {
+      setTaskMessage(err?.response?.data?.error || err?.message || "Failed to create county command task.");
+    } finally {
+      setCreatingCountyKey("");
+    }
+  }
+
   useEffect(() => {
     load();
 
@@ -380,6 +538,9 @@ export default function ExecutiveOperationsMap() {
 
   const summary = data?.summary || {};
   const states = useMemo(() => data?.states || [], [data]);
+  const counties = data?.counties || [];
+  const activeEscalations = data?.activeEscalations || [];
+  const resolvedEscalations = data?.resolvedEscalations || [];
   const alerts = data?.alerts || [];
 
   const stateLookup = useMemo(() => {
@@ -401,7 +562,6 @@ export default function ExecutiveOperationsMap() {
   const urgentStates = states.filter((s) => ["Critical", "High"].includes(s.risk_label));
   const criticalStates = states.filter((s) => String(s.risk_label).toLowerCase() === "critical");
   const activeEscalationStates = states.filter((s) => Number(s.active_task_count || 0) > 0);
-  const vendorShortages = states.filter((s) => Number(s.vendors_scored || 0) > 0).length;
   const mailFailures = states.reduce((sum, s) => sum + Number(s.mail_risk_jobs || 0), 0);
 
   const nationalPressure = Math.round(
@@ -413,23 +573,11 @@ export default function ExecutiveOperationsMap() {
     )
   );
 
-  const routeLines = useMemo(() => {
-    return urgentStates
-      .slice(0, 5)
-      .map((item) => ({
-        from: STATE_MARKERS.DC,
-        to: STATE_MARKERS[item.state],
-        state: item.state,
-        risk: item.risk_label,
-      }))
-      .filter((item) => item.from && item.to);
-  }, [urgentStates]);
-
   return (
     <PageShell
       eyebrow="Executive Command"
       title="Executive Operations Map"
-      description="Live national command layer wired to /api/operations/map for county heat, active escalations, resolved task relief, vendor gaps, and tactical signals."
+      description="Live national command layer wired to county heat, active escalations, resolved task relief, and county intelligence drawer."
       tickerItems={[
         { label: "National Pressure", value: `${nationalPressure || 0}%`, dotClass: nationalPressure >= 65 ? "vs-live-dot" : "vs-live-dot-success" },
         { label: "Critical", value: `${criticalStates.length}`, dotClass: criticalStates.length ? "vs-live-dot" : "vs-live-dot-success" },
@@ -456,15 +604,6 @@ export default function ExecutiveOperationsMap() {
           padding: 16px;
           min-height: 104px;
           box-shadow: 0 18px 44px rgba(2, 6, 23, 0.22);
-        }
-
-        .ops-threat-metric:before {
-          content: "";
-          position: absolute;
-          inset: auto -20% -65% -20%;
-          height: 90px;
-          background: radial-gradient(circle, rgba(96, 165, 250, 0.2), transparent 62%);
-          animation: opsThreatGlow 3.8s ease-in-out infinite;
         }
 
         .ops-threat-metric.danger { border-color: rgba(248, 113, 113, 0.32); }
@@ -503,11 +642,6 @@ export default function ExecutiveOperationsMap() {
           font-size: 12px;
         }
 
-        @keyframes opsThreatGlow {
-          0%, 100% { opacity: 0.45; transform: translateY(0); }
-          50% { opacity: 0.95; transform: translateY(-12px); }
-        }
-
         .ops-command-layout {
           display: grid;
           grid-template-columns: minmax(0, 1.65fr) minmax(340px, 0.75fr);
@@ -527,21 +661,6 @@ export default function ExecutiveOperationsMap() {
             linear-gradient(135deg, rgba(15, 23, 42, 0.97), rgba(2, 6, 23, 0.94));
           overflow: hidden;
           box-shadow: 0 28px 80px rgba(2, 6, 23, 0.42);
-        }
-
-        .ops-map-shell:after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.055) 45%, transparent 56%);
-          transform: translateX(-100%);
-          animation: opsScan 7s ease-in-out infinite;
-          pointer-events: none;
-        }
-
-        @keyframes opsScan {
-          0% { transform: translateX(-130%); }
-          45%, 100% { transform: translateX(130%); }
         }
 
         .ops-map-grid {
@@ -594,12 +713,6 @@ export default function ExecutiveOperationsMap() {
           border-radius: 999px;
           background: #22c55e;
           box-shadow: 0 0 0 7px rgba(34,197,94,0.1);
-          animation: opsLivePulse 1.4s ease-in-out infinite;
-        }
-
-        @keyframes opsLivePulse {
-          0%, 100% { opacity: 0.55; transform: scale(0.86); }
-          50% { opacity: 1; transform: scale(1.08); }
         }
 
         .ops-map-inner {
@@ -632,37 +745,6 @@ export default function ExecutiveOperationsMap() {
           stroke: rgba(255,255,255,0.98);
           stroke-width: 1.45;
           filter: brightness(1.26);
-        }
-
-        .ops-route-line {
-          stroke: rgba(96, 165, 250, 0.52);
-          stroke-width: 1.5;
-          stroke-dasharray: 8 8;
-          animation: opsRouteFlow 1.7s linear infinite;
-        }
-
-        @keyframes opsRouteFlow {
-          to { stroke-dashoffset: -32; }
-        }
-
-        .ops-marker { cursor: pointer; }
-
-        .ops-marker-core {
-          fill: rgba(255, 255, 255, 0.95);
-          stroke-width: 1.8;
-        }
-
-        .ops-marker-ring {
-          fill: transparent;
-          stroke: rgba(255, 255, 255, 0.34);
-          stroke-width: 2;
-          transform-origin: center;
-          animation: opsPulse 1.9s ease-out infinite;
-        }
-
-        @keyframes opsPulse {
-          0% { opacity: 0.9; transform: scale(0.7); }
-          100% { opacity: 0; transform: scale(2.25); }
         }
 
         .ops-layer-controls {
@@ -827,7 +909,9 @@ export default function ExecutiveOperationsMap() {
           margin-top: 14px;
         }
 
-        .ops-action-grid button {
+        .ops-action-grid button,
+        .county-intel-actions button,
+        .county-drawer-tabs button {
           border: 1px solid rgba(148, 163, 184, 0.18);
           background: rgba(15, 23, 42, 0.74);
           color: rgba(226, 232, 240, 0.92);
@@ -838,10 +922,17 @@ export default function ExecutiveOperationsMap() {
           cursor: pointer;
         }
 
-        .ops-action-grid button:hover {
+        .ops-action-grid button:hover,
+        .county-intel-actions button:hover,
+        .county-drawer-tabs button:hover {
           border-color: rgba(96, 165, 250, 0.48);
           background: rgba(37, 99, 235, 0.24);
           color: white;
+        }
+
+        .county-intel-actions button:disabled {
+          opacity: 0.58;
+          cursor: not-allowed;
         }
 
         .ops-panel-section {
@@ -957,6 +1048,168 @@ export default function ExecutiveOperationsMap() {
           background: transparent;
         }
 
+        .county-drawer {
+          display: grid;
+          gap: 14px;
+        }
+
+        .county-drawer-summary {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .county-drawer-summary div {
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.62);
+          padding: 12px;
+        }
+
+        .county-drawer-summary span,
+        .county-intel-grid span {
+          display: block;
+          color: rgba(203, 213, 225, 0.64);
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .county-drawer-summary strong,
+        .county-intel-grid b {
+          display: block;
+          margin-top: 4px;
+          color: white;
+          font-size: 17px;
+        }
+
+        .county-drawer-tabs {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .county-drawer-tabs button.is-active {
+          border-color: rgba(96, 165, 250, 0.62);
+          color: white;
+          background: rgba(37, 99, 235, 0.32);
+          box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+        }
+
+        .county-task-message {
+          border-radius: 16px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background: rgba(37, 99, 235, 0.14);
+          padding: 12px;
+          color: rgba(226, 232, 240, 0.9);
+          font-size: 13px;
+        }
+
+        .county-drawer-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .county-intel-row {
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.62));
+          padding: 14px;
+        }
+
+        .county-intel-row.task-active {
+          border-color: rgba(248, 113, 113, 0.36);
+        }
+
+        .county-intel-row.task-resolved {
+          border-color: rgba(34, 197, 94, 0.34);
+        }
+
+        .county-intel-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+        }
+
+        .county-intel-top strong {
+          display: block;
+          color: white;
+          font-size: 15px;
+          font-weight: 950;
+        }
+
+        .county-intel-top span {
+          display: block;
+          margin-top: 4px;
+          color: rgba(203, 213, 225, 0.64);
+          font-size: 11px;
+        }
+
+        .county-intel-badges {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .county-intel-meter {
+          margin-top: 12px;
+          height: 8px;
+          border-radius: 999px;
+          background: rgba(2, 6, 23, 0.72);
+          overflow: hidden;
+        }
+
+        .county-intel-meter i {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(96,165,250,0.95), rgba(248,113,113,0.95));
+        }
+
+        .county-intel-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .county-intel-grid div {
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          background: rgba(2, 6, 23, 0.28);
+          padding: 10px;
+        }
+
+        .county-driver-row {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+
+        .county-driver-row span {
+          border-radius: 999px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.64);
+          color: rgba(226, 232, 240, 0.84);
+          padding: 7px 9px;
+          font-size: 11px;
+        }
+
+        .county-driver-row b {
+          color: white;
+        }
+
+        .county-intel-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+
         @media (max-width: 1150px) {
           .ops-command-layout,
           .ops-threat-matrix {
@@ -980,7 +1233,9 @@ export default function ExecutiveOperationsMap() {
           .ops-breakdown,
           .ops-panel-score,
           .ops-panel-grid,
-          .ops-action-grid {
+          .ops-action-grid,
+          .county-drawer-summary,
+          .county-intel-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -1055,7 +1310,7 @@ export default function ExecutiveOperationsMap() {
 
               <div className="ops-map-label">
                 <h3>U.S. Executive Geo Command</h3>
-                <p>Click any state to inspect tactical intelligence and live risk movement.</p>
+                <p>Click any state to inspect tactical intelligence and live county movement.</p>
                 <span className="ops-live-chip">
                   <i />
                   {refreshing ? "Refreshing live intelligence" : `Live refresh active • ${lastUpdated || "now"}`}
@@ -1090,17 +1345,7 @@ export default function ExecutiveOperationsMap() {
                       })
                     }
                   </Geographies>
-
-                  {routeLines.map((item) => (
-                    <Line
-                      key={`${item.state}-${item.risk}`}
-                      from={item.from}
-                      to={item.to}
-                      className="ops-route-line"
-                    />
-                  ))}
-
-             </ComposableMap>
+                </ComposableMap>
               </div>
 
               <div className="ops-map-legend">
@@ -1121,6 +1366,16 @@ export default function ExecutiveOperationsMap() {
           </div>
         )}
       </SectionCard>
+
+      <CountyIntelligenceDrawer
+        selected={selected}
+        counties={counties}
+        activeCounties={activeEscalations}
+        resolvedCounties={resolvedEscalations}
+        onCreateTask={handleCreateCountyTask}
+        creatingCountyKey={creatingCountyKey}
+        taskMessage={taskMessage}
+      />
 
       <div className="vs-grid-2">
         <SectionCard
