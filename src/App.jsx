@@ -50,6 +50,8 @@ const DarkMoneyExposure = lazy(() => import("./pages/DarkMoneyExposure.jsx"));
 const ExecutiveOperationsMap = lazy(() => import("./pages/ExecutiveOperationsMap.jsx"));
 const StateOperationsDrilldown = lazy(() => import("./pages/StateOperationsDrilldown.jsx"));
 const StateOperationsIndex = lazy(() => import("./pages/StateOperationsIndex.jsx"));
+const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
+);
 
 function LoadingScreen() {
   return (
@@ -204,6 +206,7 @@ function AppRoutes() {
               <Route path="/campaign-workspace" element={<CampaignWorkspaces />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspaces />} />
               <Route path="/workspaces" element={<CampaignWorkspaces />} />
+              <Route path="/executive-intelligence" element={<CrossWorkspaceExecutiveDashboard />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
