@@ -1017,8 +1017,20 @@ export const api = {
  workspaceOperatingRoom: (id) =>
    tryGet([`/workspace-operating-room/${id}`]),
 
-emitWorkspacePulse: (id, payload = {}) =>
-  tryPost([`/workspace-operating-room/${id}/pulse`], payload),
+ emitWorkspacePulse: (id, payload = {}) =>
+   tryPost([`/workspace-operating-room/${id}/pulse`], payload),
+
+ politicalSignalsDashboard: () =>
+   tryGet(["/political-signals/dashboard"]),
+
+ politicalSignalsByWorkspace: (id) =>
+   tryGet([`/political-signals/workspace/${id}`]),
+
+ politicalSignalsByState: (state) =>
+   tryGet([`/political-signals/state/${state}`]),
+
+ createPoliticalSignal: (payload) =>
+   tryPost(["/political-signals"], payload),
 
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
