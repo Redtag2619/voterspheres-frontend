@@ -9,6 +9,7 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import ExecutionBoard from "../components/tasks/ExecutionBoard.jsx";
+import { useRealtimeTacticalEvents } from "../hooks/useRealtimeTacticalEvents";
 
 const fallbackData = {
   metrics: [
