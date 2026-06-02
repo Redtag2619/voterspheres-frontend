@@ -1006,7 +1006,13 @@ export const api = {
    workspacesApi.update(id, payload),
   
  crossWorkspaceExecutiveOverview: () =>
-   tryGet(["/workspace-intelligence/executive-overview"]),
+   tryGet(["/workspace-intelligence/executive-overview"]),  
+  
+ workspaceOperatingRoom: (id) =>
+   tryGet([`/workspace-operating-room/${id}`]),
+
+emitWorkspacePulse: (id, payload = {}) =>
+  tryPost([`/workspace-operating-room/${id}/pulse`], payload),
 
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
