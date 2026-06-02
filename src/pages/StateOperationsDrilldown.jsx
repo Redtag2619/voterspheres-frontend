@@ -277,6 +277,11 @@ export default function StateOperationsDrilldown() {
     }
   }
 
+  useRealtimeTacticalEvents({
+  state: stateCode,
+  onRefresh: () => load({ quiet: true }),
+});
+
   useEffect(() => {
     load();
 
