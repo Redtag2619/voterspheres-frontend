@@ -487,6 +487,11 @@ export default function ExecutiveOperationsMap() {
     }
   }
 
+  useRealtimeTacticalEvents({
+  state: stateCode,
+  onRefresh: () => load({ quiet: true }),
+});
+
   async function handleCreateCountyTask(county) {
     try {
       const key = county.full_fips || county.id || `${county.state_code}-${county.name}`;
