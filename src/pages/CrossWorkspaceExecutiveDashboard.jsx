@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 
@@ -8,32 +8,51 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
-import { useRealtimeTacticalEvents } from "../hooks/useRealtimeTacticalEvents";
 
 function fmt(value) {
   return Number(value || 0).toLocaleString();
+}
+
+function pct(value) {
+  return `${Number(value || 0).toFixed(0)}%`;
 }
 
 function riskTone(value) {
   const risk = String(value || "").toLowerCase();
   if (risk === "critical" || risk === "high") return "danger";
   if (risk === "elevated") return "demo";
-  if (risk === "stable") return "active";
+  if (risk === "stable" || risk === "active") return "active";
   return "default";
+}
+
+function riskClass(value) {
+  const risk = String(value || "").toLowerCase();
+  if (risk === "critical") return "xw-critical";
+  if (risk === "high") return "xw-high";
+  if (risk === "elevated") return "xw-elevated";
+  return "xw-stable";
+}
+
+function getRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.workspaces)) return payload.workspaces;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
 }
 
 function WorkspaceRow({ item }) {
   return (
-    <div className={`xw-row xw-${String(item.risk || "stable").toLowerCase()}`}>
+    <div className={`xw-row ${riskClass(item.risk)}`}>
       <ResponsiveRow
         title={item.name || "Campaign Workspace"}
         subtitle={`${item.state || "National"} • ${item.office || "Statewide"} • ${item.cycle || "2026"}`}
         meta={[
-          { label: "Pressure", value: `${item.pressure_score || 0}%` },
-          { label: "Open", value: item.open_task_count || 0 },
-          { label: "High Priority", value: item.high_priority_task_count || 0 },
-          { label: "County Esc.", value: item.active_county_escalation_count || 0 },
-          { label: "Complete", value: `${item.completion_rate || 0}%` },
+          { label: "Pressure", value: pct(item.pressure_score || 0) },
+          { label: "Open", value: fmt(item.open_task_count || 0) },
+          { label: "High", value: fmt(item.high_priority_task_count || 0) },
+          { label: "County Esc.", value: fmt(item.active_county_escalation_count || 0) },
+          { label: "Complete", value: pct(item.completion_rate || 0) },
         ]}
         right={
           <div className="xw-actions">
@@ -53,46 +72,135 @@ export default function CrossWorkspaceExecutiveDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
 
-  async function load({ quiet = false } = {}) {
+  const load = useCallback(async ({ quiet = false } = {}) => {
     try {
       if (quiet) setRefreshing(true);
       else setLoading(true);
 
       setError("");
-      const result = await api.crossWorkspaceExecutiveOverview();
-      setData(result);
+
+      const result =
+        typeof api.crossWorkspaceExecutiveOverview === "function"
+          ? await api.crossWorkspaceExecutiveOverview()
+          : await api.workspaces();
+
+      setData(result || {});
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
       setError(
         err?.response?.data?.error ||
           err?.message ||
           "Failed to load cross-workspace executive dashboard."
       );
+
+      setData({
+        summary: {},
+        workspaces: [],
+        urgent_workspaces: [],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }
-
-  useRealtimeTacticalEvents({
-  state: stateCode,
-  onRefresh: () => load({ quiet: true }),
-});
+  }, []);
 
   useEffect(() => {
     load();
-    const interval = setInterval(() => load({ quiet: true }), 30000);
+
+    const interval = setInterval(() => {
+      load({ quiet: true });
+    }, 30000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [load]);
 
-  const summary = data?.summary || {};
-  const workspaces = data?.workspaces || [];
-  const urgent = data?.urgent_workspaces || [];
+  const rawRows = getRows(data);
 
-  const stableCount = useMemo(
-    () => workspaces.filter((item) => item.risk === "Stable").length,
-    [workspaces]
-  );
+  const workspaces = useMemo(() => {
+    return rawRows
+      .map((item) => {
+        const totalTasks = Number(item.task_count || item.total_tasks || 0);
+        const openTasks = Number(item.open_task_count || item.open_tasks || 0);
+        const completedTasks = Number(item.complete_task_count || item.completed_task_count || item.completed_tasks || 0);
+        const highPriority = Number(item.high_priority_task_count || item.high_priority_tasks || 0);
+        const activeCounty = Number(item.active_county_escalation_count || item.active_county_escalations || 0);
+
+        const completionRate =
+          item.completion_rate !== undefined
+            ? Number(item.completion_rate || 0)
+            : totalTasks
+              ? Math.round((completedTasks / totalTasks) * 100)
+              : 0;
+
+        const pressureScore =
+          item.pressure_score !== undefined
+            ? Number(item.pressure_score || 0)
+            : Math.min(100, Math.round(openTasks * 6 + highPriority * 9 + activeCounty * 14));
+
+        const risk =
+          item.risk ||
+          (pressureScore >= 82
+            ? "Critical"
+            : pressureScore >= 65
+              ? "High"
+              : pressureScore >= 42
+                ? "Elevated"
+                : "Stable");
+
+        return {
+          ...item,
+          task_count: totalTasks,
+          open_task_count: openTasks,
+          completed_task_count: completedTasks,
+          high_priority_task_count: highPriority,
+          active_county_escalation_count: activeCounty,
+          completion_rate: completionRate,
+          pressure_score: pressureScore,
+          risk,
+        };
+      })
+      .sort((a, b) => Number(b.pressure_score || 0) - Number(a.pressure_score || 0));
+  }, [rawRows]);
+
+  const fallbackSummary = useMemo(() => {
+    const totalTasks = workspaces.reduce((sum, item) => sum + Number(item.task_count || 0), 0);
+    const openTasks = workspaces.reduce((sum, item) => sum + Number(item.open_task_count || 0), 0);
+    const completedTasks = workspaces.reduce((sum, item) => sum + Number(item.completed_task_count || 0), 0);
+    const highRisk = workspaces.filter((item) => ["Critical", "High"].includes(item.risk)).length;
+    const critical = workspaces.filter((item) => item.risk === "Critical").length;
+
+    return {
+      total_workspaces: workspaces.length,
+      active_workspaces: workspaces.filter((item) => String(item.status || "active").toLowerCase() === "active").length,
+      critical_workspaces: critical,
+      high_risk_workspaces: highRisk,
+      total_tasks: totalTasks,
+      open_tasks: openTasks,
+      completed_tasks: completedTasks,
+      blocked_tasks: workspaces.reduce((sum, item) => sum + Number(item.blocked_task_count || 0), 0),
+      national_pressure_score: workspaces.length
+        ? Math.round(workspaces.reduce((sum, item) => sum + Number(item.pressure_score || 0), 0) / workspaces.length)
+        : 0,
+    };
+  }, [workspaces]);
+
+  const summary = {
+    ...fallbackSummary,
+    ...(data?.summary || {}),
+  };
+
+  const urgent = useMemo(() => {
+    const rows =
+      Array.isArray(data?.urgent_workspaces) && data.urgent_workspaces.length
+        ? data.urgent_workspaces
+        : workspaces.filter((item) => ["Critical", "High"].includes(item.risk));
+
+    return rows.slice(0, 10);
+  }, [data, workspaces]);
+
+  const stableCount = workspaces.filter((item) => item.risk === "Stable").length;
 
   return (
     <PageShell
@@ -102,7 +210,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
       tickerItems={[
         {
           label: "National Pressure",
-          value: `${summary.national_pressure_score || 0}%`,
+          value: pct(summary.national_pressure_score || 0),
           dotClass: Number(summary.national_pressure_score || 0) >= 65 ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
         {
@@ -116,8 +224,8 @@ export default function CrossWorkspaceExecutiveDashboard() {
           dotClass: summary.high_risk_workspaces ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
         {
-          label: "Refreshing",
-          value: refreshing ? "Live" : "Ready",
+          label: "Updated",
+          value: refreshing ? "Live" : lastUpdated || "Ready",
           dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
       ]}
@@ -234,7 +342,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
       <div className="vs-grid-4">
         <StatCard
           label="National Pressure"
-          value={`${summary.national_pressure_score || 0}%`}
+          value={pct(summary.national_pressure_score || 0)}
           delta="Average workspace risk"
           tone={Number(summary.national_pressure_score || 0) >= 65 ? "down" : "up"}
         />
@@ -280,7 +388,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
           <div className="xw-stack">
             <div className="xw-pressure-card">
-              <div className="xw-pressure-score">{summary.national_pressure_score || 0}%</div>
+              <div className="xw-pressure-score">{pct(summary.national_pressure_score || 0)}</div>
               <div className="xw-pressure-label">
                 Cross-workspace operational pressure score.
               </div>
