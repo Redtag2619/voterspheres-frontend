@@ -20,6 +20,52 @@ function tone(value) {
   return "accent";
 }
 
+function decodeHtml(value = "") {
+  if (typeof document === "undefined") return String(value || "");
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(value || "");
+  return textarea.value;
+}
+
+function cleanDisplayText(value = "") {
+  return decodeHtml(value)
+    .replace(/<!\[CDATA\[/g, "")
+    .replace(/\]\]>/g, "")
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1")
+    .replace(/<font\b[^>]*>(.*?)<\/font>/gi, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanNarrativeTitle(value = "") {
+  return cleanDisplayText(value)
+    .replace(/^Narrative signal:\s*/i, "News narrative: ")
+    .replace(/^News narrative:\s*News narrative:\s*/i, "News narrative: ")
+    .replace(/\s+-\s+The Washington Post$/i, "")
+    .replace(/\s+-\s+AP News$/i, "")
+    .replace(/\s+-\s+Reuters$/i, "")
+    .replace(/\s+-\s+CNN$/i, "")
+    .replace(/\s+-\s+Fox News$/i, "")
+    .replace(/\s+-\s+NBC News$/i, "")
+    .replace(/\s+-\s+CBS News$/i, "")
+    .replace(/\s+-\s+ABC News$/i, "")
+    .trim();
+}
+
+function cleanNarrativeSummary(item = {}) {
+  const cleaned = cleanDisplayText(item.summary || "");
+  const title = cleanDisplayText(item.title || "");
+
+  if (!cleaned || cleaned === title || cleaned.includes("target=\"_blank\"")) {
+    return `Political narrative signal detected from ${item.source || "News RSS"}.`;
+  }
+
+  return cleaned;
+}
+
 function direction(item = {}) {
   return item.metadata?.narrative_direction || "neutral";
 }
@@ -30,11 +76,11 @@ function NarrativeRow({ item }) {
   return (
     <div className={`narrative-row narrative-${String(item.risk || "stable").toLowerCase()}`}>
       <ResponsiveRow
-        title={item.title || "Narrative signal"}
-        subtitle={item.summary || item.source || "News narrative intelligence"}
+        title={cleanNarrativeTitle(item.title || "News narrative")}
+        subtitle={cleanNarrativeSummary(item)}
         meta={[
           { label: "Direction", value: dir },
-          { label: "Source", value: item.source || "News" },
+          { label: "Source", value: cleanDisplayText(item.source || "News") },
           { label: "State", value: item.state || "National" },
           { label: "Score", value: item.signal_score || 0 },
           { label: "Risk", value: item.risk || "Stable" },
