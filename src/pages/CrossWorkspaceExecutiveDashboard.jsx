@@ -74,6 +74,11 @@ export default function CrossWorkspaceExecutiveDashboard() {
     }
   }
 
+  useRealtimeTacticalEvents({
+  state: stateCode,
+  onRefresh: () => load({ quiet: true }),
+});
+
   useEffect(() => {
     load();
     const interval = setInterval(() => load({ quiet: true }), 30000);
