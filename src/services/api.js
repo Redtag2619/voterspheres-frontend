@@ -1032,6 +1032,12 @@ export const api = {
  createPoliticalSignal: (payload) =>
    tryPost(["/political-signals"], payload),
 
+ newsNarrativeDashboard: () =>
+   tryGet(["/news-narrative/dashboard"]),
+
+ ingestNewsNarrative: (payload = {}) =>
+   tryPost(["/news-narrative/ingest"], payload),
+
  createEnterpriseLead: publicApi.createEnterpriseLead,
 };
 
