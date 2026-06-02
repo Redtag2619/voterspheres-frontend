@@ -955,91 +955,91 @@ export const api = {
   
   executiveAlerts: executiveAlertsApi.list,
   
- operationsMap: operationsMapApi.dashboard,
+  operationsMap: operationsMapApi.dashboard,
 
- operationsMap: () =>
-   tryGet(["/operations/map"]),
+  operationsMap: () =>
+    tryGet(["/operations/map"]),
 
- stateOperationsIndex: () =>
-   tryGet(["/operations/states"]),
+  stateOperationsIndex: () =>
+    tryGet(["/operations/states"]),
 
- stateOperationsDrilldown: (state) =>
-   tryGet([`/operations/state/${state}`]),
+  stateOperationsDrilldown: (state) =>
+    tryGet([`/operations/state/${state}`]),
 
- createCountyCommandTask: (payload) =>
-   tryPost(["/operations/tasks/county"], payload),
+  createCountyCommandTask: (payload) =>
+    tryPost(["/operations/tasks/county"], payload),
 
- updateCountyCommandTaskStatus: (id, payload) =>
-   tryPut([`/operations/tasks/county/${id}/status`], payload),
+  updateCountyCommandTaskStatus: (id, payload) =>
+    tryPut([`/operations/tasks/county/${id}/status`], payload),
 
- campaignWorkspaces: () =>
-   tryGet(["/workspaces"]),
+  campaignWorkspaces: () =>
+    tryGet(["/workspaces"]),
 
- campaignWorkspace: (id) =>
-   tryGet([`/workspaces/${id}`]),
+  campaignWorkspace: (id) =>
+    tryGet([`/workspaces/${id}`]),
 
- createCampaignWorkspace: (payload) =>
-   tryPost(["/workspaces"], payload),
+  createCampaignWorkspace: (payload) =>
+    tryPost(["/workspaces"], payload),
 
- updateCampaignWorkspace: (id, payload) =>
-   tryPut([`/workspaces/${id}`], payload),
+  updateCampaignWorkspace: (id, payload) =>
+    tryPut([`/workspaces/${id}`], payload),
 
- addCampaignWorkspaceMember: (id, payload) =>
-   tryPost([`/workspaces/${id}/members`], payload),
+  addCampaignWorkspaceMember: (id, payload) =>
+    tryPost([`/workspaces/${id}/members`], payload),
 
  addCampaignWorkspaceTarget: (id, payload) =>
-   tryPost([`/workspaces/${id}/targets`], payload),
+    tryPost([`/workspaces/${id}/targets`], payload),
 
- workspaceIntelligence: (id) =>
-   tryGet([`/workspaces/${id}/intelligence`]),
+  workspaceIntelligence: (id) =>
+    tryGet([`/workspaces/${id}/intelligence`]),
   
- aiTacticalDashboard: () =>
-   tryGet(["/ai-tactical/dashboard"]),
+  aiTacticalDashboard: () =>
+    tryGet(["/ai-tactical/dashboard"]),
 
- aiTacticalWorkspace: (id) =>
-   tryGet([`/ai-tactical/workspace/${id}`]),
+  aiTacticalWorkspace: (id) =>
+    tryGet([`/ai-tactical/workspace/${id}`]),
 
- workspaces: () =>
-   workspacesApi.list(),
+  workspaces: () =>
+    workspacesApi.list(),
 
- getWorkspace: (id) =>
-   workspacesApi.get(id),
+  getWorkspace: (id) =>
+    workspacesApi.get(id),
 
- createWorkspace: (payload) =>
-   workspacesApi.create(payload),
+  createWorkspace: (payload) =>
+    workspacesApi.create(payload),
 
- updateWorkspace: (id, payload) =>
-   workspacesApi.update(id, payload),
+  updateWorkspace: (id, payload) =>
+    workspacesApi.update(id, payload),
   
- crossWorkspaceExecutiveOverview: () =>
-   tryGet(["/workspace-intelligence/executive-overview"]),  
+  crossWorkspaceExecutiveOverview: () =>
+    tryGet(["/workspace-intelligence/executive-overview"]),  
   
- workspaceOperatingRoom: (id) =>
-   tryGet([`/workspace-operating-room/${id}`]),
+  workspaceOperatingRoom: (id) =>
+    tryGet([`/workspace-operating-room/${id}`]),
 
- emitWorkspacePulse: (id, payload = {}) =>
-   tryPost([`/workspace-operating-room/${id}/pulse`], payload),
+  emitWorkspacePulse: (id, payload = {}) =>
+    tryPost([`/workspace-operating-room/${id}/pulse`], payload),
 
- politicalSignalsDashboard: () =>
-   tryGet(["/political-signals/dashboard"]),
+  politicalSignalsDashboard: () =>
+    tryGet(["/political-signals/dashboard"]),
 
- politicalSignalsByWorkspace: (id) =>
-   tryGet([`/political-signals/workspace/${id}`]),
+  politicalSignalsByWorkspace: (id) =>
+    tryGet([`/political-signals/workspace/${id}`]),
 
- politicalSignalsByState: (state) =>
-   tryGet([`/political-signals/state/${state}`]),
+  politicalSignalsByState: (state) =>
+    tryGet([`/political-signals/state/${state}`]),
 
- createPoliticalSignal: (payload) =>
-   tryPost(["/political-signals"], payload),
+  createPoliticalSignal: (payload) =>
+    tryPost(["/political-signals"], payload),
 
- newsNarrativeDashboard: () =>
-   tryGet(["/news-narrative/dashboard"]),
+  newsNarrativeDashboard: () =>
+    tryGet(["/news-narrative/dashboard"]),
 
- ingestNewsNarrative: (payload = {}) =>
-   tryPost(["/news-narrative/ingest"], payload),
+  ingestNewsNarrative: (payload = {}) =>
+    tryPost(["/news-narrative/ingest"], payload),
 
- createEnterpriseLead: publicApi.createEnterpriseLead,
-};
+  createEnterpriseLead: publicApi.createEnterpriseLead,
+ };
 
 export {
   API_BASE,
