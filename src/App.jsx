@@ -52,6 +52,7 @@ const ExecutiveOperationsMap = lazy(() => import("./pages/ExecutiveOperationsMap
 const StateOperationsDrilldown = lazy(() => import("./pages/StateOperationsDrilldown.jsx"));
 const StateOperationsIndex = lazy(() => import("./pages/StateOperationsIndex.jsx"));
 const LivePoliticalSignals = lazy(() => import("./pages/LivePoliticalSignals.jsx"));
+const NewsNarrativeIntelligence = lazy(() => import("./pages/NewsNarrativeIntelligence.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -219,6 +220,7 @@ function AppRoutes() {
               <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
               <Route path="/state-operations" element={<StateOperationsIndex />} />
               <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
+              <Route path="/narrative-intelligence" element={<NewsNarrativeIntelligence />} />
               <Route path="/state-operations-map" element={<StateOperationsMap />} />
             </Route>
 
