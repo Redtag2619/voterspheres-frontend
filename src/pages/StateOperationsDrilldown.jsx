@@ -179,6 +179,11 @@ export default function StateOperationsDrilldown() {
         throw new Error("State operations endpoint is not available.");
       }
 
+      useRealtimeTacticalEvents({
+        state: stateCode,
+        onRefresh: () => load({ quiet: true }),
+      });
+
       const result = await api.stateOperationsDrilldown(stateCode);
 
       const nextData = result || {
