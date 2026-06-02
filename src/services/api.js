@@ -992,6 +992,12 @@ export const api = {
 
  workspaceIntelligence: (id) =>
    tryGet([`/workspaces/${id}/intelligence`]),
+  
+ aiTacticalDashboard: () =>
+   tryGet(["/ai-tactical/dashboard"]),
+
+ aiTacticalWorkspace: (id) =>
+   tryGet([`/ai-tactical/workspace/${id}`]),
 
  workspaces: () =>
    workspacesApi.list(),
