@@ -148,6 +148,11 @@ export default function CampaignWorkspaces() {
     }
   }
 
+    useRealtimeTacticalEvents({
+      state: stateCode,
+      onRefresh: () => load({ quiet: true }),
+    });
+
   async function loadDetails(workspace) {
     if (!workspace?.id) return;
 
