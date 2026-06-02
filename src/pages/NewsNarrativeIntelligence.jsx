@@ -72,6 +72,7 @@ function direction(item = {}) {
 
 function NarrativeRow({ item }) {
   const dir = direction(item);
+  const source = cleanDisplayText(item.source || "News");
 
   return (
     <div className={`narrative-row narrative-${String(item.risk || "stable").toLowerCase()}`}>
@@ -80,12 +81,29 @@ function NarrativeRow({ item }) {
         subtitle={cleanNarrativeSummary(item)}
         meta={[
           { label: "Direction", value: dir },
-          { label: "Source", value: cleanDisplayText(item.source || "News") },
+          { label: "Source", value: source },
           { label: "State", value: item.state || "National" },
           { label: "Score", value: item.signal_score || 0 },
           { label: "Risk", value: item.risk || "Stable" },
         ]}
-        right={<Badge tone={tone(item.risk || dir)}>{item.risk || dir}</Badge>}
+        right={
+          <div className="narrative-actions">
+            {item.url ? (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="vs-button narrative-read-link"
+              >
+                Read Full Article
+              </a>
+            ) : null}
+
+            <Badge tone={tone(item.risk || dir)}>
+              {item.risk || dir}
+            </Badge>
+          </div>
+        }
       />
     </div>
   );
@@ -186,6 +204,21 @@ export default function NewsNarrativeIntelligence() {
 
         .narrative-elevated {
           border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .narrative-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .narrative-read-link {
+          padding: 8px 14px;
+          font-size: 12px;
+          text-decoration: none;
+          white-space: nowrap;
         }
 
         .narrative-control {
