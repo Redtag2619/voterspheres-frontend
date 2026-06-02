@@ -33,6 +33,7 @@ const secondaryItems = [
   { label: "Alerts", to: "/admin/alerts" },
   { label: "State Operations", to: "/state-operations" },
   { label: "AI Tactical", to: "/ai-tactical" },
+  { label: "Narrative Intel", to: "/narrative-intelligence" },
   { label: "Live Intel", to: "/admin/live-intelligence" }
 ];
 
