@@ -12,7 +12,6 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
-import { useRealtimeTacticalEvents } from "../hooks/useRealtimeTacticalEvents";
 
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
@@ -486,11 +485,6 @@ export default function ExecutiveOperationsMap() {
       setRefreshing(false);
     }
   }
-
-  useRealtimeTacticalEvents({
-  state: stateCode,
-  onRefresh: () => load({ quiet: true }),
-});
 
   async function handleCreateCountyTask(county) {
     try {
