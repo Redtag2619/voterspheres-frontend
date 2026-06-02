@@ -14,6 +14,7 @@ const primaryItems = [
   { label: "Consultant Intel", to: "/consultant-intel" }, 
   { label: "Workspace", to: "/campaign-workspace" },
   { label: "Executive Intel", to: "/executive-intelligence" },
+  { label: "Political Signals", to: "/political-signals" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
