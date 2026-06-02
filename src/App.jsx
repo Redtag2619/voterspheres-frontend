@@ -51,6 +51,7 @@ const DarkMoneyExposure = lazy(() => import("./pages/DarkMoneyExposure.jsx"));
 const ExecutiveOperationsMap = lazy(() => import("./pages/ExecutiveOperationsMap.jsx"));
 const StateOperationsDrilldown = lazy(() => import("./pages/StateOperationsDrilldown.jsx"));
 const StateOperationsIndex = lazy(() => import("./pages/StateOperationsIndex.jsx"));
+const LivePoliticalSignals = lazy(() => import("./pages/LivePoliticalSignals.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -209,6 +210,7 @@ function AppRoutes() {
               <Route path="/ai-tactical" element={<AITacticalIntelligence />} />
               <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/executive-intelligence" element={<CrossWorkspaceExecutiveDashboard />} />
+              <Route path="/political-signals" element={<LivePoliticalSignals />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />
               <Route path="/consultant-intel" element={<ConsultantIntel />} />
