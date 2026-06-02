@@ -8,6 +8,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import { useRealtimeTacticalEvents } from "../hooks/useRealtimeTacticalEvents";
 
 function fmt(value) {
   return Number(value || 0).toLocaleString();
