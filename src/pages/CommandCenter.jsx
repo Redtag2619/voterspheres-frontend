@@ -807,6 +807,11 @@ export default function CommandCenter() {
       return;
     }
 
+    useRealtimeTacticalEvents({
+      state: stateCode,
+      onRefresh: () => load({ quiet: true }),
+    });
+
     try {
       setCommandLoading(true);
       setCommandError("");
