@@ -37,6 +37,7 @@ const AIWarRoom = lazy(() => import("./pages/AIWarRoom.jsx"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter.jsx"));
 const CampaignWorkspace = lazy(() => import("./pages/CampaignWorkspace.jsx"));
 const CampaignWorkspaces = lazy(() => import("./pages/CampaignWorkspaces.jsx"));
+const AITacticalIntelligence = lazy(() => import("./pages/AITacticalIntelligence.jsx"));
 const Billing = lazy(() => import("./pages/Billing.jsx"));
 const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -205,6 +206,7 @@ function AppRoutes() {
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspaces />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspaces />} />
+              <Route path="/ai-tactical" element={<AITacticalIntelligence />} />
               <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/executive-intelligence" element={<CrossWorkspaceExecutiveDashboard />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
