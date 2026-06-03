@@ -38,6 +38,7 @@ const LAYERS = [
   { id: "mailops", label: "MailOps" },
   { id: "turnout", label: "Turnout" },
   { id: "alerts", label: "Alerts" },
+  { id: "signals", label: "Political Signals" },
 ];
 
 function fmtNumber(value) {
@@ -125,6 +126,32 @@ function getStateFill(state, layer) {
   return "rgba(22, 163, 74, 0.72)";
 }
 
+
+function getSignalStateFill(overlay) {
+  if (!overlay || !Number(overlay.total_signals || 0)) return "rgba(30, 41, 59, 0.78)";
+
+  const risk = String(overlay.overlay_risk || "Stable").toLowerCase();
+  const score = Number(overlay.average_score || 0);
+
+  if (risk === "critical" || score >= 82) return "rgba(220, 38, 38, 0.96)";
+  if (risk === "high" || score >= 65) return "rgba(234, 88, 12, 0.94)";
+  if (risk === "elevated" || score >= 42) return "rgba(202, 138, 4, 0.9)";
+  return "rgba(37, 99, 235, 0.74)";
+}
+
+function cleanSignalText(value = "") {
+  return String(value || "")
+    .replace(/<!\[CDATA\[/g, "")
+    .replace(/\]\]>/g, "")
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1")
+    .replace(/<font\b[^>]*>(.*?)<\/font>/gi, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getLayerValue(state, layer) {
   if (!state) return 0;
   if (layer === "active") return state.active_task_count || 0;
@@ -186,11 +213,17 @@ function StateRiskRow({ item, onSelect }) {
           { label: "Score", value: fmtDecimal(item.operational_score) },
           { label: "Max County", value: fmtDecimal(item.max_county_heat_score) },
           { label: "Resolved", value: item.resolved_task_count || 0 },
+          { label: "Signals", value: item.signal_count || 0 },
         ]}
         right={
-          <button type="button" className="vs-decision-btn deploy" onClick={() => onSelect(item)}>
-            Inspect
-          </button>
+          <div className="ops-state-actions">
+            {item.signal_count ? (
+              <Badge tone={riskTone(item.signal_risk)}>{item.signal_count} signals</Badge>
+            ) : null}
+            <button type="button" className="vs-decision-btn deploy" onClick={() => onSelect(item)}>
+              Inspect
+            </button>
+          </div>
         }
       />
     </div>
@@ -433,6 +466,110 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
   );
 }
 
+
+function SignalBadgeOverlay({ states = [], onSelectState }) {
+  const positions = {
+    WA: { left: "13%", top: "25%" }, OR: { left: "10%", top: "37%" }, CA: { left: "11%", top: "55%" },
+    NV: { left: "18%", top: "48%" }, AZ: { left: "25%", top: "63%" }, UT: { left: "29%", top: "48%" },
+    CO: { left: "39%", top: "50%" }, NM: { left: "36%", top: "64%" }, TX: { left: "50%", top: "72%" },
+    OK: { left: "51%", top: "58%" }, KS: { left: "51%", top: "48%" }, NE: { left: "50%", top: "40%" },
+    SD: { left: "49%", top: "31%" }, ND: { left: "48%", top: "23%" }, MN: { left: "58%", top: "24%" },
+    IA: { left: "59%", top: "40%" }, MO: { left: "61%", top: "50%" }, AR: { left: "60%", top: "61%" },
+    LA: { left: "60%", top: "72%" }, WI: { left: "64%", top: "30%" }, IL: { left: "66%", top: "45%" },
+    MI: { left: "72%", top: "33%" }, IN: { left: "71%", top: "45%" }, OH: { left: "76%", top: "44%" },
+    KY: { left: "72%", top: "53%" }, TN: { left: "70%", top: "60%" }, MS: { left: "65%", top: "69%" },
+    AL: { left: "70%", top: "69%" }, GA: { left: "76%", top: "69%" }, FL: { left: "82%", top: "80%" },
+    SC: { left: "80%", top: "63%" }, NC: { left: "82%", top: "58%" }, VA: { left: "84%", top: "52%" },
+    WV: { left: "79%", top: "50%" }, PA: { left: "84%", top: "43%" }, NY: { left: "88%", top: "34%" },
+    ME: { left: "94%", top: "20%" }, VT: { left: "90%", top: "28%" }, NH: { left: "92%", top: "28%" },
+    MA: { left: "93%", top: "34%" }, CT: { left: "91%", top: "38%" }, RI: { left: "94%", top: "38%" },
+    NJ: { left: "88%", top: "43%" }, DE: { left: "88%", top: "48%" }, MD: { left: "86%", top: "49%" },
+    AK: { left: "9%", top: "82%" }, HI: { left: "28%", top: "84%" }, MT: { left: "36%", top: "24%" },
+    ID: { left: "25%", top: "31%" }, WY: { left: "37%", top: "36%" }
+  };
+
+  const visible = states
+    .filter((item) => item?.state && Number(item.total_signals || 0) > 0 && positions[item.state])
+    .sort((a, b) => Number(b.average_score || 0) - Number(a.average_score || 0))
+    .slice(0, 18);
+
+  return (
+    <div className="ops-signal-badges" aria-hidden="false">
+      {visible.map((item) => (
+        <button
+          key={item.state}
+          type="button"
+          className={`ops-signal-badge ${String(item.overlay_risk || "stable").toLowerCase()}`}
+          style={positions[item.state]}
+          onClick={() => onSelectState?.(item.state)}
+          title={`${item.state}: ${item.total_signals} signals • ${item.overlay_risk}`}
+        >
+          <strong>{item.state}</strong>
+          <span>{item.total_signals}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SignalOverlayPanel({ summary = {}, states = [], onSelectState }) {
+  return (
+    <SectionCard
+      title="Political Signal Overlay"
+      subtitle="Live state-level narrative, FEC, fundraising, news, and political signal pressure layered on top of the Executive Operations Map."
+      right={<Badge tone={states.length ? "demo" : "active"}>{states.length} states</Badge>}
+    >
+      <div className="ops-signal-summary">
+        <div><span>Total Signals</span><strong>{fmtNumber(summary.total_signals || 0)}</strong></div>
+        <div><span>News</span><strong>{fmtNumber(summary.news_signals || 0)}</strong></div>
+        <div><span>FEC / Fundraising</span><strong>{fmtNumber(summary.fec_signals || 0)}</strong></div>
+        <div><span>National Risk</span><strong>{summary.national_signal_risk || "Stable"}</strong></div>
+      </div>
+
+      {!states.length ? (
+        <EmptyState text="No state-level political signal overlay data available yet." />
+      ) : (
+        <div className="ops-signal-stack">
+          {states.slice(0, 10).map((item) => (
+            <div key={item.state} className={`ops-signal-row ${String(item.overlay_risk || "stable").toLowerCase()}`}>
+              <ResponsiveRow
+                title={`${item.state} Political Signal Pressure`}
+                subtitle={`${item.total_signals || 0} signals • ${item.news_signals || 0} news • ${item.fec_signals || 0} FEC/fundraising`}
+                meta={[
+                  { label: "Risk", value: item.overlay_risk || "Stable" },
+                  { label: "Avg Score", value: item.average_score || 0 },
+                  { label: "Critical", value: item.critical || 0 },
+                  { label: "High", value: item.high || 0 },
+                  { label: "News", value: item.news_signals || 0 },
+                  { label: "FEC", value: item.fec_signals || 0 },
+                ]}
+                right={
+                  <div className="ops-state-actions">
+                    <Badge tone={riskTone(item.overlay_risk)}>{item.overlay_risk || "Stable"}</Badge>
+                    <button type="button" className="vs-decision-btn deploy" onClick={() => onSelectState?.(item.state)}>
+                      Inspect
+                    </button>
+                  </div>
+                }
+              />
+              {item.top_signals?.length ? (
+                <div className="ops-signal-toplines">
+                  {item.top_signals.slice(0, 2).map((signal) => (
+                    <div key={signal.id || `${item.state}-${signal.title}`}>
+                      <strong>{cleanSignalText(signal.title || "Political signal")}</strong>
+                      <span>{signal.source || "Signal"} • {signal.risk || "Signal"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 export default function ExecutiveOperationsMap() {
   const [data, setData] = useState(null);
   const [selectedState, setSelectedState] = useState(null);
@@ -443,7 +580,29 @@ export default function ExecutiveOperationsMap() {
   const [taskMessage, setTaskMessage] = useState("");
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+  const [signalOverlay, setSignalOverlay] = useState({ summary: {}, states: [] });
+  const [signalOverlayError, setSignalOverlayError] = useState("");
   const intervalRef = useRef(null);
+
+  async function loadSignalOverlay() {
+    try {
+      setSignalOverlayError("");
+
+      if (typeof api.executiveMapSignalOverlay !== "function") {
+        return;
+      }
+
+      const result = await api.executiveMapSignalOverlay();
+      setSignalOverlay(result || { summary: {}, states: [] });
+    } catch (err) {
+      setSignalOverlayError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load executive map signal overlay."
+      );
+      setSignalOverlay({ summary: {}, states: [] });
+    }
+  }
 
   async function load({ quiet = false } = {}) {
     try {
@@ -526,9 +685,11 @@ export default function ExecutiveOperationsMap() {
 
   useEffect(() => {
     load();
+    loadSignalOverlay();
 
     intervalRef.current = setInterval(() => {
       load({ quiet: true });
+      loadSignalOverlay();
     }, 30000);
 
     return () => {
@@ -542,6 +703,16 @@ export default function ExecutiveOperationsMap() {
   const activeEscalations = data?.activeEscalations || [];
   const resolvedEscalations = data?.resolvedEscalations || [];
   const alerts = data?.alerts || [];
+  const overlaySummary = signalOverlay?.summary || {};
+  const overlayStates = signalOverlay?.states || [];
+
+  const overlayLookup = useMemo(() => {
+    return overlayStates.reduce((acc, item) => {
+      const key = String(item.state || "").toUpperCase();
+      if (key) acc[key] = item;
+      return acc;
+    }, {});
+  }, [overlayStates]);
 
   const stateLookup = useMemo(() => {
     return states.reduce((acc, item) => {
@@ -554,6 +725,11 @@ export default function ExecutiveOperationsMap() {
     if (!selectedState) return states[0] || null;
     return states.find((item) => item.state === selectedState.state) || selectedState;
   }, [selectedState, states]);
+
+  function selectStateFromOverlay(stateCode) {
+    const match = states.find((item) => item.state === stateCode || item.state_code === stateCode);
+    if (match) setSelectedState(match);
+  }
 
   const rankedStates = useMemo(() => {
     return [...states].sort((a, b) => Number(b.operational_score || 0) - Number(a.operational_score || 0));
@@ -577,11 +753,12 @@ export default function ExecutiveOperationsMap() {
     <PageShell
       eyebrow="Executive Command"
       title="Executive Operations Map"
-      description="Live national command layer wired to county heat, active escalations, resolved task relief, and county intelligence drawer."
+      description="Live national command layer wired to county heat, active escalations, resolved task relief, political signal overlays, and county intelligence drawer."
       tickerItems={[
         { label: "National Pressure", value: `${nationalPressure || 0}%`, dotClass: nationalPressure >= 65 ? "vs-live-dot" : "vs-live-dot-success" },
         { label: "Critical", value: `${criticalStates.length}`, dotClass: criticalStates.length ? "vs-live-dot" : "vs-live-dot-success" },
         { label: "Active Tasks", value: `${activeEscalationStates.length}`, dotClass: activeEscalationStates.length ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Political Signals", value: `${overlaySummary.total_signals || 0}`, dotClass: overlaySummary.total_signals ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "Updated", value: lastUpdated || "Live", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
@@ -1210,6 +1387,147 @@ export default function ExecutiveOperationsMap() {
           margin-top: 12px;
         }
 
+        .ops-state-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .ops-signal-badges {
+          position: absolute;
+          inset: 0;
+          z-index: 5;
+          pointer-events: none;
+        }
+
+        .ops-signal-badge {
+          position: absolute;
+          transform: translate(-50%, -50%);
+          pointer-events: auto;
+          min-width: 42px;
+          height: 30px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.38);
+          background: rgba(15,23,42,0.82);
+          color: white;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          font-size: 10px;
+          font-weight: 950;
+          cursor: pointer;
+          box-shadow: 0 12px 28px rgba(2,6,23,0.45), 0 0 0 6px rgba(59,130,246,0.08);
+          backdrop-filter: blur(12px);
+        }
+
+        .ops-signal-badge span {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 17px;
+          height: 17px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.18);
+          font-size: 9px;
+        }
+
+        .ops-signal-badge.critical,
+        .ops-signal-badge.high {
+          background: rgba(185,28,28,0.9);
+          box-shadow: 0 12px 28px rgba(127,29,29,0.45), 0 0 0 7px rgba(248,113,113,0.12);
+        }
+
+        .ops-signal-badge.elevated {
+          background: rgba(146,64,14,0.9);
+          box-shadow: 0 12px 28px rgba(120,53,15,0.42), 0 0 0 7px rgba(251,191,36,0.11);
+        }
+
+        .ops-signal-summary {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+
+        .ops-signal-summary div {
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.58);
+          padding: 12px;
+        }
+
+        .ops-signal-summary span {
+          display: block;
+          color: rgba(203, 213, 225, 0.64);
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+
+        .ops-signal-summary strong {
+          display: block;
+          margin-top: 5px;
+          color: white;
+          font-size: 20px;
+        }
+
+        .ops-signal-stack {
+          display: grid;
+          gap: 12px;
+        }
+
+        .ops-signal-row {
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.54));
+          overflow: hidden;
+        }
+
+        .ops-signal-row .vs-responsive-row {
+          border: 0;
+          background: transparent;
+        }
+
+        .ops-signal-row.critical,
+        .ops-signal-row.high {
+          border-color: rgba(248, 113, 113, 0.34);
+        }
+
+        .ops-signal-row.elevated {
+          border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .ops-signal-toplines {
+          display: grid;
+          gap: 8px;
+          padding: 0 16px 16px;
+        }
+
+        .ops-signal-toplines div {
+          border-radius: 14px;
+          border: 1px solid rgba(148,163,184,0.12);
+          background: rgba(2,6,23,0.28);
+          padding: 10px;
+        }
+
+        .ops-signal-toplines strong {
+          display: block;
+          color: white;
+          font-size: 12px;
+        }
+
+        .ops-signal-toplines span {
+          display: block;
+          margin-top: 4px;
+          color: rgba(203,213,225,0.64);
+          font-size: 11px;
+        }
+
         @media (max-width: 1150px) {
           .ops-command-layout,
           .ops-threat-matrix {
@@ -1235,13 +1553,15 @@ export default function ExecutiveOperationsMap() {
           .ops-panel-grid,
           .ops-action-grid,
           .county-drawer-summary,
-          .county-intel-grid {
+          .county-intel-grid,
+          .ops-signal-summary {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+      {signalOverlayError ? <div className="vs-banner vs-banner-warning">{signalOverlayError}</div> : null}
 
       <div className="ops-threat-matrix">
         <ThreatMetric
@@ -1331,7 +1651,7 @@ export default function ExecutiveOperationsMap() {
                             key={geo.rsmKey}
                             geography={geo}
                             className={`ops-geography ${isSelected ? "is-selected" : ""}`}
-                            fill={getStateFill(stateData, layer)}
+                            fill={layer === "signals" ? getSignalStateFill(overlayLookup[abbr]) : getStateFill(stateData, layer)}
                             onClick={() => {
                               if (stateData) setSelectedState(stateData);
                             }}
@@ -1347,6 +1667,11 @@ export default function ExecutiveOperationsMap() {
                   </Geographies>
                 </ComposableMap>
               </div>
+
+              <SignalBadgeOverlay
+                states={overlayStates}
+                onSelectState={selectStateFromOverlay}
+              />
 
               <div className="ops-map-legend">
                 <span className="ops-legend-item"><span className="ops-legend-dot critical" /> Critical</span>
@@ -1419,6 +1744,21 @@ export default function ExecutiveOperationsMap() {
                   <strong>{selected.resolved_task_count || 0}</strong>
                 </div>
               </div>
+
+              <div className="ops-breakdown">
+                <div className="ops-breakdown-item">
+                  <span>Political Signals</span>
+                  <strong>{overlayLookup[selected.state]?.total_signals || 0}</strong>
+                </div>
+                <div className="ops-breakdown-item">
+                  <span>News Signals</span>
+                  <strong>{overlayLookup[selected.state]?.news_signals || 0}</strong>
+                </div>
+                <div className="ops-breakdown-item">
+                  <span>FEC Signals</span>
+                  <strong>{overlayLookup[selected.state]?.fec_signals || 0}</strong>
+                </div>
+              </div>
             </div>
           )}
         </SectionCard>
@@ -1433,12 +1773,26 @@ export default function ExecutiveOperationsMap() {
               <EmptyState text="No state pressure detected yet." />
             ) : (
               rankedStates.slice(0, 8).map((item) => (
-                <StateRiskRow key={item.state} item={item} onSelect={setSelectedState} />
+                <StateRiskRow
+                  key={item.state}
+                  item={{
+                    ...item,
+                    signal_count: overlayLookup[item.state]?.total_signals || 0,
+                    signal_risk: overlayLookup[item.state]?.overlay_risk || "Stable",
+                  }}
+                  onSelect={setSelectedState}
+                />
               ))
             )}
           </div>
         </SectionCard>
       </div>
+
+      <SignalOverlayPanel
+        summary={overlaySummary}
+        states={overlayStates}
+        onSelectState={selectStateFromOverlay}
+      />
 
       <SectionCard
         title="Executive Signal Layer"
