@@ -8,7 +8,6 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
-import { useRealtimeTacticalEvents } from "../hooks/useRealtimeTacticalEvents";
 
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
@@ -281,11 +280,6 @@ export default function StateOperationsDrilldown() {
       setCreatingTask(false);
     }
   }
-
-  useRealtimeTacticalEvents({
-  state: stateCode,
-  onRefresh: () => load({ quiet: true }),
-});
 
   useEffect(() => {
     load();
