@@ -1071,6 +1071,22 @@ export const api = {
   executiveMapSignalOverlay: () =>
     tryGet(["/executive-map-signal-overlay"]),
 
+  campaignCrmDashboard: (workspaceId) =>
+    tryGet([
+      workspaceId
+        ? `/campaign-crm/dashboard?workspace_id=${encodeURIComponent(workspaceId)}`
+        : "/campaign-crm/dashboard",
+    ]),
+
+  createCampaignCrmContact: (payload = {}) =>
+    tryPost(["/campaign-crm/contacts"], payload),
+
+  createCampaignCrmActivity: (payload = {}) =>
+    tryPost(["/campaign-crm/activities"], payload),
+
+  completeCampaignCrmActivity: (id) =>
+    tryPut([`/campaign-crm/activities/${id}/complete`], {}),
+
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
