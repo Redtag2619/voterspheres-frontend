@@ -24,26 +24,92 @@ function fmt(value) {
 
 function tone(value) {
   const v = String(value || "").toLowerCase();
-  if (v === "critical" || v === "high") return "danger";
+  if (v === "critical" || v === "high" || v === "negative") return "danger";
   if (v === "elevated" || v === "medium") return "demo";
-  if (v === "stable" || v === "low") return "active";
+  if (v === "stable" || v === "low" || v === "positive") return "active";
   return "accent";
 }
 
+function decodeHtml(value = "") {
+  if (typeof document === "undefined") return String(value || "");
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(value || "");
+  return textarea.value;
+}
+
+function cleanDisplayText(value = "") {
+  return decodeHtml(value)
+    .replace(/<!\[CDATA\[/g, "")
+    .replace(/\]\]>/g, "")
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1")
+    .replace(/<font\b[^>]*>(.*?)<\/font>/gi, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanSignalTitle(value = "") {
+  return cleanDisplayText(value)
+    .replace(/^Narrative signal:\s*/i, "News narrative: ")
+    .replace(/^News narrative:\s*News narrative:\s*/i, "News narrative: ")
+    .replace(/\s+-\s+ABC7 Bay Area$/i, "")
+    .replace(/\s+-\s+The Washington Post$/i, "")
+    .replace(/\s+-\s+AP News$/i, "")
+    .replace(/\s+-\s+Reuters$/i, "")
+    .replace(/\s+-\s+CNN$/i, "")
+    .replace(/\s+-\s+Fox News$/i, "")
+    .replace(/\s+-\s+NBC News$/i, "")
+    .replace(/\s+-\s+CBS News$/i, "")
+    .replace(/\s+-\s+ABC News$/i, "")
+    .trim();
+}
+
+function cleanSignalSummary(item = {}) {
+  const cleaned = cleanDisplayText(item.summary || "");
+  const title = cleanDisplayText(item.title || "");
+
+  if (!cleaned || cleaned === title || cleaned.includes("target=\"_blank\"")) {
+    return `Political signal detected from ${cleanDisplayText(item.source || "Signal Source")}.`;
+  }
+
+  return cleaned;
+}
+
 function SignalRow({ item }) {
+  const source = cleanDisplayText(item.source || "Manual");
+
   return (
     <div className={`signal-row signal-${String(item.risk || "stable").toLowerCase()}`}>
       <ResponsiveRow
-        title={item.title || "Political signal"}
-        subtitle={item.summary || `${item.source || "Signal"} • ${item.signal_type || "general"}`}
+        title={cleanSignalTitle(item.title || "Political signal")}
+        subtitle={cleanSignalSummary(item)}
         meta={[
           { label: "Type", value: item.signal_type || "general" },
-          { label: "Source", value: item.source || "Manual" },
+          { label: "Source", value: source },
           { label: "State", value: item.state || "National" },
           { label: "County", value: item.county || "—" },
           { label: "Score", value: item.signal_score || 0 },
         ]}
-        right={<Badge tone={tone(item.risk || item.severity)}>{item.risk || item.severity || "Signal"}</Badge>}
+        right={
+          <div className="signal-actions">
+            {item.url ? (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="vs-button signal-read-link"
+              >
+                Read Full Article
+              </a>
+            ) : null}
+
+            <Badge tone={tone(item.risk || item.severity)}>
+              {item.risk || item.severity || "Signal"}
+            </Badge>
+          </div>
+        }
       />
     </div>
   );
@@ -159,6 +225,21 @@ export default function LivePoliticalSignals() {
 
         .signal-elevated {
           border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .signal-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .signal-read-link {
+          padding: 8px 14px;
+          font-size: 12px;
+          text-decoration: none;
+          white-space: nowrap;
         }
 
         .signal-form {
