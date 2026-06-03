@@ -998,6 +998,9 @@ export const api = {
 
   aiTacticalWorkspace: (id) =>
     tryGet([`/ai-tactical/workspace/${id}`]),
+  
+  createAiTacticalTask: (payload) =>
+    tryPost(["/ai-tactical/actions/task"], payload),
 
   workspaces: () =>
     workspacesApi.list(),
