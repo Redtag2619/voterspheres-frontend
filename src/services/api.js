@@ -1041,6 +1041,9 @@ export const api = {
   runSignalWorkspaceMatching: (payload = {}) =>
     tryPost(["/signal-workspace-matching/run"], payload),
 
+  workspaceSignalFeed: (workspaceId) =>
+    tryGet([`/workspace-signal-feed/${workspaceId}`]),
+
   newsNarrativeDashboard: () =>
     tryGet(["/news-narrative/dashboard"]),
 
