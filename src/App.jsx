@@ -55,6 +55,7 @@ const LivePoliticalSignals = lazy(() => import("./pages/LivePoliticalSignals.jsx
 const NarrativeRapidResponse = lazy(() => import("./pages/NarrativeRapidResponse.jsx"));
 const SignalWorkspaceMatching = lazy(() => import("./pages/SignalWorkspaceMatching.jsx"));
 const NewsNarrativeIntelligence = lazy(() => import("./pages/NewsNarrativeIntelligence.jsx"));
+const TaskOwnership = lazy(() => import("./pages/TaskOwnership.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -225,6 +226,7 @@ function AppRoutes() {
               <Route path="/narrative-intelligence" element={<NewsNarrativeIntelligence />} />
               <Route path="/signal-matching" element={<SignalWorkspaceMatching />} />
               <Route path="/narrative-response" element={<NarrativeRapidResponse />} />
+              <Route path="/task-ownership" element={<TaskOwnership />} />
               <Route path="/state-operations-map" element={<StateOperationsMap />} />
             </Route>
 
