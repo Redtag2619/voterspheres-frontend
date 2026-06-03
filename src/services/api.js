@@ -1041,6 +1041,15 @@ export const api = {
   runSignalWorkspaceMatching: (payload = {}) =>
     tryPost(["/signal-workspace-matching/run"], payload),
 
+  narrativeRapidResponseDashboard: () =>
+    tryGet(["/narrative-rapid-response/dashboard"]),
+
+  createNarrativeRapidResponse: (payload = {}) =>
+    tryPost(["/narrative-rapid-response"], payload),
+
+  updateNarrativeRapidResponse: (id, payload = {}) =>
+    tryPut([`/narrative-rapid-response/${id}`], payload),
+
   workspaceSignalFeed: (workspaceId) =>
     tryGet([`/workspace-signal-feed/${workspaceId}`]),
 
