@@ -1068,6 +1068,9 @@ export const api = {
   updateTaskOwnership: (taskId, payload = {}) =>
     tryPut([`/task-ownership/tasks/${taskId}`], payload),
 
+  executiveMapSignalOverlay: () =>
+    tryGet(["/executive-map-signal-overlay"]),
+
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
