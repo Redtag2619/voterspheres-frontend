@@ -491,7 +491,7 @@ export default function CampaignWorkspace() {
             <StatCard label="Completion" value={pct(summary.completion_rate || 0)} delta={`${fmt(summary.completed_tasks || 0)} complete`} tone={summary.completion_rate >= 70 ? "up" : "neutral"} />
           </div>
 
-          <WorkspaceSignalFeed workspaceId={workspaceId || workspace?.id || id} />
+          <WorkspaceSignalFeed workspaceId={workspaceId || workspace?.id} />
 
           <div className="cw-room-layout">
             <div className="cw-room-stack">
