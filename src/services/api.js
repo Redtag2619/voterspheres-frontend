@@ -1059,6 +1059,15 @@ export const api = {
   ingestNewsNarrative: (payload = {}) =>
     tryPost(["/news-narrative/ingest"], payload),
 
+  taskOwnershipDashboard: () =>
+    tryGet(["/task-ownership/dashboard"]),
+
+  taskOwners: () =>
+    tryGet(["/task-ownership/owners"]),
+
+  updateTaskOwnership: (taskId, payload = {}) =>
+    tryPut([`/task-ownership/tasks/${taskId}`], payload),
+
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
