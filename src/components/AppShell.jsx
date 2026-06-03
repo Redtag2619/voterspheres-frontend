@@ -17,6 +17,7 @@ const primaryItems = [
   { label: "Political Signals", to: "/political-signals" },
   { label: "Signal Matching", to: "/signal-matching" },
   { label: "Narrative Response", to: "/narrative-response" },
+  { label: "Task Ownership", to: "/task-ownership" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
