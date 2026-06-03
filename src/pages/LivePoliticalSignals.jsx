@@ -18,6 +18,31 @@ const emptyForm = {
   severity: "medium",
 };
 
+const STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI",
+  "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN",
+  "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH",
+  "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA",
+  "WV", "WI", "WY",
+];
+
+const COUNTY_OPTIONS = {
+  GA: ["Fulton", "Cobb", "DeKalb", "Gwinnett", "Clayton", "Chatham", "Muscogee", "Richmond"],
+  PA: ["Philadelphia", "Allegheny", "Montgomery", "Bucks", "Delaware", "Lancaster", "Chester"],
+  AZ: ["Maricopa", "Pima", "Pinal", "Yavapai", "Coconino"],
+  MI: ["Wayne", "Oakland", "Macomb", "Kent", "Genesee"],
+  WI: ["Milwaukee", "Dane", "Waukesha", "Brown", "Racine"],
+  NV: ["Clark", "Washoe", "Carson City"],
+  NC: ["Wake", "Mecklenburg", "Guilford", "Forsyth", "Durham"],
+  TX: ["Harris", "Dallas", "Tarrant", "Bexar", "Travis", "Collin", "Denton"],
+  FL: ["Miami-Dade", "Broward", "Palm Beach", "Hillsborough", "Orange", "Duval"],
+  LA: ["Orleans Parish", "Jefferson Parish", "East Baton Rouge Parish", "Caddo Parish", "Lafayette Parish"],
+  CA: ["Los Angeles", "Orange", "San Diego", "Riverside", "San Bernardino", "Santa Clara", "Alameda", "Sacramento"],
+  NY: ["New York", "Kings", "Queens", "Bronx", "Richmond", "Nassau", "Suffolk", "Westchester"],
+  OH: ["Franklin", "Cuyahoga", "Hamilton", "Summit", "Montgomery", "Lucas"],
+  VA: ["Fairfax", "Prince William", "Loudoun", "Chesterfield", "Henrico", "Virginia Beach"],
+};
+
 function fmt(value) {
   return Number(value || 0).toLocaleString();
 }
@@ -32,7 +57,6 @@ function tone(value) {
 
 function decodeHtml(value = "") {
   if (typeof document === "undefined") return String(value || "");
-
   const textarea = document.createElement("textarea");
   textarea.innerHTML = String(value || "");
   return textarea.value;
@@ -95,12 +119,7 @@ function SignalRow({ item }) {
         right={
           <div className="signal-actions">
             {item.url ? (
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noreferrer"
-                className="vs-button signal-read-link"
-              >
+              <a href={item.url} target="_blank" rel="noreferrer" className="vs-button signal-read-link">
                 Read Full Article
               </a>
             ) : null}
@@ -124,6 +143,8 @@ export default function LivePoliticalSignals() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+
+  const countyOptions = COUNTY_OPTIONS[form.state] || [];
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     try {
@@ -355,17 +376,40 @@ export default function LivePoliticalSignals() {
             </div>
 
             <div className="signal-grid">
-              <input
+              <select
                 value={form.state}
-                onChange={(event) => update("state", event.target.value)}
-                placeholder="State, e.g. GA"
-              />
+                onChange={(event) => {
+                  update("state", event.target.value);
+                  update("county", "");
+                }}
+              >
+                <option value="">Select state</option>
+                {STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
 
-              <input
+              <select
                 value={form.county}
                 onChange={(event) => update("county", event.target.value)}
-                placeholder="County"
-              />
+                disabled={!form.state}
+              >
+                <option value="">
+                  {form.state ? "Select county/parish" : "Select state first"}
+                </option>
+
+                {countyOptions.map((county) => (
+                  <option key={county} value={county}>
+                    {county}
+                  </option>
+                ))}
+
+                {form.state && !countyOptions.length ? (
+                  <option value="Statewide">Statewide / No county list</option>
+                ) : null}
+              </select>
             </div>
 
             <input
