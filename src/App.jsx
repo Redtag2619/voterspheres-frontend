@@ -56,6 +56,7 @@ const NarrativeRapidResponse = lazy(() => import("./pages/NarrativeRapidResponse
 const SignalWorkspaceMatching = lazy(() => import("./pages/SignalWorkspaceMatching.jsx"));
 const NewsNarrativeIntelligence = lazy(() => import("./pages/NewsNarrativeIntelligence.jsx"));
 const TaskOwnership = lazy(() => import("./pages/TaskOwnership.jsx"));
+const CampaignWorkspaceCRM = lazy(() => import("./pages/CampaignWorkspaceCRM.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -228,6 +229,7 @@ function AppRoutes() {
               <Route path="/narrative-response" element={<NarrativeRapidResponse />} />
               <Route path="/task-ownership" element={<TaskOwnership />} />
               <Route path="/state-operations-map" element={<StateOperationsMap />} />
+              <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_MAILOPS]} />}>
