@@ -10,6 +10,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import WorkspaceSignalFeed from "../components/workspaces/WorkspaceSignalFeed";
 
 function fmt(value) {
   return Number(value || 0).toLocaleString();
@@ -489,6 +490,8 @@ export default function CampaignWorkspace() {
             <StatCard label="County Escalations" value={fmt(summary.active_county_escalations || 0)} delta={`${fmt(summary.county_escalations || 0)} total`} tone={summary.active_county_escalations ? "down" : "up"} />
             <StatCard label="Completion" value={pct(summary.completion_rate || 0)} delta={`${fmt(summary.completed_tasks || 0)} complete`} tone={summary.completion_rate >= 70 ? "up" : "neutral"} />
           </div>
+
+          <WorkspaceSignalFeed workspaceId={workspaceId || workspace?.id || id} />
 
           <div className="cw-room-layout">
             <div className="cw-room-stack">
