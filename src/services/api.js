@@ -1034,6 +1034,12 @@ export const api = {
 
   createPoliticalSignal: (payload) =>
     tryPost(["/political-signals"], payload),
+  
+  signalWorkspaceMatchingDashboard: () =>
+    tryGet(["/signal-workspace-matching/dashboard"]),
+
+  runSignalWorkspaceMatching: (payload = {}) =>
+    tryPost(["/signal-workspace-matching/run"], payload),
 
   newsNarrativeDashboard: () =>
     tryGet(["/news-narrative/dashboard"]),
