@@ -178,11 +178,6 @@ export default function StateOperationsDrilldown() {
         throw new Error("State operations endpoint is not available.");
       }
 
-      useRealtimeTacticalEvents({
-        state: stateCode,
-        onRefresh: () => load({ quiet: true }),
-      });
-
       const result = await api.stateOperationsDrilldown(stateCode);
 
       const nextData = result || {
@@ -270,6 +265,7 @@ export default function StateOperationsDrilldown() {
       });
 
       setTaskMessage("Command Center task created.");
+      await load({ quiet: true });
     } catch (err) {
       setTaskMessage(
         err?.response?.data?.error ||
