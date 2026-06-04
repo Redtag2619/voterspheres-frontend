@@ -220,10 +220,18 @@ export default function CampaignWorkspaceCRM() {
   const {
     activeWorkspaceId,
     activeWorkspace,
-    workspaces = [],
+    workspaces: rawWorkspaces = [],
     setActiveWorkspaceId,
     refreshWorkspaces,
   } = useWorkspace();
+
+  const workspaces = Array.isArray(rawWorkspaces)
+  ? rawWorkspaces
+  : Array.isArray(rawWorkspaces?.results)
+    ? rawWorkspaces.results
+    : Array.isArray(rawWorkspaces?.workspaces)
+      ? rawWorkspaces.workspaces
+      : [];
 
   const requestedWorkspaceId = params.get("workspace_id") || params.get("workspaceId") || "";
   const workspaceId = requestedWorkspaceId || activeWorkspaceId || "";
