@@ -315,19 +315,17 @@ http.interceptors.request.use(
   (config) => {
     const token = getStoredToken?.();
 
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
     if (shouldInjectWorkspace(config)) {
       const workspaceId = getActiveWorkspaceId();
 
       if (workspaceId) {
         config.params = config.params || {};
+
         if (!config.params.workspace_id) {
           config.params.workspace_id = workspaceId;
         }
