@@ -62,6 +62,7 @@ function shouldInjectWorkspace(config = {}) {
     "/beta-admin",
     "/candidates",
     "/consultants",
+    "/campaign-crm",
     "/consultant-opportunities",
   ];
 
