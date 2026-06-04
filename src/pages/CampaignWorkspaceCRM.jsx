@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
-import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -24,6 +23,8 @@ function tone(value) {
 
 function clean(value = "") {
   return String(value || "")
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1")
+    .replace(/<font\b[^>]*>(.*?)<\/font>/gi, "$1")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
@@ -31,42 +32,32 @@ function clean(value = "") {
     .trim();
 }
 
-function normalizeArray(value) {
-  return Array.isArray(value) ? value : [];
+function arr(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.workspaces)) return value.workspaces;
+  return [];
 }
 
-function getWorkspaceTitle(workspace) {
+function getStoredWorkspaceId() {
+  try {
+    return localStorage.getItem("vs_active_workspace") || "";
+  } catch {
+    return "";
+  }
+}
+
+function setStoredWorkspaceId(id) {
+  try {
+    if (id) localStorage.setItem("vs_active_workspace", String(id));
+    else localStorage.removeItem("vs_active_workspace");
+  } catch {
+    // ignore
+  }
+}
+
+function workspaceTitle(workspace) {
   return workspace?.name || workspace?.campaign_name || workspace?.title || "Campaign Workspace";
-}
-
-function WorkspaceSelector({ workspaces = [], workspaceId, activeWorkspace, onChange }) {
-  return (
-    <SectionCard
-      title="CRM Workspace Scope"
-      subtitle="Choose which campaign workspace this CRM should display."
-      right={<Badge tone="accent">{workspaces.length || 0} workspaces</Badge>}
-    >
-      <div className="crm-workspace-selector">
-        <div>
-          <span>Active Workspace</span>
-          <strong>{getWorkspaceTitle(activeWorkspace)}</strong>
-          <small>
-            {activeWorkspace?.state || "National"} • {activeWorkspace?.office || "Workspace"} •{" "}
-            {activeWorkspace?.cycle || "2026"}
-          </small>
-        </div>
-
-        <select value={workspaceId || ""} onChange={(event) => onChange?.(event.target.value)}>
-          <option value="">All CRM / Firmwide</option>
-          {workspaces.map((workspace) => (
-            <option key={workspace.id} value={workspace.id}>
-              {getWorkspaceTitle(workspace)}
-            </option>
-          ))}
-        </select>
-      </div>
-    </SectionCard>
-  );
 }
 
 function ContactForm({ workspaceId, onCreated, onError }) {
@@ -103,12 +94,7 @@ function ContactForm({ workspaceId, onCreated, onError }) {
 
       await onCreated?.();
     } catch (err) {
-      onError?.(
-        err?.response?.data?.error ||
-          err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to create CRM contact."
-      );
+      onError?.(err?.response?.data?.error || err?.response?.data?.detail || err?.message || "Failed to create contact.");
     } finally {
       setSaving(false);
     }
@@ -172,12 +158,7 @@ function ActivityForm({ workspaceId, contacts, onCreated, onError }) {
 
       await onCreated?.();
     } catch (err) {
-      onError?.(
-        err?.response?.data?.error ||
-          err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to log CRM activity."
-      );
+      onError?.(err?.response?.data?.error || err?.response?.data?.detail || err?.message || "Failed to log activity.");
     } finally {
       setSaving(false);
     }
@@ -217,33 +198,11 @@ function ActivityForm({ workspaceId, contacts, onCreated, onError }) {
 export default function CampaignWorkspaceCRM() {
   const [params, setParams] = useSearchParams();
 
-  const {
-    activeWorkspaceId,
-    activeWorkspace,
-    workspaces: rawWorkspaces = [],
-    setActiveWorkspaceId,
-    refreshWorkspaces,
-  } = useWorkspace();
+  const [workspaceId, setWorkspaceId] = useState(
+    params.get("workspace_id") || params.get("workspaceId") || getStoredWorkspaceId() || ""
+  );
 
-  const workspaces = Array.isArray(rawWorkspaces)
-  ? rawWorkspaces
-  : Array.isArray(rawWorkspaces?.results)
-    ? rawWorkspaces.results
-    : Array.isArray(rawWorkspaces?.workspaces)
-      ? rawWorkspaces.workspaces
-      : [];
-
-  const requestedWorkspaceId = params.get("workspace_id") || params.get("workspaceId") || "";
-  const workspaceId = requestedWorkspaceId || activeWorkspaceId || "";
-
-  const selectedWorkspace = useMemo(() => {
-    return (
-      workspaces.find((workspace) => String(workspace.id) === String(workspaceId)) ||
-      activeWorkspace ||
-      null
-    );
-  }, [workspaces, workspaceId, activeWorkspace]);
-
+  const [workspaces, setWorkspaces] = useState([]);
   const [data, setData] = useState({
     summary: {},
     contacts: [],
@@ -255,51 +214,70 @@ export default function CampaignWorkspaceCRM() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [workspaceLoading, setWorkspaceLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
 
-  const load = useCallback(
-    async ({ quiet = false } = {}) => {
-      try {
-        if (quiet) setRefreshing(true);
-        else setLoading(true);
+  const selectedWorkspace = useMemo(() => {
+    return workspaces.find((item) => String(item.id) === String(workspaceId)) || null;
+  }, [workspaces, workspaceId]);
 
-        setError("");
+  const loadWorkspaces = useCallback(async () => {
+    try {
+      setWorkspaceLoading(true);
 
-        const result = await api.campaignCrmDashboard(workspaceId || null);
+      const result = typeof api.workspaces === "function"
+        ? await api.workspaces()
+        : await api.campaignWorkspaces();
 
-        setData({
-          summary: result?.summary || {},
-          contacts: normalizeArray(result?.contacts),
-          activities: normalizeArray(result?.activities),
-          tasks: normalizeArray(result?.tasks),
-          signals: normalizeArray(result?.signals),
-          rapid_responses: normalizeArray(result?.rapid_responses),
-          ai_recommendations: normalizeArray(result?.ai_recommendations),
-          updated_at: result?.updated_at,
-        });
+      const rows = arr(result);
+      setWorkspaces(rows);
 
-        setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
-      } catch (err) {
-        setError(
-          err?.response?.data?.error ||
-            err?.response?.data?.detail ||
-            err?.message ||
-            "Failed to load Campaign Workspace CRM."
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+      if (!workspaceId && rows[0]?.id) {
+        setWorkspaceId(String(rows[0].id));
+        setStoredWorkspaceId(rows[0].id);
+        setParams({ workspace_id: String(rows[0].id) });
       }
-    },
-    [workspaceId]
-  );
+    } catch {
+      setWorkspaces([]);
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, [workspaceId, setParams]);
+
+  const load = useCallback(async ({ quiet = false } = {}) => {
+    try {
+      if (quiet) setRefreshing(true);
+      else setLoading(true);
+
+      setError("");
+
+      const result = await api.campaignCrmDashboard(workspaceId || null);
+
+      setData({
+        summary: result?.summary || {},
+        contacts: arr(result?.contacts),
+        activities: arr(result?.activities),
+        tasks: arr(result?.tasks),
+        signals: arr(result?.signals),
+        rapid_responses: arr(result?.rapid_responses),
+        ai_recommendations: arr(result?.ai_recommendations),
+      });
+
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.response?.data?.detail || err?.message || "Failed to load Campaign Workspace CRM.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [workspaceId]);
 
   useEffect(() => {
-    refreshWorkspaces?.();
-  }, [refreshWorkspaces]);
+    loadWorkspaces();
+  }, [loadWorkspaces]);
 
   useEffect(() => {
     load();
@@ -307,13 +285,12 @@ export default function CampaignWorkspaceCRM() {
     return () => clearInterval(interval);
   }, [load]);
 
-  function handleWorkspaceChange(nextWorkspaceId) {
-    if (nextWorkspaceId) {
-      setActiveWorkspaceId?.(nextWorkspaceId);
-      setParams({ workspace_id: nextWorkspaceId });
-    } else {
-      setParams({});
-    }
+  function changeWorkspace(nextId) {
+    setWorkspaceId(nextId);
+    setStoredWorkspaceId(nextId);
+
+    if (nextId) setParams({ workspace_id: nextId });
+    else setParams({});
   }
 
   async function completeActivity(id) {
@@ -323,170 +300,154 @@ export default function CampaignWorkspaceCRM() {
       setMessage("CRM activity completed.");
       await load({ quiet: true });
     } catch (err) {
-      setError(
-        err?.response?.data?.error ||
-          err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to complete activity."
-      );
+      setError(err?.response?.data?.error || err?.response?.data?.detail || err?.message || "Failed to complete activity.");
     }
   }
 
-  const summary = data?.summary || {};
-  const contacts = normalizeArray(data?.contacts);
-  const activities = normalizeArray(data?.activities);
-  const tasks = normalizeArray(data?.tasks);
-  const signals = normalizeArray(data?.signals);
-  const rapidResponses = normalizeArray(data?.rapid_responses);
-  const recommendations = normalizeArray(data?.ai_recommendations);
+  const summary = data.summary || {};
+  const contacts = arr(data.contacts);
+  const activities = arr(data.activities);
+  const tasks = arr(data.tasks);
+  const signals = arr(data.signals);
+  const rapidResponses = arr(data.rapid_responses);
+  const recommendations = arr(data.ai_recommendations);
 
-  const highSignals = useMemo(() => {
-    return signals.filter((signal) =>
-      ["Critical", "High", "critical", "high"].includes(String(signal.risk || signal.severity || ""))
-    );
-  }, [signals]);
+  const highSignals = signals.filter((signal) =>
+    ["Critical", "High", "critical", "high"].includes(String(signal.risk || signal.severity || ""))
+  );
 
   return (
     <PageShell
       eyebrow="Campaign Workspace CRM"
       title="Campaign Workspace CRM"
-      description="A relationship and activity command layer for campaign workspaces, contacts, tasks, political signals, rapid responses, and AI recommendations."
+      description="Relationship and activity command layer for campaign workspaces, contacts, tasks, political signals, rapid responses, and AI recommendations."
       tickerItems={[
-        { label: "Workspace", value: workspaceId ? getWorkspaceTitle(selectedWorkspace) : "Firmwide", dotClass: "vs-live-dot-success" },
+        { label: "Workspace", value: selectedWorkspace ? workspaceTitle(selectedWorkspace) : workspaceId ? `Workspace ${workspaceId}` : "Firmwide", dotClass: "vs-live-dot-success" },
         { label: "Contacts", value: `${summary.contacts || 0}`, dotClass: "vs-live-dot-success" },
         { label: "Open Tasks", value: `${summary.open_tasks || 0}`, dotClass: summary.open_tasks ? "vs-live-dot-warning" : "vs-live-dot-success" },
-        { label: "High Signals", value: `${summary.high_signals || 0}`, dotClass: summary.high_signals ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Signals", value: `${summary.signals || signals.length || 0}`, dotClass: "vs-live-dot-success" },
         { label: "Updated", value: refreshing ? "Live" : lastUpdated || "Ready", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
       <style>{`
-        .crm-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
-          gap: 18px;
-          align-items: start;
-        }
-
-        .crm-stack {
-          display: grid;
-          gap: 14px;
-        }
-
-        .crm-workspace-selector {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-          gap: 14px;
-          align-items: center;
-        }
-
-        .crm-workspace-selector span {
-          display: block;
-          color: rgba(203, 213, 225, 0.64);
-          font-size: 11px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .crm-workspace-selector strong {
-          display: block;
-          margin-top: 5px;
-          color: white;
-          font-size: 20px;
-          font-weight: 950;
-        }
-
-        .crm-workspace-selector small {
-          display: block;
-          margin-top: 5px;
-          color: rgba(203, 213, 225, 0.66);
-        }
-
-        .crm-form {
-          display: grid;
-          gap: 10px;
-        }
+        .crm-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr); gap:18px; align-items:start; }
+        .crm-stack { display:grid; gap:14px; }
+        .crm-form { display:grid; gap:10px; }
 
         .crm-form input,
         .crm-form select,
         .crm-form textarea,
-        .crm-workspace-selector select {
-          width: 100%;
-          border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.74);
-          color: white;
-          padding: 11px 12px;
-          outline: none;
+        .crm-workspace-select {
+          width:100%;
+          border-radius:14px;
+          border:1px solid rgba(148,163,184,.18);
+          background:rgba(15,23,42,.74);
+          color:white;
+          padding:11px 12px;
+          outline:none;
         }
 
-        .crm-form textarea {
-          min-height: 86px;
-          resize: vertical;
-        }
+        .crm-form textarea { min-height:86px; resize:vertical; }
 
         .crm-row {
-          border-radius: 20px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.54));
-          overflow: hidden;
+          border-radius:20px;
+          border:1px solid rgba(148,163,184,.16);
+          background:radial-gradient(circle at top right, rgba(59,130,246,.1), transparent 34%),
+            linear-gradient(135deg, rgba(15,23,42,.78), rgba(2,6,23,.54));
+          overflow:hidden;
         }
 
-        .crm-row .vs-responsive-row {
-          border: 0;
-          background: transparent;
+        .crm-row .vs-responsive-row { border:0; background:transparent; }
+
+        .crm-workspace-box {
+          display:grid;
+          grid-template-columns:minmax(0,1fr) minmax(260px,360px);
+          gap:14px;
+          align-items:center;
+        }
+
+        .crm-workspace-box span {
+          display:block;
+          color:rgba(203,213,225,.64);
+          font-size:11px;
+          font-weight:900;
+          text-transform:uppercase;
+          letter-spacing:.08em;
+        }
+
+        .crm-workspace-box strong {
+          display:block;
+          margin-top:5px;
+          color:white;
+          font-size:20px;
+          font-weight:950;
+        }
+
+        .crm-workspace-box small {
+          display:block;
+          margin-top:5px;
+          color:rgba(203,213,225,.66);
         }
 
         .crm-recommendation {
-          border-radius: 18px;
-          border: 1px solid rgba(96, 165, 250, 0.24);
-          background: rgba(37, 99, 235, 0.14);
-          padding: 14px;
-          color: rgba(226, 232, 240, 0.92);
-          font-size: 13px;
-          line-height: 1.55;
+          border-radius:18px;
+          border:1px solid rgba(96,165,250,.24);
+          background:rgba(37,99,235,.14);
+          padding:14px;
+          color:rgba(226,232,240,.92);
+          font-size:13px;
+          line-height:1.55;
         }
 
-        .crm-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
+        .crm-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 
         .crm-message {
-          border-radius: 16px;
-          border: 1px solid rgba(96, 165, 250, 0.24);
-          background: rgba(37, 99, 235, 0.14);
-          color: rgba(226, 232, 240, 0.92);
-          padding: 12px;
+          border-radius:16px;
+          border:1px solid rgba(96,165,250,.24);
+          background:rgba(37,99,235,.14);
+          color:rgba(226,232,240,.92);
+          padding:12px;
         }
 
-        @media (max-width: 1100px) {
+        @media (max-width:1100px) {
           .crm-grid,
-          .crm-workspace-selector {
-            grid-template-columns: 1fr;
-          }
+          .crm-workspace-box { grid-template-columns:1fr; }
         }
       `}</style>
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {message ? <div className="crm-message">{message}</div> : null}
 
-      <WorkspaceSelector
-        workspaces={workspaces}
-        workspaceId={workspaceId}
-        activeWorkspace={selectedWorkspace}
-        onChange={handleWorkspaceChange}
-      />
+      <SectionCard
+        title="CRM Workspace Scope"
+        subtitle="Choose which campaign workspace this CRM should display."
+        right={<Badge tone="accent">{workspaceLoading ? "Loading" : `${workspaces.length} workspaces`}</Badge>}
+      >
+        <div className="crm-workspace-box">
+          <div>
+            <span>Selected Workspace</span>
+            <strong>{selectedWorkspace ? workspaceTitle(selectedWorkspace) : workspaceId ? `Workspace ${workspaceId}` : "Firmwide CRM"}</strong>
+            <small>
+              {selectedWorkspace?.state || "National"} • {selectedWorkspace?.office || "Campaign"} • {selectedWorkspace?.cycle || "2026"}
+            </small>
+          </div>
+
+          <select className="crm-workspace-select" value={workspaceId || ""} onChange={(e) => changeWorkspace(e.target.value)}>
+            <option value="">Firmwide CRM</option>
+            {workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspaceTitle(workspace)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </SectionCard>
 
       <div className="vs-grid-4">
         <StatCard label="Contacts" value={fmt(summary.contacts)} delta="Workspace relationships" tone="up" />
         <StatCard label="Activities" value={fmt(summary.activities)} delta="Notes and touches" tone="up" />
         <StatCard label="Open Tasks" value={fmt(summary.open_tasks)} delta="Execution items" tone={summary.open_tasks ? "neutral" : "up"} />
-        <StatCard label="High Signals" value={fmt(summary.high_signals)} delta="Political risk" tone={summary.high_signals ? "down" : "up"} />
+        <StatCard label="Signals" value={fmt(summary.signals || signals.length)} delta="Political intelligence" tone="up" />
       </div>
 
       {loading ? (
@@ -553,7 +514,7 @@ export default function CampaignWorkspaceCRM() {
 
             <SectionCard title="Signals + Rapid Responses" subtitle="Live political signals and narrative response work linked to this CRM context." right={<Badge tone={highSignals.length ? "danger" : "active"}>{signals.length} signals</Badge>}>
               <div className="crm-stack">
-                {signals.slice(0, 8).map((signal) => (
+                {signals.slice(0, 10).map((signal) => (
                   <div key={signal.id} className="crm-row">
                     <ResponsiveRow
                       title={clean(signal.title || "Political signal")}
