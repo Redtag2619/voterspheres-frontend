@@ -1085,6 +1085,9 @@ export const api = {
 
   createCampaignCrmActivity: (payload = {}) =>
     tryPost(["/campaign-crm/activities"], payload),
+  
+  executiveMissionControl: () =>
+    tryGet(["/executive-mission-control/dashboard"]),
 
   completeCampaignCrmActivity: (id) =>
     tryPut([`/campaign-crm/activities/${id}/complete`], {}),
