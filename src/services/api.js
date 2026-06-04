@@ -64,6 +64,7 @@ function shouldInjectWorkspace(config = {}) {
     "/consultants",
     "/campaign-crm",
     "/executive-mission-control",
+    "/ai-strategic-advisor",
     "/consultant-opportunities",
   ];
 
@@ -1092,6 +1093,8 @@ export const api = {
 
   completeCampaignCrmActivity: (id) =>
     tryPut([`/campaign-crm/activities/${id}/complete`], {}),
+  aiStrategicAdvisor: () =>
+    tryGet(["/ai-strategic-advisor/dashboard"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
