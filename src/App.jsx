@@ -57,6 +57,7 @@ const SignalWorkspaceMatching = lazy(() => import("./pages/SignalWorkspaceMatchi
 const NewsNarrativeIntelligence = lazy(() => import("./pages/NewsNarrativeIntelligence.jsx"));
 const TaskOwnership = lazy(() => import("./pages/TaskOwnership.jsx"));
 const CampaignWorkspaceCRM = lazy(() => import("./pages/CampaignWorkspaceCRM.jsx"));
+const ExecutiveMissionControl = lazy(() => import("./pages/ExecutiveMissionControl.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -229,6 +230,7 @@ function AppRoutes() {
               <Route path="/narrative-response" element={<NarrativeRapidResponse />} />
               <Route path="/task-ownership" element={<TaskOwnership />} />
               <Route path="/state-operations-map" element={<StateOperationsMap />} />
+              <Route path="/mission-control" element={<ExecutiveMissionControl />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
