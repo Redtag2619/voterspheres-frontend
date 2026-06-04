@@ -19,6 +19,7 @@ const primaryItems = [
   { label: "Narrative Response", to: "/narrative-response" },
   { label: "Task Ownership", to: "/task-ownership" },
   { label: "Campaign CRM", to: "/campaign-crm" },
+  { label: "Mission Control", to: "/mission-control" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
