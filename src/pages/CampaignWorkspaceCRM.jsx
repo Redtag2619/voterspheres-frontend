@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -30,7 +31,45 @@ function clean(value = "") {
     .trim();
 }
 
-function ContactForm({ workspaceId, onCreated }) {
+function normalizeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getWorkspaceTitle(workspace) {
+  return workspace?.name || workspace?.campaign_name || workspace?.title || "Campaign Workspace";
+}
+
+function WorkspaceSelector({ workspaces = [], workspaceId, activeWorkspace, onChange }) {
+  return (
+    <SectionCard
+      title="CRM Workspace Scope"
+      subtitle="Choose which campaign workspace this CRM should display."
+      right={<Badge tone="accent">{workspaces.length || 0} workspaces</Badge>}
+    >
+      <div className="crm-workspace-selector">
+        <div>
+          <span>Active Workspace</span>
+          <strong>{getWorkspaceTitle(activeWorkspace)}</strong>
+          <small>
+            {activeWorkspace?.state || "National"} • {activeWorkspace?.office || "Workspace"} •{" "}
+            {activeWorkspace?.cycle || "2026"}
+          </small>
+        </div>
+
+        <select value={workspaceId || ""} onChange={(event) => onChange?.(event.target.value)}>
+          <option value="">All CRM / Firmwide</option>
+          {workspaces.map((workspace) => (
+            <option key={workspace.id} value={workspace.id}>
+              {getWorkspaceTitle(workspace)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </SectionCard>
+  );
+}
+
+function ContactForm({ workspaceId, onCreated, onError }) {
   const [form, setForm] = useState({
     full_name: "",
     organization: "",
@@ -63,6 +102,13 @@ function ContactForm({ workspaceId, onCreated }) {
       });
 
       await onCreated?.();
+    } catch (err) {
+      onError?.(
+        err?.response?.data?.error ||
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to create CRM contact."
+      );
     } finally {
       setSaving(false);
     }
@@ -95,7 +141,7 @@ function ContactForm({ workspaceId, onCreated }) {
   );
 }
 
-function ActivityForm({ workspaceId, contacts, onCreated }) {
+function ActivityForm({ workspaceId, contacts, onCreated, onError }) {
   const [form, setForm] = useState({
     contact_id: "",
     activity_type: "note",
@@ -125,6 +171,13 @@ function ActivityForm({ workspaceId, contacts, onCreated }) {
       });
 
       await onCreated?.();
+    } catch (err) {
+      onError?.(
+        err?.response?.data?.error ||
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to log CRM activity."
+      );
     } finally {
       setSaving(false);
     }
@@ -162,32 +215,83 @@ function ActivityForm({ workspaceId, contacts, onCreated }) {
 }
 
 export default function CampaignWorkspaceCRM() {
-  const [params] = useSearchParams();
-  const workspaceId = params.get("workspace_id") || params.get("workspaceId") || "";
+  const [params, setParams] = useSearchParams();
 
-  const [data, setData] = useState({ summary: {}, contacts: [], activities: [], tasks: [], signals: [], rapid_responses: [], ai_recommendations: [] });
+  const {
+    activeWorkspaceId,
+    activeWorkspace,
+    workspaces = [],
+    setActiveWorkspaceId,
+    refreshWorkspaces,
+  } = useWorkspace();
+
+  const requestedWorkspaceId = params.get("workspace_id") || params.get("workspaceId") || "";
+  const workspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+
+  const selectedWorkspace = useMemo(() => {
+    return (
+      workspaces.find((workspace) => String(workspace.id) === String(workspaceId)) ||
+      activeWorkspace ||
+      null
+    );
+  }, [workspaces, workspaceId, activeWorkspace]);
+
+  const [data, setData] = useState({
+    summary: {},
+    contacts: [],
+    activities: [],
+    tasks: [],
+    signals: [],
+    rapid_responses: [],
+    ai_recommendations: [],
+  });
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
 
-  const load = useCallback(async ({ quiet = false } = {}) => {
-    try {
-      if (quiet) setRefreshing(true);
-      else setLoading(true);
+  const load = useCallback(
+    async ({ quiet = false } = {}) => {
+      try {
+        if (quiet) setRefreshing(true);
+        else setLoading(true);
 
-      setError("");
+        setError("");
 
-      const result = await api.campaignCrmDashboard(workspaceId || null);
-      setData(result || {});
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
-    } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Failed to load Campaign Workspace CRM.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [workspaceId]);
+        const result = await api.campaignCrmDashboard(workspaceId || null);
+
+        setData({
+          summary: result?.summary || {},
+          contacts: normalizeArray(result?.contacts),
+          activities: normalizeArray(result?.activities),
+          tasks: normalizeArray(result?.tasks),
+          signals: normalizeArray(result?.signals),
+          rapid_responses: normalizeArray(result?.rapid_responses),
+          ai_recommendations: normalizeArray(result?.ai_recommendations),
+          updated_at: result?.updated_at,
+        });
+
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      } catch (err) {
+        setError(
+          err?.response?.data?.error ||
+            err?.response?.data?.detail ||
+            err?.message ||
+            "Failed to load Campaign Workspace CRM."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [workspaceId]
+  );
+
+  useEffect(() => {
+    refreshWorkspaces?.();
+  }, [refreshWorkspaces]);
 
   useEffect(() => {
     load();
@@ -195,21 +299,43 @@ export default function CampaignWorkspaceCRM() {
     return () => clearInterval(interval);
   }, [load]);
 
+  function handleWorkspaceChange(nextWorkspaceId) {
+    if (nextWorkspaceId) {
+      setActiveWorkspaceId?.(nextWorkspaceId);
+      setParams({ workspace_id: nextWorkspaceId });
+    } else {
+      setParams({});
+    }
+  }
+
   async function completeActivity(id) {
-    await api.completeCampaignCrmActivity(id);
-    await load({ quiet: true });
+    try {
+      setMessage("");
+      await api.completeCampaignCrmActivity(id);
+      setMessage("CRM activity completed.");
+      await load({ quiet: true });
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to complete activity."
+      );
+    }
   }
 
   const summary = data?.summary || {};
-  const contacts = data?.contacts || [];
-  const activities = data?.activities || [];
-  const tasks = data?.tasks || [];
-  const signals = data?.signals || [];
-  const rapidResponses = data?.rapid_responses || [];
-  const recommendations = data?.ai_recommendations || [];
+  const contacts = normalizeArray(data?.contacts);
+  const activities = normalizeArray(data?.activities);
+  const tasks = normalizeArray(data?.tasks);
+  const signals = normalizeArray(data?.signals);
+  const rapidResponses = normalizeArray(data?.rapid_responses);
+  const recommendations = normalizeArray(data?.ai_recommendations);
 
   const highSignals = useMemo(() => {
-    return signals.filter((signal) => ["Critical", "High", "critical", "high"].includes(String(signal.risk || signal.severity || "")));
+    return signals.filter((signal) =>
+      ["Critical", "High", "critical", "high"].includes(String(signal.risk || signal.severity || ""))
+    );
   }, [signals]);
 
   return (
@@ -218,6 +344,7 @@ export default function CampaignWorkspaceCRM() {
       title="Campaign Workspace CRM"
       description="A relationship and activity command layer for campaign workspaces, contacts, tasks, political signals, rapid responses, and AI recommendations."
       tickerItems={[
+        { label: "Workspace", value: workspaceId ? getWorkspaceTitle(selectedWorkspace) : "Firmwide", dotClass: "vs-live-dot-success" },
         { label: "Contacts", value: `${summary.contacts || 0}`, dotClass: "vs-live-dot-success" },
         { label: "Open Tasks", value: `${summary.open_tasks || 0}`, dotClass: summary.open_tasks ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "High Signals", value: `${summary.high_signals || 0}`, dotClass: summary.high_signals ? "vs-live-dot-warning" : "vs-live-dot-success" },
@@ -237,6 +364,36 @@ export default function CampaignWorkspaceCRM() {
           gap: 14px;
         }
 
+        .crm-workspace-selector {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+          gap: 14px;
+          align-items: center;
+        }
+
+        .crm-workspace-selector span {
+          display: block;
+          color: rgba(203, 213, 225, 0.64);
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .crm-workspace-selector strong {
+          display: block;
+          margin-top: 5px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+        }
+
+        .crm-workspace-selector small {
+          display: block;
+          margin-top: 5px;
+          color: rgba(203, 213, 225, 0.66);
+        }
+
         .crm-form {
           display: grid;
           gap: 10px;
@@ -244,7 +401,8 @@ export default function CampaignWorkspaceCRM() {
 
         .crm-form input,
         .crm-form select,
-        .crm-form textarea {
+        .crm-form textarea,
+        .crm-workspace-selector select {
           width: 100%;
           border-radius: 14px;
           border: 1px solid rgba(148, 163, 184, 0.18);
@@ -290,14 +448,31 @@ export default function CampaignWorkspaceCRM() {
           flex-wrap: wrap;
         }
 
+        .crm-message {
+          border-radius: 16px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background: rgba(37, 99, 235, 0.14);
+          color: rgba(226, 232, 240, 0.92);
+          padding: 12px;
+        }
+
         @media (max-width: 1100px) {
-          .crm-grid {
+          .crm-grid,
+          .crm-workspace-selector {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+      {message ? <div className="crm-message">{message}</div> : null}
+
+      <WorkspaceSelector
+        workspaces={workspaces}
+        workspaceId={workspaceId}
+        activeWorkspace={selectedWorkspace}
+        onChange={handleWorkspaceChange}
+      />
 
       <div className="vs-grid-4">
         <StatCard label="Contacts" value={fmt(summary.contacts)} delta="Workspace relationships" tone="up" />
@@ -432,11 +607,11 @@ export default function CampaignWorkspaceCRM() {
 
           <div className="crm-stack">
             <SectionCard title="Add Contact" subtitle="Create CRM relationship records.">
-              <ContactForm workspaceId={workspaceId} onCreated={() => load({ quiet: true })} />
+              <ContactForm workspaceId={workspaceId} onCreated={() => load({ quiet: true })} onError={setError} />
             </SectionCard>
 
             <SectionCard title="Log Activity" subtitle="Add notes, calls, meetings, and follow-ups.">
-              <ActivityForm workspaceId={workspaceId} contacts={contacts} onCreated={() => load({ quiet: true })} />
+              <ActivityForm workspaceId={workspaceId} contacts={contacts} onCreated={() => load({ quiet: true })} onError={setError} />
             </SectionCard>
 
             <SectionCard title="AI CRM Recommendations" subtitle="Operational next steps from workspace intelligence.">
