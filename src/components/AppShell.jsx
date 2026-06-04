@@ -9,6 +9,7 @@ const primaryItems = [
   { label: "Candidates", to: "/candidates" },
   { label: "War Room", to: "/war-room" },
   { label: "Command", to: "/command-center" },
+  { label: "Mission Control", to: "/mission-control" },
   { label: "Fundraising", to: "/fundraising" },
   { label: "Vendors", to: "/vendors" },
   { label: "Consultant Intel", to: "/consultant-intel" }, 
@@ -19,7 +20,6 @@ const primaryItems = [
   { label: "Narrative Response", to: "/narrative-response" },
   { label: "Task Ownership", to: "/task-ownership" },
   { label: "Campaign CRM", to: "/campaign-crm" },
-  { label: "Mission Control", to: "/mission-control" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
