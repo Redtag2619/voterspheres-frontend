@@ -313,9 +313,9 @@ function normalizeWarRoomPayload(data) {
 
 http.interceptors.request.use(
   (config) => {
-    const token = getStoredToken?.();
+    const vs_token = getStoredToken?.();
 
-    if (token) {
+    if (vs_token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
