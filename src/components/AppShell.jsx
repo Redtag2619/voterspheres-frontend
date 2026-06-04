@@ -10,6 +10,7 @@ const primaryItems = [
   { label: "War Room", to: "/war-room" },
   { label: "Command", to: "/command-center" },
   { label: "Mission Control", to: "/mission-control" },
+  { label: "Strategic Advisor", to: "/strategic-advisor" },
   { label: "Fundraising", to: "/fundraising" },
   { label: "Vendors", to: "/vendors" },
   { label: "Consultant Intel", to: "/consultant-intel" }, 
