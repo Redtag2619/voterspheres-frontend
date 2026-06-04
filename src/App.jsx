@@ -59,6 +59,7 @@ const TaskOwnership = lazy(() => import("./pages/TaskOwnership.jsx"));
 const CampaignWorkspaceCRM = lazy(() => import("./pages/CampaignWorkspaceCRM.jsx"));
 const ExecutiveMissionControl = lazy(() => import("./pages/ExecutiveMissionControl.jsx"));
 const AIStrategicAdvisor = lazy(() => import("./pages/AIStrategicAdvisor.jsx"));
+const IntelligenceReports = lazy(() => import("./pages/IntelligenceReports.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -233,6 +234,7 @@ function AppRoutes() {
               <Route path="/state-operations-map" element={<StateOperationsMap />} />
               <Route path="/mission-control" element={<ExecutiveMissionControl />} />
               <Route path="/strategic-advisor" element={<AIStrategicAdvisor />} />
+              <Route path="/intelligence-reports" element={<IntelligenceReports />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
