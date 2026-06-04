@@ -313,11 +313,11 @@ function normalizeWarRoomPayload(data) {
 
 http.interceptors.request.use(
   (config) => {
-    const vs_token = getStoredToken?.();
+    const token = localStorage.getItem("vs_token");
 
-    if (vs_token) {
+    if (token) {
       config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization: `Bearer ${localStorage.getItem("vs_token")}`
     }
 
     if (shouldInjectWorkspace(config)) {
