@@ -11,6 +11,7 @@ const primaryItems = [
   { label: "Command", to: "/command-center" },
   { label: "Mission Control", to: "/mission-control" },
   { label: "Strategic Advisor", to: "/strategic-advisor" },
+  { label: "Reports", to: "/intelligence-reports" },
   { label: "Fundraising", to: "/fundraising" },
   { label: "Vendors", to: "/vendors" },
   { label: "Consultant Intel", to: "/consultant-intel" }, 
