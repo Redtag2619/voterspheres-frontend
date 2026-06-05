@@ -1153,6 +1153,9 @@ export const api = {
   deleteReportExport: (id) =>
     tryDelete([`/report-exports/${id}`]),
 
+  nationalElectionCommandCenter: () =>
+    tryGet(["/national-election-command-center/dashboard"]),
+
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
