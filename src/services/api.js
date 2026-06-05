@@ -69,6 +69,7 @@ function shouldInjectWorkspace(config = {}) {
     "/election-war-room",
     "/ai-campaign-copilot",
     "/client-portal",
+    "/report-exports",
     "/consultant-opportunities",
   ];
 
@@ -1139,6 +1140,18 @@ export const api = {
 
   clientPortalPublic: (token) =>
     tryGet([`/client-portal/public/${token}`]),
+
+  reportExports: () =>
+    tryGet(["/report-exports"]),
+
+  generateReportExport: (payload = {}) =>
+    tryPost(["/report-exports/generate"], payload),
+
+  reportExport: (id) =>
+    tryGet([`/report-exports/${id}`]),
+
+  deleteReportExport: (id) =>
+    tryDelete([`/report-exports/${id}`]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
