@@ -70,6 +70,7 @@ function shouldInjectWorkspace(config = {}) {
     "/ai-campaign-copilot",
     "/client-portal",
     "/report-exports",
+    "/national-election-command-center",
     "/consultant-opportunities",
   ];
 
