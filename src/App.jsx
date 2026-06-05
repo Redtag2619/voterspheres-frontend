@@ -64,6 +64,7 @@ const AICampaignCopilot = lazy(() => import("./pages/AICampaignCopilot.jsx"));
 const ClientPortalAdmin = lazy(() => import("./pages/ClientPortalAdmin.jsx"));
 const ClientPortalView = lazy(() => import("./pages/ClientPortalView.jsx"));
 const ReportExportCenter = lazy(() => import("./pages/ReportExportCenter.jsx"));
+const NationalElectionCommandCenter = lazy(() => import("./pages/NationalElectionCommandCenter.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -243,6 +244,7 @@ function AppRoutes() {
               <Route path="/client-portal/:token" element={<ClientPortalView />} />
               <Route path="/client-portal-admin" element={<ClientPortalAdmin />} />
               <Route path="/report-exports" element={<ReportExportCenter />} />
+              <Route path="/national-command" element={<NationalElectionCommandCenter />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
