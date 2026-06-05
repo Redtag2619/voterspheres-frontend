@@ -60,6 +60,7 @@ const CampaignWorkspaceCRM = lazy(() => import("./pages/CampaignWorkspaceCRM.jsx
 const ExecutiveMissionControl = lazy(() => import("./pages/ExecutiveMissionControl.jsx"));
 const AIStrategicAdvisor = lazy(() => import("./pages/AIStrategicAdvisor.jsx"));
 const IntelligenceReports = lazy(() => import("./pages/IntelligenceReports.jsx"));
+const AICampaignCopilot = lazy(() => import("./pages/AICampaignCopilot.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -235,6 +236,7 @@ function AppRoutes() {
               <Route path="/mission-control" element={<ExecutiveMissionControl />} />
               <Route path="/strategic-advisor" element={<AIStrategicAdvisor />} />
               <Route path="/intelligence-reports" element={<IntelligenceReports />} />
+              <Route path="/campaign-copilot" element={<AICampaignCopilot />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
