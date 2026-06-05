@@ -68,6 +68,7 @@ function shouldInjectWorkspace(config = {}) {
     "/intelligence-reports",
     "/election-war-room",
     "/ai-campaign-copilot",
+    "/client-portal",
     "/consultant-opportunities",
   ];
 
@@ -1118,11 +1119,26 @@ export const api = {
   aiCampaignCopilotThreads: () =>
     tryGet(["/ai-campaign-copilot/threads"]),
 
- aiCampaignCopilotThread: (id) =>
+  aiCampaignCopilotThread: (id) =>
     tryGet([`/ai-campaign-copilot/threads/${id}`]),
 
- askAiCampaignCopilot: (payload = {}) =>
+  askAiCampaignCopilot: (payload = {}) =>
     tryPost(["/ai-campaign-copilot/ask"], payload),
+
+  clientPortalClients: () =>
+    tryGet(["/client-portal/admin/clients"]),
+
+  createClientPortalClient: (payload = {}) =>
+    tryPost(["/client-portal/admin/clients"], payload),
+
+  updateClientPortalClient: (id, payload = {}) =>
+    tryPut([`/client-portal/admin/clients/${id}`], payload),
+
+  revokeClientPortalClient: (id) =>
+    tryPut([`/client-portal/admin/clients/${id}/revoke`], {}),
+
+  clientPortalPublic: (token) =>
+    tryGet([`/client-portal/public/${token}`]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
