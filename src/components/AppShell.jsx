@@ -25,6 +25,7 @@ const primaryItems = [
   { label: "Client Portal", to: "/client-portal-admin" },
   { label: "Campaign CRM", to: "/campaign-crm" },
   { label: "Report Exports", to: "/report-exports" },
+  { label: "National Command", to: "/national-command" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
