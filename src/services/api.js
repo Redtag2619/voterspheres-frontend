@@ -66,6 +66,7 @@ function shouldInjectWorkspace(config = {}) {
     "/executive-mission-control",
     "/ai-strategic-advisor",
     "/intelligence-reports",
+    "/election-war-room",
     "/consultant-opportunities",
   ];
 
@@ -1109,6 +1110,9 @@ export const api = {
 
   deleteIntelligenceReport: (id) =>
     tryDelete([`/intelligence-reports/${id}`]),
+
+  electionWarRoom: () =>
+    tryGet(["/election-war-room/dashboard"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
