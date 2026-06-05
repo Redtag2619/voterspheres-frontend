@@ -4,7 +4,6 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
 import { api } from "../services/api";
 
-<<<<<<< HEAD
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
@@ -58,7 +57,7 @@ const ReportExportCenter = lazy(() => import("./pages/ReportExportCenter.jsx"));
 const NationalElectionCommandCenter = lazy(() => import("./pages/NationalElectionCommandCenter.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
-=======
+
 const primaryItems = [
   { label: "Dashboard", to: "/dashboard" },
   { label: "Candidates", to: "/candidates" },
@@ -83,7 +82,6 @@ const primaryItems = [
   { label: "National Command", to: "/national-command" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
->>>>>>> d51e86a (Build National Election Command Center)
 
 const secondaryItems = [
   { label: "Map", to: "/map" },
@@ -617,7 +615,7 @@ export default function AppShell() {
       ) : null}
     </div>
   );
-<<<<<<< HEAD
+
 }
 
 function ShellLayout() {
@@ -816,6 +814,6 @@ export default function App() {
     </ErrorBoundary>
   );
 }
-=======
+
 }
->>>>>>> d51e86a (Build National Election Command Center)
+
