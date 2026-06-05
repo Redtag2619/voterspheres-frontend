@@ -584,8 +584,8 @@ export default function NationalElectionCommandCenter() {
       )}
     </PageShell>
   );
-<<<<<<< HEAD
+
 }
-=======
-}
->>>>>>> d51e86a (Build National Election Command Center)
+
+
+
