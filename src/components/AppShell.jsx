@@ -26,6 +26,7 @@ const primaryItems = [
   { label: "Campaign CRM", to: "/campaign-crm" },
   { label: "Report Exports", to: "/report-exports" },
   { label: "National Command", to: "/national-command" },
+  { label: "Business Suite", to: "/business-suite" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
