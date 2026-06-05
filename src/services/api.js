@@ -67,6 +67,7 @@ function shouldInjectWorkspace(config = {}) {
     "/ai-strategic-advisor",
     "/intelligence-reports",
     "/election-war-room",
+    "/ai-campaign-copilot",
     "/consultant-opportunities",
   ];
 
@@ -1113,6 +1114,15 @@ export const api = {
 
   electionWarRoom: () =>
     tryGet(["/election-war-room/dashboard"]),
+
+  aiCampaignCopilotThreads: () =>
+    tryGet(["/ai-campaign-copilot/threads"]),
+
+ aiCampaignCopilotThread: (id) =>
+    tryGet([`/ai-campaign-copilot/threads/${id}`]),
+
+ askAiCampaignCopilot: (payload = {}) =>
+    tryPost(["/ai-campaign-copilot/ask"], payload),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
