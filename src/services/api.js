@@ -71,6 +71,7 @@ function shouldInjectWorkspace(config = {}) {
     "/client-portal",
     "/report-exports",
     "/national-election-command-center",
+    "/consultant-business-suite",
     "/consultant-opportunities",
   ];
 
@@ -1156,6 +1157,21 @@ export const api = {
 
   nationalElectionCommandCenter: () =>
     tryGet(["/national-election-command-center/dashboard"]),
+
+  consultantBusinessSuite: () =>
+    tryGet(["/consultant-business-suite/dashboard"]),
+
+  createConsultantClient: (payload = {}) =>
+    tryPost(["/consultant-business-suite/clients"], payload),
+
+  createConsultantProject: (payload = {}) =>
+    tryPost(["/consultant-business-suite/projects"], payload),
+
+  createConsultantInvoice: (payload = {}) =>
+    tryPost(["/consultant-business-suite/invoices"], payload),
+
+  createConsultantTimeEntry: (payload = {}) =>
+    tryPost(["/consultant-business-suite/time"], payload),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
