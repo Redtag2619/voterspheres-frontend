@@ -24,6 +24,7 @@ const primaryItems = [
   { label: "Task Ownership", to: "/task-ownership" },
   { label: "Client Portal", to: "/client-portal-admin" },
   { label: "Campaign CRM", to: "/campaign-crm" },
+  { label: "Report Exports", to: "/report-exports" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
