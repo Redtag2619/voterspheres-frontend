@@ -38,25 +38,88 @@ function clean(value = "") {
 
 function tone(value) {
   const v = String(value || "").toLowerCase();
-  if (["critical", "high", "danger", "p1"].includes(v)) return "danger";
+  if (["critical", "high", "danger", "p1", "revoked"].includes(v)) return "danger";
   if (["elevated", "medium", "p2", "open", "pending"].includes(v)) return "demo";
-  if (["stable", "active", "complete", "completed", "resolved"].includes(v)) return "active";
+  if (["stable", "active", "complete", "completed", "resolved", "generated"].includes(v)) return "active";
   return "accent";
 }
 
+function riskRank(value) {
+  const v = String(value || "").toLowerCase();
+  if (v.includes("critical") || v === "p1") return 5;
+  if (v.includes("high")) return 4;
+  if (v.includes("elevated") || v === "p2") return 3;
+  if (v.includes("medium") || v.includes("open")) return 2;
+  return 1;
+}
+
+function matchesSearch(item, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return [
+    item.title,
+    item.item,
+    item.description,
+    item.recommendation,
+    item.action,
+    item.state,
+    item.source,
+    item.type,
+    item.category,
+    item.priority,
+    item.risk,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(q);
+}
+
+function matchesFilters(item, filters) {
+  if (filters.state && String(item.state || "") !== filters.state) return false;
+  if (filters.risk && String(item.priority || item.risk || "").toLowerCase() !== filters.risk.toLowerCase()) return false;
+  if (filters.source && String(item.source || "").toLowerCase() !== filters.source.toLowerCase()) return false;
+  return true;
+}
+
+function sourceLink(item) {
+  const source = String(item.source || item.type || "").toLowerCase();
+
+  if (source.includes("war")) return "/war-room";
+  if (source.includes("mission")) return "/mission-control";
+  if (source.includes("advisor")) return "/strategic-advisor";
+  if (source.includes("crm")) return "/campaign-crm";
+  if (source.includes("report")) return "/intelligence-reports";
+  if (source.includes("export")) return "/report-exports";
+  if (source.includes("client")) return "/client-portal-admin";
+  if (source.includes("signal")) return "/political-signals";
+  if (source.includes("task") || source.includes("command")) return "/command-center";
+
+  return "/mission-control";
+}
+
 function CommandRow({ item }) {
+  const priority = item.priority || item.risk || "Live";
+
   return (
-    <div className={`necc-row necc-${String(item.priority || item.risk || "stable").toLowerCase()}`}>
+    <div className={`necc-row necc-${String(priority).toLowerCase()}`}>
       <ResponsiveRow
         title={clean(item.title || item.item || "Command item")}
         subtitle={clean(item.description || item.recommendation || item.action || "Review item.")}
         meta={[
           { label: "Type", value: item.type || item.category || "Command" },
-          { label: "Priority", value: item.priority || item.risk || "Medium" },
+          { label: "Priority", value: priority },
           { label: "State", value: item.state || "National" },
           { label: "Source", value: item.source || "VoterSpheres" },
         ]}
-        right={<Badge tone={tone(item.priority || item.risk)}>{item.priority || item.risk || "Live"}</Badge>}
+        right={
+          <div className="necc-row-actions">
+            <Badge tone={tone(priority)}>{priority}</Badge>
+            <Link className="vs-button vs-button-secondary" to={sourceLink(item)}>
+              Open
+            </Link>
+          </div>
+        }
       />
     </div>
   );
@@ -73,29 +136,39 @@ function WorkspaceCard({ item }) {
         <Badge tone={tone(item.risk)}>{item.risk || "Stable"}</Badge>
       </div>
 
-      <div className="necc-pressure">{pct(item.pressure_score || 0)}</div>
+      <div className="necc-pressure-small">{pct(item.pressure_score || 0)}</div>
 
       <div className="necc-mini-grid">
         <div><span>Tasks</span><b>{fmt(item.open_tasks)}</b></div>
         <div><span>Signals</span><b>{fmt(item.signals)}</b></div>
       </div>
+
+      <Link className="vs-button vs-button-secondary necc-card-link" to="/mission-control">
+        View Workspace
+      </Link>
     </div>
   );
 }
 
 function ReportRow({ item }) {
+  const type = item.report_type || item.export_type || "report";
+
   return (
     <div className="necc-row">
       <ResponsiveRow
         title={item.title || "Report"}
         subtitle={clean(item.executive_summary || item.metadata?.source_report_title || "Generated intelligence deliverable.")}
         meta={[
-          { label: "Type", value: String(item.report_type || item.export_type || "report").replace(/_/g, " ") },
+          { label: "Type", value: String(type).replace(/_/g, " ") },
           { label: "State", value: item.state || item.metadata?.source_report_state || "National" },
           { label: "Status", value: item.status || "generated" },
           { label: "Created", value: item.created_at ? new Date(item.created_at).toLocaleDateString() : "—" },
         ]}
-        right={<Badge tone="active">Ready</Badge>}
+        right={
+          <Link className="vs-button vs-button-secondary" to={item.export_type ? "/report-exports" : "/intelligence-reports"}>
+            Open
+          </Link>
+        }
       />
     </div>
   );
@@ -115,6 +188,12 @@ export default function NationalElectionCommandCenter() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({
+    state: "",
+    risk: "",
+    source: "",
+  });
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     try {
@@ -123,34 +202,47 @@ export default function NationalElectionCommandCenter() {
 
       setError("");
 
-      const [
-        missionResult,
-        warRoomResult,
-        advisorResult,
-        reportsResult,
-        exportsResult,
-        clientsResult,
-      ] = await Promise.allSettled([
-        api.executiveMissionControl?.(),
-        api.electionWarRoom?.(),
-        api.aiStrategicAdvisor?.(),
-        api.intelligenceReports?.(),
-        api.reportExports?.(),
-        api.clientPortalClients?.(),
-      ]);
+      if (typeof api.nationalElectionCommandCenter === "function") {
+        const result = await api.nationalElectionCommandCenter();
 
-      setData({
-        mission: missionResult.status === "fulfilled" ? missionResult.value : null,
-        warRoom: warRoomResult.status === "fulfilled" ? warRoomResult.value : null,
-        advisor: advisorResult.status === "fulfilled" ? advisorResult.value : null,
-        reports: reportsResult.status === "fulfilled" ? arr(reportsResult.value) : [],
-        exports: exportsResult.status === "fulfilled" ? arr(exportsResult.value) : [],
-        clients: clientsResult.status === "fulfilled" ? arr(clientsResult.value) : [],
-      });
+        setData({
+          mission: result?.mission || null,
+          warRoom: result?.war_room || null,
+          advisor: result?.advisor || null,
+          reports: arr(result?.reports),
+          exports: arr(result?.exports),
+          clients: arr(result?.clients),
+        });
+      } else {
+        const [
+          missionResult,
+          warRoomResult,
+          advisorResult,
+          reportsResult,
+          exportsResult,
+          clientsResult,
+        ] = await Promise.allSettled([
+          api.executiveMissionControl?.(),
+          api.electionWarRoom?.(),
+          api.aiStrategicAdvisor?.(),
+          api.intelligenceReports?.(),
+          api.reportExports?.(),
+          api.clientPortalClients?.(),
+        ]);
+
+        setData({
+          mission: missionResult.status === "fulfilled" ? missionResult.value : null,
+          warRoom: warRoomResult.status === "fulfilled" ? warRoomResult.value : null,
+          advisor: advisorResult.status === "fulfilled" ? advisorResult.value : null,
+          reports: reportsResult.status === "fulfilled" ? arr(reportsResult.value) : [],
+          exports: exportsResult.status === "fulfilled" ? arr(exportsResult.value) : [],
+          clients: clientsResult.status === "fulfilled" ? arr(clientsResult.value) : [],
+        });
+      }
 
       setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Failed to load National Election Command Center.");
+      setError(err?.response?.data?.error || err?.response?.data?.detail || err?.message || "Failed to load National Election Command Center.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -176,29 +268,61 @@ export default function NationalElectionCommandCenter() {
   const exportsList = arr(data.exports);
   const clients = arr(data.clients);
 
-  const topCommandItems = useMemo(() => {
+  const rawCommandItems = useMemo(() => {
     return [
-      ...missionItems.slice(0, 5),
-      ...threats.slice(0, 5).map((item) => ({
+      ...missionItems.slice(0, 8).map((item) => ({
+        ...item,
+        source: item.source || "Mission Control",
+      })),
+      ...threats.slice(0, 8).map((item) => ({
         id: `threat-${item.id}`,
         title: item.title,
         description: item.recommendation,
         priority: item.severity || item.risk,
         state: item.state,
-        source: item.source || "War Room",
+        source: item.source || "Election War Room",
         type: "Threat",
       })),
-      ...recommendations.slice(0, 5).map((item) => ({
+      ...queue.slice(0, 6).map((item) => ({
+        id: `queue-${item.id}`,
+        title: item.item,
+        description: item.action,
+        priority: item.priority,
+        state: item.state,
+        source: item.owner || "War Room Queue",
+        type: "Queue",
+      })),
+      ...recommendations.slice(0, 8).map((item) => ({
         id: `advisor-${item.id}`,
         title: item.title,
         description: item.why || item.expected_impact,
         priority: item.priority,
         state: item.state,
-        source: "Strategic Advisor",
+        source: "AI Strategic Advisor",
         type: item.category || "Recommendation",
       })),
-    ].slice(0, 14);
-  }, [missionItems, threats, recommendations]);
+    ];
+  }, [missionItems, threats, queue, recommendations]);
+
+  const states = useMemo(() => {
+    return Array.from(
+      new Set(rawCommandItems.map((item) => item.state).filter(Boolean))
+    ).sort();
+  }, [rawCommandItems]);
+
+  const sources = useMemo(() => {
+    return Array.from(
+      new Set(rawCommandItems.map((item) => item.source).filter(Boolean))
+    ).sort();
+  }, [rawCommandItems]);
+
+  const commandItems = useMemo(() => {
+    return rawCommandItems
+      .filter((item) => matchesSearch(item, query))
+      .filter((item) => matchesFilters(item, filters))
+      .sort((a, b) => riskRank(b.priority || b.risk) - riskRank(a.priority || a.risk))
+      .slice(0, 18);
+  }, [rawCommandItems, query, filters]);
 
   const activeClients = clients.filter((item) => item.status === "active").length;
 
@@ -213,6 +337,16 @@ export default function NationalElectionCommandCenter() {
     warSummary.mission_risk ||
     advisorSummary.strategic_risk ||
     "Stable";
+
+  const kpiTrend = useMemo(() => {
+    const score = Number(pressureScore || 0);
+    return [
+      { label: "Mission", value: score },
+      { label: "Threats", value: Math.min(100, threats.length * 12) },
+      { label: "Queue", value: Math.min(100, queue.length * 8) },
+      { label: "Advisor", value: Math.min(100, recommendations.length * 6) },
+    ];
+  }, [pressureScore, threats.length, queue.length, recommendations.length]);
 
   return (
     <PageShell
@@ -232,8 +366,8 @@ export default function NationalElectionCommandCenter() {
         },
         {
           label: "Command Items",
-          value: `${topCommandItems.length}`,
-          dotClass: topCommandItems.length ? "vs-live-dot-warning" : "vs-live-dot-success",
+          value: `${commandItems.length}`,
+          dotClass: commandItems.length ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
         {
           label: "Client Portals",
@@ -301,11 +435,24 @@ export default function NationalElectionCommandCenter() {
           letter-spacing: -0.08em;
         }
 
-        .necc-actions {
+        .necc-actions,
+        .necc-filters {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
           margin-top: 18px;
+        }
+
+        .necc-filters input,
+        .necc-filters select {
+          min-width: 180px;
+          flex: 1;
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: white;
+          padding: 11px 12px;
+          outline: none;
         }
 
         .necc-row {
@@ -332,6 +479,14 @@ export default function NationalElectionCommandCenter() {
         .necc-medium,
         .necc-p2 {
           border-color: rgba(251, 191, 36, 0.32);
+        }
+
+        .necc-row-actions {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
         }
 
         .necc-card-grid {
@@ -370,6 +525,15 @@ export default function NationalElectionCommandCenter() {
           font-size: 12px;
         }
 
+        .necc-pressure-small {
+          margin-top: 14px;
+          color: white;
+          font-size: 44px;
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
         .necc-mini-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -396,6 +560,39 @@ export default function NationalElectionCommandCenter() {
           margin-top: 4px;
           color: white;
           font-size: 18px;
+        }
+
+        .necc-card-link {
+          margin-top: 12px;
+          width: 100%;
+        }
+
+        .necc-trend {
+          display: grid;
+          gap: 12px;
+        }
+
+        .necc-trend-row {
+          display: grid;
+          grid-template-columns: 88px minmax(0, 1fr) 48px;
+          gap: 10px;
+          align-items: center;
+          color: rgba(226, 232, 240, 0.9);
+          font-size: 12px;
+        }
+
+        .necc-trend-track {
+          height: 10px;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.86);
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          overflow: hidden;
+        }
+
+        .necc-trend-fill {
+          height: 100%;
+          border-radius: 999px;
+          background: rgba(96, 165, 250, 0.76);
         }
 
         @media (max-width: 1100px) {
@@ -441,21 +638,53 @@ export default function NationalElectionCommandCenter() {
                 <Link className="vs-button vs-button-secondary" to="/campaign-copilot">Co-Pilot</Link>
                 <Link className="vs-button vs-button-secondary" to="/intelligence-reports">Reports</Link>
                 <button className="vs-button vs-button-secondary" onClick={() => load({ quiet: true })}>
-                  Refresh
+                  {refreshing ? "Refreshing..." : "Refresh"}
                 </button>
+              </div>
+
+              <div className="necc-filters">
+                <input
+                  placeholder="Search command center..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+
+                <select value={filters.state} onChange={(e) => setFilters({ ...filters, state: e.target.value })}>
+                  <option value="">All States</option>
+                  {states.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+
+                <select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })}>
+                  <option value="">All Risk</option>
+                  <option value="Critical">Critical</option>
+                  <option value="High">High</option>
+                  <option value="Elevated">Elevated</option>
+                  <option value="Medium">Medium</option>
+                  <option value="P1">P1</option>
+                  <option value="P2">P2</option>
+                </select>
+
+                <select value={filters.source} onChange={(e) => setFilters({ ...filters, source: e.target.value })}>
+                  <option value="">All Sources</option>
+                  {sources.map((source) => (
+                    <option key={source} value={source}>{source}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
             <SectionCard
               title="National Command Queue"
-              subtitle="Highest priority items from Mission Control, War Room, and Strategic Advisor."
-              right={<Badge tone={topCommandItems.length ? "demo" : "active"}>{topCommandItems.length} items</Badge>}
+              subtitle="Filtered and ranked items from Mission Control, War Room, and Strategic Advisor."
+              right={<Badge tone={commandItems.length ? "demo" : "active"}>{commandItems.length} items</Badge>}
             >
               <div className="necc-stack">
-                {!topCommandItems.length ? (
-                  <EmptyState text="No national command items detected." />
+                {!commandItems.length ? (
+                  <EmptyState text="No national command items match the current filters." />
                 ) : (
-                  topCommandItems.map((item) => (
+                  commandItems.map((item) => (
                     <CommandRow key={item.id || item.title} item={item} />
                   ))
                 )}
@@ -480,6 +709,20 @@ export default function NationalElectionCommandCenter() {
           </div>
 
           <div className="necc-stack">
+            <SectionCard title="Executive KPI Trends" subtitle="Operating pressure indicators.">
+              <div className="necc-trend">
+                {kpiTrend.map((item) => (
+                  <div key={item.label} className="necc-trend-row">
+                    <span>{item.label}</span>
+                    <div className="necc-trend-track">
+                      <div className="necc-trend-fill" style={{ width: `${Math.min(100, Number(item.value || 0))}%` }} />
+                    </div>
+                    <strong>{pct(item.value)}</strong>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
             <SectionCard
               title="Strategic Advisor"
               subtitle="AI-ranked strategic recommendations."
@@ -496,33 +739,7 @@ export default function NationalElectionCommandCenter() {
                         ...item,
                         type: item.category || "Advisor",
                         description: item.why || item.expected_impact,
-                        source: "Strategic Advisor",
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Response Queue"
-              subtitle="Live War Room queue."
-              right={<Badge tone={queue.length ? "demo" : "active"}>{queue.length}</Badge>}
-            >
-              <div className="necc-stack">
-                {!queue.length ? (
-                  <EmptyState text="No response queue items available." />
-                ) : (
-                  queue.slice(0, 5).map((item) => (
-                    <CommandRow
-                      key={item.id || item.item}
-                      item={{
-                        title: item.item,
-                        description: item.action,
-                        priority: item.priority,
-                        state: item.state,
-                        source: item.owner || "War Room",
-                        type: "Queue",
+                        source: "AI Strategic Advisor",
                       }}
                     />
                   ))
@@ -584,8 +801,4 @@ export default function NationalElectionCommandCenter() {
       )}
     </PageShell>
   );
-
 }
-
-
-
