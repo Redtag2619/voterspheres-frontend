@@ -72,6 +72,7 @@ function shouldInjectWorkspace(config = {}) {
     "/report-exports",
     "/national-election-command-center",
     "/consultant-business-suite",
+    "/executive-revenue",
     "/consultant-opportunities",
   ];
 
@@ -1172,6 +1173,9 @@ export const api = {
 
   createConsultantTimeEntry: (payload = {}) =>
     tryPost(["/consultant-business-suite/time"], payload),
+
+  executiveRevenueIntelligence: () =>
+    tryGet(["/executive-revenue/dashboard"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
