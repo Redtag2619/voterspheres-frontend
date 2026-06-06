@@ -1,568 +1,424 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { navigationSections, flattenedNavigation } from "../config/navigation";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useWorkspace } from "../context/WorkspaceContext.jsx";
-import { api } from "../services/api";
 
-const primaryItems = [
-  { label: "Dashboard", to: "/dashboard" },
-  { label: "Candidates", to: "/candidates" },
-  { label: "War Room", to: "/war-room" },
-  { label: "Command", to: "/command-center" },
-  { label: "Mission Control", to: "/mission-control" },
-  { label: "Strategic Advisor", to: "/strategic-advisor" },
-  { label: "Campaign Co-Pilot", to: "/campaign-copilot" },
-  { label: "Reports", to: "/intelligence-reports" },
-  { label: "Fundraising", to: "/fundraising" },
-  { label: "Vendors", to: "/vendors" },
-  { label: "Consultant Intel", to: "/consultant-intel" }, 
-  { label: "Workspace", to: "/campaign-workspace" },
-  { label: "Executive Intel", to: "/executive-intelligence" },
-  { label: "Political Signals", to: "/political-signals" },
-  { label: "Signal Matching", to: "/signal-matching" },
-  { label: "Narrative Response", to: "/narrative-response" },
-  { label: "Task Ownership", to: "/task-ownership" },
-  { label: "Client Portal", to: "/client-portal-admin" },
-  { label: "Campaign CRM", to: "/campaign-crm" },
-  { label: "Report Exports", to: "/report-exports" },
-  { label: "National Command", to: "/national-command" },
-  { label: "Business Suite", to: "/business-suite" },
-  { label: "Revenue Intelligence", to: "/revenue-intelligence" },
-  { label: "Intelligence Graph", to: "/political-intelligence" },
-  { label: "Notifications", to: "/notifications" },
-  { label: "Committee Intel", to: "/committee-intel", }
-];
-
-const secondaryItems = [
-  { label: "Map", to: "/map" },
-  { label: "Forecast", to: "/forecast" },
-  { label: "Donors", to: "/donors" },
-  { label: "Consultants", to: "/consultants" },
-  { label: "Relationship Graph", to: "/relationship-graph"},
-  { label: "Dark Money", to: "/dark-money-exposure" },
-  { label: "Opportunity Map", to: "/campaign-opportunity-heatmap"},
-  { label: "Operations Map", to: "/operations-map" },
-  { label: "MailOps", to: "/mailops" },
-  { label: "Pricing", to: "/pricing" },
-  { label: "Billing", to: "/billing" },
-  { label: "Alerts", to: "/admin/alerts" },
-  { label: "State Operations", to: "/state-operations" },
-  { label: "AI Tactical", to: "/ai-tactical" },
-  { label: "Narrative Intel", to: "/narrative-intelligence" },
-  { label: "Live Intel", to: "/admin/live-intelligence" }
-];
-
-const emptyWorkspaceForm = {
-  name: "",
-  candidate_name: "",
-  state: "",
-  office: "",
-  cycle: "2026",
-  description: ""
-};
-
-function Pill({ item }) {
-  return (
-    <NavLink
-      to={item.to}
-      className={({ isActive }) =>
-        isActive ? "vs-nav-pill vs-nav-pill-active" : "vs-nav-pill"
-      }
-    >
-      {item.label}
-    </NavLink>
-  );
+function cx(...classes) {
+  return classes.filter(Boolean).join(" ");
 }
 
-function WorkspaceModal({
-  mode = "create",
-  form,
-  error,
-  busy,
-  onChange,
-  onClose,
-  onSubmit
-}) {
-  const isEdit = mode === "edit";
-
-  return (
-    <div className="vs-modal-backdrop">
-      <div className="vs-modal-card">
-        <div className="vs-modal-head">
-          <div>
-            <div className="vs-modal-eyebrow">
-              {isEdit ? "Workspace Settings" : "New Client Workspace"}
-            </div>
-            <h3 className="vs-modal-title">
-              {isEdit ? "Edit Workspace" : "Create Workspace"}
-            </h3>
-            <p className="vs-modal-subtitle">
-              {isEdit
-                ? "Update campaign workspace details for this client or race."
-                : "Add a campaign workspace for a client, race, or operating team."}
-            </p>
-          </div>
-
-          <button type="button" className="vs-modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-
-        {error ? <div className="vs-modal-error">{error}</div> : null}
-
-        <form className="vs-modal-form" onSubmit={onSubmit}>
-          <label className="vs-field">
-            <span>Workspace Name</span>
-            <input
-              value={form.name}
-              onChange={(event) => onChange("name", event.target.value)}
-              placeholder="Stephens for Senate"
-              required
-            />
-          </label>
-
-          <label className="vs-field">
-            <span>Candidate Name</span>
-            <input
-              value={form.candidate_name}
-              onChange={(event) => onChange("candidate_name", event.target.value)}
-              placeholder="Mark Stephens"
-            />
-          </label>
-
-          <div className="vs-modal-grid">
-            <label className="vs-field">
-              <span>State</span>
-              <input
-                value={form.state}
-                onChange={(event) => onChange("state", event.target.value)}
-                placeholder="Georgia"
-              />
-            </label>
-
-            <label className="vs-field">
-              <span>Office</span>
-              <input
-                value={form.office}
-                onChange={(event) => onChange("office", event.target.value)}
-                placeholder="U.S. Senate"
-              />
-            </label>
-          </div>
-
-          <label className="vs-field">
-            <span>Cycle</span>
-            <input
-              value={form.cycle}
-              onChange={(event) => onChange("cycle", event.target.value)}
-              placeholder="2026"
-            />
-          </label>
-
-          <label className="vs-field">
-            <span>Description</span>
-            <textarea
-              value={form.description}
-              onChange={(event) => onChange("description", event.target.value)}
-              placeholder="Primary operating workspace for this campaign."
-              rows={3}
-            />
-          </label>
-
-          <div className="vs-modal-actions">
-            <button type="button" className="vs-button vs-button-secondary" onClick={onClose}>
-              Cancel
-            </button>
-
-            <button type="submit" className="vs-button" disabled={busy}>
-              {busy
-                ? isEdit
-                  ? "Saving..."
-                  : "Creating..."
-                : isEdit
-                  ? "Save Settings"
-                  : "Create Workspace"}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <style>{`
-        .vs-modal-backdrop {
-          position: fixed;
-          inset: 0;
-          z-index: 9999;
-          display: grid;
-          place-items: center;
-          padding: 24px;
-          background: rgba(2, 6, 23, 0.72);
-          backdrop-filter: blur(10px);
-        }
-
-        .vs-modal-card {
-          width: min(640px, 100%);
-          border-radius: 22px;
-          border: 1px solid rgba(148, 163, 184, 0.2);
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
-          box-shadow: 0 30px 80px rgba(2, 6, 23, 0.46);
-          padding: 22px;
-        }
-
-        .vs-modal-head {
-          display: flex;
-          justify-content: space-between;
-          gap: 16px;
-          align-items: flex-start;
-          margin-bottom: 18px;
-        }
-
-        .vs-modal-eyebrow {
-          color: rgba(96, 165, 250, 0.95);
-          font-size: 0.76rem;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .vs-modal-title {
-          margin: 6px 0 0;
-          color: rgba(248, 250, 252, 0.96);
-          font-size: 1.35rem;
-        }
-
-        .vs-modal-subtitle {
-          margin: 6px 0 0;
-          color: rgba(148, 163, 184, 0.86);
-          line-height: 1.45;
-        }
-
-        .vs-modal-close {
-          width: 34px;
-          height: 34px;
-          border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.62);
-          color: rgba(248, 250, 252, 0.9);
-          font-size: 1.4rem;
-          cursor: pointer;
-        }
-
-        .vs-modal-error {
-          margin-bottom: 14px;
-          border: 1px solid rgba(248, 113, 113, 0.28);
-          background: rgba(127, 29, 29, 0.18);
-          color: rgba(254, 202, 202, 0.95);
-          border-radius: 14px;
-          padding: 10px 12px;
-          font-size: 0.88rem;
-        }
-
-        .vs-modal-form {
-          display: grid;
-          gap: 13px;
-        }
-
-        .vs-modal-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 13px;
-        }
-
-        .vs-field {
-          display: grid;
-          gap: 6px;
-        }
-
-        .vs-field span {
-          color: rgba(203, 213, 225, 0.86);
-          font-size: 0.78rem;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-
-        .vs-field input,
-        .vs-field textarea {
-          width: 100%;
-          border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.68);
-          color: rgba(248, 250, 252, 0.94);
-          outline: none;
-          padding: 11px 12px;
-          font: inherit;
-        }
-
-        .vs-field input:focus,
-        .vs-field textarea:focus {
-          border-color: rgba(96, 165, 250, 0.5);
-          box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
-        }
-
-        .vs-modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 10px;
-          margin-top: 6px;
-        }
-
-        @media (max-width: 640px) {
-          .vs-modal-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-    </div>
-  );
+function getInitials(user) {
+  const name = user?.name || user?.full_name || user?.email || "VS";
+  return String(name)
+    .split(/[ @.]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 export default function AppShell() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuth?.() || {};
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
-  const {
-    workspaces,
-    activeWorkspaceId,
-    activeWorkspace,
-    loadingWorkspaces,
-    workspaceError,
-    setActiveWorkspaceId,
-    createWorkspace,
-    refreshWorkspaces
-  } = useWorkspace();
+  const activeSection = useMemo(() => {
+    return (
+      navigationSections.find((section) =>
+        section.items.some((item) => location.pathname === item.to)
+      )?.label || "Executive Command"
+    );
+  }, [location.pathname]);
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [createError, setCreateError] = useState("");
-  const [settingsError, setSettingsError] = useState("");
-  const [form, setForm] = useState(emptyWorkspaceForm);
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
 
-  function handleWorkspaceChange(event) {
-    const id = event.target.value;
-    setActiveWorkspaceId(id);
-
-    if (id) {
-      navigate(`/campaign-workspace/${id}`);
-    }
-  }
-
-  function updateForm(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function openCreateModal() {
-    setCreateError("");
-    setForm(emptyWorkspaceForm);
-    setShowCreateModal(true);
-  }
-
-  function openEditModal() {
-    setSettingsError("");
-    setForm({
-      name: activeWorkspace?.name || activeWorkspace?.campaign_name || "",
-      candidate_name: activeWorkspace?.candidate_name || "",
-      state: activeWorkspace?.state || "",
-      office: activeWorkspace?.office || "",
-      cycle: activeWorkspace?.cycle || "2026",
-      description: activeWorkspace?.description || ""
-    });
-    setShowEditModal(true);
-  }
-
-  async function handleCreateWorkspace(event) {
-    event.preventDefault();
-
-    if (!form.name.trim()) {
-      setCreateError("Workspace name is required.");
-      return;
-    }
-
-    try {
-      setCreating(true);
-      setCreateError("");
-
-      const workspace = await createWorkspace({
-        name: form.name.trim(),
-        candidate_name: form.candidate_name.trim(),
-        state: form.state.trim() || "National",
-        office: form.office.trim() || "Statewide",
-        cycle: form.cycle.trim() || "2026",
-        description: form.description.trim(),
-        status: "active"
-      });
-
-      setShowCreateModal(false);
-      setForm(emptyWorkspaceForm);
-
-      if (workspace?.id) {
-        navigate(`/campaign-workspace/${workspace.id}`);
-      }
-    } catch (error) {
-      setCreateError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to create workspace."
-      );
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function handleUpdateWorkspace(event) {
-    event.preventDefault();
-
-    if (!activeWorkspaceId) {
-      setSettingsError("No active workspace selected.");
-      return;
-    }
-
-    if (!form.name.trim()) {
-      setSettingsError("Workspace name is required.");
-      return;
-    }
-
-    try {
-      setSavingSettings(true);
-      setSettingsError("");
-
-      await api.updateWorkspace(activeWorkspaceId, {
-        name: form.name.trim(),
-        candidate_name: form.candidate_name.trim(),
-        state: form.state.trim() || "National",
-        office: form.office.trim() || "Statewide",
-        cycle: form.cycle.trim() || "2026",
-        description: form.description.trim(),
-        status: activeWorkspace?.status || "active"
-      });
-
-      await refreshWorkspaces?.();
-
-      setShowEditModal(false);
-      navigate(`/campaign-workspace/${activeWorkspaceId}`);
-    } catch (error) {
-      setSettingsError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to update workspace."
-      );
-    } finally {
-      setSavingSettings(false);
-    }
-  }
+    return flattenedNavigation
+      .filter((item) =>
+        `${item.label} ${item.section} ${item.to}`.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [query]);
 
   return (
     <div className="vs-shell">
-      <header className="vs-shell-header">
-        <div className="vs-shell-inner vs-shell-inner-premium">
-          <div className="vs-shell-topline">
-            <NavLink to="/dashboard" className="vs-brand-row">
-              <div className="vs-brand-mark">VS</div>
-              <div className="vs-brand-copy">
-                <div className="vs-brand-name">VoterSpheres</div>
-                <div className="vs-brand-tagline">Political Intelligence Platform</div>
-              </div>
-            </NavLink>
+      <style>{`
+        .vs-shell {
+          min-height: 100vh;
+          background:
+            radial-gradient(circle at top left, rgba(37,99,235,.16), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(239,68,68,.10), transparent 28%),
+            #020617;
+          color: var(--vs-text, #e5e7eb);
+          display: grid;
+          grid-template-columns: 292px minmax(0, 1fr);
+        }
 
-            <div className="vs-inline-actions">
-              <div
-                className="vs-workspace-switcher"
-                title={workspaceError || activeWorkspace?.name || "Workspace"}
-              >
-                <select
-                  value={activeWorkspaceId || ""}
-                  onChange={handleWorkspaceChange}
-                  className="vs-select"
-                  disabled={loadingWorkspaces || !workspaces.length}
-                >
-                  {loadingWorkspaces ? (
-                    <option value="">Loading workspaces...</option>
-                  ) : !workspaces.length ? (
-                    <option value="">No workspace</option>
-                  ) : (
-                    workspaces.map((workspace) => (
-                      <option key={workspace.id} value={workspace.id}>
-                        {workspace.name || workspace.campaign_name || `Workspace #${workspace.id}`}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+        .vs-shell-sidebar {
+          position: sticky;
+          top: 0;
+          height: 100vh;
+          overflow: auto;
+          border-right: 1px solid rgba(148,163,184,.14);
+          background:
+            linear-gradient(180deg, rgba(15,23,42,.98), rgba(2,6,23,.96));
+          padding: 18px;
+        }
 
-              <button
-                type="button"
-                className="vs-button vs-button-secondary"
-                onClick={openCreateModal}
-              >
-                + Workspace
-              </button>
+        .vs-shell-brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          text-decoration: none;
+          color: white;
+          margin-bottom: 18px;
+        }
 
-              <button
-                type="button"
-                className="vs-button vs-button-secondary"
-                onClick={openEditModal}
-                disabled={!activeWorkspaceId}
-              >
-                Settings
-              </button>
+        .vs-shell-logo {
+          width: 42px;
+          height: 42px;
+          border-radius: 16px;
+          display: grid;
+          place-items: center;
+          background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), transparent 24%),
+            linear-gradient(135deg, #2563eb, #dc2626);
+          font-weight: 950;
+          letter-spacing: -.08em;
+          box-shadow: 0 18px 50px rgba(37,99,235,.32);
+        }
 
-              <span className="vs-brand-live">
-                <span className="vs-live-dot-success" />
-                Live Intelligence
-              </span>
+        .vs-shell-brand strong {
+          display: block;
+          font-size: 16px;
+          letter-spacing: -.04em;
+        }
 
-              <span className="vs-user-email">{user?.email}</span>
+        .vs-shell-brand span {
+          display: block;
+          margin-top: 2px;
+          font-size: 11px;
+          color: rgba(203,213,225,.62);
+        }
 
-              {typeof logout === "function" ? (
-                <button type="button" className="vs-button vs-button-secondary" onClick={logout}>
-                  Sign out
-                </button>
-              ) : null}
-            </div>
+        .vs-shell-search {
+          position: relative;
+          margin-bottom: 18px;
+        }
+
+        .vs-shell-search input {
+          width: 100%;
+          border-radius: 16px;
+          border: 1px solid rgba(148,163,184,.16);
+          background: rgba(15,23,42,.78);
+          color: white;
+          padding: 11px 12px;
+          outline: none;
+        }
+
+        .vs-shell-search-results {
+          position: absolute;
+          z-index: 30;
+          left: 0;
+          right: 0;
+          top: calc(100% + 8px);
+          border-radius: 18px;
+          border: 1px solid rgba(148,163,184,.16);
+          background: rgba(2,6,23,.98);
+          box-shadow: 0 24px 80px rgba(0,0,0,.45);
+          padding: 8px;
+        }
+
+        .vs-shell-search-result {
+          display: block;
+          text-decoration: none;
+          color: rgba(226,232,240,.94);
+          padding: 10px;
+          border-radius: 12px;
+        }
+
+        .vs-shell-search-result:hover {
+          background: rgba(37,99,235,.16);
+        }
+
+        .vs-shell-search-result small {
+          display: block;
+          color: rgba(148,163,184,.72);
+          margin-top: 3px;
+        }
+
+        .vs-shell-section {
+          margin-bottom: 18px;
+        }
+
+        .vs-shell-section-title {
+          color: rgba(148,163,184,.78);
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: .14em;
+          margin: 0 0 8px;
+          padding-left: 8px;
+        }
+
+        .vs-shell-nav {
+          display: grid;
+          gap: 4px;
+        }
+
+        .vs-shell-link {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          border-radius: 14px;
+          padding: 10px 11px;
+          text-decoration: none;
+          color: rgba(226,232,240,.78);
+          font-size: 13px;
+          border: 1px solid transparent;
+          transition: .16s ease;
+        }
+
+        .vs-shell-link:hover {
+          color: white;
+          background: rgba(15,23,42,.78);
+          border-color: rgba(148,163,184,.12);
+        }
+
+        .vs-shell-link.active {
+          color: white;
+          background:
+            radial-gradient(circle at top right, rgba(59,130,246,.22), transparent 36%),
+            rgba(37,99,235,.16);
+          border-color: rgba(96,165,250,.28);
+        }
+
+        .vs-shell-link-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: rgba(96,165,250,.84);
+          opacity: 0;
+        }
+
+        .vs-shell-link.active .vs-shell-link-dot {
+          opacity: 1;
+        }
+
+        .vs-shell-main {
+          min-width: 0;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        .vs-shell-topbar {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          min-height: 72px;
+          border-bottom: 1px solid rgba(148,163,184,.12);
+          background: rgba(2,6,23,.78);
+          backdrop-filter: blur(18px);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 14px 22px;
+        }
+
+        .vs-shell-topbar-left {
+          min-width: 0;
+        }
+
+        .vs-shell-eyebrow {
+          color: rgba(148,163,184,.78);
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: .14em;
+        }
+
+        .vs-shell-current {
+          margin-top: 4px;
+          color: white;
+          font-size: 16px;
+          font-weight: 900;
+          letter-spacing: -.03em;
+        }
+
+        .vs-shell-topbar-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .vs-shell-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(148,163,184,.16);
+          background: rgba(15,23,42,.72);
+          color: rgba(226,232,240,.86);
+          padding: 8px 10px;
+          font-size: 12px;
+          text-decoration: none;
+        }
+
+        .vs-shell-avatar {
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, rgba(37,99,235,.9), rgba(220,38,38,.8));
+          color: white;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .vs-shell-content {
+          min-width: 0;
+          padding: 22px;
+        }
+
+        .vs-shell-mobile-button {
+          display: none;
+          border: 1px solid rgba(148,163,184,.18);
+          background: rgba(15,23,42,.78);
+          color: white;
+          border-radius: 12px;
+          padding: 9px 10px;
+        }
+
+        .vs-shell-logout {
+          border: 0;
+          cursor: pointer;
+        }
+
+        @media (max-width: 1040px) {
+          .vs-shell {
+            grid-template-columns: 1fr;
+          }
+
+          .vs-shell-sidebar {
+            position: fixed;
+            z-index: 50;
+            inset: 0 auto 0 0;
+            width: 292px;
+            transform: translateX(-110%);
+            transition: transform .18s ease;
+          }
+
+          .vs-shell-sidebar.open {
+            transform: translateX(0);
+          }
+
+          .vs-shell-mobile-button {
+            display: inline-flex;
+          }
+
+          .vs-shell-content {
+            padding: 16px;
+          }
+        }
+      `}</style>
+
+      <aside className={cx("vs-shell-sidebar", mobileOpen && "open")}>
+        <Link className="vs-shell-brand" to="/national-command" onClick={() => setMobileOpen(false)}>
+          <div className="vs-shell-logo">VS</div>
+          <div>
+            <strong>VoterSpheres</strong>
+            <span>Political Operating System</span>
           </div>
+        </Link>
 
-          <nav className="vs-shell-nav vs-shell-nav-premium">
-            {primaryItems.map((item) => (
-              <Pill key={item.to} item={item} />
-            ))}
+        <div className="vs-shell-search">
+          <input
+            placeholder="Search pages..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
 
-            <div className="vs-nav-divider" />
-
-            {secondaryItems.map((item) => (
-              <Pill key={item.to} item={item} />
-            ))}
-          </nav>
+          {searchResults.length ? (
+            <div className="vs-shell-search-results">
+              {searchResults.map((item) => (
+                <Link
+                  key={item.to}
+                  className="vs-shell-search-result"
+                  to={item.to}
+                  onClick={() => {
+                    setQuery("");
+                    setMobileOpen(false);
+                  }}
+                >
+                  {item.label}
+                  <small>{item.section}</small>
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </div>
-      </header>
+
+        {navigationSections.map((section) => (
+          <nav key={section.label} className="vs-shell-section">
+            <h3 className="vs-shell-section-title">{section.label}</h3>
+
+            <div className="vs-shell-nav">
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    cx("vs-shell-link", isActive && "active")
+                  }
+                >
+                  <span>{item.label}</span>
+                  <span className="vs-shell-link-dot" />
+                </NavLink>
+              ))}
+            </div>
+          </nav>
+        ))}
+      </aside>
 
       <main className="vs-shell-main">
-        <Outlet />
+        <header className="vs-shell-topbar">
+          <div className="vs-shell-topbar-left">
+            <button
+              className="vs-shell-mobile-button"
+              onClick={() => setMobileOpen((value) => !value)}
+            >
+              Menu
+            </button>
+            <div className="vs-shell-eyebrow">Active section</div>
+            <div className="vs-shell-current">{activeSection}</div>
+          </div>
+
+          <div className="vs-shell-topbar-actions">
+            <Link className="vs-shell-pill" to="/notifications">
+              Alerts
+            </Link>
+            <Link className="vs-shell-pill" to="/campaign-copilot">
+              AI Co-Pilot
+            </Link>
+            <div className="vs-shell-avatar">{getInitials(user)}</div>
+            {logout ? (
+              <button className="vs-shell-pill vs-shell-logout" onClick={logout}>
+                Logout
+              </button>
+            ) : null}
+          </div>
+        </header>
+
+        <section className="vs-shell-content">
+          <Outlet />
+        </section>
       </main>
-
-      {showCreateModal ? (
-        <WorkspaceModal
-          mode="create"
-          form={form}
-          error={createError}
-          busy={creating}
-          onChange={updateForm}
-          onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateWorkspace}
-        />
-      ) : null}
-
-      {showEditModal ? (
-        <WorkspaceModal
-          mode="edit"
-          form={form}
-          error={settingsError}
-          busy={savingSettings}
-          onChange={updateForm}
-          onClose={() => setShowEditModal(false)}
-          onSubmit={handleUpdateWorkspace}
-        />
-      ) : null}
     </div>
   );
 }
