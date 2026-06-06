@@ -29,6 +29,7 @@ const primaryItems = [
   { label: "Business Suite", to: "/business-suite" },
   { label: "Revenue Intelligence", to: "/revenue-intelligence" },
   { label: "Intelligence Graph", to: "/political-intelligence" },
+  { label: "Notifications", to: "/notifications" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
