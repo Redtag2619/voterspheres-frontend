@@ -143,6 +143,10 @@ function WorkspaceCard({ item }) {
         <div><span>Signals</span><b>{fmt(item.signals)}</b></div>
       </div>
 
+      <Link className="vs-button vs-button-secondary" to="/notifications">
+        Notifications
+      </Link>
+
       <Link className="vs-button vs-button-secondary" to="/revenue-intelligence">
         Revenue Intelligence
       </Link>
