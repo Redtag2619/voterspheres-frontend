@@ -42,8 +42,11 @@ export default function AppShell() {
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
+
     return flattenedNavigation
-      .filter((item) => `${item.label} ${item.section} ${item.to}`.toLowerCase().includes(q))
+      .filter((item) =>
+        `${item.label} ${item.section} ${item.to}`.toLowerCase().includes(q)
+      )
       .slice(0, 9);
   }, [query]);
 
@@ -58,17 +61,19 @@ export default function AppShell() {
       <style>{`
         .vs-top-shell {
           min-height: 100vh;
-          background: radial-gradient(circle at top left, rgba(37,99,235,.15), transparent 30%),
-            radial-gradient(circle at bottom right, rgba(220,38,38,.10), transparent 30%), #020617;
+          background:
+            radial-gradient(circle at top left, rgba(249, 115, 22, 0.13), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.10), transparent 30%),
+            #020617;
           color: var(--vs-text, #e5e7eb);
         }
 
         .vs-top-nav {
           position: sticky;
           top: 0;
-          z-index: 50;
-          border-bottom: 1px solid rgba(148,163,184,.14);
-          background: rgba(2,6,23,.92);
+          z-index: 70;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(2, 6, 23, 0.94);
           backdrop-filter: blur(18px);
         }
 
@@ -95,22 +100,26 @@ export default function AppShell() {
           border-radius: 15px;
           display: grid;
           place-items: center;
-          background: linear-gradient(135deg, #2563eb, #dc2626);
+          background:
+            radial-gradient(circle at 28% 24%, rgba(255,255,255,.36), transparent 24%),
+            linear-gradient(135deg, #f97316, #ea580c);
+          color: white;
           font-weight: 950;
-          box-shadow: 0 18px 50px rgba(37,99,235,.28);
+          letter-spacing: -0.08em;
+          box-shadow: 0 18px 50px rgba(249, 115, 22, 0.34);
         }
 
         .vs-brand strong {
           display: block;
           font-size: 15px;
-          letter-spacing: -.04em;
+          letter-spacing: -0.04em;
         }
 
         .vs-brand span {
           display: block;
           margin-top: 2px;
           font-size: 11px;
-          color: rgba(203,213,225,.62);
+          color: rgba(203, 213, 225, 0.62);
         }
 
         .vs-menu-row {
@@ -125,9 +134,9 @@ export default function AppShell() {
         }
 
         .vs-menu-button {
-          border: 1px solid rgba(148,163,184,.14);
-          background: rgba(15,23,42,.58);
-          color: rgba(226,232,240,.88);
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.58);
+          color: rgba(226, 232, 240, 0.88);
           border-radius: 999px;
           padding: 9px 12px;
           font-size: 12px;
@@ -136,17 +145,17 @@ export default function AppShell() {
         }
 
         .vs-menu-button.featured {
-          background: rgba(37,99,235,.22);
-          border-color: rgba(96,165,250,.35);
+          background: rgba(249, 115, 22, 0.2);
+          border-color: rgba(251, 146, 60, 0.42);
           color: white;
-          font-weight: 800;
+          font-weight: 850;
         }
 
         .vs-menu-button:hover,
         .vs-menu-button.active {
           color: white;
-          border-color: rgba(96,165,250,.36);
-          background: rgba(37,99,235,.20);
+          border-color: rgba(251, 146, 60, 0.5);
+          background: rgba(249, 115, 22, 0.18);
         }
 
         .vs-dropdown {
@@ -154,24 +163,27 @@ export default function AppShell() {
           top: calc(100% + 10px);
           left: 50%;
           transform: translateX(-50%);
+          z-index: 95;
           width: 320px;
           max-height: min(72vh, 620px);
           overflow: auto;
           border-radius: 22px;
-          border: 1px solid rgba(148,163,184,.16);
-          background: rgba(2,6,23,.98);
-          box-shadow: 0 28px 90px rgba(0,0,0,.55);
+          border: 1px solid rgba(251, 146, 60, 0.22);
+          background:
+            radial-gradient(circle at top right, rgba(249, 115, 22, 0.13), transparent 34%),
+            rgba(2, 6, 23, 0.98);
+          box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
           padding: 10px;
           display: grid;
           gap: 4px;
         }
 
         .vs-dropdown-title {
-          color: rgba(148,163,184,.78);
+          color: rgba(251, 191, 36, 0.86);
           font-size: 10px;
           font-weight: 900;
           text-transform: uppercase;
-          letter-spacing: .14em;
+          letter-spacing: 0.14em;
           padding: 8px 10px 6px;
         }
 
@@ -180,7 +192,7 @@ export default function AppShell() {
           justify-content: space-between;
           gap: 10px;
           text-decoration: none;
-          color: rgba(226,232,240,.84);
+          color: rgba(226, 232, 240, 0.84);
           font-size: 13px;
           padding: 10px;
           border-radius: 14px;
@@ -190,17 +202,18 @@ export default function AppShell() {
         .vs-dropdown-link:hover,
         .vs-dropdown-link.active {
           color: white;
-          background: rgba(37,99,235,.16);
-          border-color: rgba(96,165,250,.22);
+          background: rgba(249, 115, 22, 0.16);
+          border-color: rgba(251, 146, 60, 0.28);
         }
 
         .vs-dot {
           width: 7px;
           height: 7px;
           border-radius: 999px;
-          background: rgba(96,165,250,.9);
+          background: rgba(251, 146, 60, 0.95);
           opacity: 0;
           margin-top: 6px;
+          flex: 0 0 auto;
         }
 
         .vs-dropdown-link.active .vs-dot {
@@ -214,9 +227,9 @@ export default function AppShell() {
         }
 
         .vs-pill {
-          border: 1px solid rgba(148,163,184,.16);
-          background: rgba(15,23,42,.72);
-          color: rgba(226,232,240,.86);
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: rgba(15, 23, 42, 0.72);
+          color: rgba(226, 232, 240, 0.86);
           border-radius: 999px;
           padding: 9px 11px;
           font-size: 12px;
@@ -225,13 +238,19 @@ export default function AppShell() {
           white-space: nowrap;
         }
 
+        .vs-pill:hover {
+          color: white;
+          border-color: rgba(251, 146, 60, 0.38);
+          background: rgba(249, 115, 22, 0.14);
+        }
+
         .vs-avatar {
           width: 34px;
           height: 34px;
           border-radius: 999px;
           display: grid;
           place-items: center;
-          background: linear-gradient(135deg, rgba(37,99,235,.9), rgba(220,38,38,.8));
+          background: linear-gradient(135deg, rgba(249, 115, 22, 0.95), rgba(234, 88, 12, 0.88));
           color: white;
           font-size: 12px;
           font-weight: 900;
@@ -248,47 +267,55 @@ export default function AppShell() {
         .vs-search {
           position: relative;
           width: 100%;
+          z-index: 100;
         }
 
         .vs-search input {
           width: 100%;
           border-radius: 16px;
-          border: 1px solid rgba(148,163,184,.16);
-          background: rgba(15,23,42,.78);
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: rgba(15, 23, 42, 0.78);
           color: white;
           padding: 11px 13px;
           outline: none;
           font-size: 13px;
         }
 
+        .vs-search input:focus {
+          border-color: rgba(251, 146, 60, 0.42);
+          box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+        }
+
         .vs-search-results {
           position: absolute;
-          z-index: 80;
+          z-index: 105;
           top: calc(100% + 8px);
           left: 0;
           width: 100%;
+          max-height: 380px;
+          overflow: auto;
           border-radius: 20px;
-          border: 1px solid rgba(148,163,184,.16);
-          background: rgba(2,6,23,.98);
-          box-shadow: 0 28px 90px rgba(0,0,0,.55);
+          border: 1px solid rgba(251, 146, 60, 0.22);
+          background: rgba(2, 6, 23, 0.98);
+          box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
           padding: 8px;
         }
 
         .vs-search-result {
           display: block;
           text-decoration: none;
-          color: rgba(226,232,240,.94);
+          color: rgba(226, 232, 240, 0.94);
           padding: 10px;
           border-radius: 12px;
         }
 
         .vs-search-result:hover {
-          background: rgba(37,99,235,.16);
+          background: rgba(249, 115, 22, 0.16);
         }
 
         .vs-search-result small {
           display: block;
-          color: rgba(148,163,184,.72);
+          color: rgba(148, 163, 184, 0.72);
           margin-top: 3px;
         }
 
@@ -296,12 +323,21 @@ export default function AppShell() {
           display: flex;
           justify-content: flex-end;
           gap: 18px;
-          color: rgba(203,213,225,.72);
+          color: rgba(203, 213, 225, 0.72);
           font-size: 12px;
         }
 
         .vs-page-meta strong {
           color: white;
+        }
+
+        .vs-nav-clickaway {
+          position: fixed;
+          inset: 0;
+          z-index: 60;
+          border: 0;
+          background: transparent;
+          cursor: default;
         }
 
         .vs-mobile-button {
@@ -342,18 +378,18 @@ export default function AppShell() {
 
           .vs-mobile-section {
             border-radius: 18px;
-            border: 1px solid rgba(148,163,184,.14);
-            background: rgba(15,23,42,.54);
+            border: 1px solid rgba(251, 146, 60, 0.16);
+            background: rgba(15, 23, 42, 0.54);
             padding: 10px;
           }
 
           .vs-mobile-section h3 {
             margin: 0 0 8px;
-            color: rgba(148,163,184,.78);
+            color: rgba(251, 191, 36, 0.84);
             font-size: 10px;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: .14em;
+            letter-spacing: 0.14em;
           }
 
           .vs-mobile-links {
@@ -397,6 +433,15 @@ export default function AppShell() {
         }
       `}</style>
 
+      {openMenu ? (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="vs-nav-clickaway"
+          onClick={() => setOpenMenu("")}
+        />
+      ) : null}
+
       <header className="vs-top-nav">
         <div className="vs-top-row">
           <Link className="vs-brand" to="/national-command" onClick={closeMenus}>
@@ -409,12 +454,7 @@ export default function AppShell() {
 
           <nav className="vs-menu-row">
             {navigationSections.map((section) => (
-              <div
-                key={section.label}
-                className="vs-menu-wrap"
-                onMouseEnter={() => setOpenMenu(section.label)}
-                onMouseLeave={() => setOpenMenu("")}
-              >
+              <div key={section.label} className="vs-menu-wrap">
                 <button
                   type="button"
                   className={cx(
@@ -422,7 +462,9 @@ export default function AppShell() {
                     section.featured && "featured",
                     activeSection === section.label && "active"
                   )}
-                  onClick={() => setOpenMenu(openMenu === section.label ? "" : section.label)}
+                  onClick={() =>
+                    setOpenMenu(openMenu === section.label ? "" : section.label)
+                  }
                 >
                   {section.label}
                 </button>
@@ -435,7 +477,9 @@ export default function AppShell() {
                         key={item.to}
                         to={item.to}
                         onClick={closeMenus}
-                        className={({ isActive }) => cx("vs-dropdown-link", isActive && "active")}
+                        className={({ isActive }) =>
+                          cx("vs-dropdown-link", isActive && "active")
+                        }
                       >
                         <span>{item.label}</span>
                         <span className="vs-dot" />
@@ -448,11 +492,25 @@ export default function AppShell() {
           </nav>
 
           <div className="vs-right-tools">
-            <Link className="vs-pill" to="/notifications" onClick={closeMenus}>Alerts</Link>
-            <Link className="vs-pill" to="/campaign-copilot" onClick={closeMenus}>AI Co-Pilot</Link>
-            <button className="vs-pill vs-mobile-button" onClick={() => setMobileOpen((v) => !v)}>Menu</button>
+            <Link className="vs-pill" to="/notifications" onClick={closeMenus}>
+              Alerts
+            </Link>
+            <Link className="vs-pill" to="/campaign-copilot" onClick={closeMenus}>
+              AI Co-Pilot
+            </Link>
+            <button
+              type="button"
+              className="vs-pill vs-mobile-button"
+              onClick={() => setMobileOpen((value) => !value)}
+            >
+              Menu
+            </button>
             <div className="vs-avatar">{getInitials(user)}</div>
-            {logout ? <button className="vs-pill" onClick={logout}>Logout</button> : null}
+            {logout ? (
+              <button type="button" className="vs-pill" onClick={logout}>
+                Logout
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -462,11 +520,17 @@ export default function AppShell() {
               placeholder="Search pages, workflows, reports, intelligence..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onFocus={() => setOpenMenu("")}
             />
             {searchResults.length ? (
               <div className="vs-search-results">
                 {searchResults.map((item) => (
-                  <Link key={item.to} className="vs-search-result" to={item.to} onClick={closeMenus}>
+                  <Link
+                    key={item.to}
+                    className="vs-search-result"
+                    to={item.to}
+                    onClick={closeMenus}
+                  >
                     {item.label}
                     <small>{item.section}</small>
                   </Link>
@@ -476,8 +540,12 @@ export default function AppShell() {
           </div>
 
           <div className="vs-page-meta">
-            <span>Section: <strong>{activeSection}</strong></span>
-            <span>Page: <strong>{currentPage}</strong></span>
+            <span>
+              Section: <strong>{activeSection}</strong>
+            </span>
+            <span>
+              Page: <strong>{currentPage}</strong>
+            </span>
           </div>
         </div>
 
@@ -491,7 +559,9 @@ export default function AppShell() {
                     key={item.to}
                     to={item.to}
                     onClick={closeMenus}
-                    className={({ isActive }) => cx("vs-dropdown-link", isActive && "active")}
+                    className={({ isActive }) =>
+                      cx("vs-dropdown-link", isActive && "active")
+                    }
                   >
                     <span>{item.label}</span>
                     <span className="vs-dot" />
