@@ -66,6 +66,7 @@ const ClientPortalView = lazy(() => import("./pages/ClientPortalView.jsx"));
 const ReportExportCenter = lazy(() => import("./pages/ReportExportCenter.jsx"));
 const NationalElectionCommandCenter = lazy(() => import("./pages/NationalElectionCommandCenter.jsx"));
 const ConsultantBusinessSuite = lazy(() => import("./pages/ConsultantBusinessSuite.jsx"));
+const ExecutiveRevenueIntelligence = lazy(() => import("./pages/ExecutiveRevenueIntelligence.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -247,6 +248,7 @@ function AppRoutes() {
               <Route path="/report-exports" element={<ReportExportCenter />} />
               <Route path="/national-command" element={<NationalElectionCommandCenter />} />
               <Route path="/business-suite" element={<ConsultantBusinessSuite />} />
+              <Route path="/revenue-intelligence" element={<ExecutiveRevenueIntelligence />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
