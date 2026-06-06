@@ -74,6 +74,7 @@ function shouldInjectWorkspace(config = {}) {
     "/consultant-business-suite",
     "/executive-revenue",
     "/political-intelligence",
+    "/notifications",
     "/consultant-opportunities",
   ];
 
@@ -1184,6 +1185,22 @@ export const api = {
          Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
      ).toString()}`
    ]),
+
+  notificationCenter: (params = {}) =>
+  tryGet([
+    `/notifications?${new URLSearchParams(
+      Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+    ).toString()}`
+  ]),
+
+  createNotification: (payload = {}) =>
+    tryPost(["/notifications"], payload),
+
+  markNotificationRead: (id) =>
+    tryPut([`/notifications/${id}/read`], {}),
+
+  archiveNotification: (id) =>
+    tryPut([`/notifications/${id}/archive`], {}),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
