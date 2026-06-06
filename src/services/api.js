@@ -73,6 +73,7 @@ function shouldInjectWorkspace(config = {}) {
     "/national-election-command-center",
     "/consultant-business-suite",
     "/executive-revenue",
+    "/political-intelligence",
     "/consultant-opportunities",
   ];
 
@@ -1176,6 +1177,13 @@ export const api = {
 
   executiveRevenueIntelligence: () =>
     tryGet(["/executive-revenue/dashboard"]),
+
+  politicalIntelligenceGraph: (params = {}) =>
+    tryGet([
+      `/political-intelligence/graph?${new URLSearchParams(
+         Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+     ).toString()}`
+   ]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
