@@ -59,6 +59,18 @@ export default function AppShell() {
   return (
     <div className="vs-top-shell">
       <style>{`
+        :root {
+          --vs-orange: #f97316;
+          --vs-orange-light: #fb923c;
+          --vs-orange-dark: #ea580c;
+        }
+
+        .vs-page-title,
+        .vs-section-title,
+        .vs-page-eyebrow {
+          color: var(--vs-orange) !important;
+        }
+
         .vs-top-shell {
           min-height: 100vh;
           background:
@@ -79,7 +91,7 @@ export default function AppShell() {
 
         .vs-top-row {
           display: grid;
-          grid-template-columns: 250px minmax(0, 1fr) auto;
+          grid-template-columns: 270px minmax(0, 1fr) auto;
           gap: 16px;
           align-items: center;
           padding: 12px 22px;
@@ -88,30 +100,32 @@ export default function AppShell() {
         .vs-brand {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 14px;
           text-decoration: none;
           color: white;
           min-width: 0;
         }
 
         .vs-logo {
-          width: 40px;
-          height: 40px;
-          border-radius: 15px;
+          width: 52px;
+          height: 52px;
+          border-radius: 18px;
           display: grid;
           place-items: center;
           background:
             radial-gradient(circle at 28% 24%, rgba(255,255,255,.36), transparent 24%),
-            linear-gradient(135deg, #f97316, #ea580c);
+            linear-gradient(135deg, var(--vs-orange), var(--vs-orange-dark));
           color: white;
-          font-weight: 950;
-          letter-spacing: -0.08em;
-          box-shadow: 0 18px 50px rgba(249, 115, 22, 0.34);
+          font-size: 22px;
+          font-weight: 1000;
+          letter-spacing: -0.12em;
+          box-shadow: 0 20px 60px rgba(249, 115, 22, 0.40);
+          flex: 0 0 auto;
         }
 
         .vs-brand strong {
           display: block;
-          font-size: 15px;
+          font-size: 16px;
           letter-spacing: -0.04em;
         }
 
@@ -179,7 +193,7 @@ export default function AppShell() {
         }
 
         .vs-dropdown-title {
-          color: rgba(251, 191, 36, 0.86);
+          color: var(--vs-orange-light);
           font-size: 10px;
           font-weight: 900;
           text-transform: uppercase;
@@ -210,7 +224,7 @@ export default function AppShell() {
           width: 7px;
           height: 7px;
           border-radius: 999px;
-          background: rgba(251, 146, 60, 0.95);
+          background: var(--vs-orange-light);
           opacity: 0;
           margin-top: 6px;
           flex: 0 0 auto;
@@ -328,7 +342,7 @@ export default function AppShell() {
         }
 
         .vs-page-meta strong {
-          color: white;
+          color: var(--vs-orange-light);
         }
 
         .vs-nav-clickaway {
@@ -355,7 +369,7 @@ export default function AppShell() {
 
         @media (max-width: 1260px) {
           .vs-top-row {
-            grid-template-columns: 230px 1fr auto;
+            grid-template-columns: 250px 1fr auto;
           }
 
           .vs-menu-row {
@@ -385,7 +399,7 @@ export default function AppShell() {
 
           .vs-mobile-section h3 {
             margin: 0 0 8px;
-            color: rgba(251, 191, 36, 0.84);
+            color: var(--vs-orange-light);
             font-size: 10px;
             font-weight: 900;
             text-transform: uppercase;
@@ -403,6 +417,12 @@ export default function AppShell() {
           .vs-top-row {
             grid-template-columns: 1fr auto;
             padding: 12px 14px;
+          }
+
+          .vs-logo {
+            width: 46px;
+            height: 46px;
+            font-size: 20px;
           }
 
           .vs-right-tools .vs-pill:not(.vs-mobile-button) {
