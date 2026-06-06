@@ -68,6 +68,7 @@ const NationalElectionCommandCenter = lazy(() => import("./pages/NationalElectio
 const ConsultantBusinessSuite = lazy(() => import("./pages/ConsultantBusinessSuite.jsx"));
 const ExecutiveRevenueIntelligence = lazy(() => import("./pages/ExecutiveRevenueIntelligence.jsx"));
 const PoliticalIntelligenceGraph = lazy(() => import("./pages/PoliticalIntelligenceGraph.jsx"));
+const NotificationCenter = lazy(() => import("./pages/NotificationCenter.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -251,6 +252,7 @@ function AppRoutes() {
               <Route path="/business-suite" element={<ConsultantBusinessSuite />} />
               <Route path="/revenue-intelligence" element={<ExecutiveRevenueIntelligence />} />
               <Route path="/political-intelligence" element={<PoliticalIntelligenceGraph />} />
+              <Route path="/notifications" element={<NotificationCenter />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
