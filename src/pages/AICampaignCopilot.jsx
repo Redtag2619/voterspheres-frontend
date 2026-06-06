@@ -365,6 +365,9 @@ export default function AICampaignCopilot() {
               <Link className="vs-button vs-button-secondary" to="/war-room">Election War Room</Link>
               <Link className="vs-button vs-button-secondary" to="/mission-control">Mission Control</Link>
               <Link className="vs-button vs-button-secondary" to="/strategic-advisor">Strategic Advisor</Link>
+              <Link className="vs-button vs-button-secondary" to="/political-intelligence">
+                Intelligence Graph
+              </Link>
               <Link className="vs-button vs-button-secondary" to="/intelligence-reports">Reports</Link>
             </div>
           </SectionCard>
