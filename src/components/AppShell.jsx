@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { navigationSections, flattenedNavigation } from "../config/navigation";
+import { flattenedNavigation, navigationSections } from "../config/navigation";
 import { useAuth } from "../context/AuthContext.jsx";
 
 function cx(...classes) {
@@ -20,6 +20,7 @@ function getInitials(user) {
 export default function AppShell() {
   const location = useLocation();
   const { user, logout } = useAuth?.() || {};
+  const [openMenu, setOpenMenu] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -27,9 +28,16 @@ export default function AppShell() {
     return (
       navigationSections.find((section) =>
         section.items.some((item) => location.pathname === item.to)
-      )?.label || "Executive Command"
+      )?.label || "VoterSpheres"
     );
   }, [location.pathname]);
+
+  const currentPage = useMemo(() => {
+    return (
+      flattenedNavigation.find((item) => location.pathname === item.to)?.label ||
+      activeSection
+    );
+  }, [location.pathname, activeSection]);
 
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -39,44 +47,54 @@ export default function AppShell() {
       .filter((item) =>
         `${item.label} ${item.section} ${item.to}`.toLowerCase().includes(q)
       )
-      .slice(0, 8);
+      .slice(0, 10);
   }, [query]);
 
+  function closeMenus() {
+    setOpenMenu("");
+    setMobileOpen(false);
+    setQuery("");
+  }
+
   return (
-    <div className="vs-shell">
+    <div className="vs-top-shell">
       <style>{`
-        .vs-shell {
+        .vs-top-shell {
           min-height: 100vh;
           background:
-            radial-gradient(circle at top left, rgba(37,99,235,.16), transparent 28%),
-            radial-gradient(circle at bottom right, rgba(239,68,68,.10), transparent 28%),
+            radial-gradient(circle at top left, rgba(37,99,235,.16), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(220,38,38,.10), transparent 30%),
             #020617;
           color: var(--vs-text, #e5e7eb);
-          display: grid;
-          grid-template-columns: 292px minmax(0, 1fr);
         }
 
-        .vs-shell-sidebar {
+        .vs-top-nav {
           position: sticky;
           top: 0;
-          height: 100vh;
-          overflow: auto;
-          border-right: 1px solid rgba(148,163,184,.14);
-          background:
-            linear-gradient(180deg, rgba(15,23,42,.98), rgba(2,6,23,.96));
-          padding: 18px;
+          z-index: 50;
+          border-bottom: 1px solid rgba(148,163,184,.14);
+          background: rgba(2,6,23,.88);
+          backdrop-filter: blur(18px);
         }
 
-        .vs-shell-brand {
+        .vs-top-nav-inner {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 18px;
+          align-items: center;
+          padding: 14px 22px;
+        }
+
+        .vs-brand {
           display: flex;
           align-items: center;
           gap: 12px;
           text-decoration: none;
           color: white;
-          margin-bottom: 18px;
+          min-width: 210px;
         }
 
-        .vs-shell-logo {
+        .vs-logo {
           width: 42px;
           height: 42px;
           border-radius: 16px;
@@ -90,48 +108,144 @@ export default function AppShell() {
           box-shadow: 0 18px 50px rgba(37,99,235,.32);
         }
 
-        .vs-shell-brand strong {
+        .vs-brand strong {
           display: block;
           font-size: 16px;
           letter-spacing: -.04em;
         }
 
-        .vs-shell-brand span {
+        .vs-brand span {
           display: block;
           margin-top: 2px;
           font-size: 11px;
           color: rgba(203,213,225,.62);
         }
 
-        .vs-shell-search {
+        .vs-menu-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          min-width: 0;
+        }
+
+        .vs-menu-wrap {
           position: relative;
-          margin-bottom: 18px;
         }
 
-        .vs-shell-search input {
-          width: 100%;
-          border-radius: 16px;
-          border: 1px solid rgba(148,163,184,.16);
-          background: rgba(15,23,42,.78);
+        .vs-menu-button {
+          border: 1px solid rgba(148,163,184,.14);
+          background: rgba(15,23,42,.58);
+          color: rgba(226,232,240,.88);
+          border-radius: 999px;
+          padding: 9px 11px;
+          font-size: 12px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .vs-menu-button:hover,
+        .vs-menu-button.active {
           color: white;
-          padding: 11px 12px;
-          outline: none;
+          border-color: rgba(96,165,250,.34);
+          background: rgba(37,99,235,.20);
         }
 
-        .vs-shell-search-results {
+        .vs-dropdown {
           position: absolute;
-          z-index: 30;
-          left: 0;
+          top: calc(100% + 10px);
+          left: 50%;
+          transform: translateX(-50%);
+          width: 290px;
+          border-radius: 22px;
+          border: 1px solid rgba(148,163,184,.16);
+          background:
+            radial-gradient(circle at top right, rgba(37,99,235,.14), transparent 34%),
+            rgba(2,6,23,.98);
+          box-shadow: 0 28px 90px rgba(0,0,0,.55);
+          padding: 10px;
+          display: grid;
+          gap: 4px;
+        }
+
+        .vs-dropdown-title {
+          color: rgba(148,163,184,.78);
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: .14em;
+          padding: 8px 10px 6px;
+        }
+
+        .vs-dropdown-link {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          text-decoration: none;
+          color: rgba(226,232,240,.82);
+          font-size: 13px;
+          padding: 10px;
+          border-radius: 14px;
+          border: 1px solid transparent;
+        }
+
+        .vs-dropdown-link:hover,
+        .vs-dropdown-link.active {
+          color: white;
+          background: rgba(37,99,235,.16);
+          border-color: rgba(96,165,250,.22);
+        }
+
+        .vs-link-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: rgba(96,165,250,.9);
+          opacity: 0;
+        }
+
+        .vs-dropdown-link.active .vs-link-dot {
+          opacity: 1;
+        }
+
+        .vs-right-tools {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .vs-search {
+          position: relative;
+          width: 230px;
+        }
+
+        .vs-search input {
+          width: 100%;
+          border-radius: 999px;
+          border: 1px solid rgba(148,163,184,.16);
+          background: rgba(15,23,42,.72);
+          color: white;
+          padding: 9px 12px;
+          outline: none;
+          font-size: 12px;
+        }
+
+        .vs-search-results {
+          position: absolute;
+          z-index: 80;
+          top: calc(100% + 10px);
           right: 0;
-          top: calc(100% + 8px);
-          border-radius: 18px;
+          width: 320px;
+          border-radius: 20px;
           border: 1px solid rgba(148,163,184,.16);
           background: rgba(2,6,23,.98);
-          box-shadow: 0 24px 80px rgba(0,0,0,.45);
+          box-shadow: 0 28px 90px rgba(0,0,0,.55);
           padding: 8px;
         }
 
-        .vs-shell-search-result {
+        .vs-search-result {
           display: block;
           text-decoration: none;
           color: rgba(226,232,240,.94);
@@ -139,123 +253,17 @@ export default function AppShell() {
           border-radius: 12px;
         }
 
-        .vs-shell-search-result:hover {
+        .vs-search-result:hover {
           background: rgba(37,99,235,.16);
         }
 
-        .vs-shell-search-result small {
+        .vs-search-result small {
           display: block;
           color: rgba(148,163,184,.72);
           margin-top: 3px;
         }
 
-        .vs-shell-section {
-          margin-bottom: 18px;
-        }
-
-        .vs-shell-section-title {
-          color: rgba(148,163,184,.78);
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: .14em;
-          margin: 0 0 8px;
-          padding-left: 8px;
-        }
-
-        .vs-shell-nav {
-          display: grid;
-          gap: 4px;
-        }
-
-        .vs-shell-link {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          border-radius: 14px;
-          padding: 10px 11px;
-          text-decoration: none;
-          color: rgba(226,232,240,.78);
-          font-size: 13px;
-          border: 1px solid transparent;
-          transition: .16s ease;
-        }
-
-        .vs-shell-link:hover {
-          color: white;
-          background: rgba(15,23,42,.78);
-          border-color: rgba(148,163,184,.12);
-        }
-
-        .vs-shell-link.active {
-          color: white;
-          background:
-            radial-gradient(circle at top right, rgba(59,130,246,.22), transparent 36%),
-            rgba(37,99,235,.16);
-          border-color: rgba(96,165,250,.28);
-        }
-
-        .vs-shell-link-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 999px;
-          background: rgba(96,165,250,.84);
-          opacity: 0;
-        }
-
-        .vs-shell-link.active .vs-shell-link-dot {
-          opacity: 1;
-        }
-
-        .vs-shell-main {
-          min-width: 0;
-          display: grid;
-          grid-template-rows: auto minmax(0, 1fr);
-        }
-
-        .vs-shell-topbar {
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          min-height: 72px;
-          border-bottom: 1px solid rgba(148,163,184,.12);
-          background: rgba(2,6,23,.78);
-          backdrop-filter: blur(18px);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 14px 22px;
-        }
-
-        .vs-shell-topbar-left {
-          min-width: 0;
-        }
-
-        .vs-shell-eyebrow {
-          color: rgba(148,163,184,.78);
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: .14em;
-        }
-
-        .vs-shell-current {
-          margin-top: 4px;
-          color: white;
-          font-size: 16px;
-          font-weight: 900;
-          letter-spacing: -.03em;
-        }
-
-        .vs-shell-topbar-actions {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .vs-shell-pill {
+        .vs-pill {
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -263,12 +271,14 @@ export default function AppShell() {
           border: 1px solid rgba(148,163,184,.16);
           background: rgba(15,23,42,.72);
           color: rgba(226,232,240,.86);
-          padding: 8px 10px;
+          padding: 9px 11px;
           font-size: 12px;
           text-decoration: none;
+          cursor: pointer;
+          white-space: nowrap;
         }
 
-        .vs-shell-avatar {
+        .vs-avatar {
           width: 34px;
           height: 34px;
           border-radius: 999px;
@@ -280,144 +290,263 @@ export default function AppShell() {
           font-weight: 900;
         }
 
-        .vs-shell-content {
-          min-width: 0;
-          padding: 22px;
-        }
-
-        .vs-shell-mobile-button {
+        .vs-mobile-button {
           display: none;
-          border: 1px solid rgba(148,163,184,.18);
-          background: rgba(15,23,42,.78);
+        }
+
+        .vs-page-meta {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          align-items: center;
+          padding: 12px 22px;
+          border-top: 1px solid rgba(148,163,184,.08);
+          background: rgba(15,23,42,.28);
+        }
+
+        .vs-page-meta small {
+          color: rgba(148,163,184,.74);
+          text-transform: uppercase;
+          letter-spacing: .12em;
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .vs-page-meta strong {
+          display: block;
+          margin-top: 3px;
           color: white;
-          border-radius: 12px;
-          padding: 9px 10px;
+          font-size: 14px;
         }
 
-        .vs-shell-logout {
-          border: 0;
-          cursor: pointer;
+        .vs-top-content {
+          padding: 22px;
+          min-width: 0;
         }
 
-        @media (max-width: 1040px) {
-          .vs-shell {
-            grid-template-columns: 1fr;
+        .vs-mobile-panel {
+          display: none;
+        }
+
+        @media (max-width: 1180px) {
+          .vs-top-nav-inner {
+            grid-template-columns: auto 1fr auto;
           }
 
-          .vs-shell-sidebar {
-            position: fixed;
-            z-index: 50;
-            inset: 0 auto 0 0;
-            width: 292px;
-            transform: translateX(-110%);
-            transition: transform .18s ease;
+          .vs-menu-row {
+            display: none;
           }
 
-          .vs-shell-sidebar.open {
-            transform: translateX(0);
-          }
-
-          .vs-shell-mobile-button {
+          .vs-mobile-button {
             display: inline-flex;
           }
 
-          .vs-shell-content {
-            padding: 16px;
+          .vs-search {
+            display: none;
+          }
+
+          .vs-mobile-panel {
+            display: grid;
+            gap: 14px;
+            padding: 0 22px 18px;
+          }
+
+          .vs-mobile-panel.closed {
+            display: none;
+          }
+
+          .vs-mobile-section {
+            border-radius: 18px;
+            border: 1px solid rgba(148,163,184,.14);
+            background: rgba(15,23,42,.54);
+            padding: 10px;
+          }
+
+          .vs-mobile-section h3 {
+            margin: 0 0 8px;
+            color: rgba(148,163,184,.78);
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+          }
+
+          .vs-mobile-links {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .vs-top-nav-inner {
+            padding: 12px 14px;
+          }
+
+          .vs-brand {
+            min-width: 0;
+          }
+
+          .vs-brand span {
+            display: none;
+          }
+
+          .vs-right-tools .vs-pill:not(.vs-mobile-button) {
+            display: none;
+          }
+
+          .vs-mobile-links {
+            grid-template-columns: 1fr;
+          }
+
+          .vs-page-meta {
+            padding: 10px 14px;
+          }
+
+          .vs-top-content {
+            padding: 14px;
           }
         }
       `}</style>
 
-      <aside className={cx("vs-shell-sidebar", mobileOpen && "open")}>
-        <Link className="vs-shell-brand" to="/national-command" onClick={() => setMobileOpen(false)}>
-          <div className="vs-shell-logo">VS</div>
-          <div>
-            <strong>VoterSpheres</strong>
-            <span>Political Operating System</span>
-          </div>
-        </Link>
-
-        <div className="vs-shell-search">
-          <input
-            placeholder="Search pages..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-
-          {searchResults.length ? (
-            <div className="vs-shell-search-results">
-              {searchResults.map((item) => (
-                <Link
-                  key={item.to}
-                  className="vs-shell-search-result"
-                  to={item.to}
-                  onClick={() => {
-                    setQuery("");
-                    setMobileOpen(false);
-                  }}
-                >
-                  {item.label}
-                  <small>{item.section}</small>
-                </Link>
-              ))}
+      <header className="vs-top-nav">
+        <div className="vs-top-nav-inner">
+          <Link className="vs-brand" to="/national-command" onClick={closeMenus}>
+            <div className="vs-logo">VS</div>
+            <div>
+              <strong>VoterSpheres</strong>
+              <span>Political Operating System</span>
             </div>
-          ) : null}
-        </div>
+          </Link>
 
-        {navigationSections.map((section) => (
-          <nav key={section.label} className="vs-shell-section">
-            <h3 className="vs-shell-section-title">{section.label}</h3>
-
-            <div className="vs-shell-nav">
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    cx("vs-shell-link", isActive && "active")
+          <nav className="vs-menu-row">
+            {navigationSections.map((section) => (
+              <div
+                key={section.label}
+                className="vs-menu-wrap"
+                onMouseEnter={() => setOpenMenu(section.label)}
+                onMouseLeave={() => setOpenMenu("")}
+              >
+                <button
+                  type="button"
+                  className={cx("vs-menu-button", activeSection === section.label && "active")}
+                  onClick={() =>
+                    setOpenMenu(openMenu === section.label ? "" : section.label)
                   }
                 >
-                  <span>{item.label}</span>
-                  <span className="vs-shell-link-dot" />
-                </NavLink>
-              ))}
-            </div>
-          </nav>
-        ))}
-      </aside>
+                  {section.label}
+                </button>
 
-      <main className="vs-shell-main">
-        <header className="vs-shell-topbar">
-          <div className="vs-shell-topbar-left">
+                {openMenu === section.label ? (
+                  <div className="vs-dropdown">
+                    <div className="vs-dropdown-title">{section.label}</div>
+
+                    {section.items.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={closeMenus}
+                        className={({ isActive }) =>
+                          cx("vs-dropdown-link", isActive && "active")
+                        }
+                      >
+                        <span>{item.label}</span>
+                        <span className="vs-link-dot" />
+                      </NavLink>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </nav>
+
+          <div className="vs-right-tools">
+            <div className="vs-search">
+              <input
+                placeholder="Search pages..."
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+
+              {searchResults.length ? (
+                <div className="vs-search-results">
+                  {searchResults.map((item) => (
+                    <Link
+                      key={item.to}
+                      className="vs-search-result"
+                      to={item.to}
+                      onClick={closeMenus}
+                    >
+                      {item.label}
+                      <small>{item.section}</small>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <Link className="vs-pill" to="/notifications" onClick={closeMenus}>
+              Alerts
+            </Link>
+
+            <Link className="vs-pill" to="/campaign-copilot" onClick={closeMenus}>
+              AI Co-Pilot
+            </Link>
+
             <button
-              className="vs-shell-mobile-button"
+              className="vs-pill vs-mobile-button"
               onClick={() => setMobileOpen((value) => !value)}
             >
               Menu
             </button>
-            <div className="vs-shell-eyebrow">Active section</div>
-            <div className="vs-shell-current">{activeSection}</div>
-          </div>
 
-          <div className="vs-shell-topbar-actions">
-            <Link className="vs-shell-pill" to="/notifications">
-              Alerts
-            </Link>
-            <Link className="vs-shell-pill" to="/campaign-copilot">
-              AI Co-Pilot
-            </Link>
-            <div className="vs-shell-avatar">{getInitials(user)}</div>
+            <div className="vs-avatar">{getInitials(user)}</div>
+
             {logout ? (
-              <button className="vs-shell-pill vs-shell-logout" onClick={logout}>
+              <button className="vs-pill" onClick={logout}>
                 Logout
               </button>
             ) : null}
           </div>
-        </header>
+        </div>
 
-        <section className="vs-shell-content">
-          <Outlet />
-        </section>
+        <div className={cx("vs-mobile-panel", !mobileOpen && "closed")}>
+          {navigationSections.map((section) => (
+            <div key={section.label} className="vs-mobile-section">
+              <h3>{section.label}</h3>
+              <div className="vs-mobile-links">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={closeMenus}
+                    className={({ isActive }) =>
+                      cx("vs-dropdown-link", isActive && "active")
+                    }
+                  >
+                    <span>{item.label}</span>
+                    <span className="vs-link-dot" />
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="vs-page-meta">
+          <div>
+            <small>Active Section</small>
+            <strong>{activeSection}</strong>
+          </div>
+          <div>
+            <small>Current Page</small>
+            <strong>{currentPage}</strong>
+          </div>
+        </div>
+      </header>
+
+      <main className="vs-top-content">
+        <Outlet />
       </main>
     </div>
   );
