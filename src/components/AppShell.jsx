@@ -27,6 +27,7 @@ const primaryItems = [
   { label: "Report Exports", to: "/report-exports" },
   { label: "National Command", to: "/national-command" },
   { label: "Business Suite", to: "/business-suite" },
+  { label: "Revenue Intelligence", to: "/revenue-intelligence" },
   { label: "Committee Intel", to: "/committee-intel", }
 ];
 
