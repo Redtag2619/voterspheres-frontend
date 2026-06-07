@@ -70,13 +70,14 @@ export default function AppShell() {
         h1,
         .vs-section-title,
         .vs-page-eyebrow {
-          color: #fb923c !important;
+          color: var(--vs-orange) !important;
+          text-shadow: none !important;
         }
 
         .vs-top-shell {
           min-height: 100vh;
           background:
-            radial-gradient(circle at top left, rgba(249, 115, 22, 0.13), transparent 30%),
+            radial-gradient(circle at top left, rgba(251, 146, 60, 0.13), transparent 30%),
             radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.10), transparent 30%),
             #020617;
           color: var(--vs-text, #e5e7eb);
@@ -121,7 +122,7 @@ export default function AppShell() {
           font-size: 22px;
           font-weight: 1000;
           letter-spacing: -0.12em;
-          box-shadow: 0 20px 60px rgba(249, 115, 22, 0.40);
+          box-shadow: 0 20px 60px rgba(251, 146, 60, 0.38);
           flex: 0 0 auto;
         }
 
@@ -161,8 +162,8 @@ export default function AppShell() {
         }
 
         .vs-menu-button.featured {
-          background: rgba(249, 115, 22, 0.2);
-          border-color: rgba(251, 146, 60, 0.42);
+          background: rgba(251, 146, 60, 0.20);
+          border-color: rgba(251, 146, 60, 0.44);
           color: white;
           font-weight: 850;
         }
@@ -170,8 +171,8 @@ export default function AppShell() {
         .vs-menu-button:hover,
         .vs-menu-button.active {
           color: white;
-          border-color: rgba(251, 146, 60, 0.5);
-          background: rgba(249, 115, 22, 0.18);
+          border-color: rgba(251, 146, 60, 0.50);
+          background: rgba(251, 146, 60, 0.18);
         }
 
         .vs-dropdown {
@@ -184,9 +185,9 @@ export default function AppShell() {
           max-height: min(72vh, 620px);
           overflow: auto;
           border-radius: 22px;
-          border: 1px solid rgba(251, 146, 60, 0.22);
+          border: 1px solid rgba(251, 146, 60, 0.24);
           background:
-            radial-gradient(circle at top right, rgba(249, 115, 22, 0.13), transparent 34%),
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.13), transparent 34%),
             rgba(2, 6, 23, 0.98);
           box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
           padding: 10px;
@@ -218,8 +219,8 @@ export default function AppShell() {
         .vs-dropdown-link:hover,
         .vs-dropdown-link.active {
           color: white;
-          background: rgba(249, 115, 22, 0.16);
-          border-color: rgba(251, 146, 60, 0.28);
+          background: rgba(251, 146, 60, 0.16);
+          border-color: rgba(251, 146, 60, 0.30);
         }
 
         .vs-dot {
@@ -256,8 +257,8 @@ export default function AppShell() {
 
         .vs-pill:hover {
           color: white;
-          border-color: rgba(251, 146, 60, 0.38);
-          background: rgba(249, 115, 22, 0.14);
+          border-color: rgba(251, 146, 60, 0.40);
+          background: rgba(251, 146, 60, 0.14);
         }
 
         .vs-avatar {
@@ -266,7 +267,7 @@ export default function AppShell() {
           border-radius: 999px;
           display: grid;
           place-items: center;
-          background: linear-gradient(135deg, rgba(249, 115, 22, 0.95), rgba(234, 88, 12, 0.88));
+          background: linear-gradient(135deg, var(--vs-orange), var(--vs-orange-dark));
           color: white;
           font-size: 12px;
           font-weight: 900;
@@ -299,7 +300,7 @@ export default function AppShell() {
 
         .vs-search input:focus {
           border-color: rgba(251, 146, 60, 0.42);
-          box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+          box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
         }
 
         .vs-search-results {
@@ -311,7 +312,7 @@ export default function AppShell() {
           max-height: 380px;
           overflow: auto;
           border-radius: 20px;
-          border: 1px solid rgba(251, 146, 60, 0.22);
+          border: 1px solid rgba(251, 146, 60, 0.24);
           background: rgba(2, 6, 23, 0.98);
           box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
           padding: 8px;
@@ -326,7 +327,7 @@ export default function AppShell() {
         }
 
         .vs-search-result:hover {
-          background: rgba(249, 115, 22, 0.16);
+          background: rgba(251, 146, 60, 0.16);
         }
 
         .vs-search-result small {
@@ -344,7 +345,7 @@ export default function AppShell() {
         }
 
         .vs-page-meta strong {
-          color: #fb923c;
+          color: var(--vs-orange);
         }
 
         .vs-nav-clickaway {
@@ -394,7 +395,7 @@ export default function AppShell() {
 
           .vs-mobile-section {
             border-radius: 18px;
-            border: 1px solid rgba(251, 146, 60, 0.16);
+            border: 1px solid rgba(251, 146, 60, 0.18);
             background: rgba(15, 23, 42, 0.54);
             padding: 10px;
           }
