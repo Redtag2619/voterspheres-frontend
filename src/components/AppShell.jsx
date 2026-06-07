@@ -180,7 +180,7 @@ export default function AppShell() {
           top: calc(100% + 10px);
           left: 50%;
           transform: translateX(-50%);
-          z-index: 95;
+          z-index: 300;
           width: 320px;
           max-height: min(72vh, 620px);
           overflow: auto;
@@ -284,7 +284,7 @@ export default function AppShell() {
         .vs-search {
           position: relative;
           width: 100%;
-          z-index: 100;
+          z-index: 20;
         }
 
         .vs-search input {
@@ -305,7 +305,7 @@ export default function AppShell() {
 
         .vs-search-results {
           position: absolute;
-          z-index: 105;
+          z-index: 25
           top: calc(100% + 8px);
           left: 0;
           width: 100%;
