@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -935,4 +935,87 @@ textarea {
 .vs-decision-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================
+   VOTERSPHERES PARTY COLOR SYSTEM
+   ========================================================== */
+
+:root {
+  --party-democrat: #2563eb;
+  --party-democrat-soft: rgba(37, 99, 235, 0.16);
+  --party-democrat-border: rgba(37, 99, 235, 0.42);
+  --party-democrat-text: #60a5fa;
+
+  --party-republican: #dc2626;
+  --party-republican-soft: rgba(220, 38, 38, 0.16);
+  --party-republican-border: rgba(220, 38, 38, 0.42);
+  --party-republican-text: #f87171;
+
+  --party-independent: #f59e0b;
+  --party-independent-soft: rgba(245, 158, 11, 0.16);
+  --party-independent-border: rgba(245, 158, 11, 0.42);
+  --party-independent-text: #fbbf24;
+
+  --party-other: #94a3b8;
+  --party-other-soft: rgba(148, 163, 184, 0.14);
+  --party-other-border: rgba(148, 163, 184, 0.28);
+  --party-other-text: #cbd5e1;
+}
+
+/* Text Colors */
+
+.party-democrat {
+  color: var(--party-democrat-text) !important;
+}
+
+.party-republican {
+  color: var(--party-republican-text) !important;
+}
+
+.party-independent {
+  color: var(--party-independent-text) !important;
+}
+
+.party-other {
+  color: var(--party-other-text) !important;
+}
+
+/* Badge Styles */
+
+.party-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  min-height: 24px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.party-badge.party-democrat {
+  background: var(--party-democrat-soft);
+  border: 1px solid var(--party-democrat-border);
+  color: var(--party-democrat-text) !important;
+}
+
+.party-badge.party-republican {
+  background: var(--party-republican-soft);
+  border: 1px solid var(--party-republican-border);
+  color: var(--party-republican-text) !important;
+}
+
+.party-badge.party-independent {
+  background: var(--party-independent-soft);
+  border: 1px solid var(--party-independent-border);
+  color: var(--party-independent-text) !important;
+}
+
+.party-badge.party-other {
+  background: var(--party-other-soft);
+  border: 1px solid var(--party-other-border);
+  color: var(--party-other-text) !important;
 }
