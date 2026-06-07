@@ -87,8 +87,27 @@ function getAddressValue(profile, candidate, profileKey, candidateKeys = []) {
 
 function getPartyTone(party) {
   const value = String(party || "").toLowerCase();
-  if (value.includes("democratic")) return "accent";
-  if (value.includes("republican")) return "danger";
+
+  if (
+    value === "d" ||
+    value.includes("dem") ||
+    value.includes("democratic") ||
+    value.includes("democrat")
+  ) {
+    return "info";
+  }
+
+  if (
+    value === "r" ||
+    value.includes("gop") ||
+    value.includes("rep") ||
+    value.includes("republican")
+  ) {
+    return "danger";
+  }
+
+  if (value.includes("independent") || value === "i") return "demo";
+
   return "default";
 }
 
