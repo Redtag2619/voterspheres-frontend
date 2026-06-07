@@ -60,9 +60,9 @@ export default function AppShell() {
     <div className="vs-top-shell">
       <style>{`
         :root {
-          --vs-orange: #fdba74;
-          --vs-orange-light: #fed7aa;
-          --vs-orange-dark: #fb923c;
+          --vs-orange: #fb923c;
+          --vs-orange-light: #fdba74;
+          --vs-orange-dark: #f97316;
         }
 
         .vs-page-title,
@@ -70,8 +70,7 @@ export default function AppShell() {
         h1,
         .vs-section-title,
         .vs-page-eyebrow {
-          color: #fdba74 !important;
-          text-shadow: none !important;
+          color: #fb923c !important;
         }
 
         .vs-top-shell {
@@ -345,7 +344,7 @@ export default function AppShell() {
         }
 
         .vs-page-meta strong {
-          color: #fdba74;
+          color: #fb923c;
         }
 
         .vs-nav-clickaway {
