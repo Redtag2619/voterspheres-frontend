@@ -345,7 +345,7 @@ export default function AppShell() {
         }
 
         .vs-page-meta strong {
-          color: var(--vs-orange-light);
+          color: #fdba74;
         }
 
         .vs-nav-clickaway {
