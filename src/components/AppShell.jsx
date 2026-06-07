@@ -65,24 +65,11 @@ export default function AppShell() {
           --vs-orange-dark: #ea580c;
         }
 
-       .vs-page-title,
-       .page-title,
-       h1.page-title {
-         color: #fb923c !important;
-         font-weight: 900;
-         letter-spacing: -0.05em;
-         text-shadow:
-           -1px -1px 0 rgba(255,255,255,.85),
-            1px -1px 0 rgba(255,255,255,.85),
-           -1px  1px 0 rgba(255,255,255,.85),
-            1px  1px 0 rgba(255,255,255,.85),
-            0 0 18px rgba(249,115,22,.25);
-       }
-
-      .vs-section-title,
-      .vs-page-eyebrow {
-        color: var(--vs-orange) !important;
-      }
+        .vs-page-title,
+        .vs-section-title,
+        .vs-page-eyebrow {
+          color: var(--vs-orange) !important;
+        }
 
         .vs-top-shell {
           min-height: 100vh;
