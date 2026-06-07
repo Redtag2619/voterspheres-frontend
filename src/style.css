@@ -1011,3 +1011,56 @@ textarea {
   border: 1px solid var(--party-other-border);
   color: var(--party-other-text) !important;
 }
+
+[data-party="D"],
+[data-party="DEM"],
+[data-party="Democrat"],
+[data-party="Democratic"],
+.party-d,
+.party-dem,
+.party-democrat,
+.party-democratic,
+.democrat,
+.democratic {
+  color: #60a5fa !important;
+  border-color: rgba(37, 99, 235, 0.42) !important;
+}
+
+[data-party="D"].vs-badge,
+[data-party="DEM"].vs-badge,
+[data-party="Democrat"].vs-badge,
+[data-party="Democratic"].vs-badge,
+.party-badge.party-democrat,
+.party-badge.party-democratic,
+.vs-badge.party-democrat,
+.vs-badge.party-democratic {
+  background: rgba(37, 99, 235, 0.16) !important;
+  border-color: rgba(37, 99, 235, 0.42) !important;
+  color: #60a5fa !important;
+}
+
+[data-party="R"],
+[data-party="REP"],
+[data-party="GOP"],
+[data-party="Republican"],
+.party-r,
+.party-rep,
+.party-gop,
+.party-republican,
+.republican {
+  color: #f87171 !important;
+  border-color: rgba(220, 38, 38, 0.42) !important;
+}
+
+[data-party="R"].vs-badge,
+[data-party="REP"].vs-badge,
+[data-party="GOP"].vs-badge,
+[data-party="Republican"].vs-badge,
+.party-badge.party-republican,
+.party-badge.party-gop,
+.vs-badge.party-republican,
+.vs-badge.party-gop {
+  background: rgba(220, 38, 38, 0.16) !important;
+  border-color: rgba(220, 38, 38, 0.42) !important;
+  color: #f87171 !important;
+}
