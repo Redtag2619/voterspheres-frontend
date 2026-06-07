@@ -937,10 +937,6 @@ textarea {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
-/* ==========================================================
-   VOTERSPHERES PARTY COLOR SYSTEM
-   ========================================================== */
-
 :root {
   --party-democrat: #2563eb;
   --party-democrat-soft: rgba(37, 99, 235, 0.16);
@@ -963,8 +959,6 @@ textarea {
   --party-other-text: #cbd5e1;
 }
 
-/* Text Colors */
-
 .party-democrat {
   color: var(--party-democrat-text) !important;
 }
@@ -980,8 +974,6 @@ textarea {
 .party-other {
   color: var(--party-other-text) !important;
 }
-
-/* Badge Styles */
 
 .party-badge {
   display: inline-flex;
