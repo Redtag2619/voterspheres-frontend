@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { getPartyBadgeClass } from "../../lib/partyColors";
 
 function getContactStatus(candidate) {
   const contact = candidate?.contact || {};
@@ -53,11 +54,11 @@ export default function CandidateCard({ candidate }) {
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {candidate.party && (
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">
+            {candidate.party ? (
+              <span className={getPartyBadgeClass(candidate.party)}>
                 {candidate.party}
               </span>
-            )}
+            ) : null}
             {candidate.election_year && (
               <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">
                 {candidate.election_year}
