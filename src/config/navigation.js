@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Universal Search", to: "/search" },
       { label: "1. National Command", to: "/national-command" },
       { label: "2. Notifications", to: "/notifications" },
       { label: "3. Intelligence Graph", to: "/political-intelligence" },
@@ -18,6 +19,7 @@ export const navigationSections = [
     label: "Executive",
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Universal Search", to: "/search" },
       { label: "Dashboard", to: "/dashboard" },
       { label: "National Command", to: "/national-command" },
       { label: "Mission Control", to: "/mission-control" },
