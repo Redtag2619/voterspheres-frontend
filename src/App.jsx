@@ -126,8 +126,8 @@ function PublicOnly() {
   const isAuthenticated = Boolean(user || token);
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  return <Navigate to="/executive-workspace" replace />;
+}
 
   return <Outlet />;
 }
@@ -156,7 +156,7 @@ function AppRoutes() {
             <Route path="/app" element={<Navigate to="/executive-workspace" replace />} />
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_DASHBOARD]} />}>
-              <Navigate to="/executive-workspace" replace />
+              <Route path="/dashboard" element={<Dashboard />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_CANDIDATES]} />}>
