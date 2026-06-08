@@ -77,6 +77,7 @@ function shouldInjectWorkspace(config = {}) {
     "/notifications",
     "/executive-workspace",
     "/search",
+    "/live-intelligence-layer",
     "/consultant-opportunities",
   ];
 
@@ -1220,6 +1221,9 @@ export const api = {
         Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
      ).toString()}`
   ]),
+
+  liveIntelligenceLayer: () =>
+    tryGet(["/live-intelligence-layer"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
