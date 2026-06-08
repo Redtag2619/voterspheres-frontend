@@ -153,10 +153,10 @@ function AppRoutes() {
 
         <Route element={<RequireAuth />}>
           <Route element={<ShellLayout />}>
-            <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/app" element={<Navigate to="/executive-workspace" replace />} />
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_DASHBOARD]} />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Navigate to="/executive-workspace" replace />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_CANDIDATES]} />}>
