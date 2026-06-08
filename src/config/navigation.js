@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Live Intelligence Layer", to: "/live-intelligence-layer" },
       { label: "Universal Search", to: "/search" },
       { label: "Notifications", to: "/notifications" },
       { label: "National Command", to: "/national-command" },
@@ -57,6 +58,7 @@ export const navigationSections = [
     label: "Advanced",
     items: [
       { label: "Dashboard", to: "/dashboard" },
+      { label: "Live Intelligence Layer", to: "/live-intelligence-layer" },
       { label: "Executive Intelligence", to: "/executive-intelligence" },
       { label: "Political Signals", to: "/political-signals" },
       { label: "Relationship Graph", to: "/relationship-graph" },
