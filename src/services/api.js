@@ -76,6 +76,7 @@ function shouldInjectWorkspace(config = {}) {
     "/political-intelligence",
     "/notifications",
     "/executive-workspace",
+    "/search",
     "/consultant-opportunities",
   ];
 
@@ -1212,6 +1213,13 @@ export const api = {
 
   executiveWorkspaces: () =>
     tryGet(["/executive-workspace/workspaces"]),
+
+  universalSearch: (params = {}) =>
+    tryGet([
+      `/search?${new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+     ).toString()}`
+  ]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
