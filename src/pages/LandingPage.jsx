@@ -228,7 +228,7 @@ export default function LandingPage() {
             </h2>
 
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#94a3b8" }}>
-              Weâ€™re onboarding political consultants, campaign teams, direct mail firms, and serious political operators first.
+              We're onboarding political consultants, campaign teams, direct mail firms, and serious political operators first.
             </p>
 
             <form onSubmit={handleSubmit} style={{ marginTop: 22, display: "grid", gap: 14 }}>
@@ -400,7 +400,7 @@ export default function LandingPage() {
             fontSize: 13
           }}
         >
-          <div>Â© {new Date().getFullYear()} VoterSpheres. Private beta.</div>
+          <div>© {new Date().getFullYear()} VoterSpheres. Private beta.</div>
           <div>Political intelligence for consultants, campaigns, and operators.</div>
         </footer>
       </div>
