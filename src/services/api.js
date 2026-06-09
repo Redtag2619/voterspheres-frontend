@@ -78,6 +78,7 @@ function shouldInjectWorkspace(config = {}) {
     "/executive-workspace",
     "/search",
     "/live-intelligence-layer",
+    "/opportunity-engine",
     "/consultant-opportunities",
   ];
 
@@ -1224,6 +1225,19 @@ export const api = {
 
   liveIntelligenceLayer: () =>
     tryGet(["/live-intelligence-layer"]),
+  
+  opportunityEngine: (params = {}) =>
+    tryGet([
+      `/opportunity-engine?${new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+      ).toString()}`
+   ]),
+
+  createOpportunityCrmContact: (payload = {}) =>
+    api.post("/opportunity-engine/crm-contact", payload).then((res) => res.data),
+
+  createOpportunityTask: (payload = {}) =>
+    api.post("/opportunity-engine/task", payload).then((res) => res.data),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
