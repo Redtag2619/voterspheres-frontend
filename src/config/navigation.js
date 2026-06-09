@@ -5,6 +5,7 @@ export const navigationSections = [
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
       { label: "Live Intelligence Layer", to: "/live-intelligence-layer" },
+      { label: "Opportunity Engine", to: "/opportunity-engine" },
       { label: "Universal Search", to: "/search" },
       { label: "Notifications", to: "/notifications" },
       { label: "National Command", to: "/national-command" },
@@ -38,6 +39,7 @@ export const navigationSections = [
     items: [
       { label: "Consultant Business Suite", to: "/business-suite" },
       { label: "Revenue Intelligence", to: "/revenue-intelligence" },
+      { label: "Opportunity Engine", to: "/opportunity-engine" },
       { label: "Client Portal", to: "/client-portal-admin" },
       { label: "Intelligence Reports", to: "/intelligence-reports" },
       { label: "Report Exports", to: "/report-exports" },
