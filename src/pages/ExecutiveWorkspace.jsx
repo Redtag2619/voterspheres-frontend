@@ -19,11 +19,15 @@ function money(value) {
   })}`;
 }
 
+function number(value = 0) {
+  return Number(value || 0);
+}
+
 function tone(value) {
   const v = String(value || "").toLowerCase();
 
   if (
-    ["critical", "high", "blocked", "overdue", "at risk"].some((x) =>
+    ["critical", "high", "blocked", "overdue", "at risk", "do not launch", "not ready", "failing"].some((x) =>
       v.includes(x)
     )
   ) {
@@ -31,7 +35,7 @@ function tone(value) {
   }
 
   if (
-    ["watch", "medium", "elevated", "open", "pending"].some((x) =>
+    ["watch", "medium", "elevated", "open", "pending", "needs review", "launch with review", "review"].some((x) =>
       v.includes(x)
     )
   ) {
@@ -39,7 +43,7 @@ function tone(value) {
   }
 
   if (
-    ["stable", "active", "complete", "completed"].some((x) =>
+    ["stable", "active", "complete", "completed", "launch ready", "ready to launch", "ready"].some((x) =>
       v.includes(x)
     )
   ) {
@@ -47,6 +51,20 @@ function tone(value) {
   }
 
   return "accent";
+}
+
+function scoreTone(score) {
+  const n = Number(score || 0);
+  if (n >= 85) return "active";
+  if (n >= 65) return "demo";
+  return "danger";
+}
+
+function riskDot(score) {
+  const n = Number(score || 0);
+  if (n >= 70) return "vs-live-dot";
+  if (n >= 40) return "vs-live-dot-warning";
+  return "vs-live-dot-success";
 }
 
 function formatDate(value) {
@@ -60,7 +78,8 @@ function formatDate(value) {
 }
 
 const workspaceTabs = [
-  { key: "overview", label: "Overview" },
+  { key: "home", label: "Home" },
+  { key: "launch", label: "Launch" },
   { key: "intelligence", label: "Intelligence" },
   { key: "operations", label: "Operations" },
   { key: "crm", label: "CRM" },
@@ -69,12 +88,57 @@ const workspaceTabs = [
   { key: "tools", label: "Tools" },
 ];
 
+const launchToolCards = [
+  {
+    title: "Launch Readiness",
+    body: "Final launch gate combining QA, hardening, live feeds, KPI risk, Opportunity Engine, and workspace readiness.",
+    to: "/launch-readiness",
+    badge: "Launch",
+    tone: "active",
+  },
+  {
+    title: "Production Hardening",
+    body: "Security, environment, billing, database, workflows, alerts, and deployment blockers.",
+    to: "/production-hardening",
+    badge: "Hardening",
+    tone: "demo",
+  },
+  {
+    title: "Launch QA",
+    body: "Smoke-test center for backend, auth, billing, live data, reports, CRM, and core routes.",
+    to: "/launch-qa",
+    badge: "QA",
+    tone: "info",
+  },
+  {
+    title: "Database Stability",
+    body: "Postgres connectivity, latency, pool pressure, critical tables, and infrastructure blockers.",
+    to: "/database-stability",
+    badge: "Database",
+    tone: "accent",
+  },
+  {
+    title: "Live Intelligence Layer",
+    body: "Feed freshness and launch-readiness status across candidates, FEC, signals, vendors, alerts, reports, and revenue.",
+    to: "/live-intelligence-layer",
+    badge: "Feeds",
+    tone: "active",
+  },
+  {
+    title: "Opportunity Engine",
+    body: "Campaign scoring, CRM conversion, follow-up tasking, and consultant revenue pipeline.",
+    to: "/opportunity-engine",
+    badge: "Pipeline",
+    tone: "demo",
+  },
+];
+
 export default function ExecutiveWorkspace() {
   const [workspaceId, setWorkspaceId] = useState(
     () => localStorage.getItem("vs_active_workspace") || ""
   );
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("home");
 
   const [data, setData] = useState({
     selected_workspace: null,
@@ -91,6 +155,17 @@ export default function ExecutiveWorkspace() {
     invoices: [],
   });
 
+  const [launchData, setLaunchData] = useState({
+    summary: {},
+    gates: [],
+    next_actions: [],
+  });
+
+  const [kpis, setKpis] = useState({});
+  const [dbStatus, setDbStatus] = useState({});
+  const [opportunitySummary, setOpportunitySummary] = useState({});
+  const [liveSummary, setLiveSummary] = useState({});
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -104,31 +179,73 @@ export default function ExecutiveWorkspace() {
 
         setError("");
 
-        const result = await api.executiveWorkspaceDashboard(
-          workspaceId || undefined
-        );
+        const [
+          workspaceResult,
+          launchResult,
+          kpiResult,
+          dbResult,
+          opportunityResult,
+          liveResult,
+        ] = await Promise.allSettled([
+          api.executiveWorkspaceDashboard(workspaceId || undefined),
+          api.launchReadiness ? api.launchReadiness() : Promise.resolve(null),
+          api.executiveKpis ? api.executiveKpis() : Promise.resolve(null),
+          api.databaseStability ? api.databaseStability() : Promise.resolve(null),
+          api.opportunityEngine ? api.opportunityEngine({}) : Promise.resolve(null),
+          api.liveIntelligenceLayer ? api.liveIntelligenceLayer() : Promise.resolve(null),
+        ]);
 
-        setData({
-          selected_workspace: result?.selected_workspace || null,
-          workspaces: arr(result?.workspaces),
-          summary: result?.summary || {},
-          executive_actions: arr(result?.executive_actions),
-          signals: arr(result?.signals),
-          tasks: arr(result?.tasks),
-          contacts: arr(result?.contacts),
-          activities: arr(result?.activities),
-          reports: arr(result?.reports),
-          vendors: arr(result?.vendors),
-          clients: arr(result?.clients),
-          invoices: arr(result?.invoices),
-        });
+        if (workspaceResult.status === "fulfilled") {
+          const result = workspaceResult.value;
 
-        if (result?.selected_workspace?.id) {
-          localStorage.setItem(
-            "vs_active_workspace",
-            String(result.selected_workspace.id)
-          );
-          setWorkspaceId(String(result.selected_workspace.id));
+          setData({
+            selected_workspace: result?.selected_workspace || null,
+            workspaces: arr(result?.workspaces),
+            summary: result?.summary || {},
+            executive_actions: arr(result?.executive_actions),
+            signals: arr(result?.signals),
+            tasks: arr(result?.tasks),
+            contacts: arr(result?.contacts),
+            activities: arr(result?.activities),
+            reports: arr(result?.reports),
+            vendors: arr(result?.vendors),
+            clients: arr(result?.clients),
+            invoices: arr(result?.invoices),
+          });
+
+          if (result?.selected_workspace?.id) {
+            localStorage.setItem(
+              "vs_active_workspace",
+              String(result.selected_workspace.id)
+            );
+            setWorkspaceId(String(result.selected_workspace.id));
+          }
+        } else {
+          throw workspaceResult.reason;
+        }
+
+        if (launchResult.status === "fulfilled" && launchResult.value) {
+          setLaunchData({
+            summary: launchResult.value?.summary || {},
+            gates: arr(launchResult.value?.gates),
+            next_actions: arr(launchResult.value?.next_actions),
+          });
+        }
+
+        if (kpiResult.status === "fulfilled" && kpiResult.value) {
+          setKpis(kpiResult.value?.summary || {});
+        }
+
+        if (dbResult.status === "fulfilled" && dbResult.value) {
+          setDbStatus(dbResult.value?.summary || {});
+        }
+
+        if (opportunityResult.status === "fulfilled" && opportunityResult.value) {
+          setOpportunitySummary(opportunityResult.value?.summary || {});
+        }
+
+        if (liveResult.status === "fulfilled" && liveResult.value) {
+          setLiveSummary(liveResult.value?.summary || {});
         }
 
         setLastUpdated(
@@ -159,7 +276,25 @@ export default function ExecutiveWorkspace() {
   const selected = data.selected_workspace;
   const summary = data.summary || {};
   const actions = arr(data.executive_actions);
+  const launchSummary = launchData.summary || {};
+  const launchActions = arr(launchData.next_actions);
+  const launchGates = arr(launchData.gates);
+
   const workspaceOptions = useMemo(() => arr(data.workspaces), [data.workspaces]);
+
+  const topOpportunityLabel = useMemo(() => {
+    if (number(opportunitySummary.hot)) return `${opportunitySummary.hot} hot`;
+    if (number(opportunitySummary.high)) return `${opportunitySummary.high} high`;
+    if (number(opportunitySummary.total)) return `${opportunitySummary.total} scored`;
+    return "No pipeline";
+  }, [opportunitySummary]);
+
+  const commandDecision = useMemo(() => {
+    if (launchSummary.launch_decision) return launchSummary.launch_decision;
+    if (summary.pressure_score >= 70) return "Command Review";
+    if (summary.pressure_score >= 40) return "Monitor Closely";
+    return "Stable";
+  }, [launchSummary.launch_decision, summary.pressure_score]);
 
   function handleWorkspaceChange(nextId) {
     setWorkspaceId(nextId);
@@ -173,32 +308,30 @@ export default function ExecutiveWorkspace() {
 
   return (
     <PageShell
-      eyebrow="Executive Workspace System 2.0"
+      eyebrow="Executive Workspace 3.0"
       title={selected ? selected.name : "Executive Workspace"}
-      description="The consolidated operating hub for campaign intelligence, CRM, tasks, War Room activity, reports, vendors, revenue, clients, graph intelligence, and AI."
+      description="The consolidated VoterSpheres operating home: launch readiness, live intelligence, command actions, opportunity pipeline, CRM, operations, revenue, reports, and executive tools."
       tickerItems={[
+        {
+          label: "Launch",
+          value: launchSummary.launch_decision || "Checking",
+          dotClass:
+            launchSummary.launch_decision === "Ready To Launch"
+              ? "vs-live-dot-success"
+              : launchSummary.launch_decision === "Do Not Launch"
+              ? "vs-live-dot"
+              : "vs-live-dot-warning",
+        },
         {
           label: "Pressure",
           value: summary.pressure_status || "Stable",
-          dotClass:
-            summary.pressure_score >= 70
-              ? "vs-live-dot"
-              : summary.pressure_score >= 40
-              ? "vs-live-dot-warning"
-              : "vs-live-dot-success",
+          dotClass: riskDot(summary.pressure_score),
         },
         {
-          label: "Open Tasks",
+          label: "Tasks",
           value: `${summary.open_tasks || 0}`,
           dotClass: summary.open_tasks
             ? "vs-live-dot-warning"
-            : "vs-live-dot-success",
-        },
-        {
-          label: "Signals",
-          value: `${summary.critical_signals || 0}`,
-          dotClass: summary.critical_signals
-            ? "vs-live-dot"
             : "vs-live-dot-success",
         },
         {
@@ -264,7 +397,7 @@ export default function ExecutiveWorkspace() {
 
         .workspace-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr);
+          grid-template-columns: minmax(0, 1.18fr) minmax(360px, .82fr);
           gap: 18px;
           align-items: start;
         }
@@ -275,14 +408,14 @@ export default function ExecutiveWorkspace() {
         }
 
         .workspace-command-card {
-          border-radius: 28px;
+          border-radius: 30px;
           border: 1px solid rgba(148, 163, 184, .16);
           background:
-            radial-gradient(circle at top left, rgba(251, 146, 60, .16), transparent 34%),
-            radial-gradient(circle at bottom right, rgba(37, 99, 235, .14), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, .96), rgba(2, 6, 23, .86));
-          padding: 22px;
-          box-shadow: 0 18px 60px rgba(0,0,0,.28);
+            radial-gradient(circle at top left, rgba(251, 146, 60, .18), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(37, 99, 235, .16), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, .98), rgba(2, 6, 23, .88));
+          padding: 26px;
+          box-shadow: 0 18px 60px rgba(0,0,0,.32);
         }
 
         .workspace-command-top {
@@ -295,63 +428,69 @@ export default function ExecutiveWorkspace() {
         .workspace-command-title {
           margin: 0;
           color: white;
-          font-size: 34px;
+          font-size: clamp(34px, 5vw, 58px);
           font-weight: 950;
-          letter-spacing: -.06em;
-          line-height: 1;
+          letter-spacing: -.075em;
+          line-height: .94;
         }
 
         .workspace-command-sub {
-          margin-top: 10px;
+          margin-top: 12px;
           color: rgba(203, 213, 225, .74);
           font-size: 13px;
-          line-height: 1.6;
+          line-height: 1.7;
+          max-width: 860px;
         }
 
-        .workspace-pressure {
+        .workspace-decision {
           margin-top: 18px;
           color: white;
-          font-size: 72px;
-          line-height: 1;
+          font-size: clamp(44px, 8vw, 92px);
+          line-height: .9;
           font-weight: 950;
-          letter-spacing: -.08em;
-        }
-
-        .workspace-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-top: 18px;
+          letter-spacing: -.085em;
         }
 
         .workspace-mini-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 12px;
-          margin-top: 18px;
+          margin-top: 20px;
         }
 
-        .workspace-mini-grid div {
-          border-radius: 16px;
+        .workspace-mini-grid div,
+        .workspace-insight-card {
+          border-radius: 18px;
           border: 1px solid rgba(148, 163, 184, .14);
           background: rgba(2, 6, 23, .38);
-          padding: 12px;
+          padding: 14px;
         }
 
-        .workspace-mini-grid span {
+        .workspace-mini-grid span,
+        .workspace-insight-label {
           display: block;
           color: rgba(203, 213, 225, .62);
           font-size: 10px;
           text-transform: uppercase;
           letter-spacing: .08em;
+          font-weight: 900;
         }
 
-        .workspace-mini-grid strong {
+        .workspace-mini-grid strong,
+        .workspace-insight-value {
           display: block;
-          margin-top: 6px;
+          margin-top: 7px;
           color: white;
           font-size: 22px;
           font-weight: 950;
+          letter-spacing: -.04em;
+        }
+
+        .workspace-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 20px;
         }
 
         .workspace-row {
@@ -386,6 +525,13 @@ export default function ExecutiveWorkspace() {
           min-height: 150px;
         }
 
+        .workspace-module-card:hover {
+          border-color: rgba(251, 146, 60, .36);
+          background:
+            radial-gradient(circle at top right, rgba(251, 146, 60, .13), transparent 36%),
+            rgba(15, 23, 42, .82);
+        }
+
         .workspace-module-card h3 {
           margin: 0;
           color: white;
@@ -400,11 +546,18 @@ export default function ExecutiveWorkspace() {
           line-height: 1.55;
         }
 
+        .workspace-status-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
         @media (max-width: 1100px) {
           .workspace-grid,
           .workspace-mini-grid,
           .workspace-toolbar,
-          .workspace-select {
+          .workspace-select,
+          .workspace-status-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -447,7 +600,7 @@ export default function ExecutiveWorkspace() {
 
       <SectionCard
         title="Workspace Navigation"
-        subtitle="Use this workspace as the operating hub instead of jumping between disconnected pages."
+        subtitle="The workspace is now the home base. Use tabs for workflow; use deep tools only when needed."
       >
         <div className="workspace-tabs">
           {workspaceTabs.map((tab) => (
@@ -467,6 +620,12 @@ export default function ExecutiveWorkspace() {
 
       <div className="vs-grid-4">
         <StatCard
+          label="Launch Score"
+          value={`${launchSummary.score || 0}%`}
+          delta={launchSummary.launch_decision || "Checking"}
+          tone={scoreTone(launchSummary.score)}
+        />
+        <StatCard
           label="Pressure Score"
           value={`${summary.pressure_score || 0}%`}
           delta={summary.pressure_status || "Stable"}
@@ -475,28 +634,22 @@ export default function ExecutiveWorkspace() {
         <StatCard
           label="Open Tasks"
           value={summary.open_tasks || 0}
-          delta="Workspace execution"
+          delta={`${summary.critical_signals || 0} critical signals`}
           tone={summary.open_tasks ? "neutral" : "up"}
         />
         <StatCard
-          label="Critical Signals"
-          value={summary.critical_signals || 0}
-          delta="Political intelligence"
-          tone={summary.critical_signals ? "down" : "up"}
-        />
-        <StatCard
-          label="Receivables"
-          value={money(summary.open_receivables)}
-          delta="Client/revenue watch"
-          tone={summary.open_receivables ? "neutral" : "up"}
+          label="Pipeline"
+          value={topOpportunityLabel}
+          delta="Opportunity Engine"
+          tone={number(opportunitySummary.hot) ? "down" : "neutral"}
         />
       </div>
 
       {loading ? (
-        <EmptyState text="Loading Executive Workspace..." />
+        <EmptyState text="Loading Executive Workspace 3.0..." />
       ) : (
         <>
-          {activeTab === "overview" ? (
+          {activeTab === "home" ? (
             <div className="workspace-grid">
               <div className="workspace-stack">
                 <div className="workspace-command-card">
@@ -508,41 +661,45 @@ export default function ExecutiveWorkspace() {
                       <div className="workspace-command-sub">
                         {selected?.state || "National"} •{" "}
                         {selected?.office || "Campaign"} •{" "}
-                        {selected?.cycle || "Cycle"} • Connected operating view.
+                        {selected?.cycle || "Cycle"} • This is the consolidated command home for launch readiness, political intelligence, CRM, tasks, revenue, reports, alerts, and action routing.
                       </div>
                     </div>
 
-                    <Badge tone={tone(summary.pressure_status)}>
-                      {summary.pressure_status || "Stable"}
+                    <Badge tone={tone(commandDecision)}>
+                      {commandDecision}
                     </Badge>
                   </div>
 
-                  <div className="workspace-pressure">
-                    {summary.pressure_score || 0}%
-                  </div>
+                  <div className="workspace-decision">{commandDecision}</div>
 
                   <div className="workspace-mini-grid">
                     <div>
-                      <span>CRM Contacts</span>
-                      <strong>{summary.crm_contacts || 0}</strong>
+                      <span>Launch Score</span>
+                      <strong>{launchSummary.score || 0}%</strong>
                     </div>
                     <div>
-                      <span>Activities</span>
-                      <strong>{summary.open_activities || 0}</strong>
+                      <span>National Risk</span>
+                      <strong>{kpis.national_risk || 0}%</strong>
                     </div>
                     <div>
-                      <span>Reports</span>
-                      <strong>{summary.reports || 0}</strong>
+                      <span>Live Readiness</span>
+                      <strong>{kpis.live_readiness || liveSummary.readiness_score || launchSummary.live_readiness || 0}%</strong>
                     </div>
                     <div>
-                      <span>Vendors</span>
-                      <strong>{summary.vendors || 0}</strong>
+                      <span>DB Stability</span>
+                      <strong>{dbStatus.readiness_score || 0}%</strong>
                     </div>
                   </div>
 
                   <div className="workspace-actions">
                     <button
                       className="vs-button"
+                      onClick={() => setActiveTab("launch")}
+                    >
+                      Review Launch Gate
+                    </button>
+                    <button
+                      className="vs-button vs-button-secondary"
                       onClick={() => setActiveTab("intelligence")}
                     >
                       Intelligence
@@ -555,39 +712,51 @@ export default function ExecutiveWorkspace() {
                     </button>
                     <button
                       className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("crm")}
-                    >
-                      CRM
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
                       onClick={() => setActiveTab("revenue")}
                     >
                       Revenue
                     </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("reports")}
-                    >
-                      Reports
-                    </button>
+                    <Link className="vs-button vs-button-secondary" to="/search">
+                      Universal Search
+                    </Link>
                   </div>
                 </div>
 
                 <SectionCard
-                  title="Executive Actions"
-                  subtitle="Highest-priority cross-system actions for this workspace."
+                  title="What To Do Next"
+                  subtitle="Priority actions generated from launch readiness and workspace pressure."
                   right={
-                    <Badge tone={actions.length ? "demo" : "active"}>
-                      {actions.length}
+                    <Badge tone={launchActions.length ? "demo" : "active"}>
+                      {launchActions.length || actions.length}
                     </Badge>
                   }
                 >
                   <div className="workspace-stack">
-                    {!actions.length ? (
-                      <EmptyState text="No executive actions detected for this workspace." />
-                    ) : (
-                      actions.map((item) => (
+                    {launchActions.length ? (
+                      launchActions.map((item) => (
+                        <div key={item.key} className="workspace-row">
+                          <ResponsiveRow
+                            title={item.title}
+                            subtitle={item.detail}
+                            meta={[
+                              { label: "Priority", value: item.priority },
+                              { label: "Route", value: item.route },
+                              { label: "Action", value: "Review and resolve" },
+                              { label: "Launch", value: "Pre-launch" },
+                            ]}
+                            right={
+                              <Link
+                                className="vs-button vs-button-secondary"
+                                to={item.route}
+                              >
+                                Open
+                              </Link>
+                            }
+                          />
+                        </div>
+                      ))
+                    ) : actions.length ? (
+                      actions.slice(0, 6).map((item) => (
                         <div key={item.id} className="workspace-row">
                           <ResponsiveRow
                             title={item.title}
@@ -612,6 +781,8 @@ export default function ExecutiveWorkspace() {
                           />
                         </div>
                       ))
+                    ) : (
+                      <EmptyState text="No priority actions detected." />
                     )}
                   </div>
                 </SectionCard>
@@ -619,45 +790,156 @@ export default function ExecutiveWorkspace() {
 
               <div className="workspace-stack">
                 <SectionCard
-                  title="Workspace Health"
-                  subtitle="Unified operating status for this campaign workspace."
+                  title="Operating Status"
+                  subtitle="Launch, database, feeds, risk, and revenue health."
                 >
-                  <div
-                    className="workspace-module-grid"
-                    style={{ gridTemplateColumns: "1fr" }}
-                  >
-                    <div className="workspace-module-card">
-                      <h3>Launch Readiness</h3>
-                      <p>
-                        Pressure, tasks, CRM activity, reports, vendors, revenue,
-                        and critical signals are being watched from one place.
-                      </p>
-                      <Badge tone={tone(summary.pressure_status)}>
-                        {summary.pressure_status || "Stable"}
+                  <div className="workspace-status-grid">
+                    <Link className="workspace-module-card" to="/launch-readiness">
+                      <h3>Launch Gate</h3>
+                      <p>{launchSummary.launch_decision || "Launch readiness not loaded."}</p>
+                      <Badge tone={tone(launchSummary.launch_decision)}>
+                        {launchSummary.score || 0}%
                       </Badge>
+                    </Link>
+
+                    <Link className="workspace-module-card" to="/database-stability">
+                      <h3>Database Stability</h3>
+                      <p>{dbStatus.status || "Database stability not loaded."}</p>
+                      <Badge tone={scoreTone(dbStatus.readiness_score)}>
+                        {dbStatus.readiness_score || 0}%
+                      </Badge>
+                    </Link>
+
+                    <Link className="workspace-module-card" to="/live-intelligence-layer">
+                      <h3>Live Feeds</h3>
+                      <p>Candidate, FEC, signal, vendor, alert, report, and revenue feed readiness.</p>
+                      <Badge tone={scoreTone(kpis.live_readiness || liveSummary.readiness_score || launchSummary.live_readiness)}>
+                        {kpis.live_readiness || liveSummary.readiness_score || launchSummary.live_readiness || 0}%
+                      </Badge>
+                    </Link>
+
+                    <Link className="workspace-module-card" to="/opportunity-engine">
+                      <h3>Opportunity Pipeline</h3>
+                      <p>{topOpportunityLabel} opportunities currently visible.</p>
+                      <Badge tone={number(opportunitySummary.hot) ? "danger" : "demo"}>
+                        Pipeline
+                      </Badge>
+                    </Link>
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Quick Tools" subtitle="Use only when deeper review is needed.">
+                  <div className="workspace-status-grid">
+                    <Link className="workspace-module-card" to="/notifications">
+                      <h3>Notifications</h3>
+                      <p>{kpis.critical_alerts || 0} critical alerts.</p>
+                      <Badge tone={kpis.critical_alerts ? "danger" : "active"}>Alerts</Badge>
+                    </Link>
+                    <Link className="workspace-module-card" to="/command-center">
+                      <h3>Command Center</h3>
+                      <p>{summary.open_tasks || 0} open workspace tasks.</p>
+                      <Badge tone={summary.open_tasks ? "demo" : "active"}>Tasks</Badge>
+                    </Link>
+                  </div>
+                </SectionCard>
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === "launch" ? (
+            <div className="workspace-grid">
+              <div className="workspace-stack">
+                <SectionCard
+                  title="Launch Readiness Gates"
+                  subtitle="Final launch decision inputs shown inside the workspace."
+                  right={<Badge tone={tone(launchSummary.launch_decision)}>{launchSummary.launch_decision || "Checking"}</Badge>}
+                >
+                  <div className="workspace-module-grid">
+                    {launchToolCards.map((card) => (
+                      <Link key={card.to} className="workspace-module-card" to={card.to}>
+                        <h3>{card.title}</h3>
+                        <p>{card.body}</p>
+                        <Badge tone={card.tone}>{card.badge}</Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Gate Status" subtitle="Major readiness gates from the Launch Readiness Dashboard.">
+                  <div className="workspace-stack">
+                    {!launchGates.length ? (
+                      <EmptyState text="No launch gates returned yet." />
+                    ) : (
+                      launchGates.map((gate) => (
+                        <div key={gate.key} className="workspace-row">
+                          <ResponsiveRow
+                            title={gate.label}
+                            subtitle={gate.detail}
+                            meta={[
+                              { label: "Score", value: `${gate.score}%` },
+                              { label: "Status", value: gate.status },
+                              { label: "Blockers", value: gate.blockers },
+                              { label: "Review", value: gate.review },
+                            ]}
+                            right={
+                              <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
+                                <Badge tone={tone(gate.status)}>{gate.status}</Badge>
+                                <Link className="vs-button vs-button-secondary" to={gate.route}>
+                                  Open
+                                </Link>
+                              </div>
+                            }
+                          />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </SectionCard>
+              </div>
+
+              <div className="workspace-stack">
+                <SectionCard title="Launch Summary" subtitle="Current executive launch posture.">
+                  <div className="workspace-status-grid">
+                    <div className="workspace-insight-card">
+                      <span className="workspace-insight-label">Decision</span>
+                      <strong className="workspace-insight-value">{launchSummary.launch_decision || "Checking"}</strong>
+                    </div>
+                    <div className="workspace-insight-card">
+                      <span className="workspace-insight-label">Blockers</span>
+                      <strong className="workspace-insight-value">{launchSummary.blockers || 0}</strong>
+                    </div>
+                    <div className="workspace-insight-card">
+                      <span className="workspace-insight-label">Needs Review</span>
+                      <strong className="workspace-insight-value">{launchSummary.review || 0}</strong>
+                    </div>
+                    <div className="workspace-insight-card">
+                      <span className="workspace-insight-label">Ready Gates</span>
+                      <strong className="workspace-insight-value">{launchSummary.ready_gates || 0}/{launchSummary.total_gates || 0}</strong>
                     </div>
                   </div>
                 </SectionCard>
 
-                <SectionCard
-                  title="Quick Tools"
-                  subtitle="Open deeper modules when needed."
-                >
-                  <div
-                    className="workspace-module-grid"
-                    style={{ gridTemplateColumns: "1fr" }}
-                  >
-                    <Link className="workspace-module-card" to="/search">
-                      <h3>Universal Search</h3>
-                      <p>Find anything across the platform.</p>
-                      <Badge tone="info">Search</Badge>
-                    </Link>
-
-                    <Link className="workspace-module-card" to="/notifications">
-                      <h3>Notifications</h3>
-                      <p>Review alerts from every system.</p>
-                      <Badge tone="demo">Alerts</Badge>
-                    </Link>
+                <SectionCard title="Next Launch Actions" subtitle="Resolve these to increase launch readiness.">
+                  <div className="workspace-stack">
+                    {!launchActions.length ? (
+                      <EmptyState text="No launch actions detected." />
+                    ) : (
+                      launchActions.map((item) => (
+                        <div key={item.key} className="workspace-row">
+                          <ResponsiveRow
+                            title={item.title}
+                            subtitle={item.detail}
+                            meta={[
+                              { label: "Priority", value: item.priority },
+                              { label: "Route", value: item.route },
+                              { label: "Action", value: "Resolve" },
+                              { label: "Status", value: "Pre-launch" },
+                            ]}
+                            right={<Link className="vs-button vs-button-secondary" to={item.route}>Open</Link>}
+                          />
+                        </div>
+                      ))
+                    )}
                   </div>
                 </SectionCard>
               </div>
@@ -672,28 +954,19 @@ export default function ExecutiveWorkspace() {
               <div className="workspace-module-grid">
                 <Link className="workspace-module-card" to="/political-intelligence">
                   <h3>Political Intelligence Graph</h3>
-                  <p>
-                    Relationship graph, signal clusters, consultants, donors, and
-                    influence paths.
-                  </p>
+                  <p>Relationship graph, signal clusters, consultants, donors, and influence paths.</p>
                   <Badge tone="info">Graph</Badge>
                 </Link>
 
-                <Link className="workspace-module-card" to="/strategic-advisor">
-                  <h3>Strategic Advisor</h3>
-                  <p>
-                    AI strategy recommendations based on live campaign
-                    intelligence.
-                  </p>
+                <Link className="workspace-module-card" to="/campaign-copilot">
+                  <h3>AI Campaign Co-Pilot</h3>
+                  <p>AI strategy, guidance, and operating recommendations based on workspace context.</p>
                   <Badge tone="accent">AI</Badge>
                 </Link>
 
                 <Link className="workspace-module-card" to="/candidates">
                   <h3>Candidate Intelligence</h3>
-                  <p>
-                    Candidate profiles, readiness scoring, contact intelligence,
-                    and FEC linkage.
-                  </p>
+                  <p>Candidate profiles, readiness scoring, contact intelligence, and FEC linkage.</p>
                   <Badge tone="info">Candidates</Badge>
                 </Link>
               </div>
@@ -709,19 +982,9 @@ export default function ExecutiveWorkspace() {
                         subtitle={signal.summary || "Signal detail unavailable."}
                         meta={[
                           { label: "State", value: signal.state || "National" },
-                          {
-                            label: "Type",
-                            value: signal.signal_type || "Signal",
-                          },
-                          {
-                            label: "Risk",
-                            value:
-                              signal.risk || signal.severity || "Stable",
-                          },
-                          {
-                            label: "Score",
-                            value: signal.signal_score || 0,
-                          },
+                          { label: "Type", value: signal.signal_type || "Signal" },
+                          { label: "Risk", value: signal.risk || signal.severity || "Stable" },
+                          { label: "Score", value: signal.signal_score || 0 },
                         ]}
                         right={
                           <Badge tone={tone(signal.risk || signal.severity)}>
@@ -744,28 +1007,19 @@ export default function ExecutiveWorkspace() {
               <div className="workspace-module-grid">
                 <Link className="workspace-module-card" to="/war-room">
                   <h3>War Room</h3>
-                  <p>
-                    Threats, rapid response, campaign narratives, and escalation
-                    workflow.
-                  </p>
+                  <p>Threats, rapid response, campaign narratives, and escalation workflow.</p>
                   <Badge tone="danger">War Room</Badge>
                 </Link>
 
                 <Link className="workspace-module-card" to="/command-center">
                   <h3>Command Center</h3>
-                  <p>
-                    Execution board, cross-signal priority layer, and operational
-                    tasking.
-                  </p>
+                  <p>Execution board, cross-signal priority layer, and operational tasking.</p>
                   <Badge tone="demo">Command</Badge>
                 </Link>
 
                 <Link className="workspace-module-card" to="/vendors">
                   <h3>Vendor Network</h3>
-                  <p>
-                    Vendor coverage, state gaps, direct mail capacity, and partner
-                    risk.
-                  </p>
+                  <p>Vendor coverage, state gaps, direct mail capacity, and partner risk.</p>
                   <Badge tone="accent">Vendors</Badge>
                 </Link>
               </div>
@@ -781,17 +1035,9 @@ export default function ExecutiveWorkspace() {
                         subtitle={task.description || "No task description."}
                         meta={[
                           { label: "Status", value: task.status || "Open" },
-                          {
-                            label: "Priority",
-                            value: task.priority || "Normal",
-                          },
+                          { label: "Priority", value: task.priority || "Normal" },
                           { label: "State", value: task.state || "National" },
-                          {
-                            label: "Updated",
-                            value: formatDate(
-                              task.updated_at || task.created_at
-                            ),
-                          },
+                          { label: "Updated", value: formatDate(task.updated_at || task.created_at) },
                         ]}
                         right={
                           <Badge tone={tone(task.priority || task.status)}>
@@ -814,27 +1060,19 @@ export default function ExecutiveWorkspace() {
               <div className="workspace-module-grid">
                 <Link className="workspace-module-card" to="/campaign-crm">
                   <h3>Campaign CRM</h3>
-                  <p>
-                    Manage contacts, activity, follow-ups, and campaign
-                    relationships.
-                  </p>
+                  <p>Manage contacts, activity, follow-ups, and campaign relationships.</p>
                   <Badge tone="info">CRM</Badge>
                 </Link>
 
-                <Link className="workspace-module-card" to="/client-portal-admin">
-                  <h3>Client Portal</h3>
-                  <p>
-                    Publish reports, status summaries, and client-facing updates.
-                  </p>
-                  <Badge tone="accent">Client</Badge>
+                <Link className="workspace-module-card" to="/opportunity-engine">
+                  <h3>Opportunity Engine</h3>
+                  <p>Score campaign opportunities and turn prospects into CRM and task workflow.</p>
+                  <Badge tone="demo">Pipeline</Badge>
                 </Link>
 
                 <Link className="workspace-module-card" to="/task-ownership">
                   <h3>Task Ownership</h3>
-                  <p>
-                    Assign, track, and monitor ownership across the workspace
-                    team.
-                  </p>
+                  <p>Assign, track, and monitor ownership across the workspace team.</p>
                   <Badge tone="demo">Ownership</Badge>
                 </Link>
               </div>
@@ -849,24 +1087,10 @@ export default function ExecutiveWorkspace() {
                         title={contact.full_name || "CRM Contact"}
                         subtitle={contact.organization || "No organization"}
                         meta={[
-                          {
-                            label: "Role",
-                            value: contact.role_type || "Contact",
-                          },
-                          {
-                            label: "State",
-                            value: contact.state || "National",
-                          },
-                          {
-                            label: "Updated",
-                            value: formatDate(
-                              contact.updated_at || contact.created_at
-                            ),
-                          },
-                          {
-                            label: "Workspace",
-                            value: contact.workspace_id || "—",
-                          },
+                          { label: "Role", value: contact.role_type || "Contact" },
+                          { label: "State", value: contact.state || "National" },
+                          { label: "Updated", value: formatDate(contact.updated_at || contact.created_at) },
+                          { label: "Workspace", value: contact.workspace_id || "—" },
                         ]}
                       />
                     </div>
@@ -888,24 +1112,15 @@ export default function ExecutiveWorkspace() {
                   <Badge tone="accent">Business</Badge>
                 </Link>
 
-                <Link
-                  className="workspace-module-card"
-                  to="/revenue-intelligence"
-                >
+                <Link className="workspace-module-card" to="/revenue-intelligence">
                   <h3>Revenue Intelligence</h3>
-                  <p>
-                    Client health, overdue invoices, margin watch, and revenue
-                    pressure.
-                  </p>
+                  <p>Client health, overdue invoices, margin watch, and revenue pressure.</p>
                   <Badge tone="demo">Revenue</Badge>
                 </Link>
 
                 <Link className="workspace-module-card" to="/billing">
                   <h3>Billing</h3>
-                  <p>
-                    Subscription status, portal access, plan controls, and account
-                    billing.
-                  </p>
+                  <p>Subscription status, portal access, plan controls, and account billing.</p>
                   <Badge tone="info">Billing</Badge>
                 </Link>
               </div>
@@ -922,14 +1137,8 @@ export default function ExecutiveWorkspace() {
                         meta={[
                           { label: "State", value: client.state || "National" },
                           { label: "Status", value: client.status || "Active" },
-                          {
-                            label: "Health",
-                            value: client.health_status || "Stable",
-                          },
-                          {
-                            label: "Retainer",
-                            value: money(client.monthly_retainer),
-                          },
+                          { label: "Health", value: client.health_status || "Stable" },
+                          { label: "Retainer", value: money(client.monthly_retainer) },
                         ]}
                         right={
                           <Badge tone={tone(client.health_status)}>
@@ -980,18 +1189,9 @@ export default function ExecutiveWorkspace() {
                         subtitle={report.report_type || "Intelligence report"}
                         meta={[
                           { label: "State", value: report.state || "National" },
-                          {
-                            label: "Status",
-                            value: report.status || "Generated",
-                          },
-                          {
-                            label: "Created",
-                            value: formatDate(report.created_at),
-                          },
-                          {
-                            label: "Type",
-                            value: report.report_type || "Report",
-                          },
+                          { label: "Status", value: report.status || "Generated" },
+                          { label: "Created", value: formatDate(report.created_at) },
+                          { label: "Type", value: report.report_type || "Report" },
                         ]}
                         right={
                           <Badge tone="info">
@@ -1055,3 +1255,4 @@ export default function ExecutiveWorkspace() {
     </PageShell>
   );
 }
+
