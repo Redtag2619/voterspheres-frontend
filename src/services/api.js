@@ -79,6 +79,7 @@ function shouldInjectWorkspace(config = {}) {
     "/search",
     "/live-intelligence-layer",
     "/opportunity-engine",
+    "/production-hardening",
     "/consultant-opportunities",
   ];
 
@@ -1238,6 +1239,9 @@ export const api = {
 
   createOpportunityTask: (payload = {}) =>
     api.post("/opportunity-engine/task", payload).then((res) => res.data),
+
+  productionHardening: () =>
+    tryGet(["/production-hardening"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
