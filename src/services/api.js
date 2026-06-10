@@ -85,6 +85,7 @@ function shouldInjectWorkspace(config = {}) {
     "/launch-readiness",
     "/database-stability",
     "/revenue-pipeline",
+    "/launch-assets",
     "/consultant-opportunities",
   ];
 
@@ -1281,6 +1282,22 @@ export const api = {
 
   createRevenueDealFromOpportunity: (payload = {}) =>
     api.post("/revenue-pipeline/from-opportunity", payload).then((res) => res.data),
+
+  launchAssets: (params = {}) =>
+    tryGet([
+      `/launch-assets?${new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+      ).toString()}`
+    ]),
+
+  saveLaunchAsset: (payload = {}) =>
+    api.post("/launch-assets", payload).then((res) => res.data),
+
+  updateLaunchAssetStatus: (id, status) =>
+    api.post(`/launch-assets/${id}/status`, { status }).then((res) => res.data),
+
+  deleteLaunchAsset: (id) =>
+    api.delete(`/launch-assets/${id}`).then((res) => res.data),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
