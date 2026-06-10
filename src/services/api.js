@@ -82,6 +82,7 @@ function shouldInjectWorkspace(config = {}) {
     "/production-hardening",
     "/executive-kpis",
     "/launch-qa",
+    "/launch-readiness",
     "/consultant-opportunities",
   ];
 
@@ -1250,6 +1251,9 @@ export const api = {
 
   launchQa: () =>
     tryGet(["/launch-qa"]),
+
+  launchReadiness: () =>
+    tryGet(["/launch-readiness"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
