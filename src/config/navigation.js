@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Revenue Pipeline", to: "/revenue-pipeline" },
       { label: "Database Stability", to: "/database-stability" },
       { label: "Launch Readiness", to: "/launch-readiness" },
       { label: "Launch QA", to: "/launch-qa" },
@@ -42,6 +43,7 @@ export const navigationSections = [
     label: "Business",
     items: [
       { label: "Consultant Business Suite", to: "/business-suite" },
+      { label: "Revenue Pipeline", to: "/revenue-pipeline" },
       { label: "Revenue Intelligence", to: "/revenue-intelligence" },
       { label: "Opportunity Engine", to: "/opportunity-engine" },
       { label: "Client Portal", to: "/client-portal-admin" },
