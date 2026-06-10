@@ -81,6 +81,7 @@ function shouldInjectWorkspace(config = {}) {
     "/opportunity-engine",
     "/production-hardening",
     "/executive-kpis",
+    "/launch-qa",
     "/consultant-opportunities",
   ];
 
@@ -1246,6 +1247,9 @@ export const api = {
 
   executiveKpis: () =>
     tryGet(["/executive-kpis"]),
+
+  launchQa: () =>
+    tryGet(["/launch-qa"]),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
