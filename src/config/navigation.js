@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Launch Readiness", to: "/launch-readiness" },
       { label: "Launch QA", to: "/launch-qa" },
       { label: "Production Hardening", to: "/production-hardening" },
       { label: "Live Intelligence Layer", to: "/live-intelligence-layer" },
@@ -79,6 +80,7 @@ export const navigationSections = [
     label: "Admin",
     items: [
       { label: "Firm Users", to: "/admin/firm-users" },
+      { label: "Launch Readiness", to: "/launch-readiness" },
       { label: "Launch QA", to: "/launch-qa" },
       { label: "Production Hardening", to: "/production-hardening" },
       { label: "Firm Invites", to: "/admin/firm-invites" },
