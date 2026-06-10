@@ -74,6 +74,7 @@ const UniversalSearch = lazy(() => import("./pages/UniversalSearch.jsx"));
 const LiveIntelligenceLayer = lazy(() => import("./pages/LiveIntelligenceLayer.jsx"));
 const OpportunityEngine = lazy(() => import("./pages/OpportunityEngine.jsx"));
 const ProductionHardeningCenter = lazy(() => import("./pages/ProductionHardeningCenter.jsx"));
+const LaunchQACenter = lazy(() => import("./pages/LaunchQACenter.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -263,6 +264,7 @@ function AppRoutes() {
               <Route path="/live-intelligence-layer" element={<LiveIntelligenceLayer />} />
               <Route path="/opportunity-engine" element={<OpportunityEngine />} />
               <Route path="/production-hardening" element={<ProductionHardeningCenter />} />
+              <Route path="/launch-qa" element={<LaunchQACenter />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
