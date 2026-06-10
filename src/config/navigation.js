@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Launch QA", to: "/launch-qa" },
       { label: "Production Hardening", to: "/production-hardening" },
       { label: "Live Intelligence Layer", to: "/live-intelligence-layer" },
       { label: "Opportunity Engine", to: "/opportunity-engine" },
@@ -78,6 +79,7 @@ export const navigationSections = [
     label: "Admin",
     items: [
       { label: "Firm Users", to: "/admin/firm-users" },
+      { label: "Launch QA", to: "/launch-qa" },
       { label: "Production Hardening", to: "/production-hardening" },
       { label: "Firm Invites", to: "/admin/firm-invites" },
       { label: "Candidate Profiles", to: "/admin/candidate-profiles" },
