@@ -1,3 +1,4 @@
+import ExecutiveKpiRibbon from "./ExecutiveKpiRibbon.jsx";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { flattenedNavigation, navigationSections } from "../config/navigation";
@@ -595,6 +596,8 @@ export default function AppShell() {
           ))}
         </div>
       </header>
+
+      <ExecutiveKpiRibbon />
 
       <main className="vs-top-content">
         <Outlet />
