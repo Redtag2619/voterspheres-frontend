@@ -76,6 +76,7 @@ const OpportunityEngine = lazy(() => import("./pages/OpportunityEngine.jsx"));
 const ProductionHardeningCenter = lazy(() => import("./pages/ProductionHardeningCenter.jsx"));
 const LaunchQACenter = lazy(() => import("./pages/LaunchQACenter.jsx"));
 const LaunchReadinessDashboard = lazy(() => import("./pages/LaunchReadinessDashboard.jsx"));
+const DatabaseStabilityCenter = lazy(() => import("./pages/DatabaseStabilityCenter.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -267,6 +268,7 @@ function AppRoutes() {
               <Route path="/production-hardening" element={<ProductionHardeningCenter />} />
               <Route path="/launch-qa" element={<LaunchQACenter />} />
               <Route path="/launch-readiness" element={<LaunchReadinessDashboard />} />
+              <Route path="/database-stability" element={<DatabaseStabilityCenter />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
