@@ -86,6 +86,7 @@ function shouldInjectWorkspace(config = {}) {
     "/database-stability",
     "/revenue-pipeline",
     "/launch-assets",
+    "/beta-onboarding",
     "/consultant-opportunities",
   ];
 
@@ -1298,6 +1299,22 @@ export const api = {
 
   deleteLaunchAsset: (id) =>
     api.delete(`/launch-assets/${id}`).then((res) => res.data),
+
+  betaOnboarding: (params = {}) =>
+    tryGet([
+      `/beta-onboarding?${new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+      ).toString()}`
+    ]),
+
+  saveBetaCustomer: (payload = {}) =>
+    api.post("/beta-onboarding", payload).then((res) => res.data),
+
+  updateBetaCustomerStage: (id, stage) =>
+    api.post(`/beta-onboarding/${id}/stage`, { stage }).then((res) => res.data),
+
+  deleteBetaCustomer: (id) =>
+    api.delete(`/beta-onboarding/${id}`).then((res) => res.data),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
