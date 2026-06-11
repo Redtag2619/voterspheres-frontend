@@ -79,6 +79,7 @@ const LaunchReadinessDashboard = lazy(() => import("./pages/LaunchReadinessDashb
 const DatabaseStabilityCenter = lazy(() => import("./pages/DatabaseStabilityCenter.jsx"));
 const RevenuePipeline = lazy(() => import("./pages/RevenuePipeline.jsx"));
 const LaunchAssetCenter = lazy(() => import("./pages/LaunchAssetCenter.jsx"));
+const BetaOnboardingCenter = lazy(() => import("./pages/BetaOnboardingCenter.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -273,6 +274,7 @@ function AppRoutes() {
               <Route path="/database-stability" element={<DatabaseStabilityCenter />} />
               <Route path="/revenue-pipeline" element={<RevenuePipeline />} />
               <Route path="/launch-assets" element={<LaunchAssetCenter />} />
+              <Route path="/beta-onboarding" element={<BetaOnboardingCenter />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
