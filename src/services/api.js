@@ -87,6 +87,7 @@ function shouldInjectWorkspace(config = {}) {
     "/revenue-pipeline",
     "/launch-assets",
     "/beta-onboarding",
+    "/launch-data-seeder",
     "/consultant-opportunities",
   ];
 
@@ -1315,6 +1316,12 @@ export const api = {
 
   deleteBetaCustomer: (id) =>
     api.delete(`/beta-onboarding/${id}`).then((res) => res.data),
+
+  launchDataSeeder: () =>
+    tryGet(["/launch-data-seeder"]),
+
+  runLaunchDataSeeder: () =>
+    api.post("/launch-data-seeder/run", {}).then((res) => res.data),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
