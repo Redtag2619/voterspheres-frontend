@@ -165,6 +165,7 @@ export default function ExecutiveWorkspace() {
   const [dbStatus, setDbStatus] = useState({});
   const [opportunitySummary, setOpportunitySummary] = useState({});
   const [liveSummary, setLiveSummary] = useState({});
+  const [workspaceActivity, setWorkspaceActivity] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -179,20 +180,22 @@ export default function ExecutiveWorkspace() {
 
         setError("");
 
-        const [
-          workspaceResult,
-          launchResult,
-          kpiResult,
-          dbResult,
-          opportunityResult,
-          liveResult,
-        ] = await Promise.allSettled([
+       const [
+         workspaceResult,
+         launchResult,
+         kpiResult,
+         dbResult,
+         opportunityResult,
+         liveResult,
+         activityResult,
+       ] = await Promise.allSettled([
           api.executiveWorkspaceDashboard(workspaceId || undefined),
           api.launchReadiness ? api.launchReadiness() : Promise.resolve(null),
           api.executiveKpis ? api.executiveKpis() : Promise.resolve(null),
           api.databaseStability ? api.databaseStability() : Promise.resolve(null),
           api.opportunityEngine ? api.opportunityEngine({}) : Promise.resolve(null),
           api.liveIntelligenceLayer ? api.liveIntelligenceLayer() : Promise.resolve(null),
+         api.workspaceActivity ? api.workspaceActivity() : Promise.resolve(null),
         ]);
 
         if (workspaceResult.status === "fulfilled") {
@@ -246,6 +249,12 @@ export default function ExecutiveWorkspace() {
 
         if (liveResult.status === "fulfilled" && liveResult.value) {
           setLiveSummary(liveResult.value?.summary || {});
+        }
+
+        if (activityResult.status === "fulfilled" && activityResult.value) {
+          setWorkspaceActivity(
+            activityResult.value?.activity || []
+          );
         }
 
         setLastUpdated(
@@ -787,6 +796,41 @@ export default function ExecutiveWorkspace() {
                   </div>
                 </SectionCard>
               </div>
+              
+              <SectionCard
+                title="Executive Activity Feed"
+                subtitle="Recent CRM, task, report, revenue, and notification activity."
+              >
+                <div className="workspace-stack">
+                  {!workspaceActivity.length ? (
+                    <EmptyState text="No activity found." />
+                  ) : (
+                    workspaceActivity.slice(0, 20).map((item) => (
+                      <div
+                        key={`${item.type}-${item.id}`}
+                        className="workspace-row"
+                      >
+                        <ResponsiveRow
+                          title={item.title || item.type}
+                          subtitle={item.type}
+                          meta={[
+                            {
+                              label: "Activity",
+                              value: item.type,
+                            },
+                            {
+                              label: "Updated",
+                              value: formatDate(
+                                item.activity_time
+                              ),
+                            },
+                          ]}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </SectionCard>
 
               <div className="workspace-stack">
                 <SectionCard
