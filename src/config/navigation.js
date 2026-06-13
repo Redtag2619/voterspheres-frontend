@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Live Data Refresh", to: "/live-data-refresh" },
       { label: "Launch Data Seeder", to: "/launch-data-seeder" },
       { label: "Beta Onboarding", to: "/beta-onboarding" },
       { label: "Launch Assets", to: "/launch-assets" },
@@ -86,6 +87,7 @@ export const navigationSections = [
     label: "Admin",
     items: [
       { label: "Firm Users", to: "/admin/firm-users" },
+      { label: "Live Data Refresh", to: "/live-data-refresh" },
       { label: "Launch Data Seeder", to: "/launch-data-seeder" },
       { label: "Beta Onboarding", to: "/beta-onboarding" },
       { label: "Launch Assets", to: "/launch-assets" },
