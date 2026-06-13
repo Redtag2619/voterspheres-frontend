@@ -88,6 +88,7 @@ function shouldInjectWorkspace(config = {}) {
     "/launch-assets",
     "/beta-onboarding",
     "/launch-data-seeder",
+    "/live-data-refresh",
     "/consultant-opportunities",
   ];
 
@@ -1322,6 +1323,12 @@ export const api = {
 
   runLaunchDataSeeder: () =>
     api.post("/launch-data-seeder/run", {}).then((res) => res.data),
+
+  liveDataRefresh: () =>
+    tryGet(["/live-data-refresh"]),
+
+  runLiveDataRefresh: () =>
+    api.post("/live-data-refresh/run", {}).then((res) => res.data),
 
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
