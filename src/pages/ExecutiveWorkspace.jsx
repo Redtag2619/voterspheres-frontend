@@ -94,6 +94,17 @@ function formatDateTime(value) {
   }
 }
 
+function stripHtml(value = "") {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const workspaceTabs = [
   { key: "home", label: "Home" },
   { key: "launch", label: "Launch" },
@@ -1060,8 +1071,14 @@ export default function ExecutiveWorkspace() {
                   data.signals.slice(0, 10).map((signal) => (
                     <div key={signal.id} className="workspace-row">
                       <ResponsiveRow
-                        title={signal.title || "Political Signal"}
-                        subtitle={signal.summary || "Signal detail unavailable."}
+                        title={stripHtml(signal.title) || "Political Signal"}
+                        subtitle={
+                          stripHtml(
+                          signal.summary ||
+                          signal.body ||
+                          signal.description
+                        ) || "Signal detail unavailable."
+                       }
                         meta={[
                           { label: "State", value: signal.state || "National" },
                           { label: "Type", value: signal.signal_type || "Signal" },
