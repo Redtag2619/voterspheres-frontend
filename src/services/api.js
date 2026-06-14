@@ -1342,7 +1342,6 @@ export const api = {
   refreshLaunchAutomation: () =>
     apiClient.post("/launch-automation/refresh").then((r) => r.data),
   
-  createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
 export {
