@@ -60,6 +60,13 @@ function scoreTone(score) {
   return "danger";
 }
 
+function scoreTrend(score) {
+  const n = Number(score || 0);
+  if (n >= 85) return "up";
+  if (n >= 65) return "neutral";
+  return "down";
+}
+
 function riskDot(score) {
   const n = Number(score || 0);
   if (n >= 70) return "vs-live-dot";
@@ -72,6 +79,16 @@ function formatDate(value) {
 
   try {
     return new Date(value).toLocaleDateString();
+  } catch {
+    return "—";
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+
+  try {
+    return new Date(value).toLocaleString();
   } catch {
     return "—";
   }
@@ -180,22 +197,22 @@ export default function ExecutiveWorkspace() {
 
         setError("");
 
-       const [
-         workspaceResult,
-         launchResult,
-         kpiResult,
-         dbResult,
-         opportunityResult,
-         liveResult,
-         activityResult,
-       ] = await Promise.allSettled([
+        const [
+          workspaceResult,
+          launchResult,
+          kpiResult,
+          dbResult,
+          opportunityResult,
+          liveResult,
+          activityResult,
+        ] = await Promise.allSettled([
           api.executiveWorkspaceDashboard(workspaceId || undefined),
           api.launchReadiness ? api.launchReadiness() : Promise.resolve(null),
           api.executiveKpis ? api.executiveKpis() : Promise.resolve(null),
           api.databaseStability ? api.databaseStability() : Promise.resolve(null),
           api.opportunityEngine ? api.opportunityEngine({}) : Promise.resolve(null),
           api.liveIntelligenceLayer ? api.liveIntelligenceLayer() : Promise.resolve(null),
-         api.workspaceActivity ? api.workspaceActivity() : Promise.resolve(null),
+          api.workspaceActivity ? api.workspaceActivity() : Promise.resolve(null),
         ]);
 
         if (workspaceResult.status === "fulfilled") {
@@ -252,9 +269,7 @@ export default function ExecutiveWorkspace() {
         }
 
         if (activityResult.status === "fulfilled" && activityResult.value) {
-          setWorkspaceActivity(
-            activityResult.value?.activity || []
-          );
+          setWorkspaceActivity(arr(activityResult.value?.activity));
         }
 
         setLastUpdated(
@@ -306,8 +321,8 @@ export default function ExecutiveWorkspace() {
     if (workspaceReadinessScore >= 85 && number(summary.pressure_score) < 40) {
       return "Workspace Ready";
     }
-    if (summary.pressure_score >= 70) return "Command Review";
-    if (summary.pressure_score >= 40) return "Monitor Closely";
+    if (number(summary.pressure_score) >= 70) return "Command Review";
+    if (number(summary.pressure_score) >= 40) return "Monitor Closely";
     return "Stable";
   }, [launchSummary.launch_decision, summary.pressure_score, workspaceReadinessScore]);
 
@@ -602,8 +617,12 @@ export default function ExecutiveWorkspace() {
       >
         <div className="workspace-toolbar">
           <div className="workspace-select">
-            <label>Active workspace</label>
+            <label htmlFor="workspace-selector">Active workspace</label>
             <select
+              id="workspace-selector"
+              name="workspace-selector"
+              title="Active workspace"
+              aria-label="Active workspace selector"
               value={workspaceId}
               onChange={(event) => handleWorkspaceChange(event.target.value)}
             >
@@ -647,8 +666,8 @@ export default function ExecutiveWorkspace() {
         <StatCard
           label="Workspace Readiness"
           value={`${workspaceReadinessScore || 0}%`}
-          delta={`${workspaceActivityCount || 0} activity signals`}
-          tone={workspaceReadinessScore >= 85 ? "up" : workspaceReadinessScore >= 65 ? "neutral" : "down"}
+          delta={`${workspaceActivityCount || workspaceActivity.length || 0} activity signals`}
+          tone={scoreTrend(workspaceReadinessScore)}
         />
         <StatCard
           label="Launch Score"
@@ -816,7 +835,7 @@ export default function ExecutiveWorkspace() {
                   </div>
                 </SectionCard>
               </div>
-              
+
               <SectionCard
                 title="Executive Activity Feed"
                 subtitle="Recent CRM, task, report, revenue, and notification activity."
@@ -841,9 +860,7 @@ export default function ExecutiveWorkspace() {
                             },
                             {
                               label: "Updated",
-                              value: formatDate(
-                                item.activity_time
-                              ),
+                              value: formatDateTime(item.activity_time),
                             },
                           ]}
                         />
@@ -1194,20 +1211,20 @@ export default function ExecutiveWorkspace() {
                 {!data.clients.length ? (
                   <EmptyState text="No clients found." />
                 ) : (
-                  data.clients.slice(0, 10).map((client) => (
-                    <div key={client.id} className="workspace-row">
+                  data.clients.slice(0, 10).map((workspaceClient) => (
+                    <div key={workspaceClient.id} className="workspace-row">
                       <ResponsiveRow
-                        title={client.client_name || "Client"}
-                        subtitle={client.organization || "Client account"}
+                        title={workspaceClient.client_name || "Client"}
+                        subtitle={workspaceClient.organization || "Client account"}
                         meta={[
-                          { label: "State", value: client.state || "National" },
-                          { label: "Status", value: client.status || "Active" },
-                          { label: "Health", value: client.health_status || "Stable" },
-                          { label: "Retainer", value: money(client.monthly_retainer) },
+                          { label: "State", value: workspaceClient.state || "National" },
+                          { label: "Status", value: workspaceClient.status || "Active" },
+                          { label: "Health", value: workspaceClient.health_status || "Stable" },
+                          { label: "Retainer", value: money(workspaceClient.monthly_retainer) },
                         ]}
                         right={
-                          <Badge tone={tone(client.health_status)}>
-                            {client.health_status || "Client"}
+                          <Badge tone={tone(workspaceClient.health_status)}>
+                            {workspaceClient.health_status || "Client"}
                           </Badge>
                         }
                       />
