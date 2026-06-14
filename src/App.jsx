@@ -280,8 +280,7 @@ function AppRoutes() {
               <Route path="/beta-onboarding" element={<BetaOnboardingCenter />} />
               <Route path="/launch-data-seeder" element={<LaunchDataSeeder />} />
               <Route path="/live-data-refresh" element={<LiveDataRefreshCenter />} />
-              <Route path="/launch-automation" element={<ProtectedRoute><LaunchAutomationEngine /></ProtectedRoute>}/>
-
+              <Route path="/launch-automation" element={<LaunchAutomationEngine />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
