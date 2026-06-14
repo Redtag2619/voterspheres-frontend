@@ -1333,6 +1333,15 @@ export const api = {
   workspaceActivity: () =>
     api.post("/workspace-activity").then((r) => r.data),
   
+  workspaceActivity: () =>
+    apiClient.get("/workspace-activity").then((r) => r.data),
+
+  launchAutomation: () =>
+    apiClient.get("/launch-automation").then((r) => r.data),
+
+  refreshLaunchAutomation: () =>
+    apiClient.post("/launch-automation/refresh").then((r) => r.data),
+  
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
