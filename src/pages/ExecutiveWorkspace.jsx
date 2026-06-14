@@ -289,6 +289,9 @@ export default function ExecutiveWorkspace() {
   const launchActions = arr(launchData.next_actions);
   const launchGates = arr(launchData.gates);
 
+  const workspaceReadinessScore = number(summary.workspace_readiness_score);
+  const workspaceActivityCount = number(summary.workspace_activity_count);
+
   const workspaceOptions = useMemo(() => arr(data.workspaces), [data.workspaces]);
 
   const topOpportunityLabel = useMemo(() => {
@@ -300,10 +303,13 @@ export default function ExecutiveWorkspace() {
 
   const commandDecision = useMemo(() => {
     if (launchSummary.launch_decision) return launchSummary.launch_decision;
+    if (workspaceReadinessScore >= 85 && number(summary.pressure_score) < 40) {
+      return "Workspace Ready";
+    }
     if (summary.pressure_score >= 70) return "Command Review";
     if (summary.pressure_score >= 40) return "Monitor Closely";
     return "Stable";
-  }, [launchSummary.launch_decision, summary.pressure_score]);
+  }, [launchSummary.launch_decision, summary.pressure_score, workspaceReadinessScore]);
 
   function handleWorkspaceChange(nextId) {
     setWorkspaceId(nextId);
@@ -321,6 +327,16 @@ export default function ExecutiveWorkspace() {
       title={selected ? selected.name : "Executive Workspace"}
       description="The consolidated VoterSpheres operating home: launch readiness, live intelligence, command actions, opportunity pipeline, CRM, operations, revenue, reports, and executive tools."
       tickerItems={[
+        {
+          label: "Workspace",
+          value: workspaceReadinessScore ? `${workspaceReadinessScore}% Ready` : "Checking",
+          dotClass:
+            workspaceReadinessScore >= 85
+              ? "vs-live-dot-success"
+              : workspaceReadinessScore >= 65
+              ? "vs-live-dot-warning"
+              : "vs-live-dot",
+        },
         {
           label: "Launch",
           value: launchSummary.launch_decision || "Checking",
@@ -629,6 +645,12 @@ export default function ExecutiveWorkspace() {
 
       <div className="vs-grid-4">
         <StatCard
+          label="Workspace Readiness"
+          value={`${workspaceReadinessScore || 0}%`}
+          delta={`${workspaceActivityCount || 0} activity signals`}
+          tone={workspaceReadinessScore >= 85 ? "up" : workspaceReadinessScore >= 65 ? "neutral" : "down"}
+        />
+        <StatCard
           label="Launch Score"
           value={`${launchSummary.score || 0}%`}
           delta={launchSummary.launch_decision || "Checking"}
@@ -637,14 +659,8 @@ export default function ExecutiveWorkspace() {
         <StatCard
           label="Pressure Score"
           value={`${summary.pressure_score || 0}%`}
-          delta={summary.pressure_status || "Stable"}
+          delta={`${summary.open_tasks || 0} open tasks`}
           tone={summary.pressure_score >= 70 ? "down" : "up"}
-        />
-        <StatCard
-          label="Open Tasks"
-          value={summary.open_tasks || 0}
-          delta={`${summary.critical_signals || 0} critical signals`}
-          tone={summary.open_tasks ? "neutral" : "up"}
         />
         <StatCard
           label="Pipeline"
@@ -682,6 +698,10 @@ export default function ExecutiveWorkspace() {
                   <div className="workspace-decision">{commandDecision}</div>
 
                   <div className="workspace-mini-grid">
+                    <div>
+                      <span>Workspace Ready</span>
+                      <strong>{workspaceReadinessScore || 0}%</strong>
+                    </div>
                     <div>
                       <span>Launch Score</span>
                       <strong>{launchSummary.score || 0}%</strong>
@@ -800,6 +820,7 @@ export default function ExecutiveWorkspace() {
               <SectionCard
                 title="Executive Activity Feed"
                 subtitle="Recent CRM, task, report, revenue, and notification activity."
+                right={<Badge tone={workspaceActivity.length ? "accent" : "active"}>{workspaceActivity.length}</Badge>}
               >
                 <div className="workspace-stack">
                   {!workspaceActivity.length ? (
@@ -953,8 +974,8 @@ export default function ExecutiveWorkspace() {
                       <strong className="workspace-insight-value">{launchSummary.blockers || 0}</strong>
                     </div>
                     <div className="workspace-insight-card">
-                      <span className="workspace-insight-label">Needs Review</span>
-                      <strong className="workspace-insight-value">{launchSummary.review || 0}</strong>
+                      <span className="workspace-insight-label">Workspace Ready</span>
+                      <strong className="workspace-insight-value">{workspaceReadinessScore || 0}%</strong>
                     </div>
                     <div className="workspace-insight-card">
                       <span className="workspace-insight-label">Ready Gates</span>
