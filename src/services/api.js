@@ -1331,8 +1331,8 @@ export const api = {
     api.post("/live-data-refresh/run", {}).then((res) => res.data),
 
   workspaceActivity: () =>
-    client.get("/workspace-activity").then((r) => r.data),
-
+    apiClient.get("/workspace-activity").then((r) => r.data),
+  
   createEnterpriseLead: publicApi.createEnterpriseLead,
  };
 
