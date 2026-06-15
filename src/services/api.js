@@ -1332,7 +1332,7 @@ export const api = {
   launchAutomation: () =>
     tryGet(["/launch-automation"]),
 
-  refreshLaunchAutomation: () =>
+    refreshLaunchAutomation: () =>
     tryPost(["/launch-automation/refresh"], {}),
 };
 
