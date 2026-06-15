@@ -1250,7 +1250,7 @@ export const api = {
     api.post("/opportunity-engine/task", payload).then((res) => res.data),
 
   productionHardening: () =>
-    tryGet(["/production-hardening"]),
+    tryGet(["/production-hardening"]), 
 
   executiveKpis: () =>
     tryGet(["/executive-kpi"]),
