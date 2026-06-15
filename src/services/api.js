@@ -1253,7 +1253,7 @@ export const api = {
     tryGet(["/production-hardening"]),
 
   executiveKpis: () =>
-    tryGet(["/executive-kpis"]),
+    tryGet(["/executive-kpi"]),
 
   launchQa: () =>
     tryGet(["/launch-qa"]),
@@ -1331,17 +1331,13 @@ export const api = {
     api.post("/live-data-refresh/run", {}).then((res) => res.data),
 
   workspaceActivity: () =>
-    api.post("/workspace-activity").then((r) => r.data),
+    tryGet(["/workspace-activity"]),
   
-  workspaceActivity: () =>
-    api.post("/workspace-activity").then((r) => r.data),
-
   launchAutomation: () =>
-    api.post("/launch-automation").then((r) => r.data),
+    tryGet(["/launch-automation"]),
 
   refreshLaunchAutomation: () =>
-    api.post("/launch-automation/refresh").then((r) => r.data),
-   };
+    tryPost(["/launch-automation/refresh"], {}),
 
 export {
   API_BASE,
