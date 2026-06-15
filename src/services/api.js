@@ -1341,8 +1341,7 @@ export const api = {
 
   refreshLaunchAutomation: () =>
     api.post("/launch-automation/refresh").then((r) => r.data),
-  
- };
+   };
 
 export {
   API_BASE,
