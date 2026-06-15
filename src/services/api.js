@@ -985,9 +985,6 @@ export const api = {
   
   operationsMap: operationsMapApi.dashboard,
 
-  operationsMap: () =>
-    tryGet(["/operations/map"]),
-
   stateOperationsIndex: () =>
     tryGet(["/operations/states"]),
 
