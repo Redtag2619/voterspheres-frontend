@@ -934,8 +934,7 @@ export const api = {
   vendorScoring: vendorsApi.scoring,
   vendorPerformance: vendorsApi.performance,
   dispatchVendorAlerts: vendorsApi.dispatchAlerts,
-  vendorPerformance: vendorsApi.performance,
-
+  
   donorNetwork: donorsApi.network,
 
   mailOpsDashboard: mailOpsApi.dashboard,
@@ -1331,18 +1330,19 @@ export const api = {
     tryGet(["/workspace-activity"]),
   
   launchAutomation: () =>
-    tryGet(["/launch-automation"]),
+  tryGet(["/launch-automation"]),
 
   refreshLaunchAutomation: () =>
     tryPost(["/launch-automation/refresh"], {}),
+  };
 
-  export
-  API_BASE,
-  http,
-  getActiveWorkspaceId,
-  setActiveWorkspaceId,
-  withWorkspaceParams,
-  withWorkspacePayload,
-};
+  export {
+    API_BASE,
+    http,
+    getActiveWorkspaceId,
+    setActiveWorkspaceId,
+    withWorkspaceParams,
+    withWorkspacePayload,
+  };
 
-export default http;
+  export default http;
