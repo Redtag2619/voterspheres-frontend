@@ -778,6 +778,16 @@ export default function ExecutiveWorkspace() {
                     <Link className="vs-button vs-button-secondary" to="/search">
                       Universal Search
                     </Link>
+                    <Link className="vs-button" to="/platform-tour">
+                      ▶ Start Platform Tour
+                    </Link>
+
+                    <Link
+                      className="vs-button vs-button-secondary"
+                      to="/platform-tour?mode=admin"
+                    >
+                      Admin Tour
+                    </Link>
                   </div>
                 </div>
 
