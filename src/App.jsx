@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import VirtualTour from "./components/VirtualTour.jsx";
 import AppShell from "./components/AppShell";
 import RequirePermission from "./components/RequirePermission.jsx";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
@@ -12,7 +13,6 @@ import AdminLiveIntelligence from "./pages/AdminLiveIntelligence";
 import AdminAlerts from "./pages/AdminAlerts";
 import RelationshipGraph from "./pages/RelationshipGraph";
 import CommitteeIntel from "./pages/CommitteeIntel.jsx";
-import PlatformTour from "./pages/PlatformTour";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
@@ -109,6 +109,7 @@ function ShellLayout() {
       <ExecutiveFiltersProvider>
         <WorkspaceProvider>
           <AppShell />
+          <VirtualTour />
         </WorkspaceProvider>
       </ExecutiveFiltersProvider>
     </DemoModeProvider>
@@ -235,6 +236,8 @@ function AppRoutes() {
               <Route path="/war-room" element={<AIWarRoom />} />
             </Route>
 
+            <Route path="/platform-tour" element={<PlatformTour />} />
+
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_COMMAND_CENTER]} />}>
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspaces />} />
@@ -282,7 +285,6 @@ function AppRoutes() {
               <Route path="/launch-data-seeder" element={<LaunchDataSeeder />} />
               <Route path="/live-data-refresh" element={<LiveDataRefreshCenter />} />
               <Route path="/launch-automation" element={<LaunchAutomationEngine />} />
-              <Route path="/platform-tour" element={<PlatformTour />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
