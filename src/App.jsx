@@ -16,6 +16,7 @@ import CommitteeIntel from "./pages/CommitteeIntel.jsx";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
+const PlatformTour = lazy(() => import("./pages/PlatformTour.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Candidates = lazy(() => import("./pages/Candidates.jsx"));
 const CandidateProfilesAdmin = lazy(() => import("./pages/CandidateProfilesAdmin.jsx"));
@@ -283,6 +284,7 @@ function AppRoutes() {
               <Route path="/launch-data-seeder" element={<LaunchDataSeeder />} />
               <Route path="/live-data-refresh" element={<LiveDataRefreshCenter />} />
               <Route path="/launch-automation" element={<LaunchAutomationEngine />} />
+                <Route path="/platform-tour" element={<PlatformTour />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
