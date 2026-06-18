@@ -236,9 +236,7 @@ function AppRoutes() {
               <Route path="/war-room" element={<AIWarRoom />} />
             </Route>
 
-            <Route path="/platform-tour" element={<PlatformTour />} />
-
-            <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_COMMAND_CENTER]} />}>
+              <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_COMMAND_CENTER]} />}>
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/campaign-workspace" element={<CampaignWorkspaces />} />
               <Route path="/campaign-workspace/:id" element={<CampaignWorkspaces />} />
