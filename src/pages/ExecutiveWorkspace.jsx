@@ -721,35 +721,48 @@ export default function ExecutiveWorkspace() {
                   </div>
 
                   <div className="workspace-actions">
-                    <button
-                      className="vs-button"
-                      onClick={() => setActiveTab("launch")}
-                    >
-                      Review Launch Gate
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("intelligence")}
-                    >
-                      Intelligence
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("operations")}
-                    >
-                      Operations
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("revenue")}
-                    >
-                      Revenue
-                    </button>
-                    <Link className="vs-button vs-button-secondary" to="/search">
-                      Universal Search
-                    </Link>
-                  </div>
-                </div>
+  <Link
+    className="vs-button"
+    to="/platform-tour"
+  >
+    ▶ Start Guided Tour
+  </Link>
+
+  <Link
+    className="vs-button vs-button-secondary"
+    to="/platform-tour?mode=admin"
+  >
+    Admin Tour
+  </Link>
+
+  <button
+    className="vs-button vs-button-secondary"
+    onClick={() => setActiveTab("intelligence")}
+  >
+    Intelligence
+  </button>
+
+  <button
+    className="vs-button vs-button-secondary"
+    onClick={() => setActiveTab("operations")}
+  >
+    Operations
+  </button>
+
+  <button
+    className="vs-button vs-button-secondary"
+    onClick={() => setActiveTab("revenue")}
+  >
+    Revenue
+  </button>
+
+  <Link
+    className="vs-button vs-button-secondary"
+    to="/search"
+  >
+    Universal Search
+  </Link>
+</div>
 
                 <SectionCard
                   title="What To Do Next"
