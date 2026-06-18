@@ -1,9 +1,9 @@
-import { useSearchParams } from "react-router-dom";
-import VirtualTour from "../components/VirtualTour";
+import { Navigate, useLocation } from "react-router-dom";
 
 export default function PlatformTour() {
-  const [params] = useSearchParams();
-  const mode = params.get("mode") === "admin" ? "admin" : "public";
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode") === "admin" ? "admin" : "platform";
 
-  return <VirtualTour mode={mode} />;
+  return <Navigate to={`/executive-workspace?tour=${mode}`} replace />;
 }
