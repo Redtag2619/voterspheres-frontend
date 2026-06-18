@@ -1519,4 +1519,68 @@ body {
 .vs-tour-body {
   line-height: 1.68;
 }
+
+  /* Precise Nova Section Tour */
+.vs-tour-highlight-active {
+  position: relative !important;
+  z-index: 10005 !important;
+  border-radius: 18px !important;
+  outline: 3px solid rgba(96, 165, 250, 0.95) !important;
+  box-shadow:
+    0 0 0 9999px rgba(2, 6, 23, 0.58),
+    0 0 0 8px rgba(96, 165, 250, 0.22),
+    0 0 52px rgba(96, 165, 250, 0.78) !important;
+  transition:
+    outline 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease !important;
+  transform: translateZ(0) scale(1.01);
+}
+
+.vs-tour-section-label {
+  display: inline-flex;
+  width: fit-content;
+  margin: 4px 0 10px;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(37, 99, 235, 0.12);
+  color: rgba(191, 219, 254, 0.95);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vs-tour-benefits {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.vs-tour-benefit {
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(37, 99, 235, 0.12);
+  color: rgba(226, 232, 240, 0.92);
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vs-tour-disclosure {
+  margin: 12px 0 0;
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.vs-tour-card {
+  max-width: min(790px, calc(100vw - 28px));
+}
+
+.vs-tour-body {
+  line-height: 1.68;
+}
 }
