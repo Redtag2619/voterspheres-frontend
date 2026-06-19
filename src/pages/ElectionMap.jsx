@@ -681,37 +681,39 @@ export default function ElectionMap() {
 
       <MapTooltip tooltip={tooltip} onSelectOffice={selectOfficeOverlay} />
 
-      <SectionCard
-        title="Map Filters"
-        subtitle="Filter by state and office to narrow the live overlay stack."
-      >
-        <div className="vs-grid-3">
-          <select className="vs-select" value={selectedState} onChange={(e) => setSelectedState(e.target.value)}>
-            <option value="">All states</option>
-            {stateOptions.map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </select>
+      <div data-tour="map-filters">
+        <SectionCard
+          title="Map Filters"
+          subtitle="Filter by state and office to narrow the live overlay stack."
+        >
+          <div className="vs-grid-3">
+            <select className="vs-select" value={selectedState} onChange={(e) => setSelectedState(e.target.value)}>
+              <option value="">All states</option>
+              {stateOptions.map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
 
-          <select className="vs-select" value={selectedOffice} onChange={(e) => setSelectedOffice(e.target.value)}>
-            <option value="">All offices</option>
-            {officeOptions.map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </select>
+            <select className="vs-select" value={selectedOffice} onChange={(e) => setSelectedOffice(e.target.value)}>
+              <option value="">All offices</option>
+              {officeOptions.map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
 
-          <button
-            type="button"
-            className="vs-button vs-button-secondary"
-            onClick={() => {
-              setSelectedState("");
-              setSelectedOffice("");
-            }}
-          >
-            Clear Filters
-          </button>
-        </div>
-      </SectionCard>
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={() => {
+                setSelectedState("");
+                setSelectedOffice("");
+              }}
+            >
+              Clear Filters
+            </button>
+          </div>
+        </SectionCard>
+      </div>
 
       <div className="vs-grid-4">
         <StatCard label="Tracked States" value={String(mapData.summary?.trackedStates || 0)} delta="States with live finance overlays" tone="up" />
@@ -729,8 +731,9 @@ export default function ElectionMap() {
         }}
       >
         <div style={{ display: "grid", gap: 0 }}>
-          <SectionCard
-            title="U.S. Finance Overlay Map"
+          <div data-tour="election-map-us">
+            <SectionCard
+              title="U.S. Finance Overlay Map"
             subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
             right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
           >
@@ -851,10 +854,12 @@ export default function ElectionMap() {
                 </ComposableMap>
               )}
             </div>
-          </SectionCard>
+            </SectionCard>
+          </div>
 
-          <SectionCard
-            title="Candidates"
+          <div data-tour="election-map-candidates">
+            <SectionCard
+              title="Candidates"
             subtitle={
               selectedOverlay
                 ? selectedOverlay.state + " • " + selectedOverlay.office + " candidate field"
@@ -884,14 +889,16 @@ export default function ElectionMap() {
                 ))}
               </div>
             )}
-          </SectionCard>
+            </SectionCard>
+          </div>
 
-          <SectionCard
-            title={
-              selectedCandidate
-                ? "Donor Intelligence • " + selectedCandidate.name
-                : "Donor Intelligence"
-            }
+          <div data-tour="election-map-donors">
+            <SectionCard
+              title={
+                selectedCandidate
+                  ? "Donor Intelligence • " + selectedCandidate.name
+                  : "Donor Intelligence"
+              }
             subtitle={
               selectedCandidate
                 ? "Showing donor network matches for the selected candidate."
@@ -914,13 +921,15 @@ export default function ElectionMap() {
                 ))}
               </div>
             )}
-          </SectionCard>
+            </SectionCard>
+          </div>
         </div>
 
         <div className="vs-stack">
-          <SectionCard
-            title={
-              selectedStateGroup
+          <div data-tour="election-map-overlay-detail">
+            <SectionCard
+              title={
+                selectedStateGroup
                 ? selectedStateGroup.state + " • Office Overlays"
                 : "Overlay Detail"
             }
@@ -983,7 +992,8 @@ export default function ElectionMap() {
                 </>
               )}
             </div>
-          </SectionCard>
+            </SectionCard>
+          </div>
 
           <SectionCard
             title="Overlay Stack"
