@@ -683,7 +683,7 @@ function buildNarration(step, segment, isFirstSegmentOnPage) {
     isFirstSegmentOnPage ? `${step.title}. ${step.section}.` : "",
     segment.heading,
     segment.narration,
-    segment.benefit ? `Why it matters: ${segment.benefit}` : "",
+    segment.benefit ? `Business value: ${segment.benefit}` : "",
   ]
     .filter(Boolean)
     .join(" ");
