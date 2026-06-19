@@ -7,4 +7,3 @@ export default function PlatformTour() {
 
   return <Navigate to={`/executive-workspace?tour=${mode}`} replace />;
 }
- 
