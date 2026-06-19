@@ -8,8 +8,6 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
-import ExecutionBoard from "../components/tasks/ExecutionBoard.jsx";
-import { useRealtimeTacticalEvents } from "../hooks/useRealtimeTacticalEvents";
 
 const fallbackData = {
   metrics: [
@@ -69,6 +67,10 @@ const TASK_FILTERS = [
   { id: "open", label: "Open" },
   { id: "completed", label: "Completed" },
 ];
+
+function arr(value) {
+  return Array.isArray(value) ? value : [];
+}
 
 function number(value, fallback = 0) {
   const next = Number(value);
@@ -161,7 +163,7 @@ function toneFromSeverity(value) {
   const next = String(value || "").toLowerCase();
   if (["critical", "high", "elevated", "severe"].includes(next)) return "danger";
   if (["medium", "watch", "warning"].includes(next)) return "warning";
-  if (["complete", "completed", "resolved", "active"].includes(next)) return "active";
+  if (["complete", "completed", "resolved", "active", "stable"].includes(next)) return "active";
   return "default";
 }
 
@@ -185,9 +187,17 @@ function unwrapGraph(payload) {
   return payload?.graph || payload || null;
 }
 
+async function safeLoad(loader, fallback) {
+  try {
+    const result = await loader();
+    return result || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, darkMoneyIntel = fallbackDarkMoneyIntel) {
-  const darkMoneyExposure =
-    darkMoneyIntel?.top_exposure?.find((item) => number(item.exposure_score) >= 80) || null;
+  const darkMoneyExposure = arr(darkMoneyIntel?.top_exposure).find((item) => number(item.exposure_score) >= 80) || null;
 
   if (darkMoneyExposure) {
     return {
@@ -198,9 +208,7 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
     };
   }
 
-  const consultantExposure = normalizeList(consultantIntel, "top_exposure").find(
-    (item) => number(item.exposure_score) >= 60
-  );
+  const consultantExposure = normalizeList(consultantIntel, "top_exposure").find((item) => number(item.exposure_score) >= 60);
 
   if (consultantExposure) {
     return {
@@ -211,9 +219,7 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
     };
   }
 
-  const urgent = feed.find((item) =>
-    ["high", "critical"].includes(String(item.severity || "").toLowerCase())
-  );
+  const urgent = arr(feed).find((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase()));
 
   if (urgent) {
     return {
@@ -234,7 +240,7 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
 
 function MetricGrid({ metrics = [] }) {
   return (
-    <div className="vs-grid-4">
+    <div className="vs-grid-4" data-tour="command-kpis">
       {metrics.map((metric) => (
         <StatCard
           key={metric.label}
@@ -251,7 +257,7 @@ function MetricGrid({ metrics = [] }) {
 
 function PremiumRow({ title, subtitle, meta = [], tone = "default", right, live = false }) {
   return (
-    <div className={`vs-premium-row-card ${live ? "is-live" : ""}`}>
+    <div className={`vs-premium-row-card ${live ? "is-live" : ""} ${tone}`}>
       <ResponsiveRow
         title={title}
         subtitle={subtitle}
@@ -279,7 +285,7 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
   return (
     <div className={`county-task-card ${toneFromSeverity(risk)} ${completed ? "is-completed" : ""}`}>
       <div className="county-task-top">
-        <div>
+        <div className="county-task-title-wrap">
           <span className="county-task-kicker">
             {completed ? "Resolved County Escalation" : "County Escalation Task"}
           </span>
@@ -302,11 +308,7 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
         <div><span>Source</span><b>State Operations</b></div>
       </div>
 
-      {recommendation ? (
-        <div className="county-task-recommendation">
-          {recommendation}
-        </div>
-      ) : null}
+      {recommendation ? <div className="county-task-recommendation">{recommendation}</div> : null}
 
       <div className="county-task-actions">
         <Link className="vs-button vs-button-secondary" to={`/state-operations/${String(state).toUpperCase()}`}>
@@ -319,14 +321,31 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
           disabled={!taskId || changing}
           onClick={() => onStatusChange(task, completed ? "open" : "completed")}
         >
-          {changing
-            ? "Updating..."
-            : completed
-              ? "Reopen"
-              : "Complete"}
+          {changing ? "Updating..." : completed ? "Reopen" : "Complete"}
         </button>
       </div>
     </div>
+  );
+}
+
+function StandardTaskCard({ task }) {
+  const metadata = getTaskMetadata(task);
+  const status = getTaskStatus(task);
+  const priority = getTaskPriority(task) || "normal";
+
+  return (
+    <PremiumRow
+      title={getTaskTitle(task)}
+      subtitle={getTaskDescription(task) || metadata.recommendation || "Task details unavailable."}
+      tone={toneFromSeverity(priority || status)}
+      meta={[
+        { label: "Status", value: status },
+        { label: "Priority", value: priority },
+        { label: "State", value: task.state || metadata.state || "National" },
+        { label: "Source", value: task.source || metadata.source || task.type || "Task" },
+      ]}
+      right={<Badge tone={toneFromSeverity(priority || status)}>{status}</Badge>}
+    />
   );
 }
 
@@ -355,84 +374,86 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
   const riskWatch = number(summary.high_exposure) + number(summary.watch_closely);
 
   return (
-    <SectionCard
-      title="Consultant Intelligence"
-      subtitle="Track consultants, candidate relationships, and review signals."
-      right={
-        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Badge tone={riskWatch ? "danger" : "active"}>
-            {riskWatch ? `${riskWatch} risk watch` : "No urgent consultant risk"}
-          </Badge>
-          <button type="button" className="vs-button vs-button-secondary" onClick={onRefresh}>
-            Refresh
-          </button>
-          <Link className="vs-button" to="/consultant-intel">
-            Open Consultant Intelligence
-          </Link>
-        </div>
-      }
-    >
-      {loading ? (
-        <EmptyState text="Loading consultant intelligence..." />
-      ) : (
-        <div className="vs-stack">
-          <div className="vs-grid-4">
-            <StatCard label="FEC Consultants" value={summary.fec_consultants || summary.fec_imported || 0} subtext="Imported consultant records" />
-            <StatCard label="Avg Influence" value={summary.avg_influence || 0} subtext="Overall influence score" />
-            <StatCard label="Avg Exposure" value={summary.avg_exposure || 0} subtext="Cross-campaign risk" />
-            <StatCard label="Needs Review" value={riskWatch} subtext="Consultants needing review" />
+    <div data-tour="command-consultants">
+      <SectionCard
+        title="Consultant Intelligence"
+        subtitle="Track consultants, candidate relationships, and review signals."
+        right={
+          <div className="vs-inline-actions command-panel-actions">
+            <Badge tone={riskWatch ? "danger" : "active"}>
+              {riskWatch ? `${riskWatch} risk watch` : "No urgent consultant risk"}
+            </Badge>
+            <button type="button" className="vs-button vs-button-secondary" onClick={onRefresh}>
+              Refresh
+            </button>
+            <Link className="vs-button" to="/consultant-intel">
+              Open Consultant Intelligence
+            </Link>
           </div>
-
-          <div className="vs-grid-2" style={{ alignItems: "start" }}>
-            <div className="vs-stack">
-              <div className="vs-stat-label">Top Consultants by Influence</div>
-              {topInfluence.length ? (
-                topInfluence.slice(0, 4).map((item) => (
-                  <PremiumRow
-                    key={item.id || item.name}
-                    title={item.name || item.firm_name || "Consultant"}
-                    subtitle={joinText([item.category || "Political Consulting", item.state || "National"])}
-                    tone={toneFromScore(item.influence_score)}
-                    meta={[
-                      { label: "Influence", value: item.influence_score || 0 },
-                      { label: "Battleground", value: item.battleground_score || 0 },
-                      { label: "Clients", value: item.clients_count || item.mapped_candidates || 0 },
-                      { label: "Spend", value: money(item.total_fec_disbursements || item.mapped_amount) },
-                    ]}
-                    right={<Badge tone={toneFromScore(item.influence_score)}>{item.influence_score || 0}</Badge>}
-                  />
-                ))
-              ) : (
-                <EmptyState text="No top consultant records loaded yet." />
-              )}
+        }
+      >
+        {loading ? (
+          <EmptyState text="Loading consultant intelligence..." />
+        ) : (
+          <div className="vs-stack">
+            <div className="vs-grid-4">
+              <StatCard label="FEC Consultants" value={summary.fec_consultants || summary.fec_imported || 0} subtext="Imported consultant records" />
+              <StatCard label="Avg Influence" value={summary.avg_influence || 0} subtext="Overall influence score" />
+              <StatCard label="Avg Exposure" value={summary.avg_exposure || 0} subtext="Cross-campaign risk" />
+              <StatCard label="Needs Review" value={riskWatch} subtext="Consultants needing review" />
             </div>
 
-            <div className="vs-stack">
-              <div className="vs-stat-label">Consultants to Review</div>
-              {topExposure.length ? (
-                topExposure.slice(0, 4).map((item) => (
-                  <PremiumRow
-                    key={item.id || item.name}
-                    title={item.name || item.firm_name || "Consultant"}
-                    subtitle={item.risk_summary || joinText([item.category || "Political Consulting", item.state || "National"])}
-                    tone={toneFromScore(item.exposure_score)}
-                    meta={[
-                      { label: "Exposure", value: item.exposure_score || 0 },
-                      { label: "Overlap", value: item.overlap_score || 0 },
-                      { label: "Risk", value: item.risk_label || "Signal" },
-                      { label: "Influence", value: item.influence_score || 0 },
-                    ]}
-                    right={<Badge tone={toneFromScore(item.exposure_score)}>{item.risk_label || "Watch"}</Badge>}
-                  />
-                ))
-              ) : (
-                <EmptyState text="No consultant exposure issues loaded yet." />
-              )}
+            <div className="vs-grid-2 command-two-col">
+              <div className="vs-stack">
+                <div className="vs-stat-label">Top Consultants by Influence</div>
+                {arr(topInfluence).length ? (
+                  arr(topInfluence).slice(0, 4).map((item) => (
+                    <PremiumRow
+                      key={item.id || item.name || item.firm_name}
+                      title={item.name || item.firm_name || "Consultant"}
+                      subtitle={joinText([item.category || "Political Consulting", item.state || "National"])}
+                      tone={toneFromScore(item.influence_score)}
+                      meta={[
+                        { label: "Influence", value: item.influence_score || 0 },
+                        { label: "Battleground", value: item.battleground_score || 0 },
+                        { label: "Clients", value: item.clients_count || item.mapped_candidates || 0 },
+                        { label: "Spend", value: money(item.total_fec_disbursements || item.mapped_amount) },
+                      ]}
+                      right={<Badge tone={toneFromScore(item.influence_score)}>{item.influence_score || 0}</Badge>}
+                    />
+                  ))
+                ) : (
+                  <EmptyState text="No top consultant records loaded yet." />
+                )}
+              </div>
+
+              <div className="vs-stack">
+                <div className="vs-stat-label">Consultants to Review</div>
+                {arr(topExposure).length ? (
+                  arr(topExposure).slice(0, 4).map((item) => (
+                    <PremiumRow
+                      key={item.id || item.name || item.firm_name}
+                      title={item.name || item.firm_name || "Consultant"}
+                      subtitle={item.risk_summary || joinText([item.category || "Political Consulting", item.state || "National"])}
+                      tone={toneFromScore(item.exposure_score)}
+                      meta={[
+                        { label: "Exposure", value: item.exposure_score || 0 },
+                        { label: "Overlap", value: item.overlap_score || 0 },
+                        { label: "Risk", value: item.risk_label || "Signal" },
+                        { label: "Influence", value: item.influence_score || 0 },
+                      ]}
+                      right={<Badge tone={toneFromScore(item.exposure_score)}>{item.risk_label || "Watch"}</Badge>}
+                    />
+                  ))
+                ) : (
+                  <EmptyState text="No consultant exposure issues loaded yet." />
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </SectionCard>
+        )}
+      </SectionCard>
+    </div>
   );
 }
 
@@ -442,232 +463,87 @@ function RelationshipIntelligencePanel({ graph, loading }) {
   const topInfluencers = insights.top_influencers || insights.topInfluencers || [];
   const strongestLinks = insights.strongest_links || insights.highStrengthLinks || [];
   const weakCoverage = insights.orphan_candidates || insights.orphanCandidates || [];
-  const density = counts.nodes
-    ? Math.round((number(counts.links) / Math.max(number(counts.nodes), 1)) * 100)
-    : 0;
+  const density = counts.nodes ? Math.round((number(counts.links) / Math.max(number(counts.nodes), 1)) * 100) : 0;
 
   return (
-    <SectionCard
-      title="Relationship Intelligence"
-      subtitle="Shows how candidates, consultants, and donors are connected across the platform."
-      right={
-        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Badge tone={weakCoverage.length ? "warning" : "active"}>
-            {weakCoverage.length ? `${weakCoverage.length} weak coverage` : "No urgent consultant risk"}
-          </Badge>
-          <Link className="vs-button vs-button-secondary" to="/relationship-graph">
-            Open Graph
-          </Link>
-        </div>
-      }
-    >
-      {loading ? (
-        <EmptyState text="Loading relationship intelligence..." />
-      ) : !graph ? (
-        <EmptyState text="No relationship graph intelligence available yet." />
-      ) : (
-        <div className="vs-stack">
-          <div className="vs-grid-4">
-            <StatCard label="Candidates" value={counts.candidates || 0} subtext="Candidate records" />
-            <StatCard label="Consultants" value={counts.consultants || 0} subtext="Consultant records" />
-            <StatCard label="Donors" value={counts.donors || 0} subtext="Donor records" />
-            <StatCard label="Density" value={`${density}%`} subtext={`${counts.links || 0} relationship paths`} />
+    <div data-tour="command-relationships">
+      <SectionCard
+        title="Relationship Intelligence"
+        subtitle="Shows how candidates, consultants, and donors are connected across the platform."
+        right={
+          <div className="vs-inline-actions command-panel-actions">
+            <Badge tone={arr(weakCoverage).length ? "warning" : "active"}>
+              {arr(weakCoverage).length ? `${arr(weakCoverage).length} weak coverage` : "No urgent relationship risk"}
+            </Badge>
+            <Link className="vs-button vs-button-secondary" to="/relationship-graph">
+              Open Graph
+            </Link>
           </div>
-
-          <div className="vs-grid-2" style={{ alignItems: "start" }}>
-            <div className="vs-stack">
-              <div className="vs-stat-label">Most Connected People and Groups</div>
-              {topInfluencers.length ? (
-                topInfluencers.slice(0, 4).map((node) => (
-                  <PremiumRow
-                    key={node.id}
-                    title={node.label || node.id}
-                    subtitle={node.subtitle || node.type || "Network record"}
-                    meta={[
-                      { label: "Type", value: node.type || "Node" },
-                      { label: "Influence", value: node.influence || 0 },
-                    ]}
-                    right={<Badge tone="info">{node.influence || 0}</Badge>}
-                  />
-                ))
-              ) : (
-                <EmptyState text="No connected network records available yet." />
-              )}
+        }
+      >
+        {loading ? (
+          <EmptyState text="Loading relationship intelligence..." />
+        ) : !graph ? (
+          <EmptyState text="No relationship graph intelligence available yet." />
+        ) : (
+          <div className="vs-stack">
+            <div className="vs-grid-4">
+              <StatCard label="Candidates" value={counts.candidates || 0} subtext="Candidate records" />
+              <StatCard label="Consultants" value={counts.consultants || 0} subtext="Consultant records" />
+              <StatCard label="Donors" value={counts.donors || 0} subtext="Donor records" />
+              <StatCard label="Density" value={`${density}%`} subtext={`${counts.links || 0} relationship paths`} />
             </div>
 
-            <div className="vs-stack">
-              <div className="vs-stat-label">Strongest Connections</div>
-              {strongestLinks.length ? (
-                strongestLinks.slice(0, 4).map((link, index) => {
-                  const source = typeof link.source === "object" ? link.source.label || link.source.id : link.source;
-                  const target = typeof link.target === "object" ? link.target.label || link.target.id : link.target;
-
-                  return (
+            <div className="vs-grid-2 command-two-col">
+              <div className="vs-stack">
+                <div className="vs-stat-label">Most Connected People and Groups</div>
+                {arr(topInfluencers).length ? (
+                  arr(topInfluencers).slice(0, 4).map((node) => (
                     <PremiumRow
-                      key={`${source}-${target}-${index}`}
-                      title={joinText([source, target])}
-                      subtitle={link.label || "Relationship connection"}
+                      key={node.id || node.label}
+                      title={node.label || node.id || "Network record"}
+                      subtitle={node.subtitle || node.type || "Network record"}
                       meta={[
-                        { label: "Strength", value: link.strength || 0 },
-                        { label: "Type", value: link.type || "relationship" },
+                        { label: "Type", value: node.type || "Node" },
+                        { label: "Influence", value: node.influence || 0 },
                       ]}
-                      right={<Badge tone="active">{link.strength || 0}</Badge>}
+                      right={<Badge tone="info">{node.influence || 0}</Badge>}
                     />
-                  );
-                })
-              ) : (
-                <EmptyState text="No strong relationship connections available yet." />
-              )}
+                  ))
+                ) : (
+                  <EmptyState text="No connected network records available yet." />
+                )}
+              </div>
+
+              <div className="vs-stack">
+                <div className="vs-stat-label">Strongest Connections</div>
+                {arr(strongestLinks).length ? (
+                  arr(strongestLinks).slice(0, 4).map((link, index) => {
+                    const source = typeof link.source === "object" ? link.source.label || link.source.id : link.source;
+                    const target = typeof link.target === "object" ? link.target.label || link.target.id : link.target;
+
+                    return (
+                      <PremiumRow
+                        key={`${source}-${target}-${index}`}
+                        title={joinText([source, target]) || "Relationship connection"}
+                        subtitle={link.label || "Relationship connection"}
+                        meta={[
+                          { label: "Strength", value: link.strength || 0 },
+                          { label: "Type", value: link.type || "relationship" },
+                        ]}
+                        right={<Badge tone="active">{link.strength || 0}</Badge>}
+                      />
+                    );
+                  })
+                ) : (
+                  <EmptyState text="No strong relationship connections available yet." />
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
-function DarkMoneyExposurePanel({ data, loading }) {
-  const summary = data?.summary || {};
-  const rows = data?.top_exposure || [];
-
-  return (
-    <SectionCard
-      title="Dark Money Exposure Layer"
-      subtitle="Committee influence chains, consultant overlap, and cross-state exposure tracking."
-      right={
-        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Badge tone={number(summary.critical_exposure) ? "danger" : "active"}>
-            {summary.critical_exposure || 0} critical
-          </Badge>
-          <Link className="vs-button vs-button-secondary" to="/dark-money-exposure">
-            Open Dark Money Layer
-          </Link>
-        </div>
-      }
-    >
-      {loading ? (
-        <EmptyState text="Loading dark money exposure intelligence..." />
-      ) : (
-        <div className="vs-stack">
-          <div className="vs-grid-4">
-            <StatCard label="Tracked Committees" value={summary.total_committees || 0} subtext="Mapped committees" />
-            <StatCard label="Critical Exposure" value={summary.critical_exposure || 0} subtext="Immediate review" />
-            <StatCard label="High Exposure" value={summary.high_exposure || 0} subtext="Elevated activity" />
-            <StatCard label="Money Flow" value={money(summary.total_amount || 0)} subtext="Mapped influence flow" />
-          </div>
-
-          {rows.length ? (
-            rows.slice(0, 5).map((item, index) => (
-              <PremiumRow
-                key={`${item.committee_id || item.committee_name}-${index}`}
-                title={item.committee_name || item.committee_id || "Committee"}
-                subtitle={item.narrative || "Committee exposure signal requires review."}
-                tone={toneFromSeverity(item.severity)}
-                live={String(item.severity || "").toLowerCase() === "critical"}
-                meta={[
-                  { label: "Exposure", value: item.exposure_score || 0 },
-                  { label: "Consultants", value: item.consultant_count || 0 },
-                  { label: "Candidates", value: item.candidate_count || 0 },
-                  { label: "Money Flow", value: money(item.total_amount) },
-                ]}
-                right={<Badge tone={toneFromSeverity(item.severity)}>{item.exposure_tier || "Exposure"}</Badge>}
-              />
-            ))
-          ) : (
-            <EmptyState text="No dark money exposure records loaded yet." />
-          )}
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
-function BattlegroundPanel({ rows = [] }) {
-  return (
-    <SectionCard title="Top Battlegrounds" subtitle="Priority races that need the most attention right now.">
-      <div className="vs-stack">
-        {rows.length ? (
-          rows.map((row) => (
-            <PremiumRow
-              key={row.race || `${row.state}-${row.office}`}
-              title={row.race || `${row.state} ${row.office}`}
-              subtitle={joinText([row.state || "State", row.office || "Race"])}
-              tone={toneFromSeverity(row.risk)}
-              meta={[
-                { label: "Win Prob.", value: row.probability || row.win_probability || "N/A" },
-                { label: "Momentum", value: row.momentum || "N/A" },
-                { label: "Risk", value: row.risk || "Watch" },
-                { label: "Priority", value: row.priority || "Tier 2" },
-              ]}
-              right={<Badge tone={toneFromSeverity(row.risk)}>{row.risk || "Watch"}</Badge>}
-            />
-          ))
-        ) : (
-          <EmptyState text="No battleground races loaded." />
         )}
-      </div>
-    </SectionCard>
-  );
-}
-
-function ExecutiveFeedPanel({ feed = [], loading }) {
-  return (
-    <SectionCard title="Executive Feed" subtitle="Recent alerts and updates from across the platform.">
-      {loading ? (
-        <EmptyState text="Loading recent updates..." />
-      ) : (
-        <div className="vs-stack">
-          {feed.length ? (
-            feed.slice(0, 8).map((item) => (
-              <PremiumRow
-                key={item.id || `${item.time}-${item.title}`}
-                title={item.title}
-                subtitle={joinText([item.source || "Command Center", item.type || ""])}
-                tone={toneFromSeverity(item.severity)}
-                live={["high", "critical"].includes(String(item.severity || "").toLowerCase())}
-                meta={[
-                  { label: "Time", value: item.time || "Now" },
-                  { label: "Severity", value: item.severity || "Info" },
-                  { label: "State", value: item.state || "National" },
-                  { label: "Risk", value: item.risk || "Watch" },
-                ]}
-                right={<Badge tone={toneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>}
-              />
-            ))
-          ) : (
-            <EmptyState text="No recent command updates loaded." />
-          )}
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
-function ActionPanel({ actions = [] }) {
-  return (
-    <SectionCard title="Execution Priorities" subtitle="Recommended actions for the campaign team.">
-      <div className="vs-stack">
-        {actions.length ? (
-          actions.slice(0, 8).map((item) => (
-            <PremiumRow
-              key={item.title}
-              title={item.title}
-              subtitle={item.detail || "Execution priority"}
-              tone={toneFromSeverity(item.risk)}
-              meta={[
-                { label: "Owner", value: item.owner || "Command Team" },
-                { label: "Due", value: item.due || "Today" },
-                { label: "State", value: item.state || "National" },
-                { label: "Risk", value: item.risk || "Watch" },
-              ]}
-              right={<Badge tone="accent">{item.due || "Today"}</Badge>}
-            />
-          ))
-        ) : (
-          <EmptyState text="No action priorities loaded." />
-        )}
-      </div>
-    </SectionCard>
+      </SectionCard>
+    </div>
   );
 }
 
@@ -676,98 +552,242 @@ function CrossSignalPanel({ data, loading }) {
   const summary = data?.summary || {};
 
   return (
-    <SectionCard
-      title="Cross-Signal Priority Layer"
-      subtitle="Combines fundraising, vendors, mail, relationships, and race pressure into one priority list."
-      right={<Badge tone={number(summary.critical_states) ? "danger" : "active"}>{summary.critical_states || 0} critical</Badge>}
-    >
-      {loading ? (
-        <EmptyState text="Loading cross-signal intelligence..." />
-      ) : (
-        <div className="vs-stack">
-          <div className="vs-grid-4">
-            <StatCard label="Tracked States" value={summary.states_tracked || 0} subtext="States being monitored" />
-            <StatCard label="Critical States" value={summary.critical_states || 0} subtext="Needs action now" />
-            <StatCard label="High States" value={summary.high_states || 0} subtext="Needs close watch" />
-            <StatCard label="Vendor Gaps" value={summary.vendor_gap_states || 0} subtext="Vendor coverage gaps" />
-          </div>
+    <div data-tour="command-cross-signal">
+      <SectionCard
+        title="Cross-Signal Priority Layer"
+        subtitle="Combines fundraising, vendors, mail, relationships, and race pressure into one priority list."
+        right={<Badge tone={number(summary.critical_states) ? "danger" : "active"}>{summary.critical_states || 0} critical</Badge>}
+      >
+        {loading ? (
+          <EmptyState text="Loading cross-signal intelligence..." />
+        ) : (
+          <div className="vs-stack">
+            <div className="vs-grid-4">
+              <StatCard label="Tracked States" value={summary.states_tracked || 0} subtext="States being monitored" />
+              <StatCard label="Critical States" value={summary.critical_states || 0} subtext="Needs action now" />
+              <StatCard label="High States" value={summary.high_states || 0} subtext="Needs close watch" />
+              <StatCard label="Vendor Gaps" value={summary.vendor_gap_states || 0} subtext="Vendor coverage gaps" />
+            </div>
 
-          {priorities.length ? (
-            priorities.slice(0, 6).map((item, index) => (
-              <PremiumRow
-                key={`${item.state}-${index}`}
-                title={`#${index + 1} ${item.state || "National"} - ${item.severity || "Priority"}`}
-                subtitle={(item.recommended_actions || []).join(" ") || "Multiple signals suggest this state needs review."}
-                tone={toneFromSeverity(item.severity)}
-                meta={[
-                  { label: "Score", value: item.priority_score || 0 },
-                  { label: "Receipts", value: money(item.finance?.receipts) },
-                  { label: "Vendors", value: item.vendors?.coverage_status || "N/A" },
-                  { label: "Mail Risk", value: item.mailops?.mail_risks || 0 },
-                ]}
-                right={<Badge tone={toneFromSeverity(item.severity)}>{item.risk || "Watch"}</Badge>}
-              />
-            ))
-          ) : (
-            <EmptyState text="No cross-signal priorities loaded." />
-          )}
-        </div>
-      )}
-    </SectionCard>
+            {arr(priorities).length ? (
+              arr(priorities).slice(0, 6).map((item, index) => (
+                <PremiumRow
+                  key={`${item.state}-${index}`}
+                  title={`#${index + 1} ${item.state || "National"} - ${item.severity || "Priority"}`}
+                  subtitle={(item.recommended_actions || []).join(" ") || "Multiple signals suggest this state needs review."}
+                  tone={toneFromSeverity(item.severity)}
+                  meta={[
+                    { label: "Score", value: item.priority_score || 0 },
+                    { label: "Receipts", value: money(item.finance?.receipts) },
+                    { label: "Vendors", value: item.vendors?.coverage_status || "N/A" },
+                    { label: "Mail Risk", value: item.mailops?.mail_risks || 0 },
+                  ]}
+                  right={<Badge tone={toneFromSeverity(item.severity)}>{item.risk || "Watch"}</Badge>}
+                />
+              ))
+            ) : (
+              <EmptyState text="No cross-signal priorities loaded." />
+            )}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+function DarkMoneyExposurePanel({ data, loading }) {
+  const summary = data?.summary || {};
+  const rows = data?.top_exposure || [];
+
+  return (
+    <div data-tour="command-dark-money">
+      <SectionCard
+        title="Dark Money Exposure Layer"
+        subtitle="Committee influence chains, consultant overlap, and cross-state exposure tracking."
+        right={
+          <div className="vs-inline-actions command-panel-actions">
+            <Badge tone={number(summary.critical_exposure) ? "danger" : "active"}>{summary.critical_exposure || 0} critical</Badge>
+            <Link className="vs-button vs-button-secondary" to="/dark-money-exposure">Open Dark Money Layer</Link>
+          </div>
+        }
+      >
+        {loading ? (
+          <EmptyState text="Loading dark money exposure intelligence..." />
+        ) : (
+          <div className="vs-stack">
+            <div className="vs-grid-4">
+              <StatCard label="Tracked Committees" value={summary.total_committees || 0} subtext="Mapped committees" />
+              <StatCard label="Critical Exposure" value={summary.critical_exposure || 0} subtext="Immediate review" />
+              <StatCard label="High Exposure" value={summary.high_exposure || 0} subtext="Elevated activity" />
+              <StatCard label="Money Flow" value={money(summary.total_amount || 0)} subtext="Mapped influence flow" />
+            </div>
+
+            {arr(rows).length ? (
+              arr(rows).slice(0, 5).map((item, index) => (
+                <PremiumRow
+                  key={`${item.committee_id || item.committee_name}-${index}`}
+                  title={item.committee_name || item.committee_id || "Committee"}
+                  subtitle={item.narrative || "Committee exposure signal requires review."}
+                  tone={toneFromSeverity(item.severity)}
+                  live={String(item.severity || "").toLowerCase() === "critical"}
+                  meta={[
+                    { label: "Exposure", value: item.exposure_score || 0 },
+                    { label: "Consultants", value: item.consultant_count || 0 },
+                    { label: "Candidates", value: item.candidate_count || 0 },
+                    { label: "Money Flow", value: money(item.total_amount) },
+                  ]}
+                  right={<Badge tone={toneFromSeverity(item.severity)}>{item.exposure_tier || "Exposure"}</Badge>}
+                />
+              ))
+            ) : (
+              <EmptyState text="No dark money exposure records loaded yet." />
+            )}
+          </div>
+        )}
+      </SectionCard>
+    </div>
   );
 }
 
 function ExecutiveAlertEnginePanel({ alerts = [], loading }) {
-  const criticalCount = alerts.filter((alert) =>
-    String(alert.severity || "").toLowerCase() === "critical"
-  ).length;
-
-  const highCount = alerts.filter((alert) =>
-    String(alert.severity || "").toLowerCase() === "high"
-  ).length;
+  const criticalCount = arr(alerts).filter((alert) => String(alert.severity || "").toLowerCase() === "critical").length;
+  const highCount = arr(alerts).filter((alert) => String(alert.severity || "").toLowerCase() === "high").length;
 
   return (
-    <SectionCard
-      title="Executive Alert Engine"
-      subtitle="Cross-signal operational alerts generated from consultant exposure, dark money, relationship strength, and campaign intelligence."
-      right={
-        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Badge tone={criticalCount ? "danger" : highCount ? "warning" : "active"}>
-            {criticalCount} critical
-          </Badge>
-          <Badge tone={alerts.length ? "info" : "default"}>
-            {alerts.length} active
-          </Badge>
-        </div>
-      }
-    >
-      {loading ? (
-        <EmptyState text="Loading executive alert engine..." />
-      ) : (
+    <div data-tour="command-alert-engine">
+      <SectionCard
+        title="Executive Alert Engine"
+        subtitle="Cross-signal operational alerts generated from consultant exposure, dark money, relationship strength, and campaign intelligence."
+        right={
+          <div className="vs-inline-actions command-panel-actions">
+            <Badge tone={criticalCount ? "danger" : highCount ? "warning" : "active"}>{criticalCount} critical</Badge>
+            <Badge tone={arr(alerts).length ? "info" : "default"}>{arr(alerts).length} active</Badge>
+          </div>
+        }
+      >
+        {loading ? (
+          <EmptyState text="Loading executive alert engine..." />
+        ) : (
+          <div className="vs-stack">
+            {arr(alerts).length ? (
+              arr(alerts).slice(0, 8).map((alert) => (
+                <PremiumRow
+                  key={alert.id || `${alert.type}-${alert.title}`}
+                  title={alert.title || "Executive alert"}
+                  subtitle={alert.recommendation || alert.source || "Review and assign owner."}
+                  tone={toneFromSeverity(alert.severity)}
+                  live={["critical", "high"].includes(String(alert.severity || "").toLowerCase())}
+                  meta={[
+                    { label: "Severity", value: alert.severity || "medium" },
+                    { label: "Type", value: alert.type || "signal" },
+                    { label: "State", value: alert.state || "National" },
+                    { label: "Risk", value: alert.risk || "Monitor" },
+                  ]}
+                  right={<Badge tone={toneFromSeverity(alert.severity)}>{alert.severity || "Signal"}</Badge>}
+                />
+              ))
+            ) : (
+              <EmptyState text="No executive alerts detected." />
+            )}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+function BattlegroundPanel({ rows = [] }) {
+  return (
+    <div data-tour="command-battlegrounds">
+      <SectionCard title="Top Battlegrounds" subtitle="Priority races that need the most attention right now.">
         <div className="vs-stack">
-          {alerts.length ? (
-            alerts.slice(0, 8).map((alert) => (
+          {arr(rows).length ? (
+            arr(rows).map((row) => (
               <PremiumRow
-                key={alert.id || `${alert.type}-${alert.title}`}
-                title={alert.title || "Executive alert"}
-                subtitle={alert.recommendation || alert.source || "Review and assign owner."}
-                tone={toneFromSeverity(alert.severity)}
-                live={["critical", "high"].includes(String(alert.severity || "").toLowerCase())}
+                key={row.race || `${row.state}-${row.office}`}
+                title={row.race || `${row.state} ${row.office}`}
+                subtitle={joinText([row.state || "State", row.office || "Race"])}
+                tone={toneFromSeverity(row.risk)}
                 meta={[
-                  { label: "Severity", value: alert.severity || "medium" },
-                  { label: "Type", value: alert.type || "signal" },
-                  { label: "State", value: alert.state || "National" },
-                  { label: "Risk", value: alert.risk || "Monitor" },
+                  { label: "Win Prob.", value: row.probability || row.win_probability || "N/A" },
+                  { label: "Momentum", value: row.momentum || "N/A" },
+                  { label: "Risk", value: row.risk || "Watch" },
+                  { label: "Priority", value: row.priority || "Tier 2" },
                 ]}
-                right={<Badge tone={toneFromSeverity(alert.severity)}>{alert.severity || "Signal"}</Badge>}
+                right={<Badge tone={toneFromSeverity(row.risk)}>{row.risk || "Watch"}</Badge>}
               />
             ))
           ) : (
-            <EmptyState text="No executive alerts detected." />
+            <EmptyState text="No battleground races loaded." />
           )}
         </div>
-      )}
-    </SectionCard>
+      </SectionCard>
+    </div>
+  );
+}
+
+function ActionPanel({ actions = [] }) {
+  return (
+    <div data-tour="command-priorities">
+      <SectionCard title="Execution Priorities" subtitle="Recommended actions for the campaign team.">
+        <div className="vs-stack">
+          {arr(actions).length ? (
+            arr(actions).slice(0, 8).map((item) => (
+              <PremiumRow
+                key={item.title}
+                title={item.title}
+                subtitle={item.detail || "Execution priority"}
+                tone={toneFromSeverity(item.risk)}
+                meta={[
+                  { label: "Owner", value: item.owner || "Command Team" },
+                  { label: "Due", value: item.due || "Today" },
+                  { label: "State", value: item.state || "National" },
+                  { label: "Risk", value: item.risk || "Watch" },
+                ]}
+                right={<Badge tone="accent">{item.due || "Today"}</Badge>}
+              />
+            ))
+          ) : (
+            <EmptyState text="No action priorities loaded." />
+          )}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function ExecutiveFeedPanel({ feed = [], loading }) {
+  return (
+    <div data-tour="command-feed">
+      <SectionCard title="Executive Feed" subtitle="Recent alerts and updates from across the platform.">
+        {loading ? (
+          <EmptyState text="Loading recent updates..." />
+        ) : (
+          <div className="vs-stack">
+            {arr(feed).length ? (
+              arr(feed).slice(0, 8).map((item) => (
+                <PremiumRow
+                  key={item.id || `${item.time}-${item.title}`}
+                  title={item.title}
+                  subtitle={joinText([item.source || "Command Center", item.type || ""])}
+                  tone={toneFromSeverity(item.severity)}
+                  live={["high", "critical"].includes(String(item.severity || "").toLowerCase())}
+                  meta={[
+                    { label: "Time", value: item.time || "Now" },
+                    { label: "Severity", value: item.severity || "Info" },
+                    { label: "State", value: item.state || "National" },
+                    { label: "Risk", value: item.risk || "Watch" },
+                  ]}
+                  right={<Badge tone={toneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>}
+                />
+              ))
+            ) : (
+              <EmptyState text="No recent command updates loaded." />
+            )}
+          </div>
+        )}
+      </SectionCard>
+    </div>
   );
 }
 
@@ -797,8 +817,7 @@ export default function CommandCenter() {
   const [changingTaskId, setChangingTaskId] = useState(null);
   const [taskSyncMessage, setTaskSyncMessage] = useState("");
 
-  const demoMode =
-    typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
+  const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
 
   async function loadCommandData() {
     if (demoMode) {
@@ -806,11 +825,6 @@ export default function CommandCenter() {
       setCommandLoading(false);
       return;
     }
-
-    useRealtimeTacticalEvents({
-      state: stateCode,
-      onRefresh: () => load({ quiet: true }),
-    });
 
     try {
       setCommandLoading(true);
@@ -836,19 +850,14 @@ export default function CommandCenter() {
       return;
     }
 
-    try {
-      setCrossLoading(true);
-
-      const result = api.crossSignalIntelligence
-        ? await api.crossSignalIntelligence()
-        : await api.get("/intelligence/cross-signal").then((r) => r.data);
-
-      setCrossSignal(result || fallbackCrossSignal);
-    } catch {
-      setCrossSignal(fallbackCrossSignal);
-    } finally {
-      setCrossLoading(false);
-    }
+    setCrossLoading(true);
+    setCrossSignal(await safeLoad(
+      () => api.crossSignalIntelligence
+        ? api.crossSignalIntelligence()
+        : api.get("/intelligence/cross-signal").then((r) => r.data),
+      fallbackCrossSignal
+    ));
+    setCrossLoading(false);
   }
 
   async function loadRelationshipGraph() {
@@ -858,19 +867,15 @@ export default function CommandCenter() {
       return;
     }
 
-    try {
-      setRelationshipLoading(true);
-
-      const result = api.relationshipGraph
-        ? await api.relationshipGraph({ limit: 60 })
-        : await api.get("/relationships/graph", { params: { limit: 60 } }).then((r) => r.data);
-
-      setRelationshipGraph(unwrapGraph(result));
-    } catch {
-      setRelationshipGraph(null);
-    } finally {
-      setRelationshipLoading(false);
-    }
+    setRelationshipLoading(true);
+    const result = await safeLoad(
+      () => api.relationshipGraph
+        ? api.relationshipGraph({ limit: 60 })
+        : api.get("/relationships/graph", { params: { limit: 60 } }).then((r) => r.data),
+      null
+    );
+    setRelationshipGraph(unwrapGraph(result));
+    setRelationshipLoading(false);
   }
 
   async function loadConsultantIntel() {
@@ -880,19 +885,12 @@ export default function CommandCenter() {
       return;
     }
 
-    try {
-      setConsultantLoading(true);
-
-      const result = await api
-        .get("/consultants/risk/dashboard", { params: { limit: 20 } })
-        .then((r) => r.data);
-
-      setConsultantIntel(result || fallbackConsultantIntel);
-    } catch {
-      setConsultantIntel(fallbackConsultantIntel);
-    } finally {
-      setConsultantLoading(false);
-    }
+    setConsultantLoading(true);
+    setConsultantIntel(await safeLoad(
+      () => api.get("/consultants/risk/dashboard", { params: { limit: 20 } }).then((r) => r.data),
+      fallbackConsultantIntel
+    ));
+    setConsultantLoading(false);
   }
 
   async function loadDarkMoneyIntel() {
@@ -902,19 +900,14 @@ export default function CommandCenter() {
       return;
     }
 
-    try {
-      setDarkMoneyLoading(true);
-
-      const result = api.darkMoneyExposure
-        ? await api.darkMoneyExposure({ limit: 15 })
-        : await api.get("/dark-money-exposure", { params: { limit: 15 } }).then((r) => r.data);
-
-      setDarkMoneyIntel(result || fallbackDarkMoneyIntel);
-    } catch {
-      setDarkMoneyIntel(fallbackDarkMoneyIntel);
-    } finally {
-      setDarkMoneyLoading(false);
-    }
+    setDarkMoneyLoading(true);
+    setDarkMoneyIntel(await safeLoad(
+      () => api.darkMoneyExposure
+        ? api.darkMoneyExposure({ limit: 15 })
+        : api.get("/dark-money-exposure", { params: { limit: 15 } }).then((r) => r.data),
+      fallbackDarkMoneyIntel
+    ));
+    setDarkMoneyLoading(false);
   }
 
   async function loadExecutiveAlerts() {
@@ -924,19 +917,15 @@ export default function CommandCenter() {
       return;
     }
 
-    try {
-      setExecutiveAlertsLoading(true);
-
-      const result = api.executiveAlerts
-        ? await api.executiveAlerts({ limit: 12 })
-        : await api.get("/executive-alerts", { params: { limit: 12 } }).then((r) => r.data);
-
-      setExecutiveAlerts(result?.alerts || []);
-    } catch {
-      setExecutiveAlerts(fallbackExecutiveAlerts.alerts);
-    } finally {
-      setExecutiveAlertsLoading(false);
-    }
+    setExecutiveAlertsLoading(true);
+    const result = await safeLoad(
+      () => api.executiveAlerts
+        ? api.executiveAlerts({ limit: 12 })
+        : api.get("/executive-alerts", { params: { limit: 12 } }).then((r) => r.data),
+      fallbackExecutiveAlerts
+    );
+    setExecutiveAlerts(arr(result?.alerts));
+    setExecutiveAlertsLoading(false);
   }
 
   async function loadTasks() {
@@ -946,19 +935,15 @@ export default function CommandCenter() {
       return;
     }
 
-    try {
-      setTasksLoading(true);
-
-      const result = api.tasks
-        ? await api.tasks({ limit: 100 })
-        : await api.get("/tasks", { params: { limit: 100 } }).then((r) => r.data);
-
-      setTasks(normalizeList(result));
-    } catch {
-      setTasks([]);
-    } finally {
-      setTasksLoading(false);
-    }
+    setTasksLoading(true);
+    const result = await safeLoad(
+      () => api.tasks
+        ? api.tasks({ limit: 100 })
+        : api.get("/tasks", { params: { limit: 100 } }).then((r) => r.data),
+      []
+    );
+    setTasks(normalizeList(result));
+    setTasksLoading(false);
   }
 
   async function refreshAll() {
@@ -977,8 +962,9 @@ export default function CommandCenter() {
     try {
       setConsultantLoading(true);
       await api.post("/consultants/risk/score", {});
-      await loadConsultantIntel();
     } catch {
+      // Keep dashboard usable even if scoring endpoint is unavailable.
+    } finally {
       await loadConsultantIntel();
     }
   }
@@ -1000,11 +986,7 @@ export default function CommandCenter() {
       setTaskSyncMessage(status === "completed" ? "County task completed." : "County task reopened.");
       await loadTasks();
     } catch (error) {
-      setTaskSyncMessage(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to sync county task status."
-      );
+      setTaskSyncMessage(error?.response?.data?.error || error?.message || "Failed to sync county task status.");
     } finally {
       setChangingTaskId(null);
     }
@@ -1049,26 +1031,11 @@ export default function CommandCenter() {
     });
   }, [tasks, taskFilter]);
 
-  const countyEscalationTasks = useMemo(
-    () => filteredTasks.filter(isCountyEscalationTask),
-    [filteredTasks]
-  );
+  const countyEscalationTasks = useMemo(() => filteredTasks.filter(isCountyEscalationTask), [filteredTasks]);
+  const standardTasks = useMemo(() => filteredTasks.filter((task) => !isCountyEscalationTask(task)), [filteredTasks]);
+  const executiveDecision = useMemo(() => buildDecision(feed, consultantIntel, darkMoneyIntel), [feed, consultantIntel, darkMoneyIntel]);
 
-  const standardTasks = useMemo(
-    () => filteredTasks.filter((task) => !isCountyEscalationTask(task)),
-    [filteredTasks]
-  );
-
-  const executiveDecision = useMemo(
-    () => buildDecision(feed, consultantIntel, darkMoneyIntel),
-    [feed, consultantIntel, darkMoneyIntel]
-  );
-
-  const highSeverityCount = feed.filter((item) =>
-    ["high", "critical"].includes(String(item.severity || "").toLowerCase())
-  ).length;
-
-  const consultantSummary = consultantIntel?.summary || {};
+  const highSeverityCount = arr(feed).filter((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())).length;
   const relationshipCounts = relationshipGraph?.counts || {};
   const darkMoneySummary = darkMoneyIntel?.summary || {};
 
@@ -1081,14 +1048,48 @@ export default function CommandCenter() {
       demoText="Demo Command Center data is active."
     >
       <style>{`
+        [data-tour] {
+          scroll-margin: 120px;
+        }
+
+        .command-panel-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          min-width: 0;
+        }
+
+        .command-two-col {
+          align-items: start;
+        }
+
+        .command-bottom-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+
+        .command-toolbar {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
         .task-filter-bar {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
+          align-items: stretch;
           margin-bottom: 16px;
         }
 
         .task-filter-btn {
+          max-width: 100%;
+          min-height: 42px;
           border: 1px solid rgba(148, 163, 184, 0.18);
           background: rgba(15, 23, 42, 0.74);
           color: rgba(226, 232, 240, 0.84);
@@ -1096,13 +1097,23 @@ export default function CommandCenter() {
           padding: 10px 12px;
           font-size: 12px;
           font-weight: 800;
+          line-height: 1.2;
+          white-space: normal;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
           gap: 8px;
+          min-width: 0;
+          overflow-wrap: anywhere;
+        }
+
+        .task-filter-btn span {
+          min-width: 0;
+          overflow-wrap: anywhere;
         }
 
         .task-filter-btn b {
+          flex: 0 0 auto;
           color: white;
           background: rgba(59, 130, 246, 0.22);
           border: 1px solid rgba(96, 165, 250, 0.22);
@@ -1115,7 +1126,28 @@ export default function CommandCenter() {
           border-color: rgba(96, 165, 250, 0.62);
           color: white;
           background: rgba(37, 99, 235, 0.32);
-          box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .vs-premium-row-card,
+        .county-task-card,
+        .task-sync-message {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          word-break: normal;
+        }
+
+        .vs-premium-row-card {
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.54);
+          overflow: hidden;
+        }
+
+        .vs-premium-row-card.is-live,
+        .vs-premium-row-card.danger {
+          border-color: rgba(248, 113, 113, 0.3);
+          box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.08);
         }
 
         .county-task-grid-wrap {
@@ -1154,6 +1186,12 @@ export default function CommandCenter() {
           justify-content: space-between;
           gap: 14px;
           align-items: flex-start;
+          min-width: 0;
+        }
+
+        .county-task-title-wrap {
+          min-width: 0;
+          flex: 1 1 auto;
         }
 
         .county-task-kicker {
@@ -1176,12 +1214,14 @@ export default function CommandCenter() {
           font-size: 17px;
           font-weight: 950;
           line-height: 1.25;
+          overflow-wrap: anywhere;
         }
 
         .county-task-top p {
           margin: 6px 0 0;
           color: rgba(203, 213, 225, 0.68);
           font-size: 12px;
+          overflow-wrap: anywhere;
         }
 
         .county-task-badges {
@@ -1189,6 +1229,8 @@ export default function CommandCenter() {
           gap: 8px;
           flex-wrap: wrap;
           justify-content: flex-end;
+          min-width: 0;
+          flex: 0 1 auto;
         }
 
         .county-task-grid {
@@ -1199,6 +1241,7 @@ export default function CommandCenter() {
         }
 
         .county-task-grid div {
+          min-width: 0;
           border-radius: 16px;
           border: 1px solid rgba(148, 163, 184, 0.12);
           background: rgba(15, 23, 42, 0.54);
@@ -1229,6 +1272,7 @@ export default function CommandCenter() {
           font-size: 13px;
           line-height: 1.5;
           white-space: pre-wrap;
+          overflow-wrap: anywhere;
         }
 
         .county-task-actions {
@@ -1236,6 +1280,7 @@ export default function CommandCenter() {
           gap: 10px;
           flex-wrap: wrap;
           margin-top: 14px;
+          min-width: 0;
         }
 
         .task-sync-message {
@@ -1249,14 +1294,24 @@ export default function CommandCenter() {
         }
 
         @media (max-width: 1100px) {
-          .county-task-grid-wrap {
+          .county-task-grid-wrap,
+          .command-bottom-grid,
+          .command-two-col {
             grid-template-columns: 1fr;
           }
         }
 
         @media (max-width: 760px) {
           .county-task-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
+          }
+
+          .county-task-top {
+            flex-direction: column;
+          }
+
+          .county-task-badges {
+            justify-content: flex-start;
           }
         }
       `}</style>
@@ -1267,29 +1322,17 @@ export default function CommandCenter() {
         </div>
       ) : null}
 
-      <div className="vs-inline-actions" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="command-toolbar">
         <div className="vs-chip-row">
-          <Badge tone={highSeverityCount ? "danger" : "active"}>
-            {highSeverityCount ? `${highSeverityCount} high-priority alerts` : "No urgent alerts"}
-          </Badge>
-          <Badge tone={taskCounts.county ? "danger" : "active"}>
-            {taskCounts.county} county escalations
-          </Badge>
-          <Badge tone={taskCounts.completed ? "active" : "default"}>
-            {taskCounts.completed} completed
-          </Badge>
-          <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>
-            {relationshipCounts.links || 0} network connections
-          </Badge>
-          <Badge tone={number(darkMoneySummary.critical_exposure) ? "danger" : "active"}>
-            {darkMoneySummary.critical_exposure || 0} dark-money critical
-          </Badge>
+          <Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} high-priority alerts` : "No urgent alerts"}</Badge>
+          <Badge tone={taskCounts.county ? "danger" : "active"}>{taskCounts.county} county escalations</Badge>
+          <Badge tone={taskCounts.completed ? "active" : "default"}>{taskCounts.completed} completed</Badge>
+          <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>{relationshipCounts.links || 0} network connections</Badge>
+          <Badge tone={number(darkMoneySummary.critical_exposure) ? "danger" : "active"}>{darkMoneySummary.critical_exposure || 0} dark-money critical</Badge>
         </div>
 
-        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" className="vs-button vs-button-secondary" onClick={refreshAll}>
-            Refresh Dashboard
-          </button>
+        <div className="vs-inline-actions command-panel-actions">
+          <button type="button" className="vs-button vs-button-secondary" onClick={refreshAll}>Refresh Dashboard</button>
           <button type="button" className="vs-button" onClick={runConsultantRiskScore} disabled={consultantLoading}>
             {consultantLoading ? "Updating..." : "Update Consultant Scores"}
           </button>
@@ -1298,97 +1341,82 @@ export default function CommandCenter() {
 
       <MetricGrid metrics={metrics} />
 
-      <SectionCard
-        title="Recommended Executive Action"
-        subtitle="The top action to review based on alerts, consultant activity, relationship data, and dark-money exposure."
-        right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
-      >
-        <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 12 }}>
-          <div style={{ color: "var(--vs-text)", fontSize: 18, fontWeight: 900 }}>
-            {executiveDecision?.title}
+      <div data-tour="command-recommended-action">
+        <SectionCard
+          title="Recommended Executive Action"
+          subtitle="The top action to review based on alerts, consultant activity, relationship data, and dark-money exposure."
+          right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
+        >
+          <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 12, minWidth: 0 }}>
+            <div style={{ color: "var(--vs-text)", fontSize: 18, fontWeight: 900, overflowWrap: "anywhere" }}>
+              {executiveDecision?.title}
+            </div>
+
+            <div className="vs-grid-3">
+              {(executiveDecision?.actions || []).map((action) => (
+                <div key={action} className="vs-banner" style={{ margin: 0, overflowWrap: "anywhere" }}>
+                  {action}
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Link className="vs-button vs-button-secondary" to={executiveDecision?.link || "/command-center"}>
+                Open Suggested Page
+              </Link>
+            </div>
           </div>
+        </SectionCard>
+      </div>
 
-          <div className="vs-grid-3">
-            {(executiveDecision?.actions || []).map((action) => (
-              <div key={action} className="vs-banner" style={{ margin: 0 }}>
-                {action}
-              </div>
-            ))}
-          </div>
+      <div data-tour="command-execution-board">
+        <SectionCard
+          title="Executive Execution Board"
+          subtitle="Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."
+          right={<Badge tone={filteredTasks.length ? "info" : "default"}>{filteredTasks.length} shown</Badge>}
+        >
+          {tasksLoading ? (
+            <EmptyState text="Loading execution board..." />
+          ) : (
+            <>
+              <TaskFilterBar activeFilter={taskFilter} onFilter={setTaskFilter} counts={taskCounts} />
 
-          <div>
-            <Link className="vs-button vs-button-secondary" to={executiveDecision?.link || "/command-center"}>
-              Open Suggested Page
-            </Link>
-          </div>
-        </div>
-      </SectionCard>
+              {taskSyncMessage ? <div className="task-sync-message">{taskSyncMessage}</div> : null}
 
-      <SectionCard
-        title="Execution Board"
-        subtitle="Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."
-        right={<Badge tone={filteredTasks.length ? "info" : "default"}>{filteredTasks.length} shown</Badge>}
-      >
-        {tasksLoading ? (
-          <EmptyState text="Loading execution board..." />
-        ) : (
-          <>
-            <TaskFilterBar
-              activeFilter={taskFilter}
-              onFilter={setTaskFilter}
-              counts={taskCounts}
-            />
+              {countyEscalationTasks.length ? (
+                <div className="county-task-grid-wrap">
+                  {countyEscalationTasks.slice(0, 12).map((task) => (
+                    <CountyEscalationTaskCard
+                      key={getTaskId(task) || getTaskTitle(task)}
+                      task={task}
+                      onStatusChange={handleCountyTaskStatus}
+                      changing={changingTaskId === getTaskId(task)}
+                    />
+                  ))}
+                </div>
+              ) : null}
 
-            {taskSyncMessage ? (
-              <div className="task-sync-message">{taskSyncMessage}</div>
-            ) : null}
+              {standardTasks.length ? (
+                <div className="vs-stack">
+                  {standardTasks.slice(0, 24).map((task) => (
+                    <StandardTaskCard key={getTaskId(task) || getTaskTitle(task)} task={task} />
+                  ))}
+                </div>
+              ) : countyEscalationTasks.length ? null : (
+                <EmptyState text="No tasks match the selected filter." />
+              )}
+            </>
+          )}
+        </SectionCard>
+      </div>
 
-            {countyEscalationTasks.length ? (
-              <div className="county-task-grid-wrap">
-                {countyEscalationTasks.slice(0, 12).map((task) => (
-                  <CountyEscalationTaskCard
-                    key={getTaskId(task) || getTaskTitle(task)}
-                    task={task}
-                    onStatusChange={handleCountyTaskStatus}
-                    changing={changingTaskId === getTaskId(task)}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {standardTasks.length ? (
-              <ExecutionBoard tasks={standardTasks} compact />
-            ) : countyEscalationTasks.length ? null : (
-              <EmptyState text="No tasks match the selected filter." />
-            )}
-          </>
-        )}
-      </SectionCard>
-
-      <ConsultantIntelligencePanel
-        data={consultantIntel}
-        loading={consultantLoading}
-        onRefresh={loadConsultantIntel}
-      />
-
-      <RelationshipIntelligencePanel
-        graph={relationshipGraph}
-        loading={relationshipLoading}
-      />
-
+      <ConsultantIntelligencePanel data={consultantIntel} loading={consultantLoading} onRefresh={loadConsultantIntel} />
+      <RelationshipIntelligencePanel graph={relationshipGraph} loading={relationshipLoading} />
       <CrossSignalPanel data={crossSignal} loading={crossLoading} />
+      <DarkMoneyExposurePanel data={darkMoneyIntel} loading={darkMoneyLoading} />
+      <ExecutiveAlertEnginePanel alerts={executiveAlerts} loading={executiveAlertsLoading} />
 
-      <DarkMoneyExposurePanel
-        data={darkMoneyIntel}
-        loading={darkMoneyLoading}
-      />
-
-      <ExecutiveAlertEnginePanel
-        alerts={executiveAlerts}
-        loading={executiveAlertsLoading}
-      />
-
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+      <div className="command-bottom-grid">
         <BattlegroundPanel rows={battlegrounds} />
         <ActionPanel actions={actions} />
       </div>
@@ -1397,3 +1425,4 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
