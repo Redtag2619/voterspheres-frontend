@@ -1583,4 +1583,98 @@ body {
 .vs-tour-body {
   line-height: 1.68;
 }
+
+  /* Bright Nova top-to-bottom tour spotlight */
+.vs-tour-highlight-active {
+  position: relative !important;
+  z-index: 10005 !important;
+  border-radius: 20px !important;
+  outline: 4px solid rgba(56, 189, 248, 1) !important;
+  box-shadow:
+    0 0 0 9999px rgba(2, 6, 23, 0.66),
+    0 0 0 10px rgba(56, 189, 248, 0.35),
+    0 0 36px rgba(56, 189, 248, 0.95),
+    0 0 78px rgba(245, 158, 11, 0.42) !important;
+  transform: translateZ(0) scale(1.018);
+  transition:
+    outline 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease !important;
+  animation: vsTourSpotlightPulse 1.35s ease-in-out infinite;
+}
+
+@keyframes vsTourSpotlightPulse {
+  0%, 100% {
+    outline-color: rgba(56, 189, 248, 1);
+    box-shadow:
+      0 0 0 9999px rgba(2, 6, 23, 0.66),
+      0 0 0 10px rgba(56, 189, 248, 0.35),
+      0 0 36px rgba(56, 189, 248, 0.95),
+      0 0 78px rgba(245, 158, 11, 0.42);
+  }
+
+  50% {
+    outline-color: rgba(251, 191, 36, 1);
+    box-shadow:
+      0 0 0 9999px rgba(2, 6, 23, 0.64),
+      0 0 0 12px rgba(251, 191, 36, 0.38),
+      0 0 42px rgba(251, 191, 36, 0.96),
+      0 0 90px rgba(56, 189, 248, 0.45);
+  }
+}
+
+.vs-tour-section-label {
+  display: inline-flex;
+  width: fit-content;
+  margin: 4px 28px 10px;
+  border: 1px solid rgba(56, 189, 248, 0.44);
+  background: rgba(14, 165, 233, 0.15);
+  color: rgba(224, 242, 254, 0.98);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vs-tour-benefits {
+  display: grid;
+  gap: 8px;
+  margin: 14px 28px 0;
+}
+
+.vs-tour-benefit {
+  border: 1px solid rgba(251, 191, 36, 0.36);
+  background: rgba(245, 158, 11, 0.12);
+  color: rgba(255, 251, 235, 0.95);
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vs-tour-benefit strong {
+  color: #fef3c7;
+}
+
+.vs-tour-disclosure {
+  margin: 12px 28px 0;
+  color: rgba(186, 230, 253, 0.84);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.vs-tour-card {
+  max-width: min(790px, calc(100vw - 28px));
+  border-color: rgba(56, 189, 248, 0.32) !important;
+  box-shadow:
+    0 28px 90px rgba(2, 6, 23, 0.58),
+    0 0 46px rgba(56, 189, 248, 0.14) !important;
+}
+
+.vs-tour-body {
+  line-height: 1.68;
+}
 }
