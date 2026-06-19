@@ -1677,4 +1677,103 @@ body {
 .vs-tour-body {
   line-height: 1.68;
 }
+
+  /* Deterministic Nova guided tour spotlight */
+.vs-tour-screen-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background:
+    radial-gradient(circle at center, rgba(15, 23, 42, 0.28), rgba(2, 6, 23, 0.72));
+  pointer-events: none;
+}
+
+.vs-tour-spotlight-box {
+  position: fixed;
+  z-index: 10006;
+  pointer-events: none;
+  border-radius: 22px;
+  outline: 5px solid rgba(56, 189, 248, 1);
+  box-shadow:
+    0 0 0 7px rgba(255, 255, 255, 0.20),
+    0 0 0 14px rgba(56, 189, 248, 0.34),
+    0 0 40px rgba(56, 189, 248, 1),
+    0 0 90px rgba(245, 158, 11, 0.68);
+  animation: vsTourSpotlightPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes vsTourSpotlightPulse {
+  0%, 100% {
+    outline-color: rgba(56, 189, 248, 1);
+    box-shadow:
+      0 0 0 7px rgba(255, 255, 255, 0.20),
+      0 0 0 14px rgba(56, 189, 248, 0.34),
+      0 0 40px rgba(56, 189, 248, 1),
+      0 0 90px rgba(245, 158, 11, 0.68);
+  }
+
+  50% {
+    outline-color: rgba(251, 191, 36, 1);
+    box-shadow:
+      0 0 0 8px rgba(255, 255, 255, 0.24),
+      0 0 0 16px rgba(251, 191, 36, 0.40),
+      0 0 48px rgba(251, 191, 36, 1),
+      0 0 105px rgba(56, 189, 248, 0.72);
+  }
+}
+
+.vs-tour-section-label {
+  display: inline-flex;
+  width: fit-content;
+  margin: 4px 28px 10px;
+  border: 1px solid rgba(56, 189, 248, 0.44);
+  background: rgba(14, 165, 233, 0.15);
+  color: rgba(224, 242, 254, 0.98);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vs-tour-benefits {
+  display: grid;
+  gap: 8px;
+  margin: 14px 28px 0;
+}
+
+.vs-tour-benefit {
+  border: 1px solid rgba(251, 191, 36, 0.36);
+  background: rgba(245, 158, 11, 0.12);
+  color: rgba(255, 251, 235, 0.95);
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vs-tour-benefit strong {
+  color: #fef3c7;
+}
+
+.vs-tour-disclosure {
+  margin: 12px 28px 0;
+  color: rgba(186, 230, 253, 0.84);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.vs-tour-card {
+  max-width: min(790px, calc(100vw - 28px));
+  border-color: rgba(56, 189, 248, 0.32) !important;
+  box-shadow:
+    0 28px 90px rgba(2, 6, 23, 0.72),
+    0 0 46px rgba(56, 189, 248, 0.18) !important;
+}
+
+.vs-tour-body {
+  line-height: 1.68;
+}
 }
