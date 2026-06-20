@@ -367,6 +367,10 @@ export default function ExecutiveWorkspace() {
       ]}
     >
       <style>{`
+        [data-tour] {
+          scroll-margin: 120px;
+        }
+
         .workspace-toolbar {
           display: grid;
           grid-template-columns: minmax(0, 1fr) auto;
@@ -627,7 +631,7 @@ export default function ExecutiveWorkspace() {
         title="Workspace Navigation"
         subtitle="The workspace is now the home base. Use tabs for workflow; use deep tools only when needed."
       >
-        <div className="workspace-tabs">
+        <div className="workspace-tabs" data-tour="workspace-tabs">
           {workspaceTabs.map((tab) => (
             <button
               key={tab.key}
@@ -643,7 +647,7 @@ export default function ExecutiveWorkspace() {
         </div>
       </SectionCard>
 
-      <div className="vs-grid-4">
+      <div className="vs-grid-4" data-tour="workspace-kpis">
         <StatCard
           label="Workspace Readiness"
           value={`${workspaceReadinessScore || 0}%`}
@@ -677,7 +681,7 @@ export default function ExecutiveWorkspace() {
           {activeTab === "home" ? (
             <div className="workspace-grid">
               <div className="workspace-stack">
-                <div className="workspace-command-card">
+                <div className="workspace-command-card" data-tour="workspace-command">
                   <div className="workspace-command-top">
                     <div>
                       <h2 className="workspace-command-title">
@@ -720,47 +724,40 @@ export default function ExecutiveWorkspace() {
                     </div>
                   </div>
 
-                  <div className="workspace-actions">
-                    <Link className="vs-button" to="/platform-tour">
-                      ▶ Start Guided Tour
-                    </Link>
-
-                    <Link
-                      className="vs-button vs-button-secondary"
-                      to="/platform-tour?mode=admin"
+                  <div className="workspace-actions" data-tour="workspace-actions">
+                    <button
+                      className="vs-button"
+                      onClick={() => setActiveTab("launch")}
                     >
-                      Admin Tour
-                    </Link>
-
+                      Review Launch Gate
+                    </button>
                     <button
                       className="vs-button vs-button-secondary"
                       onClick={() => setActiveTab("intelligence")}
                     >
                       Intelligence
                     </button>
-
                     <button
                       className="vs-button vs-button-secondary"
                       onClick={() => setActiveTab("operations")}
                     >
                       Operations
                     </button>
-
                     <button
                       className="vs-button vs-button-secondary"
                       onClick={() => setActiveTab("revenue")}
                     >
                       Revenue
                     </button>
-
                     <Link className="vs-button vs-button-secondary" to="/search">
                       Universal Search
                     </Link>
                   </div>
                 </div>
 
-                <SectionCard
-                  title="What To Do Next"
+                <div data-tour="workspace-next-actions">
+                  <SectionCard
+                    title="What To Do Next"
                   subtitle="Priority actions generated from launch readiness and workspace pressure."
                   right={
                     <Badge tone={launchActions.length ? "demo" : "active"}>
@@ -822,11 +819,13 @@ export default function ExecutiveWorkspace() {
                       <EmptyState text="No priority actions detected." />
                     )}
                   </div>
-                </SectionCard>
+                  </SectionCard>
+                </div>
               </div>
               
-              <SectionCard
-                title="Executive Activity Feed"
+              <div data-tour="workspace-activity-feed">
+                <SectionCard
+                  title="Executive Activity Feed"
                 subtitle="Recent CRM, task, report, revenue, and notification activity."
                 right={<Badge tone={workspaceActivity.length ? "accent" : "active"}>{workspaceActivity.length}</Badge>}
               >
@@ -859,14 +858,15 @@ export default function ExecutiveWorkspace() {
                     ))
                   )}
                 </div>
-              </SectionCard>
+                </SectionCard>
+              </div>
 
               <div className="workspace-stack">
                 <SectionCard
                   title="Operating Status"
                   subtitle="Launch, database, feeds, risk, and revenue health."
                 >
-                  <div className="workspace-status-grid">
+                  <div className="workspace-status-grid" data-tour="workspace-operating-status">
                     <Link className="workspace-module-card" to="/launch-readiness">
                       <h3>Launch Gate</h3>
                       <p>{launchSummary.launch_decision || "Launch readiness not loaded."}</p>
@@ -901,7 +901,8 @@ export default function ExecutiveWorkspace() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Quick Tools" subtitle="Use only when deeper review is needed.">
+                <div data-tour="workspace-quick-tools">
+                  <SectionCard title="Quick Tools" subtitle="Use only when deeper review is needed.">
                   <div className="workspace-status-grid">
                     <Link className="workspace-module-card" to="/notifications">
                       <h3>Notifications</h3>
@@ -914,13 +915,14 @@ export default function ExecutiveWorkspace() {
                       <Badge tone={summary.open_tasks ? "demo" : "active"}>Tasks</Badge>
                     </Link>
                   </div>
-                </SectionCard>
+                  </SectionCard>
+                </div>
               </div>
             </div>
           ) : null}
 
           {activeTab === "launch" ? (
-            <div className="workspace-grid">
+            <div className="workspace-grid" data-tour="workspace-launch">
               <div className="workspace-stack">
                 <SectionCard
                   title="Launch Readiness Gates"
@@ -1328,5 +1330,4 @@ export default function ExecutiveWorkspace() {
     </PageShell>
   );
 }
-
 
