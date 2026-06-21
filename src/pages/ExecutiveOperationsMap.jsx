@@ -462,6 +462,30 @@ function openPath(path) {
   window.location.href = path;
 }
 
+function buildCommandCenterUrl(state, context = {}) {
+  const code = String(state?.state || state?.state_code || context.state || "").toUpperCase();
+  const params = new URLSearchParams();
+
+  params.set("source", "executive-map");
+  if (code) params.set("state", code);
+  if (state?.risk_label) params.set("risk", state.risk_label);
+  if (state?.region) params.set("region", state.region);
+  if (state?.battleground) params.set("battleground", "1");
+  if (state?.is_baseline) params.set("data", "baseline");
+  else params.set("data", "live");
+
+  if (context.action) params.set("action", context.action);
+  if (context.layer) params.set("layer", context.layer);
+  if (context.county) params.set("county", context.county);
+  if (context.priority) params.set("priority", context.priority);
+
+  return `/command-center?${params.toString()}`;
+}
+
+function openCommandCenterFromState(state, context = {}) {
+  openPath(buildCommandCenterUrl(state, context));
+}
+
 function ThreatMetric({ label, value, tone = "neutral", subtext }) {
   return (
     <div className={`ops-threat-metric ${tone}`}>
@@ -561,6 +585,9 @@ function CountyIntelRow({ item, onCreateTask }) {
       <div className="county-intel-actions">
         <button type="button" onClick={() => openPath(`/state-operations/${item.state_code || item.state}`)}>
           Open Drilldown
+        </button>
+        <button type="button" onClick={() => openPath(buildCommandCenterUrl({ state: item.state_code || item.state, risk_label: item.risk }, { action: "county-escalation", county: item.name, priority: item.risk }))}>
+          Command Center
         </button>
         <button type="button" onClick={() => onCreateTask(item)} disabled={isActive}>
           {isActive ? "Task Active" : "Create Task"}
@@ -724,7 +751,7 @@ function ExecutiveStateDrilldown({ selected, overlay, layer, onRefresh }) {
         </div>
 
         <div className="ops-drilldown-buttons">
-          <button type="button" onClick={() => openPath("/command-center")}>Open Command Center</button>
+          <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "state-drilldown", layer })}>Open Command Center</button>
           <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>County Drilldown</button>
           <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>Vendor Coverage</button>
           <button type="button" onClick={() => openPath("/warroom")}>War Room</button>
@@ -777,7 +804,7 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
           </div>
 
           <div className="ops-action-grid">
-            <button type="button" onClick={() => openPath("/command-center")}>Open Command Center</button>
+            <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "intel-panel", layer })}>Open Command Center</button>
             <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>View Vendors</button>
             <button type="button" onClick={() => openPath("/warroom")}>Escalate War Room</button>
             <button type="button" onClick={onRefresh}>Refresh Intel</button>
@@ -1953,7 +1980,8 @@ export default function ExecutiveOperationsMap() {
 
           .ops-signal-summary,
           .ops-drilldown-hero,
-          .ops-drilldown-grid {
+          .ops-drilldown-grid,
+          .ops-command-handoff {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 10px;
@@ -2146,6 +2174,72 @@ export default function ExecutiveOperationsMap() {
           cursor: pointer;
         }
 
+
+        .ops-command-handoff {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .ops-command-handoff > div {
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .ops-command-handoff span {
+          display: block;
+          color: rgba(203, 213, 225, 0.68);
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ops-command-handoff strong {
+          display: block;
+          margin-top: 6px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .ops-command-handoff small {
+          display: block;
+          margin-top: 5px;
+          color: rgba(203, 213, 225, 0.66);
+          font-size: 11px;
+          line-height: 1.35;
+        }
+
+        .ops-command-handoff-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          align-content: flex-start;
+        }
+
+        .ops-command-handoff-actions button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .ops-command-handoff-actions button:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+
         .ops-drilldown-buttons button:hover {
           border-color: rgba(96, 165, 250, 0.48);
           background: rgba(37, 99, 235, 0.24);
@@ -2180,7 +2274,8 @@ export default function ExecutiveOperationsMap() {
           .county-intel-grid,
           .ops-signal-summary,
           .ops-drilldown-hero,
-          .ops-drilldown-grid {
+          .ops-drilldown-grid,
+          .ops-command-handoff {
             grid-template-columns: 1fr;
           }
         }
@@ -2336,6 +2431,47 @@ export default function ExecutiveOperationsMap() {
           layer={layer}
           onRefresh={() => load({ quiet: true })}
         />
+      </div>
+
+      <div data-tour="operations-command-handoff">
+        <SectionCard
+          title="Command Center Handoff"
+          subtitle="Move the selected state from map intelligence into tasking, escalation review, and execution ownership."
+          right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.state} handoff</Badge> : null}
+        >
+          {!selected ? (
+            <EmptyState text="Select a state to create a Command Center handoff." />
+          ) : (
+            <div className="ops-command-handoff">
+              <div>
+                <span>Selected State</span>
+                <strong>{selected.state}</strong>
+                <small>{selected.region || "National"} • {getStateDataSourceLabel(selected)}</small>
+              </div>
+              <div>
+                <span>Priority</span>
+                <strong>{selected.risk_label}</strong>
+                <small>Layer value {getLayerValue(selected, layer)}</small>
+              </div>
+              <div>
+                <span>Recommended Path</span>
+                <strong>{selected.battleground ? "Battleground Review" : "Operational Review"}</strong>
+                <small>{selected.active_task_count || 0} active tasks • {overlayLookup[selected.state]?.total_signals || 0} signals</small>
+              </div>
+              <div className="ops-command-handoff-actions">
+                <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "map-handoff", layer })}>
+                  Open Filtered Command Center
+                </button>
+                <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>
+                  County Drilldown
+                </button>
+                <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>
+                  Vendor Coverage
+                </button>
+              </div>
+            </div>
+          )}
+        </SectionCard>
       </div>
 
       <div data-tour="operations-county-drawer">
