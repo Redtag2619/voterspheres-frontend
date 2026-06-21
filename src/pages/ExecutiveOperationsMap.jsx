@@ -382,6 +382,58 @@ function getIndicatorLabel(layer) {
   return "score";
 }
 
+function getBattlegroundIntensity(state, overlay) {
+  if (!state?.battleground) return 0;
+
+  const base = Number(state.operational_score || 0);
+  const signalBoost = Math.min(16, Number(overlay?.total_signals || 0) * 2);
+  const taskBoost = Number(state.active_task_count || 0) > 0 ? 10 : 0;
+  const criticalBoost = String(state.risk_label || "").toLowerCase() === "critical" ? 10 : 0;
+
+  return clampScore(base + signalBoost + taskBoost + criticalBoost);
+}
+
+function getBattlegroundClass(state, overlay) {
+  const intensity = getBattlegroundIntensity(state, overlay);
+  if (!intensity) return "";
+  if (intensity >= 88) return "pulse-critical";
+  if (intensity >= 72) return "pulse-high";
+  return "pulse-watch";
+}
+
+function getStateOpportunityScore(state, overlay) {
+  if (!state) return 0;
+
+  const pressure = Number(state.operational_score || 0);
+  const electoral = Math.min(20, Number(state.electoral_votes || 0) / 2);
+  const signal = Math.min(20, Number(overlay?.total_signals || 0) * 3);
+  const battleground = state.battleground ? 18 : 4;
+  const live = state.is_baseline ? 0 : 8;
+
+  return clampScore(Math.round(pressure * 0.45 + electoral + signal + battleground + live));
+}
+
+function getStateDrilldownAction(state, overlay) {
+  if (!state) return "Select a state to view executive drilldown.";
+
+  const risk = String(state.risk_label || "").toLowerCase();
+  const opportunity = getStateOpportunityScore(state, overlay);
+
+  if (risk === "critical" || opportunity >= 82) {
+    return `Escalate ${state.state}: activate Command Center review, inspect county heat, validate vendor readiness, and assign an owner for the next action.`;
+  }
+
+  if (risk === "high" || state.battleground) {
+    return `Prioritize ${state.state}: monitor signal movement, check county pressure, and prepare vendor and outreach coverage.`;
+  }
+
+  if (risk === "elevated") {
+    return `Monitor ${state.state}: keep this state on the watch list and review changes during the next live refresh.`;
+  }
+
+  return `Maintain ${state.state}: keep baseline monitoring active and revisit if signals, turnout, or vendor pressure increases.`;
+}
+
 function getRecommendation(state) {
   if (!state) return "Select a state to generate an executive recommendation.";
 
@@ -609,6 +661,80 @@ function CountyIntelligenceDrawer({
   );
 }
 
+function ExecutiveStateDrilldown({ selected, overlay, layer, onRefresh }) {
+  if (!selected) {
+    return (
+      <SectionCard
+        title="Executive State Drilldown"
+        subtitle="Select any state to open the executive drilldown."
+      >
+        <EmptyState text="Select a state from the map." />
+      </SectionCard>
+    );
+  }
+
+  const opportunity = getStateOpportunityScore(selected, overlay);
+  const battlegroundIntensity = getBattlegroundIntensity(selected, overlay);
+  const sourceLabel = getStateDataSourceLabel(selected);
+
+  return (
+    <SectionCard
+      title={`${selected.state} Executive State Drilldown`}
+      subtitle={`${selected.region || "National"} • ${selected.electoral_votes || 0} electoral votes • ${sourceLabel}`}
+      right={
+        <div className="ops-state-actions">
+          {selected.battleground ? <Badge tone="danger">Battleground Pulse</Badge> : null}
+          <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge>
+        </div>
+      }
+    >
+      <div className={`ops-drilldown-shell ${selected.battleground ? "is-battleground" : ""}`}>
+        <div className="ops-drilldown-hero">
+          <div>
+            <span>Executive Score</span>
+            <strong>{fmtDecimal(selected.operational_score)}</strong>
+            <small>{selected.is_baseline ? "Modeled baseline until live data is available" : "Live operational data active"}</small>
+          </div>
+          <div>
+            <span>Opportunity</span>
+            <strong>{opportunity}</strong>
+            <small>Composite growth and campaign pressure score</small>
+          </div>
+          <div>
+            <span>Pulse</span>
+            <strong>{battlegroundIntensity || "—"}</strong>
+            <small>{selected.battleground ? "Battleground intensity" : "Non-battleground watch"}</small>
+          </div>
+        </div>
+
+        <div className="ops-drilldown-grid">
+          <div><span>County Heat</span><strong>{fmtDecimal(selected.max_county_heat_score || 0)}</strong></div>
+          <div><span>Active Tasks</span><strong>{selected.active_task_count || 0}</strong></div>
+          <div><span>Vendor Gaps</span><strong>{selected.vendors_scored || 0}</strong></div>
+          <div><span>MailOps</span><strong>{selected.mail_jobs || 0}</strong></div>
+          <div><span>Political Signals</span><strong>{overlay?.total_signals || 0}</strong></div>
+          <div><span>News Signals</span><strong>{overlay?.news_signals || 0}</strong></div>
+          <div><span>FEC Signals</span><strong>{overlay?.fec_signals || 0}</strong></div>
+          <div><span>Layer Value</span><strong>{getLayerValue(selected, layer)}</strong></div>
+        </div>
+
+        <div className="ops-drilldown-action">
+          <span>Recommended Executive Action</span>
+          <p>{getStateDrilldownAction(selected, overlay)}</p>
+        </div>
+
+        <div className="ops-drilldown-buttons">
+          <button type="button" onClick={() => openPath("/command-center")}>Open Command Center</button>
+          <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>County Drilldown</button>
+          <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>Vendor Coverage</button>
+          <button type="button" onClick={() => openPath("/warroom")}>War Room</button>
+          <button type="button" onClick={onRefresh}>Refresh State Intel</button>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
 function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefresh }) {
   const stateAlerts = alerts.filter((item) => !selected?.state || item.state === selected.state).slice(0, 4);
 
@@ -703,11 +829,12 @@ function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelec
   const isSelected = selected?.state === abbr;
   const hasLiveData = Boolean(state || overlay);
   const layerLabel = getIndicatorLabel(layer);
+  const pulseClass = getBattlegroundClass(state, overlay);
 
   return (
     <Marker coordinates={coords}>
       <g
-        className={`ops-map-state-marker ${tone} ${isSelected ? "is-selected" : ""} ${hasLiveData ? "has-data" : "no-data"}`}
+        className={`ops-map-state-marker ${tone} ${pulseClass} ${isSelected ? "is-selected" : ""} ${hasLiveData ? "has-data" : "no-data"}`}
         onClick={() => onSelectState?.(abbr)}
         role="button"
         tabIndex={0}
@@ -716,6 +843,12 @@ function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelec
           if (event.key === "Enter" || event.key === " ") onSelectState?.(abbr);
         }}
       >
+        {pulseClass ? (
+          <>
+            <circle className="ops-map-state-battle-pulse one" r={22} />
+            <circle className="ops-map-state-battle-pulse two" r={30} />
+          </>
+        ) : null}
         <circle className="ops-map-state-marker-pulse" r={16} fill={color} opacity={0.22} />
         <circle r={12.5} fill={color} stroke="rgba(255,255,255,0.86)" strokeWidth={1.25} />
         <text className="ops-map-state-marker-abbr" textAnchor="middle" y={-2.8}>{abbr}</text>
@@ -995,6 +1128,19 @@ export default function ExecutiveOperationsMap() {
   const rankedStates = useMemo(() => {
     return [...states].sort((a, b) => Number(b.operational_score || 0) - Number(a.operational_score || 0));
   }, [states]);
+
+  const battlegroundStates = useMemo(() => {
+    return states
+      .filter((item) => item.battleground)
+      .map((item) => ({
+        ...item,
+        battleground_intensity: getBattlegroundIntensity(item, overlayLookup[item.state]),
+        opportunity_score: getStateOpportunityScore(item, overlayLookup[item.state]),
+        signal_count: overlayLookup[item.state]?.total_signals || 0,
+        signal_risk: overlayLookup[item.state]?.overlay_risk || "Stable",
+      }))
+      .sort((a, b) => Number(b.battleground_intensity || 0) - Number(a.battleground_intensity || 0));
+  }, [states, overlayLookup]);
 
   const urgentStates = states.filter((s) => ["Critical", "High"].includes(s.risk_label));
   const criticalStates = states.filter((s) => String(s.risk_label).toLowerCase() === "critical");
@@ -1812,7 +1958,9 @@ export default function ExecutiveOperationsMap() {
 
         [data-tour] { scroll-margin: 120px; }
 
-          .ops-signal-summary {
+          .ops-signal-summary,
+          .ops-drilldown-hero,
+          .ops-drilldown-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 10px;
@@ -1895,6 +2043,138 @@ export default function ExecutiveOperationsMap() {
           font-size: 11px;
         }
 
+
+        .ops-map-state-battle-pulse {
+          fill: none;
+          stroke: rgba(251,191,36,0.74);
+          stroke-width: 2;
+          opacity: 0.75;
+          transform-origin: center;
+          animation: opsBattlegroundPulse 1.55s ease-in-out infinite;
+        }
+
+        .ops-map-state-battle-pulse.two {
+          animation-delay: 0.55s;
+          stroke: rgba(248,113,113,0.68);
+        }
+
+        .ops-map-state-marker.pulse-critical .ops-map-state-battle-pulse { stroke: rgba(248,113,113,0.9); }
+        .ops-map-state-marker.pulse-high .ops-map-state-battle-pulse { stroke: rgba(251,191,36,0.84); }
+        .ops-map-state-marker.pulse-watch .ops-map-state-battle-pulse { stroke: rgba(96,165,250,0.72); }
+
+        @keyframes opsBattlegroundPulse {
+          0% { opacity: 0.78; transform: scale(0.72); }
+          70% { opacity: 0.05; transform: scale(1.42); }
+          100% { opacity: 0; transform: scale(1.55); }
+        }
+
+        .ops-drilldown-shell {
+          display: grid;
+          gap: 14px;
+        }
+
+        .ops-drilldown-shell.is-battleground {
+          border-radius: 24px;
+          border: 1px solid rgba(251, 191, 36, 0.22);
+          background:
+            radial-gradient(circle at top right, rgba(251,191,36,0.12), transparent 32%),
+            rgba(15,23,42,0.28);
+          padding: 14px;
+        }
+
+        .ops-drilldown-hero {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .ops-drilldown-hero div,
+        .ops-drilldown-grid div,
+        .ops-drilldown-action {
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+        }
+
+        .ops-drilldown-hero span,
+        .ops-drilldown-grid span,
+        .ops-drilldown-action span {
+          display: block;
+          color: rgba(203, 213, 225, 0.68);
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ops-drilldown-hero strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: 34px;
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.06em;
+        }
+
+        .ops-drilldown-hero small {
+          display: block;
+          margin-top: 6px;
+          color: rgba(203,213,225,0.66);
+          font-size: 11px;
+          line-height: 1.35;
+        }
+
+        .ops-drilldown-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .ops-drilldown-grid strong {
+          display: block;
+          margin-top: 5px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+        }
+
+        .ops-drilldown-action {
+          border-color: rgba(96, 165, 250, 0.2);
+          background: linear-gradient(135deg, rgba(37,99,235,0.16), rgba(2,6,23,0.32));
+        }
+
+        .ops-drilldown-action p {
+          margin: 8px 0 0;
+          color: rgba(226,232,240,0.9);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .ops-drilldown-buttons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .ops-drilldown-buttons button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .ops-drilldown-buttons button:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
         @media (max-width: 1150px) {
           .ops-command-layout,
           .ops-threat-matrix {
@@ -1921,7 +2201,9 @@ export default function ExecutiveOperationsMap() {
           .ops-action-grid,
           .county-drawer-summary,
           .county-intel-grid,
-          .ops-signal-summary {
+          .ops-signal-summary,
+          .ops-drilldown-hero,
+          .ops-drilldown-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -2070,6 +2352,15 @@ export default function ExecutiveOperationsMap() {
         </SectionCard>
       </div>
 
+      <div data-tour="operations-state-drilldown">
+        <ExecutiveStateDrilldown
+          selected={selected}
+          overlay={selected ? overlayLookup[selected.state] : null}
+          layer={layer}
+          onRefresh={() => load({ quiet: true })}
+        />
+      </div>
+
       <div data-tour="operations-county-drawer">
         <CountyIntelligenceDrawer
         selected={selected}
@@ -2170,6 +2461,44 @@ export default function ExecutiveOperationsMap() {
           </div>
           </SectionCard>
         </div>
+      </div>
+
+      <div data-tour="operations-battleground-pulse">
+        <SectionCard
+          title="Battleground Pulse Layer"
+          subtitle="High-impact states ranked by operating pressure, opportunity, live signals, and electoral importance."
+          right={<Badge tone="danger">{battlegroundStates.length} pulse states</Badge>}
+        >
+          <div className="vs-stack">
+            {!battlegroundStates.length ? (
+              <EmptyState text="No battleground pulse states available." />
+            ) : (
+              battlegroundStates.slice(0, 10).map((item) => (
+                <div key={item.state} className={`ops-row ${riskClass(item.risk_label)}`}>
+                  <ResponsiveRow
+                    title={`${item.state} Battleground Pulse`}
+                    subtitle={`${item.region || "National"} • ${item.electoral_votes || 0} electoral votes • ${getStateDataSourceLabel(item)}`}
+                    meta={[
+                      { label: "Pulse", value: item.battleground_intensity || 0 },
+                      { label: "Opportunity", value: item.opportunity_score || 0 },
+                      { label: "Risk", value: item.risk_label },
+                      { label: "Signals", value: item.signal_count || 0 },
+                      { label: "County Heat", value: fmtDecimal(item.max_county_heat_score || 0) },
+                    ]}
+                    right={
+                      <div className="ops-state-actions">
+                        <Badge tone={riskTone(item.risk_label)}>{item.risk_label}</Badge>
+                        <button type="button" className="vs-decision-btn deploy" onClick={() => setSelectedState(item)}>
+                          Drilldown
+                        </button>
+                      </div>
+                    }
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        </SectionCard>
       </div>
 
       <div data-tour="operations-signal-overlay">
