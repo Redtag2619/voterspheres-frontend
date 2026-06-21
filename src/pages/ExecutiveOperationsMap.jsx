@@ -829,12 +829,11 @@ function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelec
   const isSelected = selected?.state === abbr;
   const hasLiveData = Boolean(state || overlay);
   const layerLabel = getIndicatorLabel(layer);
-  const pulseClass = getBattlegroundClass(state, overlay);
 
   return (
     <Marker coordinates={coords}>
       <g
-        className={`ops-map-state-marker ${tone} ${pulseClass} ${isSelected ? "is-selected" : ""} ${hasLiveData ? "has-data" : "no-data"}`}
+        className={`ops-map-state-marker ${tone} ${isSelected ? "is-selected" : ""} ${hasLiveData ? "has-data" : "no-data"}`}
         onClick={() => onSelectState?.(abbr)}
         role="button"
         tabIndex={0}
