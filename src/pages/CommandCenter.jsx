@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -150,6 +150,52 @@ function isVendorTask(task) {
   const source = String(task.source || metadata.source || task.category || task.type || "").toLowerCase();
   const title = getTaskTitle(task).toLowerCase();
   return source.includes("vendor") || title.includes("vendor");
+}
+
+
+function getTaskStateCode(task) {
+  const metadata = getTaskMetadata(task);
+  return String(
+    task.state ||
+      task.state_code ||
+      task.stateCode ||
+      metadata.state ||
+      metadata.state_code ||
+      metadata.stateCode ||
+      ""
+  ).toUpperCase();
+}
+
+function getTaskCountyName(task) {
+  const metadata = getTaskMetadata(task);
+  return String(task.county || task.county_name || metadata.county || metadata.county_name || "");
+}
+
+function stateMatchesTask(task, stateCode) {
+  const code = String(stateCode || "").toUpperCase();
+  if (!code) return true;
+
+  const taskState = getTaskStateCode(task);
+  if (taskState === code) return true;
+
+  const searchable = [
+    getTaskTitle(task),
+    getTaskDescription(task),
+    task.source,
+    task.category,
+    task.type,
+    JSON.stringify(getTaskMetadata(task)),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
+
+  return searchable.includes(` ${code} `) || searchable.includes(`${code}:`) || searchable.includes(`${code} `);
+}
+
+function buildMapReturnUrl(stateCode) {
+  const code = String(stateCode || "").toUpperCase();
+  return code ? `/operations-map?state=${code}&source=command-center` : "/operations-map";
 }
 
 function isMailOpsTask(task) {
@@ -792,6 +838,7 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
 }
 
 export default function CommandCenter() {
+  const [searchParams] = useSearchParams();
   const [commandData, setCommandData] = useState(fallbackData);
   const [commandLoading, setCommandLoading] = useState(true);
   const [commandError, setCommandError] = useState("");
@@ -818,6 +865,16 @@ export default function CommandCenter() {
   const [taskSyncMessage, setTaskSyncMessage] = useState("");
 
   const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
+
+  const mapBridgeState = String(searchParams.get("state") || "").toUpperCase();
+  const mapBridgeSource = searchParams.get("source") || "";
+  const mapBridgeAction = searchParams.get("action") || "";
+  const mapBridgeRisk = searchParams.get("risk") || "";
+  const mapBridgeLayer = searchParams.get("layer") || "";
+  const mapBridgeRegion = searchParams.get("region") || "";
+  const mapBridgeData = searchParams.get("data") || "";
+  const mapBridgeCounty = searchParams.get("county") || "";
+  const isExecutiveMapBridge = mapBridgeSource === "executive-map" && Boolean(mapBridgeState);
 
   async function loadCommandData() {
     if (demoMode) {
@@ -1019,7 +1076,9 @@ export default function CommandCenter() {
     return tasks.filter((task) => {
       const status = getTaskStatus(task);
       const priority = getTaskPriority(task);
+      const stateMatch = !isExecutiveMapBridge || stateMatchesTask(task, mapBridgeState);
 
+      if (!stateMatch) return false;
       if (taskFilter === "county") return isCountyEscalationTask(task);
       if (taskFilter === "vendor") return isVendorTask(task);
       if (taskFilter === "mailops") return isMailOpsTask(task);
@@ -1029,7 +1088,12 @@ export default function CommandCenter() {
 
       return true;
     });
-  }, [tasks, taskFilter]);
+  }, [tasks, taskFilter, isExecutiveMapBridge, mapBridgeState]);
+
+  const mapBridgeTasks = useMemo(
+    () => (mapBridgeState ? tasks.filter((task) => stateMatchesTask(task, mapBridgeState)) : []),
+    [tasks, mapBridgeState]
+  );
 
   const countyEscalationTasks = useMemo(() => filteredTasks.filter(isCountyEscalationTask), [filteredTasks]);
   const standardTasks = useMemo(() => filteredTasks.filter((task) => !isCountyEscalationTask(task)), [filteredTasks]);
@@ -1048,6 +1112,60 @@ export default function CommandCenter() {
       demoText="Demo Command Center data is active."
     >
       <style>{`
+
+        .map-bridge-banner {
+          border: 1px solid rgba(96, 165, 250, 0.28);
+          background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 32%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.68));
+          border-radius: 24px;
+          padding: 18px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 16px;
+          align-items: center;
+          box-shadow: 0 18px 44px rgba(2, 6, 23, 0.18);
+        }
+
+        .map-bridge-banner h3 {
+          margin: 0;
+          color: var(--vs-text);
+          font-size: 20px;
+          letter-spacing: -0.04em;
+        }
+
+        .map-bridge-banner p {
+          margin: 7px 0 0;
+          color: var(--vs-muted);
+          line-height: 1.5;
+          max-width: 920px;
+        }
+
+        .map-bridge-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .map-bridge-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          justify-content: flex-end;
+        }
+
+        @media (max-width: 900px) {
+          .map-bridge-banner {
+            grid-template-columns: 1fr;
+          }
+
+          .map-bridge-actions {
+            justify-content: flex-start;
+          }
+        }
+
+
         [data-tour] {
           scroll-margin: 120px;
         }
@@ -1322,6 +1440,39 @@ export default function CommandCenter() {
         </div>
       ) : null}
 
+      {isExecutiveMapBridge ? (
+        <div className="map-bridge-banner" data-tour="command-map-bridge">
+          <div>
+            <h3>{mapBridgeState} Executive Map Handoff</h3>
+            <p>
+              This Command Center view is filtered from the Executive Operations Map. Review related execution tasks,
+              county escalations, vendor gaps, alerts, and recommended follow-up for the selected state.
+            </p>
+            <div className="map-bridge-meta">
+              <Badge tone={mapBridgeRisk ? "danger" : "accent"}>{mapBridgeRisk || "Operational Review"}</Badge>
+              <Badge tone="accent">{mapBridgeAction || "map-handoff"}</Badge>
+              {mapBridgeLayer ? <Badge tone="info">Layer: {mapBridgeLayer}</Badge> : null}
+              {mapBridgeRegion ? <Badge tone="default">{mapBridgeRegion}</Badge> : null}
+              {mapBridgeData ? <Badge tone={mapBridgeData === "live" ? "active" : "warning"}>{mapBridgeData} data</Badge> : null}
+              {mapBridgeCounty ? <Badge tone="warning">County: {mapBridgeCounty}</Badge> : null}
+              <Badge tone={mapBridgeTasks.length ? "active" : "default"}>{mapBridgeTasks.length} matching tasks</Badge>
+            </div>
+          </div>
+
+          <div className="map-bridge-actions">
+            <Link className="vs-button vs-button-secondary" to={buildMapReturnUrl(mapBridgeState)}>
+              Back to Executive Map
+            </Link>
+            <Link className="vs-button vs-button-secondary" to={`/state-operations/${mapBridgeState}`}>
+              County Drilldown
+            </Link>
+            <Link className="vs-button" to={`/vendors?state=${mapBridgeState}&source=command-center`}>
+              Vendor Coverage
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <div className="command-toolbar">
         <div className="vs-chip-row">
           <Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} high-priority alerts` : "No urgent alerts"}</Badge>
@@ -1372,8 +1523,8 @@ export default function CommandCenter() {
       <div data-tour="command-execution-board">
         <SectionCard
           title="Executive Execution Board"
-          subtitle="Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."
-          right={<Badge tone={filteredTasks.length ? "info" : "default"}>{filteredTasks.length} shown</Badge>}
+          subtitle={isExecutiveMapBridge ? `Tasks filtered from Executive Operations Map for ${mapBridgeState}.` : "Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."}
+          right={<Badge tone={filteredTasks.length ? "info" : "default"}>{isExecutiveMapBridge ? `${filteredTasks.length} ${mapBridgeState} shown` : `${filteredTasks.length} shown`}</Badge>}
         >
           {tasksLoading ? (
             <EmptyState text="Loading execution board..." />
@@ -1403,7 +1554,7 @@ export default function CommandCenter() {
                   ))}
                 </div>
               ) : countyEscalationTasks.length ? null : (
-                <EmptyState text="No tasks match the selected filter." />
+                <EmptyState text={isExecutiveMapBridge ? `No ${mapBridgeState} tasks match the selected filter yet.` : "No tasks match the selected filter."} />
               )}
             </>
           )}
