@@ -42,6 +42,42 @@ const LAYERS = [
   { id: "signals", label: "Political Signals" },
 ];
 
+const STATE_NAME_TO_ABBR = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
+  colorado: "CO", connecticut: "CT", delaware: "DE", "district of columbia": "DC", florida: "FL",
+  georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN",
+  iowa: "IA", kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME",
+  maryland: "MD", massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
+  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV", "new hampshire": "NH",
+  "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND",
+  ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI",
+  "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT",
+  vermont: "VT", virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI",
+  wyoming: "WY",
+};
+
+const STATE_COORDS = {
+  AL: [-86.8, 32.8], AK: [-150.0, 63.4], AZ: [-111.7, 34.3], AR: [-92.4, 34.9], CA: [-119.7, 37.2],
+  CO: [-105.5, 39.0], CT: [-72.7, 41.6], DE: [-75.5, 39.0], DC: [-77.0, 38.9], FL: [-81.7, 27.8],
+  GA: [-83.4, 32.7], HI: [-157.7, 20.8], ID: [-114.4, 44.2], IL: [-89.4, 40.0], IN: [-86.1, 40.0],
+  IA: [-93.5, 42.1], KS: [-98.4, 38.5], KY: [-84.7, 37.8], LA: [-91.9, 30.9], ME: [-69.0, 45.3],
+  MD: [-76.8, 39.0], MA: [-71.8, 42.2], MI: [-84.8, 44.2], MN: [-94.3, 46.3], MS: [-89.7, 32.7],
+  MO: [-92.5, 38.5], MT: [-110.0, 47.0], NE: [-99.8, 41.5], NV: [-116.6, 39.3], NH: [-71.6, 43.8],
+  NJ: [-74.5, 40.1], NM: [-106.1, 34.4], NY: [-75.5, 43.0], NC: [-79.0, 35.5], ND: [-100.5, 47.5],
+  OH: [-82.8, 40.3], OK: [-97.5, 35.6], OR: [-120.5, 44.0], PA: [-77.7, 41.0], RI: [-71.5, 41.7],
+  SC: [-80.9, 33.8], SD: [-100.2, 44.4], TN: [-86.4, 35.8], TX: [-99.3, 31.3], UT: [-111.7, 39.3],
+  VT: [-72.7, 44.1], VA: [-78.7, 37.6], WA: [-120.7, 47.4], WV: [-80.6, 38.6], WI: [-89.7, 44.6],
+  WY: [-107.6, 43.0],
+};
+
+function resolveStateCode(row = {}) {
+  const raw = String(row.state || row.state_code || row.state_name || "").trim();
+  if (!raw) return "";
+  const upper = raw.toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) return upper;
+  return STATE_NAME_TO_ABBR[raw.toLowerCase()] || upper.slice(0, 2);
+}
+
 function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
 }
@@ -70,7 +106,7 @@ function normalizeRisk(value) {
 }
 
 function normalizeState(row = {}) {
-  const state = row.state || row.state_code;
+  const state = resolveStateCode(row);
 
   return {
     ...row,
@@ -467,6 +503,45 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
   );
 }
 
+
+
+function getMarkerColor(tone) {
+  if (tone === "critical") return "#dc2626";
+  if (tone === "high") return "#ea580c";
+  if (tone === "elevated") return "#ca8a04";
+  if (tone === "signal") return "#2563eb";
+  if (tone === "stable") return "#16a34a";
+  return "#334155";
+}
+
+function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelectState }) {
+  const value = getIndicatorValue(state, overlay, layer);
+  const tone = getIndicatorTone(state, overlay, layer);
+  const color = getMarkerColor(tone);
+  const isSelected = selected?.state === abbr;
+  const hasLiveData = Boolean(state || overlay);
+  const layerLabel = getIndicatorLabel(layer);
+
+  return (
+    <Marker coordinates={coords}>
+      <g
+        className={`ops-map-state-marker ${tone} ${isSelected ? "is-selected" : ""} ${hasLiveData ? "has-data" : "no-data"}`}
+        onClick={() => onSelectState?.(abbr)}
+        role="button"
+        tabIndex={0}
+        aria-label={`${abbr} ${layerLabel} ${value || 0}`}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") onSelectState?.(abbr);
+        }}
+      >
+        <circle className="ops-map-state-marker-pulse" r={16} fill={color} opacity={0.22} />
+        <circle r={12.5} fill={color} stroke="rgba(255,255,255,0.86)" strokeWidth={1.25} />
+        <text className="ops-map-state-marker-abbr" textAnchor="middle" y={-2.8}>{abbr}</text>
+        <text className="ops-map-state-marker-value" textAnchor="middle" y={7.2}>{value || 0}</text>
+      </g>
+    </Marker>
+  );
+}
 
 function SignalBadgeOverlay({ states = [], onSelectState }) {
   const positions = {
