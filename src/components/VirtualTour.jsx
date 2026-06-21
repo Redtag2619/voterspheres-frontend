@@ -6,17 +6,17 @@ const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   "https://voterspheres-backend-2pap.onrender.com";
 
-const ROUTE_WAIT_MS = 900;
-const TARGET_TIMEOUT_MS = 9000;
-const TARGET_POLL_MS = 120;
-const AFTER_SCROLL_MS = 650;
-const BETWEEN_STEPS_MS = 550;
+const ROUTE_SETTLE_MS = 1100;
+const TARGET_TIMEOUT_MS = 9500;
+const TARGET_POLL_MS = 125;
+const CENTER_SETTLE_MS = 900;
+const BETWEEN_STEPS_MS = 700;
 
 const TOUR_STEPS = [
   {
     route: "/executive-workspace",
     page: "Executive Workspace",
-    section: "Command Home",
+    section: "Executive command home",
     heading: "Executive command view",
     label: "Command value",
     target: {
@@ -25,14 +25,14 @@ const TOUR_STEPS = [
       headingText: ["Executive Workspace", "Workspace Command View"],
     },
     narration:
-      "We begin in the Executive Workspace, the operating home for VoterSpheres. This view brings political intelligence, operations, CRM activity, revenue, reports, and next actions into one executive command surface.",
+      "We begin in the Executive Workspace, the operating home for VoterSpheres. This page gives campaigns, consultants, and political teams one command view for intelligence, execution, revenue, reports, and next actions.",
     value:
-      "Leadership gets one place to understand what is happening, what is at risk, and what needs action next.",
+      "Leadership gets a single place to understand what is happening, what is at risk, and what needs action next.",
   },
   {
     route: "/executive-workspace",
     page: "Executive Workspace",
-    section: "Command Home",
+    section: "Executive indicators",
     heading: "Operating KPIs",
     label: "Decision support",
     target: {
@@ -41,30 +41,63 @@ const TOUR_STEPS = [
       headingText: ["Workspace Readiness", "Launch Score", "Pressure Score", "Pipeline"],
     },
     narration:
-      "The operating indicators summarize readiness, pressure, launch posture, and opportunity pipeline. They turn the workspace into a daily leadership screen rather than a static dashboard.",
+      "These operating indicators summarize readiness, launch posture, campaign pressure, and opportunity pipeline. They are designed for a fast executive scan before deeper review.",
     value:
-      "Campaign teams can scan the health of the operation in seconds before deciding where to focus.",
+      "The team can quickly decide where attention should go before opening deeper workflows.",
   },
   {
     route: "/executive-workspace",
     page: "Executive Workspace",
-    section: "Command Home",
+    section: "Action routing",
     heading: "Guided actions",
     label: "Workflow advantage",
     target: {
       dataTour: "workspace-actions",
-      selector: ".workspace-actions, a[href*='tour'], button",
+      selector: ".workspace-actions",
       headingText: ["Start Guided Tour", "Admin Tour", "Universal Search"],
     },
     narration:
-      "The action area moves users directly into intelligence, operations, revenue, universal search, and the guided demo. Every major signal should have a path into the workflow.",
+      "This action area moves users directly into intelligence, operations, revenue, search, and the guided product tour. Every major signal should have a clear path to action.",
     value:
-      "This turns the workspace into an execution launchpad instead of just an overview page.",
+      "The workspace becomes an execution launchpad instead of only a dashboard.",
   },
+  {
+    route: "/executive-workspace",
+    page: "Executive Workspace",
+    section: "Workspace navigation",
+    heading: "Operating tabs",
+    label: "Platform flow",
+    target: {
+      dataTour: "workspace-tabs",
+      selector: ".workspace-tabs",
+      headingText: ["Home", "Launch", "Intelligence", "Operations", "CRM", "Revenue", "Reports", "Tools"],
+    },
+    narration:
+      "The workspace tabs organize the full consulting workflow into launch, intelligence, operations, CRM, revenue, reports, and tools. This keeps the platform connected as one operating system.",
+    value:
+      "Users can move through the business and campaign workflow without feeling like they are switching products.",
+  },
+  {
+    route: "/executive-workspace",
+    page: "Executive Workspace",
+    section: "Operating status",
+    heading: "Operating status grid",
+    label: "Readiness insight",
+    target: {
+      dataTour: "workspace-operating-status",
+      selector: ".workspace-status-grid",
+      headingText: ["Operating Status", "Launch Gate", "Database Stability", "Live Feeds", "Opportunity Pipeline"],
+    },
+    narration:
+      "The operating status grid connects launch health, database stability, live feed readiness, and opportunity pipeline into one review layer.",
+    value:
+      "This tells leaders whether the platform, data, and business pipeline are ready for action.",
+  },
+
   {
     route: "/map",
     page: "Election Map",
-    section: "Election Geography",
+    section: "Election geography",
     heading: "Map filters",
     label: "Targeting control",
     target: {
@@ -73,14 +106,14 @@ const TOUR_STEPS = [
       headingText: ["Map Filters"],
     },
     narration:
-      "The Election Map starts with filters for state and office. These controls let users move from a national view into the races and geographies that matter most.",
+      "The Election Map starts with filters for state and office. These controls narrow the national view into the exact race environment the user wants to evaluate.",
     value:
-      "Consultants can quickly focus on the state, office, or race environment they need to evaluate.",
+      "Consultants can quickly focus on the geographies and offices that matter most.",
   },
   {
     route: "/map",
     page: "Election Map",
-    section: "Election Geography",
+    section: "Election geography",
     heading: "U.S. finance overlay map",
     label: "Geographic intelligence",
     target: {
@@ -89,14 +122,14 @@ const TOUR_STEPS = [
       headingText: ["U.S. Finance Overlay Map"],
     },
     narration:
-      "The U.S. Finance Overlay Map translates campaign finance intensity into a geographic operating view. It shows where fundraising signals are strongest across the country.",
+      "The finance overlay map translates campaign finance intensity into a geographic operating view, showing where fundraising signals are strongest across the country.",
     value:
-      "Finance pressure becomes visible by geography instead of being buried in spreadsheets or raw records.",
+      "Finance pressure becomes visible by geography instead of being hidden in raw records.",
   },
   {
     route: "/map",
     page: "Election Map",
-    section: "Election Geography",
+    section: "Election geography",
     heading: "Candidate field",
     label: "Candidate comparison",
     target: {
@@ -105,14 +138,14 @@ const TOUR_STEPS = [
       headingText: ["Candidates"],
     },
     narration:
-      "The candidate panel shows the selected state and office field. Users can compare receipts, cash on hand, party, rank, and campaign standing in the context of the selected overlay.",
+      "The candidate panel shows the selected state and office field. Users can compare receipts, cash on hand, party, rank, and campaign standing in context.",
     value:
-      "This connects the map directly to candidate-level campaign intelligence.",
+      "The map connects directly to candidate-level campaign intelligence.",
   },
   {
     route: "/map",
     page: "Election Map",
-    section: "Election Geography",
+    section: "Election geography",
     heading: "Donor intelligence",
     label: "Finance relationship layer",
     target: {
@@ -121,14 +154,14 @@ const TOUR_STEPS = [
       headingText: ["Donor Intelligence"],
     },
     narration:
-      "Donor Intelligence connects candidate context to donor network matches. This helps explain the money behind the signal, not just the amount raised.",
+      "Donor Intelligence connects candidate context to donor network matches. It helps explain the money behind the signal, not just the amount raised.",
     value:
       "Users can move from where money is showing up to who may be driving it.",
   },
   {
     route: "/map",
     page: "Election Map",
-    section: "Election Geography",
+    section: "Election geography",
     heading: "Overlay detail",
     label: "Race prioritization",
     target: {
@@ -137,10 +170,60 @@ const TOUR_STEPS = [
       headingText: ["Office Overlays", "Overlay Detail", "Overlay Stack"],
     },
     narration:
-      "Overlay Detail ranks state and office combinations by score, tier, receipts, and cash. It helps users decide which race deserves deeper attention.",
+      "Overlay Detail ranks state and office combinations by score, tier, receipts, and cash. This helps users decide which races deserve deeper attention.",
     value:
       "The map becomes a prioritization system instead of only a visual display.",
   },
+
+  {
+    route: "/operations-map",
+    page: "Executive Operations Map",
+    section: "Operational coverage",
+    heading: "Operations map KPIs",
+    label: "Operating read",
+    target: {
+      dataTour: "operations-map-kpis",
+      selector: ".vs-grid-4, main",
+      headingText: ["Coverage", "Operations", "Risk", "Signals"],
+    },
+    narration:
+      "The Operations Map indicators summarize operational coverage, state pressure, and execution posture before the user reviews the map itself.",
+    value:
+      "Leadership can understand the operating environment before drilling into specific geographies.",
+  },
+  {
+    route: "/operations-map",
+    page: "Executive Operations Map",
+    section: "Operational coverage",
+    heading: "Operations map",
+    label: "Coverage view",
+    target: {
+      dataTour: "operations-map",
+      selector: ".map, svg, canvas, .leaflet-container, main",
+      headingText: ["Executive Operations Map", "Operations Map"],
+    },
+    narration:
+      "The Executive Operations Map shows campaign infrastructure, geographic coverage, activity concentration, vendor gaps, and execution pressure.",
+    value:
+      "Operational weaknesses become visible before they turn into campaign execution problems.",
+  },
+  {
+    route: "/operations-map",
+    page: "Executive Operations Map",
+    section: "Operational coverage",
+    heading: "Operations summaries",
+    label: "Resource planning",
+    target: {
+      dataTour: "operations-map-summaries",
+      selector: ".ops-threat-matrix, .vs-grid-4, main",
+      headingText: ["Threat", "Matrix", "Summaries", "Operations"],
+    },
+    narration:
+      "The operations summary layer organizes pressure signals, resource needs, and execution gaps so teams can decide where to send attention.",
+    value:
+      "Geographic intelligence turns into staffing, vendor, and tactical planning.",
+  },
+
   {
     route: "/command-center",
     page: "Command Center",
@@ -171,7 +254,7 @@ const TOUR_STEPS = [
     narration:
       "Recommended Executive Action turns incoming signals into a clear operating recommendation. It tells the team what deserves attention next.",
     value:
-      "This helps teams move from reviewing intelligence to making a decision.",
+      "The platform helps teams move from reviewing intelligence to making a decision.",
   },
   {
     route: "/command-center",
@@ -182,7 +265,7 @@ const TOUR_STEPS = [
     target: {
       dataTour: "command-execution-board",
       selector: ".task-filter-bar, .county-task-grid-wrap, table, .vs-table",
-      headingText: ["Execution Board"],
+      headingText: ["Executive Execution Board", "Execution Board"],
     },
     narration:
       "The Execution Board organizes open work, completed work, critical items, owners, and operational follow-up across campaign workflows.",
@@ -241,6 +324,22 @@ const TOUR_STEPS = [
     route: "/command-center",
     page: "Command Center",
     section: "Execution",
+    heading: "Dark money exposure",
+    label: "Influence risk",
+    target: {
+      dataTour: "command-dark-money",
+      selector: ".vs-stack, .vs-card",
+      headingText: ["Dark Money Exposure"],
+    },
+    narration:
+      "The Dark Money Exposure layer highlights committee influence chains, consultant overlap, and cross-state exposure signals.",
+    value:
+      "Teams can spot political finance risk that may affect strategy, compliance, or messaging.",
+  },
+  {
+    route: "/command-center",
+    page: "Command Center",
+    section: "Execution",
     heading: "Executive alert engine",
     label: "Risk monitoring",
     target: {
@@ -254,25 +353,122 @@ const TOUR_STEPS = [
       "Leadership gets a live warning layer for issues that require attention.",
   },
   {
-    route: "/operations-map",
-    page: "Executive Operations Map",
-    section: "Operational Coverage",
-    heading: "Operational map",
-    label: "Coverage view",
+    route: "/command-center",
+    page: "Command Center",
+    section: "Execution",
+    heading: "Top battlegrounds",
+    label: "Race focus",
     target: {
-      dataTour: "operations-map",
-      selector: ".map, svg, canvas, .leaflet-container, main",
-      headingText: ["Executive Operations Map", "Operations Map"],
+      dataTour: "command-battlegrounds",
+      selector: ".vs-stack, .vs-card",
+      headingText: ["Top Battlegrounds"],
     },
     narration:
-      "The Executive Operations Map shows campaign infrastructure, geographic coverage, activity concentration, vendor gaps, and execution pressure.",
+      "Top Battlegrounds gives the team a quick view of high-pressure races, states, and operating environments.",
     value:
-      "Operational weaknesses become visible before they become execution problems.",
+      "Teams can decide which geographies deserve immediate strategy review.",
+  },
+  {
+    route: "/command-center",
+    page: "Command Center",
+    section: "Execution",
+    heading: "Execution priorities",
+    label: "Action planning",
+    target: {
+      dataTour: "command-priorities",
+      selector: ".vs-stack, .vs-card",
+      headingText: ["Execution Priorities"],
+    },
+    narration:
+      "Execution Priorities collect the most important recommended actions so they can be tracked and moved forward.",
+    value:
+      "Urgent work stays visible until it is handled.",
+  },
+  {
+    route: "/command-center",
+    page: "Command Center",
+    section: "Execution",
+    heading: "Executive feed",
+    label: "Live context",
+    target: {
+      dataTour: "command-feed",
+      selector: ".vs-stack, .vs-card",
+      headingText: ["Executive Feed"],
+    },
+    narration:
+      "The Executive Feed keeps recent signals, updates, and changes visible for leadership review.",
+    value:
+      "Teams can maintain situational awareness without waiting for a meeting recap.",
+  },
+
+  {
+    route: "/candidates",
+    page: "Candidate Intelligence",
+    section: "Candidate research",
+    heading: "Candidate intelligence",
+    label: "Research context",
+    target: {
+      dataTour: "candidate-kpis",
+      selector: ".vs-grid-4, .vs-card, main",
+      headingText: ["Candidates", "Candidate Intelligence"],
+    },
+    narration:
+      "Candidate Intelligence centralizes candidate records, offices, states, parties, campaign status, and FEC-linked context.",
+    value:
+      "Teams can research candidates faster and connect campaign context to planning.",
+  },
+  {
+    route: "/donors",
+    page: "Donor Network",
+    section: "Fundraising relationships",
+    heading: "Donor network",
+    label: "Finance signal",
+    target: {
+      dataTour: "donor-kpis",
+      selector: ".vs-grid-4, .vs-card, main",
+      headingText: ["Donor Network", "Donors"],
+    },
+    narration:
+      "The Donor Network helps teams understand contribution patterns, donor clusters, finance influence, and relationship opportunities.",
+    value:
+      "Finance teams can see where money relationships are forming and where opportunities may exist.",
+  },
+  {
+    route: "/fundraising",
+    page: "Fundraising Dashboard",
+    section: "Campaign finance",
+    heading: "Fundraising intelligence",
+    label: "Momentum read",
+    target: {
+      dataTour: "fundraising-kpis",
+      selector: ".vs-grid-4, .vs-card, main",
+      headingText: ["Fundraising", "Finance"],
+    },
+    narration:
+      "The Fundraising Dashboard tracks campaign finance momentum, finance leaders, FEC-linked records, and comparative money movement.",
+    value:
+      "Users can identify which campaigns are gaining financial strength and which races may need attention.",
+  },
+  {
+    route: "/war-room",
+    page: "AI War Room",
+    section: "Rapid response",
+    heading: "War Room intelligence",
+    label: "Pressure response",
+    target: {
+      dataTour: "warroom-kpis",
+      selector: ".vs-grid-4, .vs-card, main",
+      headingText: ["War Room", "Threat", "Narrative"],
+    },
+    narration:
+      "The AI War Room supports rapid response, narrative tracking, threat review, strategic recommendations, and high-pressure campaign operations.",
+    value:
+      "Teams can coordinate response activity before small issues become campaign problems.",
   },
   {
     route: "/vendors",
     page: "Vendor Network",
-    section: "Operational Partners",
+    section: "Operational partners",
     heading: "Vendor coverage",
     label: "Partner intelligence",
     target: {
@@ -286,25 +482,41 @@ const TOUR_STEPS = [
       "Teams can quickly understand where they have support and where gaps exist.",
   },
   {
-    route: "/vendors",
-    page: "Vendor Network",
-    section: "Operational Partners",
-    heading: "Vendor list",
-    label: "Operational sourcing",
+    route: "/mailops",
+    page: "MailOps",
+    section: "Direct mail execution",
+    heading: "MailOps execution",
+    label: "Production visibility",
     target: {
-      dataTour: "vendor-list",
-      selector: "table, .vs-table, .vendor-list, main",
-      headingText: ["Vendor", "Coverage"],
+      dataTour: "mailops-kpis",
+      selector: ".vs-grid-4, .vs-card, table, main",
+      headingText: ["MailOps", "Mail"],
     },
     narration:
-      "The vendor list helps users find operational partners for mail, digital, field, data, consulting, and other campaign needs.",
+      "MailOps tracks direct mail production, campaign mail events, vendors, drops, deadlines, and operational delivery visibility.",
     value:
-      "Vendor search becomes a structured operating workflow.",
+      "Mail-heavy campaigns can monitor execution before delays create political problems.",
+  },
+  {
+    route: "/campaign-crm",
+    page: "Campaign CRM",
+    section: "Relationship management",
+    heading: "Campaign CRM",
+    label: "Relationship system",
+    target: {
+      dataTour: "crm-kpis",
+      selector: ".vs-grid-4, .vs-card, table, main",
+      headingText: ["CRM", "Contacts", "Campaign CRM"],
+    },
+    narration:
+      "Campaign CRM structures contacts, organizations, relationship history, follow-ups, and client development activity.",
+    value:
+      "Political relationships become organized, searchable, and actionable.",
   },
   {
     route: "/opportunity-engine",
     page: "Opportunity Engine",
-    section: "Consultant Growth",
+    section: "Consultant growth",
     heading: "Opportunity scoring",
     label: "Growth prioritization",
     target: {
@@ -318,9 +530,41 @@ const TOUR_STEPS = [
       "Consultants can prioritize growth opportunities with stronger signals instead of guessing.",
   },
   {
+    route: "/business-suite",
+    page: "Consultant Business Suite",
+    section: "Business operations",
+    heading: "Business command",
+    label: "Firm visibility",
+    target: {
+      dataTour: "business-kpis",
+      selector: ".vs-grid-4, .vs-card, main",
+      headingText: ["Business Suite", "Business"],
+    },
+    narration:
+      "The Consultant Business Suite helps firms manage clients, retainers, invoices, projects, revenue workflows, and consulting operations.",
+    value:
+      "Firms can manage the business side inside the same platform as political intelligence.",
+  },
+  {
+    route: "/revenue-intelligence",
+    page: "Revenue Intelligence",
+    section: "Business health",
+    heading: "Revenue intelligence",
+    label: "Financial control",
+    target: {
+      dataTour: "revenue-kpis",
+      selector: ".vs-grid-4, .vs-card, main",
+      headingText: ["Revenue", "Invoices", "Retainers"],
+    },
+    narration:
+      "Revenue Intelligence monitors client health, overdue invoices, retainers, revenue pressure, and business risk.",
+    value:
+      "Leadership can see the health of the business side of campaign consulting.",
+  },
+  {
     route: "/intelligence-reports",
     page: "Intelligence Reports",
-    section: "Deliverables",
+    section: "Client-ready deliverables",
     heading: "Report generation",
     label: "Client-ready output",
     target: {
@@ -332,6 +576,22 @@ const TOUR_STEPS = [
       "Intelligence Reports convert platform data into strategic deliverables for campaigns, clients, consultants, and leadership teams.",
     value:
       "Live intelligence can become client-ready material without starting from scratch.",
+  },
+  {
+    route: "/search",
+    page: "Universal Search",
+    section: "Search",
+    heading: "Universal search",
+    label: "Discovery speed",
+    target: {
+      dataTour: "search-input",
+      selector: "input[type='search'], input, .vs-card, main",
+      headingText: ["Universal Search", "Search"],
+    },
+    narration:
+      "Universal Search lets users search across candidates, reports, vendors, clients, tasks, signals, workspaces, and operating records from one place.",
+    value:
+      "Research and navigation become faster because users do not need to remember where every record lives.",
   },
   {
     route: "/executive-workspace",
@@ -355,7 +615,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function normalizeText(value = "", max = 1600) {
+function normalizeText(value = "", max = 1700) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
@@ -514,14 +774,14 @@ function elementContainsAnyText(element, terms = []) {
 function findByHeadingText(terms = []) {
   if (!terms.length) return null;
 
-  const selectors =
+  const headingSelectors =
     "h1,h2,h3,h4,.vs-section-title,.vs-stat-label,.vs-row-title,.vs-kicker,strong,button,a,label";
 
-  const nodes = Array.from(document.querySelectorAll(selectors));
-  for (const node of nodes) {
-    if (!isVisible(node)) continue;
-    if (elementContainsAnyText(node, terms)) {
-      const container = nearestTourContainer(node);
+  const headings = Array.from(document.querySelectorAll(headingSelectors));
+  for (const heading of headings) {
+    if (!isVisible(heading)) continue;
+    if (elementContainsAnyText(heading, terms)) {
+      const container = nearestTourContainer(heading);
       if (container && isVisible(container)) return container;
     }
   }
@@ -563,14 +823,15 @@ async function waitForTarget(step) {
 
 function getSpotlightRect(element) {
   if (!element || !(element instanceof Element)) return null;
+
   const rect = element.getBoundingClientRect();
-  const pad = 10;
+  const pad = 12;
 
   return {
-    top: Math.max(10, rect.top - pad),
-    left: Math.max(10, rect.left - pad),
-    width: Math.min(window.innerWidth - 20, rect.width + pad * 2),
-    height: Math.min(window.innerHeight - 20, rect.height + pad * 2),
+    top: Math.max(12, rect.top - pad),
+    left: Math.max(12, rect.left - pad),
+    width: Math.min(window.innerWidth - 24, rect.width + pad * 2),
+    height: Math.min(window.innerHeight - 24, rect.height + pad * 2),
   };
 }
 
@@ -584,6 +845,110 @@ function buildNarration(step) {
   ]
     .filter(Boolean)
     .join(". ");
+}
+
+function TourStyles() {
+  return (
+    <style>{`
+      .vs-tour-screen-dim {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background:
+          radial-gradient(circle at center, rgba(15, 23, 42, 0.28), rgba(2, 6, 23, 0.74));
+        pointer-events: none;
+      }
+
+      .vs-tour-spotlight-box {
+        position: fixed;
+        z-index: 10006;
+        pointer-events: none;
+        border-radius: 24px;
+        outline: 5px solid rgba(56, 189, 248, 1);
+        box-shadow:
+          0 0 0 7px rgba(255, 255, 255, 0.22),
+          0 0 0 15px rgba(56, 189, 248, 0.38),
+          0 0 46px rgba(56, 189, 248, 1),
+          0 0 110px rgba(245, 158, 11, 0.72);
+        animation: vsTourSpotlightPulse 1.1s ease-in-out infinite;
+      }
+
+      @keyframes vsTourSpotlightPulse {
+        0%, 100% {
+          outline-color: rgba(56, 189, 248, 1);
+          box-shadow:
+            0 0 0 7px rgba(255, 255, 255, 0.22),
+            0 0 0 15px rgba(56, 189, 248, 0.38),
+            0 0 46px rgba(56, 189, 248, 1),
+            0 0 110px rgba(245, 158, 11, 0.72);
+        }
+
+        50% {
+          outline-color: rgba(251, 191, 36, 1);
+          box-shadow:
+            0 0 0 8px rgba(255, 255, 255, 0.26),
+            0 0 0 17px rgba(251, 191, 36, 0.44),
+            0 0 56px rgba(251, 191, 36, 1),
+            0 0 124px rgba(56, 189, 248, 0.76);
+        }
+      }
+
+      .vs-tour-section-label {
+        display: inline-flex;
+        width: fit-content;
+        margin: 4px 28px 10px;
+        border: 1px solid rgba(56, 189, 248, 0.44);
+        background: rgba(14, 165, 233, 0.15);
+        color: rgba(224, 242, 254, 0.98);
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .vs-tour-benefits {
+        display: grid;
+        gap: 8px;
+        margin: 14px 28px 0;
+      }
+
+      .vs-tour-benefit {
+        border: 1px solid rgba(251, 191, 36, 0.36);
+        background: rgba(245, 158, 11, 0.12);
+        color: rgba(255, 251, 235, 0.95);
+        padding: 10px 12px;
+        border-radius: 14px;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .vs-tour-benefit strong {
+        color: #fef3c7;
+      }
+
+      .vs-tour-disclosure {
+        margin: 12px 28px 0;
+        color: rgba(186, 230, 253, 0.84);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .vs-tour-card {
+        max-width: min(800px, calc(100vw - 28px));
+        border-color: rgba(56, 189, 248, 0.32) !important;
+        box-shadow:
+          0 28px 90px rgba(2, 6, 23, 0.72),
+          0 0 46px rgba(56, 189, 248, 0.18) !important;
+      }
+
+      .vs-tour-body {
+        line-height: 1.68;
+      }
+    `}</style>
+  );
 }
 
 export default function VirtualTour() {
@@ -617,6 +982,7 @@ export default function VirtualTour() {
       setStepIndex(0);
       setPaused(false);
       setSpotlightRect(null);
+      targetRef.current = null;
       cancelledRef.current = false;
     }
   }, [mode]);
@@ -698,9 +1064,9 @@ export default function VirtualTour() {
 
         if (!alreadyOnRoute) {
           navigate(step.route);
-          await sleep(ROUTE_WAIT_MS);
+          await sleep(ROUTE_SETTLE_MS);
         } else {
-          await sleep(250);
+          await sleep(275);
         }
 
         if (cancelledRef.current || runIdRef.current !== runId) return;
@@ -717,13 +1083,13 @@ export default function VirtualTour() {
           });
         }
 
-        await sleep(AFTER_SCROLL_MS);
+        await sleep(CENTER_SETTLE_MS);
 
         if (cancelledRef.current || runIdRef.current !== runId) return;
 
         setSpotlightRect(getSpotlightRect(target));
 
-        await sleep(250);
+        await sleep(350);
 
         if (cancelledRef.current || runIdRef.current !== runId) return;
 
@@ -834,6 +1200,8 @@ export default function VirtualTour() {
 
   const tourCard = (
     <>
+      <TourStyles />
+
       {spotlightRect ? (
         <div
           className="vs-tour-spotlight-box"
@@ -878,7 +1246,7 @@ export default function VirtualTour() {
           ) : null}
 
           <p className="vs-tour-disclosure">
-            Nova navigates the site, centers the section, highlights it, then explains the benefit. Status: {voiceStatus}
+            Nova centers the section, displays the spotlight, then speaks. Status: {voiceStatus}
           </p>
 
           <div className="vs-tour-meta">
