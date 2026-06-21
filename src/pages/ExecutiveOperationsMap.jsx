@@ -41,6 +41,26 @@ const LAYERS = [
   { id: "signals", label: "Political Signals" },
 ];
 
+const STATE_MAP_POSITIONS = {
+  WA: { left: "13%", top: "25%" }, OR: { left: "10%", top: "37%" }, CA: { left: "11%", top: "55%" },
+  NV: { left: "18%", top: "48%" }, AZ: { left: "25%", top: "63%" }, UT: { left: "29%", top: "48%" },
+  CO: { left: "39%", top: "50%" }, NM: { left: "36%", top: "64%" }, TX: { left: "50%", top: "72%" },
+  OK: { left: "51%", top: "58%" }, KS: { left: "51%", top: "48%" }, NE: { left: "50%", top: "40%" },
+  SD: { left: "49%", top: "31%" }, ND: { left: "48%", top: "23%" }, MN: { left: "58%", top: "24%" },
+  IA: { left: "59%", top: "40%" }, MO: { left: "61%", top: "50%" }, AR: { left: "60%", top: "61%" },
+  LA: { left: "60%", top: "72%" }, WI: { left: "64%", top: "30%" }, IL: { left: "66%", top: "45%" },
+  MI: { left: "72%", top: "33%" }, IN: { left: "71%", top: "45%" }, OH: { left: "76%", top: "44%" },
+  KY: { left: "72%", top: "53%" }, TN: { left: "70%", top: "60%" }, MS: { left: "65%", top: "69%" },
+  AL: { left: "70%", top: "69%" }, GA: { left: "76%", top: "69%" }, FL: { left: "82%", top: "80%" },
+  SC: { left: "80%", top: "63%" }, NC: { left: "82%", top: "58%" }, VA: { left: "84%", top: "52%" },
+  WV: { left: "79%", top: "50%" }, PA: { left: "84%", top: "43%" }, NY: { left: "88%", top: "34%" },
+  ME: { left: "94%", top: "20%" }, VT: { left: "90%", top: "28%" }, NH: { left: "92%", top: "28%" },
+  MA: { left: "93%", top: "34%" }, CT: { left: "91%", top: "38%" }, RI: { left: "94%", top: "38%" },
+  NJ: { left: "88%", top: "43%" }, DE: { left: "88%", top: "48%" }, MD: { left: "86%", top: "49%" },
+  DC: { left: "87%", top: "50%" }, AK: { left: "9%", top: "82%" }, HI: { left: "28%", top: "84%" },
+  MT: { left: "36%", top: "24%" }, ID: { left: "25%", top: "31%" }, WY: { left: "37%", top: "36%" }
+};
+
 function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
 }
@@ -162,6 +182,50 @@ function getLayerValue(state, layer) {
   if (layer === "turnout") return fmtDecimal(state.turnout_pressure || state.operational_score || 0);
   if (layer === "countyHeat") return fmtDecimal(state.max_county_heat_score || state.operational_score || 0);
   return fmtDecimal(state.operational_score || 0);
+}
+
+
+function getIndicatorValue(state, overlay, layer) {
+  if (layer === "signals") return Number(overlay?.total_signals || 0);
+  if (!state) return 0;
+  if (layer === "active") return Number(state.active_task_count || 0);
+  if (layer === "resolved") return Number(state.resolved_task_count || 0);
+  if (layer === "mailops") return Number(state.mail_jobs || 0);
+  if (layer === "vendors") return Math.max(0, Number(state.vendors_scored || 0));
+  if (layer === "alerts") return Number(state.high_signals || 0);
+  if (layer === "turnout") return Math.round(Number(state.turnout_pressure || state.operational_score || 0));
+  if (layer === "countyHeat") return Math.round(Number(state.max_county_heat_score || state.operational_score || 0));
+  return Math.round(Number(state.operational_score || 0));
+}
+
+function getIndicatorTone(state, overlay, layer) {
+  if (layer === "signals") {
+    const risk = String(overlay?.overlay_risk || "stable").toLowerCase();
+    if (risk === "critical") return "critical";
+    if (risk === "high") return "high";
+    if (risk === "elevated") return "elevated";
+    return Number(overlay?.total_signals || 0) > 0 ? "signal" : "stable";
+  }
+
+  const score = normalizedRiskScore(state, layer);
+  const risk = String(state?.risk_label || "stable").toLowerCase();
+
+  if (risk === "critical" || score >= 82) return "critical";
+  if (risk === "high" || score >= 65) return "high";
+  if (risk === "elevated" || score >= 42) return "elevated";
+  return state ? "stable" : "missing";
+}
+
+function getIndicatorLabel(layer) {
+  if (layer === "signals") return "signals";
+  if (layer === "active") return "active";
+  if (layer === "resolved") return "done";
+  if (layer === "mailops") return "mail";
+  if (layer === "vendors") return "gaps";
+  if (layer === "alerts") return "alerts";
+  if (layer === "turnout") return "turnout";
+  if (layer === "countyHeat") return "heat";
+  return "score";
 }
 
 function getRecommendation(state) {
@@ -467,29 +531,47 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
 }
 
 
-function SignalBadgeOverlay({ states = [], onSelectState }) {
-  const positions = {
-    WA: { left: "13%", top: "25%" }, OR: { left: "10%", top: "37%" }, CA: { left: "11%", top: "55%" },
-    NV: { left: "18%", top: "48%" }, AZ: { left: "25%", top: "63%" }, UT: { left: "29%", top: "48%" },
-    CO: { left: "39%", top: "50%" }, NM: { left: "36%", top: "64%" }, TX: { left: "50%", top: "72%" },
-    OK: { left: "51%", top: "58%" }, KS: { left: "51%", top: "48%" }, NE: { left: "50%", top: "40%" },
-    SD: { left: "49%", top: "31%" }, ND: { left: "48%", top: "23%" }, MN: { left: "58%", top: "24%" },
-    IA: { left: "59%", top: "40%" }, MO: { left: "61%", top: "50%" }, AR: { left: "60%", top: "61%" },
-    LA: { left: "60%", top: "72%" }, WI: { left: "64%", top: "30%" }, IL: { left: "66%", top: "45%" },
-    MI: { left: "72%", top: "33%" }, IN: { left: "71%", top: "45%" }, OH: { left: "76%", top: "44%" },
-    KY: { left: "72%", top: "53%" }, TN: { left: "70%", top: "60%" }, MS: { left: "65%", top: "69%" },
-    AL: { left: "70%", top: "69%" }, GA: { left: "76%", top: "69%" }, FL: { left: "82%", top: "80%" },
-    SC: { left: "80%", top: "63%" }, NC: { left: "82%", top: "58%" }, VA: { left: "84%", top: "52%" },
-    WV: { left: "79%", top: "50%" }, PA: { left: "84%", top: "43%" }, NY: { left: "88%", top: "34%" },
-    ME: { left: "94%", top: "20%" }, VT: { left: "90%", top: "28%" }, NH: { left: "92%", top: "28%" },
-    MA: { left: "93%", top: "34%" }, CT: { left: "91%", top: "38%" }, RI: { left: "94%", top: "38%" },
-    NJ: { left: "88%", top: "43%" }, DE: { left: "88%", top: "48%" }, MD: { left: "86%", top: "49%" },
-    AK: { left: "9%", top: "82%" }, HI: { left: "28%", top: "84%" }, MT: { left: "36%", top: "24%" },
-    ID: { left: "25%", top: "31%" }, WY: { left: "37%", top: "36%" }
-  };
 
+function StateIndicatorOverlay({
+  stateLookup = {},
+  overlayLookup = {},
+  layer,
+  selected,
+  onSelectState,
+}) {
+  const layerLabel = getIndicatorLabel(layer);
+
+  return (
+    <div className="ops-state-indicators" aria-label="State-level executive indicators">
+      {Object.entries(STATE_MAP_POSITIONS).map(([abbr, position]) => {
+        const state = stateLookup[abbr];
+        const overlay = overlayLookup[abbr];
+        const value = getIndicatorValue(state, overlay, layer);
+        const tone = getIndicatorTone(state, overlay, layer);
+        const isSelected = selected?.state === abbr;
+        const hasLiveData = Boolean(state || overlay);
+
+        return (
+          <button
+            key={abbr}
+            type="button"
+            className={`ops-state-indicator ${tone} ${isSelected ? "is-selected" : ""} ${hasLiveData ? "has-data" : "no-data"}`}
+            style={position}
+            onClick={() => onSelectState?.(abbr)}
+            title={`${abbr}: ${value || 0} ${layerLabel}${state?.risk_label ? ` • ${state.risk_label}` : ""}${overlay?.overlay_risk ? ` • signals ${overlay.overlay_risk}` : ""}`}
+          >
+            <span>{abbr}</span>
+            <strong>{value || 0}</strong>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SignalBadgeOverlay({ states = [], onSelectState }) {
   const visible = states
-    .filter((item) => item?.state && Number(item.total_signals || 0) > 0 && positions[item.state])
+    .filter((item) => item?.state && Number(item.total_signals || 0) > 0 && STATE_MAP_POSITIONS[item.state])
     .sort((a, b) => Number(b.average_score || 0) - Number(a.average_score || 0))
     .slice(0, 18);
 
@@ -500,7 +582,7 @@ function SignalBadgeOverlay({ states = [], onSelectState }) {
           key={item.state}
           type="button"
           className={`ops-signal-badge ${String(item.overlay_risk || "stable").toLowerCase()}`}
-          style={positions[item.state]}
+          style={STATE_MAP_POSITIONS[item.state]}
           onClick={() => onSelectState?.(item.state)}
           title={`${item.state}: ${item.total_signals} signals • ${item.overlay_risk}`}
         >
@@ -1395,6 +1477,92 @@ export default function ExecutiveOperationsMap() {
           flex-wrap: wrap;
         }
 
+
+        .ops-state-indicators {
+          position: absolute;
+          inset: 0;
+          z-index: 6;
+          pointer-events: none;
+        }
+
+        .ops-state-indicator {
+          position: absolute;
+          transform: translate(-50%, -50%);
+          pointer-events: auto;
+          min-width: 44px;
+          height: 34px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.34);
+          background: rgba(15,23,42,0.86);
+          color: white;
+          display: inline-grid;
+          grid-template-columns: auto auto;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          padding: 0 8px;
+          font-size: 10px;
+          font-weight: 950;
+          cursor: pointer;
+          box-shadow: 0 12px 28px rgba(2,6,23,0.45), 0 0 0 6px rgba(59,130,246,0.08);
+          backdrop-filter: blur(12px);
+          transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+        }
+
+        .ops-state-indicator span {
+          letter-spacing: -0.02em;
+        }
+
+        .ops-state-indicator strong {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.18);
+          font-size: 9px;
+        }
+
+        .ops-state-indicator:hover,
+        .ops-state-indicator.is-selected {
+          transform: translate(-50%, -50%) scale(1.13);
+          z-index: 8;
+          filter: brightness(1.18);
+          border-color: rgba(255,255,255,0.78);
+        }
+
+        .ops-state-indicator.is-selected {
+          box-shadow: 0 18px 38px rgba(2,6,23,0.48), 0 0 0 8px rgba(255,255,255,0.12), 0 0 0 14px rgba(96,165,250,0.20);
+        }
+
+        .ops-state-indicator.critical,
+        .ops-state-indicator.high {
+          background: rgba(185,28,28,0.92);
+          box-shadow: 0 12px 28px rgba(127,29,29,0.45), 0 0 0 7px rgba(248,113,113,0.13);
+        }
+
+        .ops-state-indicator.elevated {
+          background: rgba(146,64,14,0.92);
+          box-shadow: 0 12px 28px rgba(120,53,15,0.42), 0 0 0 7px rgba(251,191,36,0.12);
+        }
+
+        .ops-state-indicator.stable {
+          background: rgba(21,128,61,0.82);
+          box-shadow: 0 12px 28px rgba(20,83,45,0.38), 0 0 0 7px rgba(34,197,94,0.10);
+        }
+
+        .ops-state-indicator.signal {
+          background: rgba(37,99,235,0.88);
+          box-shadow: 0 12px 28px rgba(30,64,175,0.42), 0 0 0 7px rgba(96,165,250,0.12);
+        }
+
+        .ops-state-indicator.missing {
+          opacity: 0.5;
+          background: rgba(30,41,59,0.74);
+        }
+
+
         .ops-signal-badges {
           position: absolute;
           inset: 0;
@@ -1671,10 +1839,20 @@ export default function ExecutiveOperationsMap() {
                 </ComposableMap>
               </div>
 
-              <SignalBadgeOverlay
-                states={overlayStates}
+              <StateIndicatorOverlay
+                stateLookup={stateLookup}
+                overlayLookup={overlayLookup}
+                layer={layer}
+                selected={selected}
                 onSelectState={selectStateFromOverlay}
               />
+
+              {layer === "signals" ? (
+                <SignalBadgeOverlay
+                  states={overlayStates}
+                  onSelectState={selectStateFromOverlay}
+                />
+              ) : null}
 
               <div className="ops-map-legend">
                 <span className="ops-legend-item"><span className="ops-legend-dot critical" /> Critical</span>
