@@ -842,7 +842,7 @@ function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelec
           if (event.key === "Enter" || event.key === " ") onSelectState?.(abbr);
         }}
       >
-        {pulseClass ? (
+        { ? (
           <>
             <circle className="ops-map-state-battle-pulse one" r={22} />
             <circle className="ops-map-state-battle-pulse two" r={30} />
