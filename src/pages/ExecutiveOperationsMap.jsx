@@ -70,6 +70,142 @@ const STATE_COORDS = {
   WY: [-107.6, 43.0],
 };
 
+
+
+const NATIONAL_STATE_BASELINE = {
+  AL: { region: "Deep South", battleground: false, electoral: 9, base: 44, risk: "Elevated" },
+  AK: { region: "Frontier", battleground: false, electoral: 3, base: 31, risk: "Stable" },
+  AZ: { region: "Sun Belt", battleground: true, electoral: 11, base: 76, risk: "High" },
+  AR: { region: "Deep South", battleground: false, electoral: 6, base: 39, risk: "Stable" },
+  CA: { region: "Pacific", battleground: false, electoral: 54, base: 68, risk: "High" },
+  CO: { region: "Mountain West", battleground: false, electoral: 10, base: 52, risk: "Elevated" },
+  CT: { region: "Northeast", battleground: false, electoral: 7, base: 38, risk: "Stable" },
+  DE: { region: "Mid-Atlantic", battleground: false, electoral: 3, base: 34, risk: "Stable" },
+  DC: { region: "Capital", battleground: false, electoral: 3, base: 45, risk: "Elevated" },
+  FL: { region: "Sun Belt", battleground: true, electoral: 30, base: 80, risk: "High" },
+  GA: { region: "Sun Belt", battleground: true, electoral: 16, base: 86, risk: "Critical" },
+  HI: { region: "Pacific", battleground: false, electoral: 4, base: 29, risk: "Stable" },
+  ID: { region: "Mountain West", battleground: false, electoral: 4, base: 30, risk: "Stable" },
+  IL: { region: "Midwest", battleground: false, electoral: 19, base: 55, risk: "Elevated" },
+  IN: { region: "Midwest", battleground: false, electoral: 11, base: 46, risk: "Elevated" },
+  IA: { region: "Midwest", battleground: true, electoral: 6, base: 66, risk: "High" },
+  KS: { region: "Plains", battleground: false, electoral: 6, base: 36, risk: "Stable" },
+  KY: { region: "Upper South", battleground: false, electoral: 8, base: 58, risk: "Elevated" },
+  LA: { region: "Deep South", battleground: false, electoral: 8, base: 62, risk: "High" },
+  ME: { region: "Northeast", battleground: true, electoral: 4, base: 55, risk: "Elevated" },
+  MD: { region: "Mid-Atlantic", battleground: false, electoral: 10, base: 47, risk: "Elevated" },
+  MA: { region: "Northeast", battleground: false, electoral: 11, base: 43, risk: "Elevated" },
+  MI: { region: "Blue Wall", battleground: true, electoral: 15, base: 88, risk: "Critical" },
+  MN: { region: "Upper Midwest", battleground: true, electoral: 10, base: 70, risk: "High" },
+  MS: { region: "Deep South", battleground: false, electoral: 6, base: 41, risk: "Stable" },
+  MO: { region: "Midwest", battleground: false, electoral: 10, base: 50, risk: "Elevated" },
+  MT: { region: "Mountain West", battleground: true, electoral: 4, base: 61, risk: "High" },
+  NE: { region: "Plains", battleground: true, electoral: 5, base: 54, risk: "Elevated" },
+  NV: { region: "Sun Belt", battleground: true, electoral: 6, base: 82, risk: "Critical" },
+  NH: { region: "Northeast", battleground: true, electoral: 4, base: 64, risk: "High" },
+  NJ: { region: "Mid-Atlantic", battleground: false, electoral: 14, base: 57, risk: "Elevated" },
+  NM: { region: "Southwest", battleground: false, electoral: 5, base: 48, risk: "Elevated" },
+  NY: { region: "Northeast", battleground: false, electoral: 28, base: 60, risk: "High" },
+  NC: { region: "Sun Belt", battleground: true, electoral: 16, base: 90, risk: "Critical" },
+  ND: { region: "Plains", battleground: false, electoral: 3, base: 28, risk: "Stable" },
+  OH: { region: "Midwest", battleground: true, electoral: 17, base: 72, risk: "High" },
+  OK: { region: "Plains", battleground: false, electoral: 7, base: 35, risk: "Stable" },
+  OR: { region: "Pacific", battleground: false, electoral: 8, base: 46, risk: "Elevated" },
+  PA: { region: "Blue Wall", battleground: true, electoral: 19, base: 92, risk: "Critical" },
+  RI: { region: "Northeast", battleground: false, electoral: 4, base: 32, risk: "Stable" },
+  SC: { region: "South Atlantic", battleground: false, electoral: 9, base: 59, risk: "Elevated" },
+  SD: { region: "Plains", battleground: false, electoral: 3, base: 27, risk: "Stable" },
+  TN: { region: "Upper South", battleground: false, electoral: 11, base: 49, risk: "Elevated" },
+  TX: { region: "Sun Belt", battleground: true, electoral: 40, base: 84, risk: "Critical" },
+  UT: { region: "Mountain West", battleground: false, electoral: 6, base: 37, risk: "Stable" },
+  VT: { region: "Northeast", battleground: false, electoral: 3, base: 26, risk: "Stable" },
+  VA: { region: "South Atlantic", battleground: true, electoral: 13, base: 74, risk: "High" },
+  WA: { region: "Pacific", battleground: false, electoral: 12, base: 53, risk: "Elevated" },
+  WV: { region: "Appalachia", battleground: false, electoral: 4, base: 33, risk: "Stable" },
+  WI: { region: "Blue Wall", battleground: true, electoral: 10, base: 89, risk: "Critical" },
+  WY: { region: "Mountain West", battleground: false, electoral: 3, base: 25, risk: "Stable" },
+};
+
+function clampScore(value, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, Number(value || 0)));
+}
+
+function getBaselineState(abbr) {
+  const code = String(abbr || "").toUpperCase();
+  const base = NATIONAL_STATE_BASELINE[code] || { region: "National", battleground: false, electoral: 0, base: 32, risk: "Stable" };
+  const score = clampScore(base.base);
+  const vendorScore = clampScore(100 - Math.round(score * 0.42));
+  const countyHeat = clampScore(score + (base.battleground ? 5 : -8));
+  const turnout = clampScore(score + (base.battleground ? 8 : -3));
+
+  return {
+    state: code,
+    state_code: code,
+    state_name: code,
+    source: "baseline",
+    is_baseline: true,
+    region: base.region,
+    electoral_votes: base.electoral,
+    battleground: base.battleground,
+    operational_score: score,
+    risk_label: base.risk,
+    mail_risk_jobs: base.battleground ? 1 : 0,
+    mail_jobs: base.battleground ? Math.max(1, Math.round(score / 22)) : Math.round(score / 38),
+    avg_vendor_score: vendorScore,
+    vendors_scored: base.battleground ? Math.max(1, Math.round((100 - vendorScore) / 14)) : Math.round((100 - vendorScore) / 22),
+    high_signals: base.battleground ? Math.max(1, Math.round(score / 24)) : Math.round(score / 42),
+    active_task_count: base.risk === "Critical" ? 1 : 0,
+    resolved_task_count: base.battleground ? 1 : 0,
+    max_county_heat_score: countyHeat,
+    average_heat_score: clampScore(score - 12),
+    turnout_pressure: turnout,
+    data_coverage_label: base.battleground ? "Modeled Battleground" : "Baseline Model",
+    data_coverage_score: base.battleground ? 68 : 42,
+    pressure_breakdown: {
+      mail_pressure: base.battleground ? 2 : 1,
+      vendor_pressure: Math.round((100 - vendorScore) / 20),
+      signal_pressure: base.battleground ? 3 : 1,
+    },
+  };
+}
+
+function mergeLiveStateWithBaseline(row = {}) {
+  const state = resolveStateCode(row);
+  const baseline = getBaselineState(state);
+  const normalized = normalizeState(row);
+
+  return {
+    ...baseline,
+    ...normalized,
+    source: "live",
+    is_baseline: false,
+    region: row.region || baseline.region,
+    electoral_votes: row.electoral_votes || baseline.electoral_votes,
+    battleground: typeof row.battleground === "boolean" ? row.battleground : baseline.battleground,
+    data_coverage_label: row.data_coverage_label || "Live Data",
+    operational_score: Number(row.heat_score || row.pressure || row.operational_score || baseline.operational_score || 0),
+    risk_label: normalizeRisk(row.risk || row.risk_label || baseline.risk_label),
+    max_county_heat_score: Number(row.max_county_heat_score || row.heat_score || baseline.max_county_heat_score || 0),
+    average_heat_score: Number(row.average_heat_score || row.heat_score || baseline.average_heat_score || 0),
+    turnout_pressure: Number(row.turnout_pressure || baseline.turnout_pressure || 0),
+  };
+}
+
+function getCompleteStateList(liveStates = []) {
+  const liveLookup = liveStates.reduce((acc, item) => {
+    const code = resolveStateCode(item);
+    if (code) acc[code] = item;
+    return acc;
+  }, {});
+
+  return Object.keys(STATE_COORDS).map((abbr) => liveLookup[abbr] ? mergeLiveStateWithBaseline(liveLookup[abbr]) : getBaselineState(abbr));
+}
+
+function getStateDataSourceLabel(state) {
+  if (!state) return "No data";
+  return state.is_baseline ? "Baseline modeled signal" : "Live operational data";
+}
+
 function resolveStateCode(row = {}) {
   const raw = String(row.state || row.state_code || row.state_name || "").trim();
   if (!raw) return "";
@@ -289,7 +425,7 @@ function StateRiskRow({ item, onSelect }) {
     <div className={`ops-row ${riskClass(item.risk_label)}`}>
       <ResponsiveRow
         title={`${item.state} Operational Pressure`}
-        subtitle={`County heat ${fmtDecimal(item.max_county_heat_score)} • Active tasks ${item.active_task_count || 0} • Coverage ${item.data_coverage_label}`}
+        subtitle={`County heat ${fmtDecimal(item.max_county_heat_score)} • Active tasks ${item.active_task_count || 0} • ${getStateDataSourceLabel(item)} • ${item.data_coverage_label}`}
         meta={[
           { label: "Risk", value: item.risk_label },
           { label: "Score", value: fmtDecimal(item.operational_score) },
@@ -501,6 +637,7 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
         <>
           <div className="ops-panel-grid">
             <div><span>State Heat</span><strong>{fmtDecimal(selected.operational_score)}</strong></div>
+            <div><span>Data Source</span><strong>{selected.is_baseline ? "Baseline" : "Live"}</strong></div>
             <div><span>Max County</span><strong>{fmtDecimal(selected.max_county_heat_score)}</strong></div>
             <div><span>Active Tasks</span><strong>{selected.active_task_count || 0}</strong></div>
             <div><span>Resolved</span><strong>{selected.resolved_task_count || 0}</strong></div>
@@ -737,7 +874,8 @@ export default function ExecutiveOperationsMap() {
       }
 
       const result = await api.operationsMap();
-      const normalizedStates = (result?.states || []).map(normalizeState);
+      const liveStates = (result?.states || []).map(normalizeState);
+      const normalizedStates = getCompleteStateList(liveStates);
 
       const normalizedData = {
         ...(result || {}),
@@ -826,6 +964,8 @@ export default function ExecutiveOperationsMap() {
   const alerts = data?.alerts || [];
   const overlaySummary = signalOverlay?.summary || {};
   const overlayStates = signalOverlay?.states || [];
+  const modeledStates = states.filter((item) => item.is_baseline);
+  const liveStatesCount = states.length - modeledStates.length;
 
   const overlayLookup = useMemo(() => {
     return overlayStates.reduce((acc, item) => {
@@ -877,6 +1017,7 @@ export default function ExecutiveOperationsMap() {
       description="Live national command layer wired to county heat, active escalations, resolved task relief, political signal overlays, and county intelligence drawer."
       tickerItems={[
         { label: "National Pressure", value: `${nationalPressure || 0}%`, dotClass: nationalPressure >= 65 ? "vs-live-dot" : "vs-live-dot-success" },
+        { label: "Coverage", value: `${liveStatesCount} live / ${modeledStates.length} modeled`, dotClass: modeledStates.length ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "Critical", value: `${criticalStates.length}`, dotClass: criticalStates.length ? "vs-live-dot" : "vs-live-dot-success" },
         { label: "Active Tasks", value: `${activeEscalationStates.length}`, dotClass: activeEscalationStates.length ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "Political Signals", value: `${overlaySummary.total_signals || 0}`, dotClass: overlaySummary.total_signals ? "vs-live-dot-warning" : "vs-live-dot-success" },
@@ -1823,7 +1964,7 @@ export default function ExecutiveOperationsMap() {
       </div>
 
       <div className="vs-grid-4" data-tour="operations-map-kpis">
-        <StatCard label="States Tracked" value={summary.states_tracked || states.length || 0} delta="Operational states" tone="up" />
+        <StatCard label="States Tracked" value={states.length || 0} delta={`${liveStatesCount} live • ${modeledStates.length} modeled`} tone="up" />
         <StatCard label="Critical States" value={summary.critical_states || criticalStates.length || 0} delta="Immediate pressure" tone={criticalStates.length ? "down" : "up"} />
         <StatCard label="Counties Tracked" value={fmtNumber(summary.counties_tracked || 0)} delta="County/parish heat layer" tone="up" />
         <StatCard label="Executive Signals" value={summary.total_signals || alerts.length || 0} delta="Live tactical feed" tone="up" />
@@ -1870,7 +2011,7 @@ export default function ExecutiveOperationsMap() {
                     {({ geographies }) =>
                       geographies.map((geo) => {
                         const abbr = STATE_FIPS_TO_ABBR[String(geo.id).padStart(2, "0")];
-                        const stateData = stateLookup[abbr];
+                        const stateData = stateLookup[abbr] || getBaselineState(abbr);
                         const isSelected = selected?.state === abbr;
 
                         return (
@@ -1898,7 +2039,7 @@ export default function ExecutiveOperationsMap() {
                       key={abbr}
                       abbr={abbr}
                       coords={coords}
-                      state={stateLookup[abbr]}
+                      state={stateLookup[abbr] || getBaselineState(abbr)}
                       overlay={overlayLookup[abbr]}
                       layer={layer}
                       selected={selected}
