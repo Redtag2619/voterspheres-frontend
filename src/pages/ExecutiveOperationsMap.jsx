@@ -842,12 +842,6 @@ function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelec
           if (event.key === "Enter" || event.key === " ") onSelectState?.(abbr);
         }}
       >
-        { ? (
-          <>
-            <circle className="ops-map-state-battle-pulse one" r={22} />
-            <circle className="ops-map-state-battle-pulse two" r={30} />
-          </>
-        ) : null}
         <circle className="ops-map-state-marker-pulse" r={16} fill={color} opacity={0.22} />
         <circle r={12.5} fill={color} stroke="rgba(255,255,255,0.86)" strokeWidth={1.25} />
         <text className="ops-map-state-marker-abbr" textAnchor="middle" y={-2.8}>{abbr}</text>
@@ -2041,23 +2035,7 @@ export default function ExecutiveOperationsMap() {
           color: rgba(203,213,225,0.64);
           font-size: 11px;
         }
-
-
-        .ops-map-state-battle-pulse {
-          fill: none;
-          stroke: rgba(251,191,36,0.74);
-          stroke-width: 2;
-          opacity: 0.75;
-          transform-origin: center;
-          animation: opsBattlegroundPulse 1.55s ease-in-out infinite;
-        }
-
-        .ops-map-state-battle-pulse.two {
-          animation-delay: 0.55s;
-          stroke: rgba(248,113,113,0.68);
-        }
-
-        .ops-map-state-marker.pulse-critical .ops-map-state-battle-pulse { stroke: rgba(248,113,113,0.9); }
+.ops-map-state-marker.pulse-critical .ops-map-state-battle-pulse { stroke: rgba(248,113,113,0.9); }
         .ops-map-state-marker.pulse-high .ops-map-state-battle-pulse { stroke: rgba(251,191,36,0.84); }
         .ops-map-state-marker.pulse-watch .ops-map-state-battle-pulse { stroke: rgba(96,165,250,0.72); }
 
