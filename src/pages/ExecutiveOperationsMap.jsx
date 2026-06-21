@@ -201,6 +201,51 @@ function getLayerValue(state, layer) {
   return fmtDecimal(state.operational_score || 0);
 }
 
+
+
+function getIndicatorValue(state, overlay, layer) {
+  if (layer === "signals") return Number(overlay?.total_signals || 0);
+  if (!state) return 0;
+  if (layer === "active") return Number(state.active_task_count || 0);
+  if (layer === "resolved") return Number(state.resolved_task_count || 0);
+  if (layer === "mailops") return Number(state.mail_jobs || 0);
+  if (layer === "vendors") return Math.max(0, Number(state.vendors_scored || 0));
+  if (layer === "alerts") return Number(state.high_signals || 0);
+  if (layer === "turnout") return Math.round(Number(state.turnout_pressure || state.operational_score || 0));
+  if (layer === "countyHeat") return Math.round(Number(state.max_county_heat_score || state.operational_score || 0));
+  return Math.round(Number(state.operational_score || 0));
+}
+
+function getIndicatorTone(state, overlay, layer) {
+  if (layer === "signals") {
+    const risk = String(overlay?.overlay_risk || "stable").toLowerCase();
+    if (risk === "critical") return "critical";
+    if (risk === "high") return "high";
+    if (risk === "elevated") return "elevated";
+    return Number(overlay?.total_signals || 0) > 0 ? "signal" : "stable";
+  }
+
+  const score = normalizedRiskScore(state, layer);
+  const risk = String(state?.risk_label || "stable").toLowerCase();
+
+  if (risk === "critical" || score >= 82) return "critical";
+  if (risk === "high" || score >= 65) return "high";
+  if (risk === "elevated" || score >= 42) return "elevated";
+  return state ? "stable" : "missing";
+}
+
+function getIndicatorLabel(layer) {
+  if (layer === "signals") return "signals";
+  if (layer === "active") return "active";
+  if (layer === "resolved") return "done";
+  if (layer === "mailops") return "mail";
+  if (layer === "vendors") return "gaps";
+  if (layer === "alerts") return "alerts";
+  if (layer === "turnout") return "turnout";
+  if (layer === "countyHeat") return "heat";
+  return "score";
+}
+
 function getRecommendation(state) {
   if (!state) return "Select a state to generate an executive recommendation.";
 
@@ -1520,6 +1565,58 @@ export default function ExecutiveOperationsMap() {
           justify-content: flex-end;
           gap: 10px;
           flex-wrap: wrap;
+        }
+
+
+        .ops-map-marker {
+          cursor: pointer;
+          filter: drop-shadow(0 10px 16px rgba(2, 6, 23, 0.45));
+          transition: transform 150ms ease, filter 150ms ease;
+        }
+
+        .ops-map-marker circle {
+          stroke: rgba(255, 255, 255, 0.76);
+          stroke-width: 1.2;
+        }
+
+        .ops-map-marker text {
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          fill: white;
+          font-weight: 950;
+          text-anchor: middle;
+          dominant-baseline: middle;
+          pointer-events: none;
+          paint-order: stroke;
+          stroke: rgba(2, 6, 23, 0.6);
+          stroke-width: 1.5px;
+        }
+
+        .ops-map-marker:hover,
+        .ops-map-marker.is-selected {
+          transform: scale(1.12);
+          filter: drop-shadow(0 14px 22px rgba(2, 6, 23, 0.55));
+        }
+
+        .ops-map-marker.critical circle,
+        .ops-map-marker.high circle {
+          fill: rgba(185, 28, 28, 0.96);
+        }
+
+        .ops-map-marker.elevated circle {
+          fill: rgba(146, 64, 14, 0.96);
+        }
+
+        .ops-map-marker.stable circle {
+          fill: rgba(21, 128, 61, 0.9);
+        }
+
+        .ops-map-marker.signal circle {
+          fill: rgba(37, 99, 235, 0.92);
+        }
+
+        .ops-map-marker.missing circle {
+          fill: rgba(30, 41, 59, 0.78);
+          opacity: 0.55;
         }
 
         .ops-signal-badges {
