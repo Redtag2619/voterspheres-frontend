@@ -328,7 +328,6 @@ export default function DonorNetwork() {
           dotClass: "vs-live-dot-warning",
         },
         {
-        {
           label: "Source",
           value: donor.source === "fec_schedule_a"? "FEC Schedule A" : donor.source || "FEC",},
           dotClass: isDemoData ? "vs-live-dot-warning" : "vs-live-dot-success",
