@@ -427,12 +427,12 @@ export default function StateOperationsMap() {
     return () => clearInterval(interval);
   }, []);
 
-  const states = data?.states || [];
+  const states = data?.states?.length ? data.states : completeExecutionStates([]);
   const rows = data?.executionRows || [];
   const feed = data?.executionFeed || [];
   const summary = data?.summary || buildSummary(states);
   const selected = useMemo(() => {
-    if (!selectedState) return rows[0] || states[0] || null;
+    if (!selectedState) return rows[0] || states.find((item) => item.status === "Critical") || states[0] || null;
     return states.find((item) => item.state_code === selectedState.state_code) || selectedState;
   }, [selectedState, states, rows]);
 
@@ -554,14 +554,37 @@ export default function StateOperationsMap() {
           box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
         }
 
+        .ops-exec-grid-wrap {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+
+        .ops-exec-loading-banner {
+          position: relative;
+          z-index: 3;
+          margin: 8px 0 12px;
+          border: 1px solid rgba(96,165,250,0.24);
+          background: rgba(37,99,235,0.16);
+          color: rgba(219,234,254,0.94);
+          border-radius: 16px;
+          padding: 10px 12px;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
         .ops-exec-grid-map {
           position: relative;
           z-index: 2;
           display: grid;
-          grid-template-columns: repeat(11, minmax(42px, 1fr));
-          grid-template-rows: repeat(8, 58px);
+          grid-template-columns: repeat(11, minmax(48px, 1fr));
+          grid-template-rows: repeat(8, 60px);
           gap: 9px;
           margin-top: 20px;
+          min-width: 680px;
+          width: 100%;
         }
 
         .ops-exec-state {
@@ -836,14 +859,15 @@ export default function StateOperationsMap() {
         }
 
         @media (max-width: 760px) {
-          .ops-exec-grid-map {
-            grid-template-columns: repeat(6, minmax(40px, 1fr));
-            grid-auto-rows: 54px;
+          .ops-exec-map-stage {
+            padding: 14px;
+            overflow-x: auto;
           }
 
-          .ops-exec-state {
-            grid-column: auto !important;
-            grid-row: auto !important;
+          .ops-exec-grid-map {
+            grid-template-columns: repeat(11, minmax(46px, 1fr));
+            grid-template-rows: repeat(8, 56px);
+            min-width: 640px;
           }
 
           .ops-selected-grid {
@@ -866,7 +890,7 @@ export default function StateOperationsMap() {
           <div className="ops-exec-map-header">
             <div>
               <strong>U.S. Operations Execution Command</strong>
-              <span>This map is no longer political heat. It shows what needs action, ownership, vendors, MailOps, and escalation review.</span>
+              <span>This U.S. execution map shows what needs action, ownership, vendors, MailOps, and escalation review.</span>
             </div>
 
             <div className="ops-exec-tabs">
@@ -883,10 +907,14 @@ export default function StateOperationsMap() {
             </div>
           </div>
 
-          {loading ? (
-            <EmptyState text="Loading execution command map..." />
-          ) : (
-            <div className="ops-exec-grid-map">
+          <div className="ops-exec-grid-wrap">
+            {loading ? (
+              <div className="ops-exec-loading-banner">
+                Loading live execution data — showing national operations baseline.
+              </div>
+            ) : null}
+
+            <div className="ops-exec-grid-map" aria-label="United States operations execution map">
               {states.map((item) => (
                 <MapStateCell
                   key={item.state_code}
@@ -897,7 +925,7 @@ export default function StateOperationsMap() {
                 />
               ))}
             </div>
-          )}
+          </div>
 
           <div className="ops-exec-legend">
             <span><i className="ops-exec-dot critical" /> Critical</span>
