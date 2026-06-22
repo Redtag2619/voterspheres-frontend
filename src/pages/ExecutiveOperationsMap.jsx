@@ -440,7 +440,7 @@ function getRecommendation(state) {
   const label = String(state.risk_label || "").toLowerCase();
 
   if (state.active_task_count > 0) {
-    return `${state.state} has active county escalation tasking. Open State Operations to inspect county pressure and Command Center task status.`;
+    return `${state.state} has active county escalation tasking. Open Operations Execution to inspect county pressure and Command Center task status.`;
   }
 
   if (label === "critical") {
@@ -584,7 +584,7 @@ function CountyIntelRow({ item, onCreateTask }) {
 
       <div className="county-intel-actions">
         <button type="button" onClick={() => openPath(`/state-operations/${item.state_code || item.state}`)}>
-          Open Drilldown
+          Open Operations Drilldown
         </button>
         <button type="button" onClick={() => openPath(buildCommandCenterUrl({ state: item.state_code || item.state, risk_label: item.risk }, { action: "county-escalation", county: item.name, priority: item.risk }))}>
           Command Center
@@ -631,12 +631,12 @@ function CountyIntelligenceDrawer({
 
   return (
     <SectionCard
-      title="County Intelligence Drawer"
-      subtitle={selected ? `${selected.state} county heat, escalations, resolved pressure, and driver intelligence.` : "Select a state to inspect county intelligence."}
+      title="Operations Execution Drawer"
+      subtitle={selected ? `${selected.state} execution tasks, escalations, resolved work, and operational drivers.` : "Select a state to inspect county intelligence."}
       right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
     >
       {!selected ? (
-        <EmptyState text="Select a state from the executive map." />
+        <EmptyState text="Select a state from the executive map to review execution details." />
       ) : (
         <div className="county-drawer">
           <div className="county-drawer-summary">
@@ -752,7 +752,7 @@ function ExecutiveStateDrilldown({ selected, overlay, layer, onRefresh }) {
 
         <div className="ops-drilldown-buttons">
           <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "state-drilldown", layer })}>Open Command Center</button>
-          <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>County Drilldown</button>
+          <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>Operations Drilldown</button>
           <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>Vendor Coverage</button>
           <button type="button" onClick={() => openPath("/warroom")}>War Room</button>
           <button type="button" onClick={onRefresh}>Refresh State Intel</button>
@@ -808,7 +808,7 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
             <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>View Vendors</button>
             <button type="button" onClick={() => openPath("/warroom")}>Escalate War Room</button>
             <button type="button" onClick={onRefresh}>Refresh Intel</button>
-            <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>County Drilldown</button>
+            <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>Operations Drilldown</button>
           </div>
         </>
       ) : (
@@ -2463,7 +2463,7 @@ export default function ExecutiveOperationsMap() {
                   Open Filtered Command Center
                 </button>
                 <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>
-                  County Drilldown
+                  Operations Drilldown
                 </button>
                 <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>
                   Vendor Coverage
@@ -2490,7 +2490,7 @@ export default function ExecutiveOperationsMap() {
         <div data-tour="operations-command-detail">
           <SectionCard
             title={selected ? `${selected.state} Command Detail` : "Command Detail"}
-          subtitle="Breakdown of operational pressure by live State Operations signals."
+          subtitle="Breakdown of operational pressure by live Operations Execution signals."
           right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
         >
           {!selected ? (
