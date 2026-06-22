@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+} from "react-simple-maps";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -9,18 +15,15 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-const STATE_COORDS = {
-  AK: [10, 77], HI: [26, 86],
-  WA: [14, 14], OR: [12, 26], CA: [11, 45], NV: [20, 40], ID: [24, 25], MT: [32, 18], WY: [34, 36],
-  UT: [29, 46], AZ: [28, 62], CO: [42, 48], NM: [42, 65],
-  ND: [49, 19], SD: [50, 32], NE: [52, 44], KS: [55, 56], OK: [57, 66], TX: [56, 80],
-  MN: [61, 22], IA: [63, 39], MO: [65, 53], AR: [66, 66], LA: [66, 79],
-  WI: [69, 28], IL: [71, 44], MS: [72, 74],
-  MI: [78, 29], IN: [76, 44], KY: [78, 55], TN: [78, 64], AL: [78, 75],
-  OH: [83, 43], WV: [85, 53], GA: [84, 75], FL: [89, 88],
-  PA: [89, 39], VA: [90, 55], NC: [91, 64], SC: [89, 71],
-  NY: [92, 28], VT: [94, 17], NH: [97, 18], ME: [99, 10],
-  MA: [98, 27], RI: [99, 33], CT: [96, 34], NJ: [94, 42], DE: [95, 49], MD: [93, 52], DC: [91, 50],
+const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
+const STATE_FIPS_TO_ABBR = {
+  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT", "10": "DE", "11": "DC",
+  "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN", "19": "IA", "20": "KS", "21": "KY",
+  "22": "LA", "23": "ME", "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS", "29": "MO", "30": "MT",
+  "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND", "39": "OH",
+  "40": "OK", "41": "OR", "42": "PA", "44": "RI", "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI", "56": "WY",
 };
 
 const STATE_NAMES = {
@@ -32,6 +35,19 @@ const STATE_NAMES = {
   OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
   SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
   WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+};
+
+const STATE_COORDS = {
+  AL: [-86.8, 32.8], AK: [-150.2, 64.2], AZ: [-111.7, 34.2], AR: [-92.4, 34.8], CA: [-119.5, 37.2],
+  CO: [-105.6, 39.0], CT: [-72.7, 41.6], DE: [-75.5, 39.0], DC: [-77.0, 38.9], FL: [-82.4, 28.3],
+  GA: [-83.5, 32.7], HI: [-157.8, 20.8], ID: [-114.4, 44.2], IL: [-89.2, 40.0], IN: [-86.1, 40.0],
+  IA: [-93.5, 42.0], KS: [-98.4, 38.5], KY: [-84.8, 37.7], LA: [-91.9, 31.1], ME: [-69.2, 45.3],
+  MD: [-76.7, 39.0], MA: [-71.8, 42.2], MI: [-85.6, 44.2], MN: [-94.2, 46.0], MS: [-89.7, 32.7],
+  MO: [-92.5, 38.4], MT: [-110.4, 46.9], NE: [-99.9, 41.5], NV: [-116.6, 39.4], NH: [-71.6, 43.8],
+  NJ: [-74.5, 40.1], NM: [-106.1, 34.4], NY: [-75.5, 43.0], NC: [-79.3, 35.5], ND: [-100.5, 47.5],
+  OH: [-82.8, 40.2], OK: [-97.5, 35.6], OR: [-120.6, 44.0], PA: [-77.7, 40.9], RI: [-71.6, 41.7],
+  SC: [-80.9, 33.8], SD: [-100.0, 44.4], TN: [-86.4, 35.8], TX: [-99.3, 31.1], UT: [-111.7, 39.3],
+  VT: [-72.7, 44.0], VA: [-78.2, 37.7], WA: [-120.7, 47.4], WV: [-80.6, 38.6], WI: [-89.8, 44.7], WY: [-107.6, 43.0],
 };
 
 const EXECUTION_BASELINE = {
@@ -97,7 +113,7 @@ const EXECUTION_LAYERS = [
   ["resolved", "Resolved"],
 ];
 
-const STATE_ORDER = Object.keys(STATE_COORDS).sort((a, b) => a.localeCompare(b));
+const STATE_ORDER = Object.keys(STATE_FIPS_TO_ABBR).map((fips) => STATE_FIPS_TO_ABBR[fips]).filter(Boolean);
 
 function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
@@ -117,6 +133,42 @@ function statusClass(status) {
   if (value === "escalated") return "status-escalated";
   if (value === "monitoring") return "status-monitoring";
   return "status-healthy";
+}
+
+function getStateFill(status) {
+  const value = String(status || "").toLowerCase();
+  if (value === "critical") return "#dc2626";
+  if (value === "escalated") return "#f97316";
+  if (value === "monitoring") return "#0284c7";
+  return "#16a34a";
+}
+
+function getLayerStatus(item, layer) {
+  if (!item) return "Healthy";
+  if (layer === "status") return item.status;
+
+  const value = Number(getLayerValue(item, layer) || 0);
+
+  if (layer === "resolved") {
+    if (value >= 3) return "Healthy";
+    if (value >= 1) return "Monitoring";
+    return "Healthy";
+  }
+
+  if (value >= 5) return "Critical";
+  if (value >= 3) return "Escalated";
+  if (value >= 1) return "Monitoring";
+  return "Healthy";
+}
+
+function getLayerValue(item, layer) {
+  if (!item) return 0;
+  if (layer === "tasks") return item.open_tasks || 0;
+  if (layer === "vendors") return item.vendor_gaps || 0;
+  if (layer === "mail") return item.mail_jobs || 0;
+  if (layer === "escalations") return item.escalations || 0;
+  if (layer === "resolved") return item.resolved || 0;
+  return item.status;
 }
 
 function normalizeLiveState(row = {}) {
@@ -226,32 +278,6 @@ function completeExecutionStates(liveRows = []) {
   return STATE_ORDER.map((code) => liveLookup[code] || baselineExecutionState(code));
 }
 
-function getLayerValue(item, layer) {
-  if (!item) return 0;
-  if (layer === "tasks") return item.open_tasks || 0;
-  if (layer === "vendors") return item.vendor_gaps || 0;
-  if (layer === "mail") return item.mail_jobs || 0;
-  if (layer === "escalations") return item.escalations || 0;
-  if (layer === "resolved") return item.resolved || 0;
-  return item.status;
-}
-
-function getStatusFromLayer(item, layer) {
-  if (layer === "status") return item.status;
-  const value = Number(getLayerValue(item, layer) || 0);
-
-  if (layer === "resolved") {
-    if (value >= 3) return "Healthy";
-    if (value >= 1) return "Monitoring";
-    return "Healthy";
-  }
-
-  if (value >= 5) return "Critical";
-  if (value >= 3) return "Escalated";
-  if (value >= 1) return "Monitoring";
-  return "Healthy";
-}
-
 function buildSummary(states = []) {
   return {
     critical: states.filter((item) => item.status === "Critical").length,
@@ -294,27 +320,28 @@ function buildExecutionFeed(states = []) {
   }));
 }
 
-function MapStateCell({ item, layer, selected, onSelect }) {
-  const coords = STATE_COORDS[item.state_code] || [50, 50];
-  const displayStatus = getStatusFromLayer(item, layer);
+function MapMarker({ item, layer, selected, onSelect }) {
+  const coords = STATE_COORDS[item.state_code];
+  if (!coords) return null;
+
+  const status = getLayerStatus(item, layer);
   const value = getLayerValue(item, layer);
+  const isSelected = selected?.state_code === item.state_code;
 
   return (
-    <button
-      type="button"
-      className={`ops-exec-state ${statusClass(displayStatus)} ${selected?.state_code === item.state_code ? "is-selected" : ""} ${item.source === "live" ? "is-live" : "is-modeled"}`}
-      style={{
-        left: `${coords[0]}%`,
-        top: `${coords[1]}%`,
-      }}
-      title={`${item.state_name}: ${displayStatus}`}
-      onClick={() => onSelect(item)}
-    >
-      <span>{item.state_code}</span>
-      <b>{layer === "status" ? item.status.replace("Monitoring", "Watch") : fmtNumber(value)}</b>
-      <em>{item.source === "live" ? "LIVE" : "OPS"}</em>
-      {item.escalations ? <i /> : null}
-    </button>
+    <Marker coordinates={coords}>
+      <g
+        className={`ops-real-marker ${statusClass(status)} ${isSelected ? "is-selected" : ""}`}
+        onClick={() => onSelect(item)}
+        role="button"
+        tabIndex={0}
+        aria-label={`${item.state_name} ${status}`}
+      >
+        <circle r={13} />
+        <text y={-2} textAnchor="middle">{item.state_code}</text>
+        <text y={9} textAnchor="middle">{layer === "status" ? (item.status === "Monitoring" ? "Watch" : item.status.slice(0, 4)) : fmtNumber(value)}</text>
+      </g>
+    </Marker>
   );
 }
 
@@ -433,6 +460,13 @@ export default function StateOperationsMap() {
   const rows = data?.executionRows?.length ? data.executionRows : buildExecutionRows(states);
   const feed = data?.executionFeed?.length ? data.executionFeed : buildExecutionFeed(states);
   const summary = data?.summary || buildSummary(states);
+  const stateLookup = useMemo(() => {
+    return states.reduce((acc, item) => {
+      acc[item.state_code] = item;
+      return acc;
+    }, {});
+  }, [states]);
+
   const selected = useMemo(() => {
     if (!selectedState) return rows[0] || states.find((item) => item.status === "Critical") || states[0] || null;
     return states.find((item) => item.state_code === selectedState.state_code) || selectedState;
@@ -549,32 +583,10 @@ export default function StateOperationsMap() {
           box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
         }
 
-        .ops-exec-map-wrap {
+        .ops-real-map-shell {
           position: relative;
           z-index: 2;
-          width: 100%;
-          overflow: visible;
-        }
-
-        .ops-exec-loading-banner {
-          position: relative;
-          z-index: 3;
-          margin: 8px 0 12px;
-          border: 1px solid rgba(96,165,250,0.24);
-          background: rgba(37,99,235,0.16);
-          color: rgba(219,234,254,0.94);
-          border-radius: 16px;
-          padding: 10px 12px;
-          font-size: 12px;
-          font-weight: 850;
-        }
-
-        .ops-exec-us-map {
-          position: relative;
-          z-index: 2;
-          width: 100%;
           min-height: 560px;
-          margin-top: 18px;
           border-radius: 28px;
           border: 1px solid rgba(148,163,184,0.12);
           background:
@@ -583,139 +595,44 @@ export default function StateOperationsMap() {
           overflow: hidden;
         }
 
-        .ops-exec-us-map:before {
-          content: "";
-          position: absolute;
-          inset: 8%;
-          border-radius: 42% 48% 44% 40%;
-          border: 1px solid rgba(96,165,250,0.12);
-          background:
-            radial-gradient(circle at 32% 34%, rgba(56,189,248,0.1), transparent 25%),
-            radial-gradient(circle at 72% 45%, rgba(251,146,60,0.08), transparent 28%);
-          clip-path: polygon(6% 20%, 20% 10%, 38% 15%, 55% 12%, 72% 20%, 84% 30%, 92% 45%, 86% 60%, 76% 69%, 69% 82%, 54% 74%, 42% 71%, 27% 66%, 17% 53%, 8% 43%);
-          opacity: 0.7;
-          pointer-events: none;
+        .ops-real-map-shell svg {
+          width: 100%;
+          height: auto;
+          display: block;
         }
 
-        .ops-exec-map-outline {
-          position: absolute;
-          pointer-events: none;
-          border: 1px solid rgba(96,165,250,0.1);
-          background: rgba(15,23,42,0.16);
-        }
-
-        .ops-exec-map-outline.mainland {
-          left: 8%;
-          top: 9%;
-          width: 84%;
-          height: 78%;
-          border-radius: 44% 48% 44% 40%;
-          clip-path: polygon(4% 18%, 19% 7%, 38% 12%, 56% 10%, 73% 18%, 86% 31%, 96% 46%, 88% 61%, 78% 70%, 69% 86%, 54% 77%, 43% 74%, 27% 68%, 16% 54%, 7% 42%);
-        }
-
-        .ops-exec-map-outline.alaska {
-          left: 4%;
-          top: 67%;
-          width: 18%;
-          height: 22%;
-          border-radius: 46%;
-          clip-path: polygon(10% 40%, 35% 22%, 70% 30%, 88% 55%, 55% 74%, 20% 65%);
-        }
-
-        .ops-exec-map-outline.hawaii {
-          left: 21%;
-          top: 82%;
-          width: 16%;
-          height: 10%;
-          border-radius: 999px;
-        }
-
-        .ops-exec-state {
-          position: absolute;
-          width: 52px;
-          height: 46px;
-          transform: translate(-50%, -50%);
-          border-radius: 16px;
-          border: 1px solid rgba(148,163,184,0.16);
-          background: rgba(15,23,42,0.82);
-          color: white;
-          display: grid;
-          place-items: center;
-          gap: 1px;
+        .ops-real-marker {
           cursor: pointer;
-          min-width: 0;
-          overflow: hidden;
-          transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+          outline: none;
         }
 
-        .ops-exec-state:hover,
-        .ops-exec-state.is-selected {
-          transform: translate(-50%, -50%) scale(1.13);
-          z-index: 8;
-          border-color: rgba(255,255,255,0.82);
-          box-shadow: 0 18px 46px rgba(2,6,23,0.42), 0 0 0 4px rgba(96,165,250,0.16);
+        .ops-real-marker circle {
+          fill: rgba(15,23,42,0.92);
+          stroke: rgba(255,255,255,0.86);
+          stroke-width: 1.6;
+          filter: drop-shadow(0 8px 12px rgba(2,6,23,0.62));
         }
 
-        .ops-exec-state span {
-          font-size: 13px;
+        .ops-real-marker.status-critical circle { fill: rgba(220,38,38,0.96); }
+        .ops-real-marker.status-escalated circle { fill: rgba(249,115,22,0.96); }
+        .ops-real-marker.status-monitoring circle { fill: rgba(2,132,199,0.96); }
+        .ops-real-marker.status-healthy circle { fill: rgba(22,163,74,0.96); }
+
+        .ops-real-marker.is-selected circle {
+          stroke: white;
+          stroke-width: 2.6;
+          filter: drop-shadow(0 0 14px rgba(96,165,250,0.9));
+        }
+
+        .ops-real-marker text {
+          pointer-events: none;
+          fill: white;
           font-weight: 950;
-          letter-spacing: -0.04em;
-        }
-
-        .ops-exec-state b {
-          font-size: 8px;
-          color: rgba(226,232,240,0.8);
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          padding: 0 4px;
-        }
-
-        .ops-exec-state em {
-          font-style: normal;
           font-size: 7px;
-          color: rgba(226,232,240,0.54);
-          font-weight: 900;
-          letter-spacing: 0.08em;
-        }
-
-        .ops-exec-state i {
-          position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 8px;
-          height: 8px;
-          border-radius: 999px;
-          background: rgb(248,113,113);
-        }
-
-        .ops-exec-state.status-critical {
-          background: linear-gradient(135deg, rgba(127,29,29,0.94), rgba(248,113,113,0.48));
-          border-color: rgba(248,113,113,0.68);
-        }
-
-        .ops-exec-state.status-escalated {
-          background: linear-gradient(135deg, rgba(124,45,18,0.92), rgba(251,146,60,0.42));
-          border-color: rgba(251,146,60,0.58);
-        }
-
-        .ops-exec-state.status-monitoring {
-          background: linear-gradient(135deg, rgba(30,64,175,0.76), rgba(56,189,248,0.28));
-          border-color: rgba(56,189,248,0.44);
-        }
-
-        .ops-exec-state.status-healthy {
-          background: linear-gradient(135deg, rgba(20,83,45,0.76), rgba(34,197,94,0.28));
-          border-color: rgba(34,197,94,0.42);
-        }
-
-        .ops-exec-state.is-modeled {
-          opacity: 0.88;
-        }
-
-        .ops-exec-state.is-live {
-          box-shadow: inset 0 0 0 1px rgba(56,189,248,0.34);
+          paint-order: stroke;
+          stroke: rgba(2,6,23,0.72);
+          stroke-width: 1.4px;
+          stroke-linejoin: round;
         }
 
         .ops-exec-legend {
@@ -909,24 +826,6 @@ export default function StateOperationsMap() {
             padding: 14px;
           }
 
-          .ops-exec-us-map {
-            min-height: 500px;
-          }
-
-          .ops-exec-state {
-            width: 44px;
-            height: 40px;
-            border-radius: 13px;
-          }
-
-          .ops-exec-state span {
-            font-size: 11px;
-          }
-
-          .ops-exec-state b {
-            font-size: 7px;
-          }
-
           .ops-selected-grid {
             grid-template-columns: 1fr;
           }
@@ -947,7 +846,7 @@ export default function StateOperationsMap() {
           <div className="ops-exec-map-header">
             <div>
               <strong>U.S. Operations Execution Command</strong>
-              <span>This U.S. execution map shows what needs action, ownership, vendors, MailOps, and escalation review.</span>
+              <span>This is a real U.S. state map. State color represents execution status for the selected layer.</span>
             </div>
 
             <div className="ops-exec-tabs">
@@ -964,19 +863,54 @@ export default function StateOperationsMap() {
             </div>
           </div>
 
-          <div className="ops-exec-map-wrap">
-            {loading ? (
-              <div className="ops-exec-loading-banner">
-                Loading live execution data — showing national operations baseline.
-              </div>
-            ) : null}
+          {loading ? (
+            <div className="vs-banner vs-banner-demo">Loading live execution data — showing national operations baseline.</div>
+          ) : null}
 
-            <div className="ops-exec-us-map" aria-label="United States operations execution map">
-              <div className="ops-exec-map-outline mainland" />
-              <div className="ops-exec-map-outline alaska" />
-              <div className="ops-exec-map-outline hawaii" />
+          <div className="ops-real-map-shell">
+            <ComposableMap projection="geoAlbersUsa" width={980} height={610}>
+              <Geographies geography={US_TOPO_JSON}>
+                {({ geographies }) =>
+                  geographies.map((geo) => {
+                    const abbr = STATE_FIPS_TO_ABBR[String(geo.id).padStart(2, "0")];
+                    const item = stateLookup[abbr] || baselineExecutionState(abbr);
+                    const layerStatus = getLayerStatus(item, layer);
+                    const selectedMatch = selected?.state_code === abbr;
+
+                    return (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        onClick={() => setSelectedState(item)}
+                        style={{
+                          default: {
+                            fill: getStateFill(layerStatus),
+                            stroke: selectedMatch ? "#ffffff" : "rgba(15,23,42,0.85)",
+                            strokeWidth: selectedMatch ? 2.4 : 0.9,
+                            outline: "none",
+                          },
+                          hover: {
+                            fill: getStateFill(layerStatus),
+                            stroke: "#ffffff",
+                            strokeWidth: 2,
+                            outline: "none",
+                            cursor: "pointer",
+                          },
+                          pressed: {
+                            fill: getStateFill(layerStatus),
+                            stroke: "#ffffff",
+                            strokeWidth: 2,
+                            outline: "none",
+                          },
+                        }}
+                      />
+                    );
+                  })
+                }
+              </Geographies>
+
               {states.map((item) => (
-                <MapStateCell
+                <MapMarker
                   key={item.state_code}
                   item={item}
                   layer={layer}
@@ -984,7 +918,7 @@ export default function StateOperationsMap() {
                   onSelect={setSelectedState}
                 />
               ))}
-            </div>
+            </ComposableMap>
           </div>
 
           <div className="ops-exec-legend">
