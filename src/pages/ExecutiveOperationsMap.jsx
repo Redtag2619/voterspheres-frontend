@@ -5,6 +5,7 @@ import {
   Geography,
   Marker,
 } from "react-simple-maps";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -440,7 +441,7 @@ function getRecommendation(state) {
   const label = String(state.risk_label || "").toLowerCase();
 
   if (state.active_task_count > 0) {
-    return `${state.state} has active county escalation tasking. Open Operations Execution to inspect county pressure and Command Center task status.`;
+    return `${state.state} has active county escalation tasking. Open State Operations to inspect county pressure and Command Center task status.`;
   }
 
   if (label === "critical") {
@@ -474,10 +475,17 @@ function buildCommandCenterUrl(state, context = {}) {
   if (state?.is_baseline) params.set("data", "baseline");
   else params.set("data", "live");
 
+  if (state?.operational_score !== undefined) params.set("score", Math.round(Number(state.operational_score || 0)).toString());
+  if (state?.active_task_count !== undefined) params.set("active", String(state.active_task_count || 0));
+  if (state?.mail_jobs !== undefined) params.set("mailops", String(state.mail_jobs || 0));
+  if (state?.vendors_scored !== undefined) params.set("vendors", String(state.vendors_scored || 0));
+  if (state?.max_county_heat_score !== undefined) params.set("countyHeat", Math.round(Number(state.max_county_heat_score || 0)).toString());
+
   if (context.action) params.set("action", context.action);
   if (context.layer) params.set("layer", context.layer);
   if (context.county) params.set("county", context.county);
   if (context.priority) params.set("priority", context.priority);
+  if (context.panel) params.set("panel", context.panel);
 
   return `/command-center?${params.toString()}`;
 }
@@ -584,7 +592,7 @@ function CountyIntelRow({ item, onCreateTask }) {
 
       <div className="county-intel-actions">
         <button type="button" onClick={() => openPath(`/state-operations/${item.state_code || item.state}`)}>
-          Open Operations Drilldown
+          Open Drilldown
         </button>
         <button type="button" onClick={() => openPath(buildCommandCenterUrl({ state: item.state_code || item.state, risk_label: item.risk }, { action: "county-escalation", county: item.name, priority: item.risk }))}>
           Command Center
@@ -631,12 +639,12 @@ function CountyIntelligenceDrawer({
 
   return (
     <SectionCard
-      title="Operations Execution Drawer"
-      subtitle={selected ? `${selected.state} execution tasks, escalations, resolved work, and operational drivers.` : "Select a state to inspect county intelligence."}
+      title="County Intelligence Drawer"
+      subtitle={selected ? `${selected.state} county heat, escalations, resolved pressure, and driver intelligence.` : "Select a state to inspect county intelligence."}
       right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
     >
       {!selected ? (
-        <EmptyState text="Select a state from the executive map to review execution details." />
+        <EmptyState text="Select a state from the executive map." />
       ) : (
         <div className="county-drawer">
           <div className="county-drawer-summary">
@@ -982,6 +990,9 @@ function SignalOverlayPanel({ summary = {}, states = [], onSelectState }) {
 }
 
 export default function ExecutiveOperationsMap() {
+  const [searchParams] = useSearchParams();
+  const requestedState = String(searchParams.get("state") || "").toUpperCase();
+  const requestedLayer = searchParams.get("layer") || "";
   const [data, setData] = useState(null);
   const [selectedState, setSelectedState] = useState(null);
   const [layer, setLayer] = useState("operational");
@@ -994,6 +1005,12 @@ export default function ExecutiveOperationsMap() {
   const [signalOverlay, setSignalOverlay] = useState({ summary: {}, states: [] });
   const [signalOverlayError, setSignalOverlayError] = useState("");
   const intervalRef = useRef(null);
+  useEffect(() => {
+    if (requestedLayer && LAYERS.some((item) => item.id === requestedLayer)) {
+      setLayer(requestedLayer);
+    }
+  }, [requestedLayer]);
+
 
   async function loadSignalOverlay() {
     try {
@@ -1043,6 +1060,10 @@ export default function ExecutiveOperationsMap() {
 
       setSelectedState((current) => {
         if (!normalizedStates.length) return null;
+        const requestedMatch = requestedState
+          ? normalizedStates.find((item) => item.state === requestedState || item.state_code === requestedState)
+          : null;
+        if (requestedMatch) return requestedMatch;
         if (!current) return normalizedStates[0];
         return normalizedStates.find((item) => item.state === current.state) || normalizedStates[0];
       });
@@ -1139,6 +1160,12 @@ export default function ExecutiveOperationsMap() {
     if (!selectedState) return states[0] || null;
     return states.find((item) => item.state === selectedState.state) || selectedState;
   }, [selectedState, states]);
+  useEffect(() => {
+    if (!requestedState || !states.length) return;
+    const match = states.find((item) => item.state === requestedState || item.state_code === requestedState);
+    if (match && selectedState?.state !== match.state) setSelectedState(match);
+  }, [requestedState, states, selectedState?.state]);
+
 
   function selectStateFromOverlay(stateCode) {
     const match = states.find((item) => item.state === stateCode || item.state_code === stateCode);
@@ -2459,7 +2486,7 @@ export default function ExecutiveOperationsMap() {
                 <small>{selected.active_task_count || 0} active tasks • {overlayLookup[selected.state]?.total_signals || 0} signals</small>
               </div>
               <div className="ops-command-handoff-actions">
-                <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "map-handoff", layer })}>
+                <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "map-handoff", layer, panel: "execution-board" })}>
                   Open Filtered Command Center
                 </button>
                 <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>
@@ -2490,7 +2517,7 @@ export default function ExecutiveOperationsMap() {
         <div data-tour="operations-command-detail">
           <SectionCard
             title={selected ? `${selected.state} Command Detail` : "Command Detail"}
-          subtitle="Breakdown of operational pressure by live Operations Execution signals."
+          subtitle="Breakdown of operational pressure by live State Operations signals."
           right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.risk_label}</Badge> : null}
         >
           {!selected ? (
