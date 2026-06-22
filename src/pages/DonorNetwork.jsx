@@ -18,9 +18,15 @@ function normalizeState(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function displaySource(value) {
+  if (value === "fec_schedule_a") return "FEC Schedule A";
+  if (value === "manual_live_seed") return "Seeded Donor Data";
+  if (value === "manual") return "Manual Donor Data";
+  return value || "FEC";
+}
+
 const fallbackData = {
   results: [],
-  topDonors: [],
   stateBreakdown: [],
   committeeBreakdown: [],
   summary: {
@@ -37,15 +43,7 @@ function strengthTone(value) {
   if (v === "high") return "danger";
   if (v === "medium") return "demo";
   if (v === "growing") return "info";
-  if (v === "live fec") return "active";
-  return "default";
-}
-
-function sourceTone(value) {
-  const v = String(value || "").toLowerCase();
-  if (v.includes("fec")) return "active";
-  if (v.includes("demo")) return "demo";
-  if (v.includes("error")) return "danger";
+  if (v === "new") return "accent";
   return "default";
 }
 
@@ -59,20 +57,18 @@ async function loadDonors(params) {
     return response?.data || response;
   }
 
-  throw new Error("Missing api.donorNetwork. Add donorNetwork: (params) => get('/donors/network', { params }) to src/services/api.js.");
+  throw new Error(
+    "Missing api.donorNetwork. Add donorNetwork: (params) => get('/donors/network', { params }) to src/services/api.js."
+  );
 }
 
 function DonorRow({ donor }) {
   const amount = Number(donor.amount || donor.total_amount || 0);
-
-  const sourceLabel =
-    donor.source === "fec_schedule_a"
-      ? "FEC Schedule A"
-      : donor.source || "FEC";
+  const sourceLabel = displaySource(donor.source);
 
   return (
     <ResponsiveRow
-      title={donor.donor_name || "Unnamed Donor"}
+      title={donor.donor_name || donor.name || "Unnamed Donor"}
       subtitle={`${donor.state || "Unknown state"} | ${
         donor.donor_type || "Unknown type"
       } | ${donor.committee_name || "Committee unavailable"}`}
@@ -111,10 +107,10 @@ function StateBreakdownRow({ item }) {
   return (
     <ResponsiveRow
       title={item.state || "Unknown"}
-      subtitle={`${item.donor_count || 0} donors â€¢ ${item.contribution_count || 0} contributions`}
+      subtitle={`${item.donor_count || 0} donors`}
       meta={[
         { label: "Amount", value: formatMoney(item.total_amount || 0) },
-        { label: "Avg Gift", value: formatMoney(item.average_amount || 0) },
+        { label: "Average", value: formatMoney(item.average_amount || 0) },
       ]}
       right={<Badge tone="accent">{formatMoney(item.total_amount || 0)}</Badge>}
     />
@@ -125,11 +121,12 @@ function CommitteeRow({ item }) {
   return (
     <ResponsiveRow
       title={item.committee_name || item.committee_id || "Unknown Committee"}
-      subtitle={`${item.committee_id || "No committee ID"} â€¢ ${item.state || "National"}`}
+      subtitle={`${item.committee_id || "No committee ID"} | ${
+        item.state || "National"
+      }`}
       meta={[
         { label: "Amount", value: formatMoney(item.total_amount || 0) },
         { label: "Donors", value: item.donor_count || 0 },
-        { label: "Contributions", value: item.contribution_count || 0 },
       ]}
       right={<Badge tone="info">{formatMoney(item.total_amount || 0)}</Badge>}
     />
@@ -151,7 +148,8 @@ export default function DonorNetwork() {
 
   useEffect(() => {
     let active = true;
-    const timer = setTimeout(async () => {
+
+    async function loadDonorNetwork() {
       try {
         setLoading((current) => !networkData?.results?.length || current);
         setRefreshing(Boolean(networkData?.results?.length));
@@ -159,7 +157,7 @@ export default function DonorNetwork() {
 
         const params = {
           cycle,
-          per_page: 100,
+          limit: 100,
         };
 
         if (filters.state) params.state = filters.state;
@@ -171,7 +169,12 @@ export default function DonorNetwork() {
 
         setNetworkData(data || fallbackData);
         setIsDemoData(Boolean(data?._demo || data?.demo));
-        setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        setLastUpdated(
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        );
       } catch (err) {
         if (!active) return;
 
@@ -180,6 +183,7 @@ export default function DonorNetwork() {
             err?.message ||
             "Failed to load donor network"
         );
+
         setNetworkData(fallbackData);
         setIsDemoData(false);
       } finally {
@@ -188,7 +192,9 @@ export default function DonorNetwork() {
           setRefreshing(false);
         }
       }
-    }, 250);
+    }
+
+    const timer = setTimeout(loadDonorNetwork, 300);
 
     return () => {
       active = false;
@@ -206,15 +212,17 @@ export default function DonorNetwork() {
 
     if (localSearch.trim()) {
       const q = localSearch.trim().toLowerCase();
+
       rows = rows.filter((row) => {
         return (
-          String(row.donor_name || "").toLowerCase().includes(q) ||
+          String(row.donor_name || row.name || "").toLowerCase().includes(q) ||
           String(row.donor_type || "").toLowerCase().includes(q) ||
           String(row.relationship_strength || "").toLowerCase().includes(q) ||
           String(row.state || "").toLowerCase().includes(q) ||
           String(row.committee_name || "").toLowerCase().includes(q) ||
           String(row.employer || "").toLowerCase().includes(q) ||
-          String(row.occupation || "").toLowerCase().includes(q)
+          String(row.occupation || "").toLowerCase().includes(q) ||
+          String(row.city || "").toLowerCase().includes(q)
         );
       });
     }
@@ -223,7 +231,11 @@ export default function DonorNetwork() {
   }, [networkData, filters.state, localSearch]);
 
   const summary = useMemo(() => {
-    if (networkData?.summary && !localSearch.trim() && !filters.state) {
+    if (
+      networkData?.summary &&
+      !localSearch.trim() &&
+      !filters.state
+    ) {
       return networkData.summary;
     }
 
@@ -248,7 +260,8 @@ export default function DonorNetwork() {
     }, {});
 
     const topState =
-      Object.entries(stateTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+      Object.entries(stateTotals).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      "N/A";
 
     return {
       total_donors: filteredResults.length,
@@ -259,43 +272,56 @@ export default function DonorNetwork() {
   }, [filteredResults, networkData, localSearch, filters.state]);
 
   const stateBreakdown = useMemo(() => {
-    if (Array.isArray(networkData?.stateBreakdown) && networkData.stateBreakdown.length && !filters.state && !localSearch.trim()) {
+    if (
+      Array.isArray(networkData?.stateBreakdown) &&
+      networkData.stateBreakdown.length &&
+      !filters.state &&
+      !localSearch.trim()
+    ) {
       return networkData.stateBreakdown;
     }
 
     const grouped = filteredResults.reduce((acc, row) => {
       const state = row.state || "Unknown";
+
       if (!acc[state]) {
         acc[state] = {
           state,
           total_amount: 0,
           donor_count: 0,
-          contribution_count: 0,
+          average_amount: 0,
         };
       }
 
       acc[state].total_amount += Number(row.amount || row.total_amount || 0);
       acc[state].donor_count += 1;
-      acc[state].contribution_count += Number(row.contribution_count || 1);
+
       return acc;
     }, {});
 
     return Object.values(grouped)
       .map((item) => ({
         ...item,
-        average_amount: item.contribution_count ? item.total_amount / item.contribution_count : 0,
+        average_amount: item.donor_count
+          ? item.total_amount / item.donor_count
+          : 0,
       }))
       .sort((a, b) => b.total_amount - a.total_amount)
       .slice(0, 12);
   }, [networkData, filteredResults, filters.state, localSearch]);
 
   const committeeBreakdown = useMemo(() => {
-    if (Array.isArray(networkData?.committeeBreakdown) && networkData.committeeBreakdown.length && !localSearch.trim()) {
+    if (
+      Array.isArray(networkData?.committeeBreakdown) &&
+      networkData.committeeBreakdown.length &&
+      !localSearch.trim()
+    ) {
       return networkData.committeeBreakdown;
     }
 
     const grouped = filteredResults.reduce((acc, row) => {
       const key = row.committee_id || row.committee_name || "Unknown Committee";
+
       if (!acc[key]) {
         acc[key] = {
           committee_id: row.committee_id,
@@ -303,17 +329,18 @@ export default function DonorNetwork() {
           state: row.state || "National",
           total_amount: 0,
           donor_count: 0,
-          contribution_count: 0,
         };
       }
 
       acc[key].total_amount += Number(row.amount || row.total_amount || 0);
       acc[key].donor_count += 1;
-      acc[key].contribution_count += Number(row.contribution_count || 1);
+
       return acc;
     }, {});
 
-    return Object.values(grouped).sort((a, b) => b.total_amount - a.total_amount).slice(0, 10);
+    return Object.values(grouped)
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 10);
   }, [networkData, filteredResults, localSearch]);
 
   const highStrengthCount = filteredResults.filter(
@@ -345,7 +372,7 @@ export default function DonorNetwork() {
         },
         {
           label: "Source",
-          value: donor.source === "fec_schedule_a"? "FEC Schedule A" : donor.source || "FEC",},
+          value: displaySource(summary.source),
           dotClass: isDemoData ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
         {
@@ -463,11 +490,15 @@ export default function DonorNetwork() {
           <input
             className="vs-input"
             value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
+            onChange={(event) => setLocalSearch(event.target.value)}
             placeholder="Search donor, employer, occupation, committee, state..."
           />
 
-          <select className="vs-input" value={cycle} onChange={(event) => setCycle(event.target.value)}>
+          <select
+            className="vs-input"
+            value={cycle}
+            onChange={(event) => setCycle(event.target.value)}
+          >
             <option value="2026">2026 Cycle</option>
             <option value="2024">2024 Cycle</option>
             <option value="2022">2022 Cycle</option>
@@ -487,7 +518,11 @@ export default function DonorNetwork() {
         <SectionCard
           title="Donor Relationship Board"
           subtitle="Live itemized contributors and relationship strength across the filtered FEC network."
-          right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live FEC"}</Badge>}
+          right={
+            <Badge tone={isDemoData ? "demo" : "active"}>
+              {isDemoData ? "Demo Data" : "Live FEC"}
+            </Badge>
+          }
         >
           <div className="vs-stack">
             {loading ? (
@@ -496,7 +531,10 @@ export default function DonorNetwork() {
               <EmptyState text="No donors match the active filters. Try clearing search or switching cycle." />
             ) : (
               filteredResults.map((donor) => (
-                <DonorRow key={donor.id || `${donor.donor_name}-${donor.committee_id}-${donor.amount}`} donor={donor} />
+                <DonorRow
+                  key={donor.id || `${donor.donor_name}-${donor.committee_id}-${donor.amount}`}
+                  donor={donor}
+                />
               ))
             )}
           </div>
@@ -505,10 +543,12 @@ export default function DonorNetwork() {
         <div className="donor-stack">
           <div className="donor-source-card">
             <span>Live Data Source</span>
-            <strong>{summary.source || "FEC Schedule A"}</strong>
+            <strong>{displaySource(summary.source) || "FEC Schedule A"}</strong>
             <p>
-              This page is now wired for live FEC itemized contribution data. It groups contributor records into donor,
-              state, and committee intelligence that VoterSpheres can use for executive fundraising analysis.
+              This page is wired for live FEC itemized contribution data. It
+              groups contributor records into donor, state, and committee
+              intelligence that VoterSpheres can use for executive fundraising
+              analysis.
             </p>
           </div>
 
@@ -521,7 +561,9 @@ export default function DonorNetwork() {
               {!stateBreakdown.length ? (
                 <EmptyState text="No state concentration available." />
               ) : (
-                stateBreakdown.map((item) => <StateBreakdownRow key={item.state} item={item} />)
+                stateBreakdown.map((item) => (
+                  <StateBreakdownRow key={item.state} item={item} />
+                ))
               )}
             </div>
           </SectionCard>
@@ -538,7 +580,10 @@ export default function DonorNetwork() {
             <EmptyState text="No committee funding channels available." />
           ) : (
             committeeBreakdown.map((item) => (
-              <CommitteeRow key={item.committee_id || item.committee_name} item={item} />
+              <CommitteeRow
+                key={item.committee_id || item.committee_name}
+                item={item}
+              />
             ))
           )}
         </div>
@@ -546,4 +591,3 @@ export default function DonorNetwork() {
     </PageShell>
   );
 }
-
