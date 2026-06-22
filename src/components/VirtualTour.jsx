@@ -854,8 +854,7 @@ function TourStyles() {
         position: fixed;
         inset: 0;
         z-index: 10000;
-        background:
-          radial-gradient(circle at center, rgba(15, 23, 42, 0.28), rgba(2, 6, 23, 0.74));
+        background: transparent;
         pointer-events: none;
       }
 
@@ -864,32 +863,29 @@ function TourStyles() {
         z-index: 10006;
         pointer-events: none;
         border-radius: 24px;
-        outline: 5px solid rgba(56, 189, 248, 1);
+        outline: 4px solid rgba(56, 189, 248, 1);
         box-shadow:
-          0 0 0 7px rgba(255, 255, 255, 0.22),
-          0 0 0 15px rgba(56, 189, 248, 0.38),
-          0 0 46px rgba(56, 189, 248, 1),
-          0 0 110px rgba(245, 158, 11, 0.72);
-        animation: vsTourSpotlightPulse 1.1s ease-in-out infinite;
+          0 0 0 6px rgba(56, 189, 248, 0.22),
+          0 0 34px rgba(56, 189, 248, 0.88),
+          0 0 68px rgba(245, 158, 11, 0.36);
+        animation: vsTourSpotlightPulse 1.25s ease-in-out infinite;
       }
 
       @keyframes vsTourSpotlightPulse {
         0%, 100% {
           outline-color: rgba(56, 189, 248, 1);
           box-shadow:
-            0 0 0 7px rgba(255, 255, 255, 0.22),
-            0 0 0 15px rgba(56, 189, 248, 0.38),
-            0 0 46px rgba(56, 189, 248, 1),
-            0 0 110px rgba(245, 158, 11, 0.72);
+            0 0 0 6px rgba(56, 189, 248, 0.22),
+            0 0 34px rgba(56, 189, 248, 0.88),
+            0 0 68px rgba(245, 158, 11, 0.36);
         }
 
         50% {
           outline-color: rgba(251, 191, 36, 1);
           box-shadow:
-            0 0 0 8px rgba(255, 255, 255, 0.26),
-            0 0 0 17px rgba(251, 191, 36, 0.44),
-            0 0 56px rgba(251, 191, 36, 1),
-            0 0 124px rgba(56, 189, 248, 0.76);
+            0 0 0 7px rgba(251, 191, 36, 0.26),
+            0 0 42px rgba(251, 191, 36, 0.9),
+            0 0 78px rgba(56, 189, 248, 0.42);
         }
       }
 
@@ -936,7 +932,15 @@ function TourStyles() {
         line-height: 1.5;
       }
 
+      .vs-tour-backdrop {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        pointer-events: none;
+      }
+
       .vs-tour-card {
+        pointer-events: auto;
         max-width: min(800px, calc(100vw - 28px));
         border-color: rgba(56, 189, 248, 0.32) !important;
         box-shadow:
