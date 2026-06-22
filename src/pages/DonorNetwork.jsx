@@ -68,7 +68,7 @@ function DonorRow({ donor }) {
   return (
     <ResponsiveRow
       title={donor.donor_name || "Unnamed Donor"}
-      subtitle={`${donor.state || "Unknown state"} â€¢ ${donor.donor_type || "Unknown type"} â€¢ ${donor.committee_name || "Committee unavailable"}`}
+      subtitle={`${donor.state || "Unknown state"} | ${donor.donor_type || "Unknown type"} | ${donor.committee_name || "Committee unavailable"}`}
       meta={[
         { label: "Amount", value: formatMoney(amount) },
         { label: "Contributions", value: donor.contribution_count || donor.count || 1 },
@@ -328,8 +328,9 @@ export default function DonorNetwork() {
           dotClass: "vs-live-dot-warning",
         },
         {
+        {
           label: "Source",
-          value: summary.source || "FEC",
+          value: donor.source === "fec_schedule_a"? "FEC Schedule A" : donor.source || "FEC",},
           dotClass: isDemoData ? "vs-live-dot-warning" : "vs-live-dot-success",
         },
         {
