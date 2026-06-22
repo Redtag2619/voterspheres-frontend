@@ -9,14 +9,18 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
-const STATE_POSITIONS = {
-  AK: [1, 1], ME: [11, 1],
-  VT: [10, 2], NH: [11, 2], WA: [2, 2], MT: [3, 2], ND: [4, 2], MN: [5, 2], WI: [6, 2], MI: [7, 2], NY: [9, 2], MA: [11, 3],
-  OR: [2, 3], ID: [3, 3], SD: [4, 3], IA: [5, 3], IL: [6, 3], IN: [7, 3], OH: [8, 3], PA: [9, 3], CT: [10, 3], RI: [11, 4],
-  CA: [2, 4], NV: [3, 4], WY: [4, 4], NE: [5, 4], MO: [6, 4], KY: [7, 4], WV: [8, 4], VA: [9, 4], NJ: [10, 4],
-  HI: [1, 5], AZ: [3, 5], UT: [4, 5], CO: [5, 5], KS: [6, 5], AR: [7, 5], TN: [8, 5], NC: [9, 5], DE: [10, 5],
-  NM: [4, 6], OK: [5, 6], LA: [6, 6], MS: [7, 6], AL: [8, 6], SC: [9, 6], MD: [10, 6], DC: [11, 6],
-  TX: [5, 7], GA: [8, 7], FL: [9, 8],
+const STATE_COORDS = {
+  AK: [10, 77], HI: [26, 86],
+  WA: [14, 14], OR: [12, 26], CA: [11, 45], NV: [20, 40], ID: [24, 25], MT: [32, 18], WY: [34, 36],
+  UT: [29, 46], AZ: [28, 62], CO: [42, 48], NM: [42, 65],
+  ND: [49, 19], SD: [50, 32], NE: [52, 44], KS: [55, 56], OK: [57, 66], TX: [56, 80],
+  MN: [61, 22], IA: [63, 39], MO: [65, 53], AR: [66, 66], LA: [66, 79],
+  WI: [69, 28], IL: [71, 44], MS: [72, 74],
+  MI: [78, 29], IN: [76, 44], KY: [78, 55], TN: [78, 64], AL: [78, 75],
+  OH: [83, 43], WV: [85, 53], GA: [84, 75], FL: [89, 88],
+  PA: [89, 39], VA: [90, 55], NC: [91, 64], SC: [89, 71],
+  NY: [92, 28], VT: [94, 17], NH: [97, 18], ME: [99, 10],
+  MA: [98, 27], RI: [99, 33], CT: [96, 34], NJ: [94, 42], DE: [95, 49], MD: [93, 52], DC: [91, 50],
 };
 
 const STATE_NAMES = {
@@ -92,6 +96,8 @@ const EXECUTION_LAYERS = [
   ["escalations", "Escalations"],
   ["resolved", "Resolved"],
 ];
+
+const STATE_ORDER = Object.keys(STATE_COORDS).sort((a, b) => a.localeCompare(b));
 
 function fmtNumber(value) {
   return Number(value || 0).toLocaleString();
@@ -217,9 +223,7 @@ function completeExecutionStates(liveRows = []) {
     return acc;
   }, {});
 
-  return Object.keys(STATE_POSITIONS)
-    .sort((a, b) => a.localeCompare(b))
-    .map((code) => liveLookup[code] || baselineExecutionState(code));
+  return STATE_ORDER.map((code) => liveLookup[code] || baselineExecutionState(code));
 }
 
 function getLayerValue(item, layer) {
@@ -249,16 +253,11 @@ function getStatusFromLayer(item, layer) {
 }
 
 function buildSummary(states = []) {
-  const critical = states.filter((item) => item.status === "Critical").length;
-  const escalated = states.filter((item) => item.status === "Escalated").length;
-  const monitoring = states.filter((item) => item.status === "Monitoring").length;
-  const healthy = states.filter((item) => item.status === "Healthy").length;
-
   return {
-    critical,
-    escalated,
-    monitoring,
-    healthy,
+    critical: states.filter((item) => item.status === "Critical").length,
+    escalated: states.filter((item) => item.status === "Escalated").length,
+    monitoring: states.filter((item) => item.status === "Monitoring").length,
+    healthy: states.filter((item) => item.status === "Healthy").length,
     openTasks: states.reduce((sum, item) => sum + Number(item.open_tasks || 0), 0),
     vendorGaps: states.reduce((sum, item) => sum + Number(item.vendor_gaps || 0), 0),
     mailJobs: states.reduce((sum, item) => sum + Number(item.mail_jobs || 0), 0),
@@ -296,7 +295,7 @@ function buildExecutionFeed(states = []) {
 }
 
 function MapStateCell({ item, layer, selected, onSelect }) {
-  const pos = STATE_POSITIONS[item.state_code] || [1, 1];
+  const coords = STATE_COORDS[item.state_code] || [50, 50];
   const displayStatus = getStatusFromLayer(item, layer);
   const value = getLayerValue(item, layer);
 
@@ -304,7 +303,10 @@ function MapStateCell({ item, layer, selected, onSelect }) {
     <button
       type="button"
       className={`ops-exec-state ${statusClass(displayStatus)} ${selected?.state_code === item.state_code ? "is-selected" : ""} ${item.source === "live" ? "is-live" : "is-modeled"}`}
-      style={{ gridColumn: pos[0], gridRow: pos[1] }}
+      style={{
+        left: `${coords[0]}%`,
+        top: `${coords[1]}%`,
+      }}
       title={`${item.state_name}: ${displayStatus}`}
       onClick={() => onSelect(item)}
     >
@@ -366,7 +368,7 @@ function FeedRow({ item, onOpen }) {
 export default function StateOperationsMap() {
   const navigate = useNavigate();
 
-  const [data, setData] = useState({ states: [] });
+  const [data, setData] = useState({ states: completeExecutionStates([]) });
   const [layer, setLayer] = useState("status");
   const [selectedState, setSelectedState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -428,8 +430,8 @@ export default function StateOperationsMap() {
   }, []);
 
   const states = data?.states?.length ? data.states : completeExecutionStates([]);
-  const rows = data?.executionRows || [];
-  const feed = data?.executionFeed || [];
+  const rows = data?.executionRows?.length ? data.executionRows : buildExecutionRows(states);
+  const feed = data?.executionFeed?.length ? data.executionFeed : buildExecutionFeed(states);
   const summary = data?.summary || buildSummary(states);
   const selected = useMemo(() => {
     if (!selectedState) return rows[0] || states.find((item) => item.status === "Critical") || states[0] || null;
@@ -466,13 +468,6 @@ export default function StateOperationsMap() {
       ]}
     >
       <style>{`
-        .ops-exec-summary {
-          display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 14px;
-          margin-bottom: 18px;
-        }
-
         .ops-exec-layout {
           display: grid;
           grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.8fr);
@@ -554,12 +549,11 @@ export default function StateOperationsMap() {
           box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
         }
 
-        .ops-exec-grid-wrap {
+        .ops-exec-map-wrap {
           position: relative;
           z-index: 2;
           width: 100%;
-          overflow-x: auto;
-          padding-bottom: 4px;
+          overflow: visible;
         }
 
         .ops-exec-loading-banner {
@@ -575,21 +569,73 @@ export default function StateOperationsMap() {
           font-weight: 850;
         }
 
-        .ops-exec-grid-map {
+        .ops-exec-us-map {
           position: relative;
           z-index: 2;
-          display: grid;
-          grid-template-columns: repeat(11, minmax(48px, 1fr));
-          grid-template-rows: repeat(8, 60px);
-          gap: 9px;
-          margin-top: 20px;
-          min-width: 680px;
           width: 100%;
+          min-height: 560px;
+          margin-top: 18px;
+          border-radius: 28px;
+          border: 1px solid rgba(148,163,184,0.12);
+          background:
+            radial-gradient(circle at 50% 52%, rgba(96,165,250,0.09), transparent 40%),
+            linear-gradient(135deg, rgba(15,23,42,0.34), rgba(2,6,23,0.22));
+          overflow: hidden;
+        }
+
+        .ops-exec-us-map:before {
+          content: "";
+          position: absolute;
+          inset: 8%;
+          border-radius: 42% 48% 44% 40%;
+          border: 1px solid rgba(96,165,250,0.12);
+          background:
+            radial-gradient(circle at 32% 34%, rgba(56,189,248,0.1), transparent 25%),
+            radial-gradient(circle at 72% 45%, rgba(251,146,60,0.08), transparent 28%);
+          clip-path: polygon(6% 20%, 20% 10%, 38% 15%, 55% 12%, 72% 20%, 84% 30%, 92% 45%, 86% 60%, 76% 69%, 69% 82%, 54% 74%, 42% 71%, 27% 66%, 17% 53%, 8% 43%);
+          opacity: 0.7;
+          pointer-events: none;
+        }
+
+        .ops-exec-map-outline {
+          position: absolute;
+          pointer-events: none;
+          border: 1px solid rgba(96,165,250,0.1);
+          background: rgba(15,23,42,0.16);
+        }
+
+        .ops-exec-map-outline.mainland {
+          left: 8%;
+          top: 9%;
+          width: 84%;
+          height: 78%;
+          border-radius: 44% 48% 44% 40%;
+          clip-path: polygon(4% 18%, 19% 7%, 38% 12%, 56% 10%, 73% 18%, 86% 31%, 96% 46%, 88% 61%, 78% 70%, 69% 86%, 54% 77%, 43% 74%, 27% 68%, 16% 54%, 7% 42%);
+        }
+
+        .ops-exec-map-outline.alaska {
+          left: 4%;
+          top: 67%;
+          width: 18%;
+          height: 22%;
+          border-radius: 46%;
+          clip-path: polygon(10% 40%, 35% 22%, 70% 30%, 88% 55%, 55% 74%, 20% 65%);
+        }
+
+        .ops-exec-map-outline.hawaii {
+          left: 21%;
+          top: 82%;
+          width: 16%;
+          height: 10%;
+          border-radius: 999px;
         }
 
         .ops-exec-state {
-          position: relative;
-          border-radius: 17px;
+          position: absolute;
+          width: 52px;
+          height: 46px;
+          transform: translate(-50%, -50%);
+          border-radius: 16px;
           border: 1px solid rgba(148,163,184,0.16);
           background: rgba(15,23,42,0.82);
           color: white;
@@ -604,10 +650,10 @@ export default function StateOperationsMap() {
 
         .ops-exec-state:hover,
         .ops-exec-state.is-selected {
-          transform: translateY(-2px) scale(1.025);
-          z-index: 5;
-          border-color: rgba(255,255,255,0.72);
-          box-shadow: 0 18px 46px rgba(2,6,23,0.38);
+          transform: translate(-50%, -50%) scale(1.13);
+          z-index: 8;
+          border-color: rgba(255,255,255,0.82);
+          box-shadow: 0 18px 46px rgba(2,6,23,0.42), 0 0 0 4px rgba(96,165,250,0.16);
         }
 
         .ops-exec-state span {
@@ -617,8 +663,8 @@ export default function StateOperationsMap() {
         }
 
         .ops-exec-state b {
-          font-size: 9px;
-          color: rgba(226,232,240,0.78);
+          font-size: 8px;
+          color: rgba(226,232,240,0.8);
           max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -629,15 +675,15 @@ export default function StateOperationsMap() {
         .ops-exec-state em {
           font-style: normal;
           font-size: 7px;
-          color: rgba(226,232,240,0.52);
+          color: rgba(226,232,240,0.54);
           font-weight: 900;
           letter-spacing: 0.08em;
         }
 
         .ops-exec-state i {
           position: absolute;
-          top: 7px;
-          right: 7px;
+          top: 6px;
+          right: 6px;
           width: 8px;
           height: 8px;
           border-radius: 999px;
@@ -645,31 +691,31 @@ export default function StateOperationsMap() {
         }
 
         .ops-exec-state.status-critical {
-          background: linear-gradient(135deg, rgba(127,29,29,0.92), rgba(248,113,113,0.42));
-          border-color: rgba(248,113,113,0.62);
+          background: linear-gradient(135deg, rgba(127,29,29,0.94), rgba(248,113,113,0.48));
+          border-color: rgba(248,113,113,0.68);
         }
 
         .ops-exec-state.status-escalated {
-          background: linear-gradient(135deg, rgba(124,45,18,0.9), rgba(251,146,60,0.38));
-          border-color: rgba(251,146,60,0.54);
+          background: linear-gradient(135deg, rgba(124,45,18,0.92), rgba(251,146,60,0.42));
+          border-color: rgba(251,146,60,0.58);
         }
 
         .ops-exec-state.status-monitoring {
-          background: linear-gradient(135deg, rgba(30,64,175,0.72), rgba(56,189,248,0.24));
-          border-color: rgba(56,189,248,0.4);
+          background: linear-gradient(135deg, rgba(30,64,175,0.76), rgba(56,189,248,0.28));
+          border-color: rgba(56,189,248,0.44);
         }
 
         .ops-exec-state.status-healthy {
-          background: linear-gradient(135deg, rgba(20,83,45,0.72), rgba(34,197,94,0.24));
-          border-color: rgba(34,197,94,0.38);
+          background: linear-gradient(135deg, rgba(20,83,45,0.76), rgba(34,197,94,0.28));
+          border-color: rgba(34,197,94,0.42);
         }
 
         .ops-exec-state.is-modeled {
-          opacity: 0.83;
+          opacity: 0.88;
         }
 
         .ops-exec-state.is-live {
-          box-shadow: inset 0 0 0 1px rgba(56,189,248,0.28);
+          box-shadow: inset 0 0 0 1px rgba(56,189,248,0.34);
         }
 
         .ops-exec-legend {
@@ -861,13 +907,24 @@ export default function StateOperationsMap() {
         @media (max-width: 760px) {
           .ops-exec-map-stage {
             padding: 14px;
-            overflow-x: auto;
           }
 
-          .ops-exec-grid-map {
-            grid-template-columns: repeat(11, minmax(46px, 1fr));
-            grid-template-rows: repeat(8, 56px);
-            min-width: 640px;
+          .ops-exec-us-map {
+            min-height: 500px;
+          }
+
+          .ops-exec-state {
+            width: 44px;
+            height: 40px;
+            border-radius: 13px;
+          }
+
+          .ops-exec-state span {
+            font-size: 11px;
+          }
+
+          .ops-exec-state b {
+            font-size: 7px;
           }
 
           .ops-selected-grid {
@@ -907,14 +964,17 @@ export default function StateOperationsMap() {
             </div>
           </div>
 
-          <div className="ops-exec-grid-wrap">
+          <div className="ops-exec-map-wrap">
             {loading ? (
               <div className="ops-exec-loading-banner">
                 Loading live execution data — showing national operations baseline.
               </div>
             ) : null}
 
-            <div className="ops-exec-grid-map" aria-label="United States operations execution map">
+            <div className="ops-exec-us-map" aria-label="United States operations execution map">
+              <div className="ops-exec-map-outline mainland" />
+              <div className="ops-exec-map-outline alaska" />
+              <div className="ops-exec-map-outline hawaii" />
               {states.map((item) => (
                 <MapStateCell
                   key={item.state_code}
