@@ -1777,3 +1777,46 @@ body {
   line-height: 1.68;
 }
 }
+
+
+/* === VoterSpheres Virtual Tour: normal brightness executive demo override === */
+.vs-tour-screen-dim {
+  background: transparent !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+}
+
+.vs-tour-backdrop {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none !important;
+}
+
+.vs-tour-card {
+  pointer-events: auto !important;
+}
+
+.vs-tour-spotlight-box {
+  outline: 4px solid rgba(56, 189, 248, 1) !important;
+  box-shadow:
+    0 0 0 6px rgba(56, 189, 248, 0.22),
+    0 0 34px rgba(56, 189, 248, 0.88),
+    0 0 68px rgba(245, 158, 11, 0.36) !important;
+}
+
+.vs-tour-highlight-active {
+  box-shadow:
+    0 0 0 4px rgba(56, 189, 248, 0.95),
+    0 0 34px rgba(56, 189, 248, 0.78),
+    0 0 68px rgba(245, 158, 11, 0.28) !important;
+}
+
+body,
+#root,
+.vs-shell,
+.vs-shell-main,
+.vs-page-shell {
+  filter: none !important;
+}
+
