@@ -874,7 +874,13 @@ export default function CommandCenter() {
   const mapBridgeRegion = searchParams.get("region") || "";
   const mapBridgeData = searchParams.get("data") || "";
   const mapBridgeCounty = searchParams.get("county") || "";
-  const isExecutiveMapBridge = mapBridgeSource === "executive-map" && Boolean(mapBridgeState);
+  const mapBridgeScore = searchParams.get("score") || "";
+  const mapBridgeActive = searchParams.get("active") || "";
+  const mapBridgeMailops = searchParams.get("mailops") || "";
+  const mapBridgeVendors = searchParams.get("vendors") || "";
+  const mapBridgeCountyHeat = searchParams.get("countyHeat") || "";
+  const mapBridgePanel = searchParams.get("panel") || "";
+  const isExecutiveMapBridge = ["executive-map", "operations-map", "state-operations-map"].includes(mapBridgeSource) && Boolean(mapBridgeState);
 
   async function loadCommandData() {
     if (demoMode) {
@@ -1053,6 +1059,19 @@ export default function CommandCenter() {
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoMode]);
+  useEffect(() => {
+    if (!isExecutiveMapBridge) return;
+
+    const action = String(mapBridgeAction || "").toLowerCase();
+    const layerName = String(mapBridgeLayer || "").toLowerCase();
+
+    if (mapBridgeCounty || action.includes("county")) setTaskFilter("county");
+    else if (layerName.includes("vendor") || action.includes("vendor")) setTaskFilter("vendor");
+    else if (layerName.includes("mail") || action.includes("mail")) setTaskFilter("mailops");
+    else if (String(mapBridgeRisk || "").toLowerCase().includes("critical")) setTaskFilter("critical");
+    else setTaskFilter("open");
+  }, [isExecutiveMapBridge, mapBridgeAction, mapBridgeLayer, mapBridgeCounty, mapBridgeRisk, mapBridgeState]);
+
 
   const effectiveData = commandData || fallbackData;
   const metrics = effectiveData.metrics || fallbackData.metrics;
@@ -1060,25 +1079,29 @@ export default function CommandCenter() {
   const actions = effectiveData.actions || [];
   const feed = effectiveData.feed || [];
 
+  const bridgeScopedTasks = useMemo(() => {
+    return isExecutiveMapBridge ? tasks.filter((task) => stateMatchesTask(task, mapBridgeState)) : tasks;
+  }, [tasks, isExecutiveMapBridge, mapBridgeState]);
+
   const taskCounts = useMemo(() => {
+    const sourceTasks = bridgeScopedTasks;
+
     return {
-      all: tasks.length,
-      county: tasks.filter(isCountyEscalationTask).length,
-      vendor: tasks.filter(isVendorTask).length,
-      mailops: tasks.filter(isMailOpsTask).length,
-      critical: tasks.filter((task) => ["critical", "high"].includes(getTaskPriority(task))).length,
-      open: tasks.filter((task) => !["complete", "completed", "done", "resolved", "archived"].includes(getTaskStatus(task))).length,
-      completed: tasks.filter((task) => ["complete", "completed", "done", "resolved"].includes(getTaskStatus(task))).length,
+      all: sourceTasks.length,
+      county: sourceTasks.filter(isCountyEscalationTask).length,
+      vendor: sourceTasks.filter(isVendorTask).length,
+      mailops: sourceTasks.filter(isMailOpsTask).length,
+      critical: sourceTasks.filter((task) => ["critical", "high"].includes(getTaskPriority(task))).length,
+      open: sourceTasks.filter((task) => !["complete", "completed", "done", "resolved", "archived"].includes(getTaskStatus(task))).length,
+      completed: sourceTasks.filter((task) => ["complete", "completed", "done", "resolved"].includes(getTaskStatus(task))).length,
     };
-  }, [tasks]);
+  }, [bridgeScopedTasks]);
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+    return bridgeScopedTasks.filter((task) => {
       const status = getTaskStatus(task);
       const priority = getTaskPriority(task);
-      const stateMatch = !isExecutiveMapBridge || stateMatchesTask(task, mapBridgeState);
 
-      if (!stateMatch) return false;
       if (taskFilter === "county") return isCountyEscalationTask(task);
       if (taskFilter === "vendor") return isVendorTask(task);
       if (taskFilter === "mailops") return isMailOpsTask(task);
@@ -1088,18 +1111,31 @@ export default function CommandCenter() {
 
       return true;
     });
-  }, [tasks, taskFilter, isExecutiveMapBridge, mapBridgeState]);
+  }, [bridgeScopedTasks, taskFilter]);
 
-  const mapBridgeTasks = useMemo(
-    () => (mapBridgeState ? tasks.filter((task) => stateMatchesTask(task, mapBridgeState)) : []),
-    [tasks, mapBridgeState]
-  );
+  const mapBridgeTasks = bridgeScopedTasks;
 
   const countyEscalationTasks = useMemo(() => filteredTasks.filter(isCountyEscalationTask), [filteredTasks]);
   const standardTasks = useMemo(() => filteredTasks.filter((task) => !isCountyEscalationTask(task)), [filteredTasks]);
-  const executiveDecision = useMemo(() => buildDecision(feed, consultantIntel, darkMoneyIntel), [feed, consultantIntel, darkMoneyIntel]);
 
-  const highSeverityCount = arr(feed).filter((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())).length;
+  const stateScopedFeed = useMemo(() => {
+    if (!isExecutiveMapBridge || !mapBridgeState) return feed;
+    return arr(feed).filter((item) => String(item.state || "").toUpperCase() === mapBridgeState || String(item.title || "").toUpperCase().includes(mapBridgeState));
+  }, [feed, isExecutiveMapBridge, mapBridgeState]);
+
+  const stateScopedActions = useMemo(() => {
+    if (!isExecutiveMapBridge || !mapBridgeState) return actions;
+    return arr(actions).filter((item) => String(item.state || "").toUpperCase() === mapBridgeState || String(item.title || item.detail || "").toUpperCase().includes(mapBridgeState));
+  }, [actions, isExecutiveMapBridge, mapBridgeState]);
+
+  const stateScopedBattlegrounds = useMemo(() => {
+    if (!isExecutiveMapBridge || !mapBridgeState) return battlegrounds;
+    return arr(battlegrounds).filter((item) => String(item.state || "").toUpperCase() === mapBridgeState || String(item.race || item.office || "").toUpperCase().includes(mapBridgeState));
+  }, [battlegrounds, isExecutiveMapBridge, mapBridgeState]);
+
+  const executiveDecision = useMemo(() => buildDecision(stateScopedFeed, consultantIntel, darkMoneyIntel), [stateScopedFeed, consultantIntel, darkMoneyIntel]);
+
+  const highSeverityCount = arr(stateScopedFeed).filter((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())).length;
   const relationshipCounts = relationshipGraph?.counts || {};
   const darkMoneySummary = darkMoneyIntel?.summary || {};
 
@@ -1451,10 +1487,16 @@ export default function CommandCenter() {
             <div className="map-bridge-meta">
               <Badge tone={mapBridgeRisk ? "danger" : "accent"}>{mapBridgeRisk || "Operational Review"}</Badge>
               <Badge tone="accent">{mapBridgeAction || "map-handoff"}</Badge>
+              {mapBridgePanel ? <Badge tone="info">Panel: {mapBridgePanel}</Badge> : null}
               {mapBridgeLayer ? <Badge tone="info">Layer: {mapBridgeLayer}</Badge> : null}
               {mapBridgeRegion ? <Badge tone="default">{mapBridgeRegion}</Badge> : null}
               {mapBridgeData ? <Badge tone={mapBridgeData === "live" ? "active" : "warning"}>{mapBridgeData} data</Badge> : null}
               {mapBridgeCounty ? <Badge tone="warning">County: {mapBridgeCounty}</Badge> : null}
+              {mapBridgeScore ? <Badge tone="accent">Score: {mapBridgeScore}</Badge> : null}
+              {mapBridgeCountyHeat ? <Badge tone="warning">County heat: {mapBridgeCountyHeat}</Badge> : null}
+              {mapBridgeActive ? <Badge tone={Number(mapBridgeActive) ? "danger" : "active"}>Active: {mapBridgeActive}</Badge> : null}
+              {mapBridgeVendors ? <Badge tone={Number(mapBridgeVendors) ? "warning" : "active"}>Vendors: {mapBridgeVendors}</Badge> : null}
+              {mapBridgeMailops ? <Badge tone={Number(mapBridgeMailops) ? "warning" : "active"}>MailOps: {mapBridgeMailops}</Badge> : null}
               <Badge tone={mapBridgeTasks.length ? "active" : "default"}>{mapBridgeTasks.length} matching tasks</Badge>
             </div>
           </div>
@@ -1470,6 +1512,15 @@ export default function CommandCenter() {
               Vendor Coverage
             </Link>
           </div>
+        </div>
+      ) : null}
+
+      {isExecutiveMapBridge ? (
+        <div className="vs-grid-4" data-tour="command-map-filter-summary">
+          <StatCard label="State Filter" value={mapBridgeState} subtext={mapBridgeRegion || "Executive map handoff"} tone="up" />
+          <StatCard label="Matching Tasks" value={mapBridgeTasks.length} subtext={`${taskCounts.open || 0} open • ${taskCounts.completed || 0} completed`} tone={mapBridgeTasks.length ? "up" : "neutral"} />
+          <StatCard label="Auto Filter" value={TASK_FILTERS.find((item) => item.id === taskFilter)?.label || taskFilter} subtext="Selected from map layer/action" tone="up" />
+          <StatCard label="Priority" value={mapBridgeRisk || "Review"} subtext={mapBridgeLayer ? `Layer: ${mapBridgeLayer}` : "Executive review"} tone={mapBridgeRisk ? "down" : "neutral"} />
         </div>
       ) : null}
 
@@ -1568,11 +1619,11 @@ export default function CommandCenter() {
       <ExecutiveAlertEnginePanel alerts={executiveAlerts} loading={executiveAlertsLoading} />
 
       <div className="command-bottom-grid">
-        <BattlegroundPanel rows={battlegrounds} />
-        <ActionPanel actions={actions} />
+        <BattlegroundPanel rows={stateScopedBattlegrounds} />
+        <ActionPanel actions={stateScopedActions} />
       </div>
 
-      <ExecutiveFeedPanel feed={feed} loading={commandLoading} />
+      <ExecutiveFeedPanel feed={stateScopedFeed} loading={commandLoading} />
     </PageShell>
   );
 }
