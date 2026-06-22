@@ -65,15 +65,31 @@ async function loadDonors(params) {
 function DonorRow({ donor }) {
   const amount = Number(donor.amount || donor.total_amount || 0);
 
+  const sourceLabel =
+    donor.source === "fec_schedule_a"
+      ? "FEC Schedule A"
+      : donor.source || "FEC";
+
   return (
     <ResponsiveRow
       title={donor.donor_name || "Unnamed Donor"}
-      subtitle={`${donor.state || "Unknown state"} | ${donor.donor_type || "Unknown type"} | ${donor.committee_name || "Committee unavailable"}`}
+      subtitle={`${donor.state || "Unknown state"} | ${
+        donor.donor_type || "Unknown type"
+      } | ${donor.committee_name || "Committee unavailable"}`}
       meta={[
         { label: "Amount", value: formatMoney(amount) },
-        { label: "Contributions", value: donor.contribution_count || donor.count || 1 },
-        { label: "Relationship", value: donor.relationship_strength || "N/A" },
-        { label: "Source", value: donor.source || "FEC" },
+        {
+          label: "Contributions",
+          value: donor.contribution_count || donor.count || 1,
+        },
+        {
+          label: "Relationship",
+          value: donor.relationship_strength || "N/A",
+        },
+        {
+          label: "Source",
+          value: sourceLabel,
+        },
       ]}
       alert={
         String(donor.relationship_strength || "").toLowerCase() === "high"
