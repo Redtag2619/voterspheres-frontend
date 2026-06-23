@@ -65,7 +65,6 @@ export const navigationSections = [
       { label: "Executive Operations Map", to: "/operations-map" },
       { label: "State Operations", to: "/state-operations" },
       { label: "State Operations Map", to: "/state-operations-map" },
-      { label: "Vendor Coverage Map", to: "/vendor-coverage-map",}
       { label: "Campaign Opportunity Heatmap", to: "/campaign-opportunity-heatmap" },
     ],
   },
