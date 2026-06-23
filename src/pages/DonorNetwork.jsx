@@ -133,37 +133,93 @@ const fallbackData = {
   _demo: false,
 };
 
+function DonorContactPanel({ donor }) {
+  const location = [donor.city, donor.state, donor.postal_code]
+    .filter(Boolean)
+    .join(", ");
+
+  const employerLine = [donor.employer, donor.occupation]
+    .filter(Boolean)
+    .join(" | ");
+
+  const addressLine = [donor.address_line1, donor.address_line2]
+    .filter(Boolean)
+    .join(" ");
+
+  const hasDirectContact = Boolean(
+    donor.website_url ||
+      donor.linkedin_url ||
+      donor.x_url ||
+      donor.facebook_url ||
+      donor.phone
+  );
+
+  return (
+    <div className="donor-contact-panel">
+      <div>
+        <span>FEC Contact Disclosure</span>
+        <strong>{location || "Location unavailable"}</strong>
+        <small>{employerLine || "Employer and occupation unavailable"}</small>
+      </div>
+
+      <div>
+        <span>Address Intelligence</span>
+        <strong>{addressLine || "Street address unavailable"}</strong>
+        <small>
+          {donor.postal_code
+            ? `Postal code: ${donor.postal_code}`
+            : "ZIP unavailable from current record"}
+        </small>
+      </div>
+
+      <div>
+        <span>Verified Channels</span>
+        <strong>{hasDirectContact ? "Available" : "Unavailable"}</strong>
+        <small>
+          {donor.contact_verified
+            ? `Verified via ${donor.contact_source || "manual review"}`
+            : "FEC does not provide phone, website, or social profiles. Add only verified enrichment."}
+        </small>
+      </div>
+    </div>
+  );
+}
+
 function DonorRow({ donor }) {
   const amount = Number(donor.amount || donor.total_amount || 0);
   const sourceLabel = displaySource(donor.source);
   const influenceScore = getInfluenceScore(donor);
 
   return (
-    <ResponsiveRow
-      title={donor.donor_name || donor.name || "Unnamed Donor"}
-      subtitle={`${donor.state || "National"} | ${
-        donor.donor_type || "Unknown type"
-      } | ${donor.committee_name || "Committee unavailable"}`}
-      meta={[
-        { label: "Amount", value: formatMoney(amount) },
-        { label: "Contributions", value: donor.contribution_count || donor.count || 1 },
-        { label: "Relationship", value: donor.relationship_strength || "N/A" },
-        { label: "Influence", value: `${influenceScore}/100` },
-        { label: "Source", value: sourceLabel },
-      ]}
-      alert={
-        influenceScore >= 80
-          ? "vs-live-dot"
-          : influenceScore >= 50
-          ? "vs-live-dot-warning"
-          : "vs-live-dot-success"
-      }
-      right={
-        <Badge tone={influenceScore >= 80 ? "danger" : strengthTone(donor.relationship_strength)}>
-          {influenceScore}/100
-        </Badge>
-      }
-    />
+    <div className="donor-contact-card">
+      <ResponsiveRow
+        title={donor.donor_name || donor.name || "Unnamed Donor"}
+        subtitle={`${donor.state || "National"} | ${
+          donor.donor_type || "Unknown type"
+        } | ${donor.committee_name || "Committee unavailable"}`}
+        meta={[
+          { label: "Amount", value: formatMoney(amount) },
+          { label: "Contributions", value: donor.contribution_count || donor.count || 1 },
+          { label: "Relationship", value: donor.relationship_strength || "N/A" },
+          { label: "Influence", value: `${influenceScore}/100` },
+          { label: "Source", value: sourceLabel },
+        ]}
+        alert={
+          influenceScore >= 80
+            ? "vs-live-dot"
+            : influenceScore >= 50
+            ? "vs-live-dot-warning"
+            : "vs-live-dot-success"
+        }
+        right={
+          <Badge tone={influenceScore >= 80 ? "danger" : strengthTone(donor.relationship_strength)}>
+            {influenceScore}/100
+          </Badge>
+        }
+      />
+
+      <DonorContactPanel donor={donor} />
+    </div>
   );
 }
 
@@ -297,7 +353,8 @@ export default function DonorNetwork() {
           String(row.committee_name || "").toLowerCase().includes(q) ||
           String(row.employer || "").toLowerCase().includes(q) ||
           String(row.occupation || "").toLowerCase().includes(q) ||
-          String(row.city || "").toLowerCase().includes(q)
+          String(row.city || "").toLowerCase().includes(q) ||
+          String(row.postal_code || "").toLowerCase().includes(q)
         );
       });
     }
@@ -404,6 +461,14 @@ export default function DonorNetwork() {
     (row) => String(row.relationship_strength || "").toLowerCase() === "high"
   ).length;
 
+  const contactDisclosureCount = filteredResults.filter(
+    (row) => row.city || row.postal_code || row.employer || row.occupation
+  ).length;
+
+  const verifiedContactCount = filteredResults.filter((row) =>
+    Boolean(row.contact_verified)
+  ).length;
+
   const averageInfluence = filteredResults.length
     ? Math.round(
         filteredResults.reduce((sum, row) => sum + getInfluenceScore(row), 0) /
@@ -415,15 +480,15 @@ export default function DonorNetwork() {
     <PageShell
       eyebrow="Enterprise Donor Intelligence"
       title="Donor Intelligence Command Center"
-      description="Track live FEC donor activity, funding concentration, committee channels, influence scores, state movement, and high-value fundraising relationships."
+      description="Track live FEC donor activity, funding concentration, committee channels, influence scores, disclosed contact fields, and verified enrichment readiness."
       demo={demoMode}
       demoText="Enterprise Donor Intelligence is protected by subscription access. Live FEC data loads when the backend donor endpoint and FEC key are configured."
       tickerItems={[
         { label: "Donors", value: `${summary.total_donors || 0}`, dotClass: "vs-live-dot-success" },
         { label: "High Strength", value: `${highStrengthCount}`, dotClass: "vs-live-dot" },
         { label: "Avg Influence", value: `${averageInfluence}/100`, dotClass: "vs-live-dot-warning" },
-        { label: "Top State", value: `${summary.top_state || "N/A"}`, dotClass: "vs-live-dot-warning" },
-        { label: "Source", value: displaySource(summary.source), dotClass: isDemoData ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Contact Fields", value: `${contactDisclosureCount}`, dotClass: "vs-live-dot-success" },
+        { label: "Verified", value: `${verifiedContactCount}`, dotClass: verifiedContactCount ? "vs-live-dot-success" : "vs-live-dot-warning" },
         { label: "Updated", value: refreshing ? "Refreshing" : lastUpdated || "Live", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
@@ -480,9 +545,65 @@ export default function DonorNetwork() {
           line-height: 1.55;
         }
 
+        .donor-contact-card {
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.42);
+          overflow: hidden;
+        }
+
+        .donor-contact-card .vs-responsive-row {
+          border: 0;
+          background: transparent;
+        }
+
+        .donor-contact-panel {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          padding: 0 14px 14px;
+        }
+
+        .donor-contact-panel div {
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          background: rgba(2, 6, 23, 0.28);
+          padding: 12px;
+        }
+
+        .donor-contact-panel span {
+          display: block;
+          color: rgba(147, 197, 253, 0.9);
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .donor-contact-panel strong {
+          display: block;
+          margin-top: 5px;
+          color: white;
+          font-size: 13px;
+        }
+
+        .donor-contact-panel small {
+          display: block;
+          margin-top: 4px;
+          color: rgba(203, 213, 225, 0.68);
+          font-size: 11px;
+          line-height: 1.4;
+        }
+
         @media (max-width: 1000px) {
           .donor-command-grid,
           .donor-command-toolbar {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 900px) {
+          .donor-contact-panel {
             grid-template-columns: 1fr;
           }
         }
@@ -498,8 +619,8 @@ export default function DonorNetwork() {
       <div className="vs-grid-4">
         <StatCard label="Tracked Donors" value={summary.total_donors || 0} subtext="Visible across current filters" />
         <StatCard label="Total Amount" value={formatMoney(summary.total_amount || 0)} subtext="Combined itemized contribution value" />
-        <StatCard label="Average Influence" value={`${averageInfluence}/100`} subtext="Composite donor power score" />
-        <StatCard label="Top State" value={summary.top_state || "N/A"} subtext="Highest donor concentration" />
+        <StatCard label="Contact Fields" value={contactDisclosureCount} subtext="FEC-disclosed city, ZIP, employer or occupation" />
+        <StatCard label="Verified Contacts" value={verifiedContactCount} subtext="Manual or enriched verification" />
       </div>
 
       <SectionCard
@@ -523,7 +644,7 @@ export default function DonorNetwork() {
             className="vs-input"
             value={localSearch}
             onChange={(event) => setLocalSearch(event.target.value)}
-            placeholder="Search donor, employer, occupation, committee, state..."
+            placeholder="Search donor, employer, occupation, committee, city, ZIP..."
           />
 
           <select className="vs-input" value={cycle} onChange={(event) => setCycle(event.target.value)}>
@@ -550,7 +671,7 @@ export default function DonorNetwork() {
       <div className="donor-command-grid">
         <SectionCard
           title="Donor Relationship Board"
-          subtitle="Live itemized contributors, influence score, relationship strength, and committee funding connections."
+          subtitle="Live itemized contributors, influence score, contact disclosures, relationship strength, and committee funding connections."
           right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live FEC"}</Badge>}
         >
           <div className="vs-stack">
@@ -561,7 +682,7 @@ export default function DonorNetwork() {
             ) : (
               filteredResults.map((donor) => (
                 <DonorRow
-                  key={donor.id || `${donor.donor_name}-${donor.committee_id}-${donor.amount}`}
+                  key={donor.id || `${donor.donor_name}-${donor.state}-${donor.amount}`}
                   donor={donor}
                 />
               ))
@@ -571,11 +692,11 @@ export default function DonorNetwork() {
 
         <div className="donor-stack">
           <div className="donor-source-card">
-            <span>Enterprise Intelligence Source</span>
+            <span>Safe Contact Intelligence</span>
             <strong>{displaySource(summary.source) || "FEC Schedule A"}</strong>
             <p>
-              This command center converts itemized contribution records into donor influence,
-              funding concentration, state movement, and committee-channel intelligence.
+              FEC records can safely provide disclosed city, state, ZIP, employer, occupation and committee context.
+              Phone numbers, websites and social profiles remain blank unless manually verified or enriched later.
             </p>
           </div>
 
@@ -588,7 +709,12 @@ export default function DonorNetwork() {
               {!topInfluence.length ? (
                 <EmptyState text="No influence donors available." />
               ) : (
-                topInfluence.map((donor) => <DonorRow key={`top-${donor.id || donor.donor_name}`} donor={donor} />)
+                topInfluence.map((donor) => (
+                  <DonorRow
+                    key={`top-${donor.id || `${donor.donor_name}-${donor.state}`}`}
+                    donor={donor}
+                  />
+                ))
               )}
             </div>
           </SectionCard>
@@ -629,3 +755,4 @@ export default function DonorNetwork() {
     </PageShell>
   );
 }
+
