@@ -1,423 +1,631 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
+import DemoBanner from "../components/ui/DemoBanner";
+import { useDemoMode } from "../context/DemoModeContext.jsx";
+import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
-function number(value, fallback = 0) {
-  const next = Number(value);
-  return Number.isFinite(next) ? next : fallback;
+const STATES = [
+  ["", "All States"],
+  ["AL", "Alabama"],
+  ["AK", "Alaska"],
+  ["AZ", "Arizona"],
+  ["AR", "Arkansas"],
+  ["CA", "California"],
+  ["CO", "Colorado"],
+  ["CT", "Connecticut"],
+  ["DE", "Delaware"],
+  ["DC", "District of Columbia"],
+  ["FL", "Florida"],
+  ["GA", "Georgia"],
+  ["HI", "Hawaii"],
+  ["ID", "Idaho"],
+  ["IL", "Illinois"],
+  ["IN", "Indiana"],
+  ["IA", "Iowa"],
+  ["KS", "Kansas"],
+  ["KY", "Kentucky"],
+  ["LA", "Louisiana"],
+  ["ME", "Maine"],
+  ["MD", "Maryland"],
+  ["MA", "Massachusetts"],
+  ["MI", "Michigan"],
+  ["MN", "Minnesota"],
+  ["MS", "Mississippi"],
+  ["MO", "Missouri"],
+  ["MT", "Montana"],
+  ["NE", "Nebraska"],
+  ["NV", "Nevada"],
+  ["NH", "New Hampshire"],
+  ["NJ", "New Jersey"],
+  ["NM", "New Mexico"],
+  ["NY", "New York"],
+  ["NC", "North Carolina"],
+  ["ND", "North Dakota"],
+  ["OH", "Ohio"],
+  ["OK", "Oklahoma"],
+  ["OR", "Oregon"],
+  ["PA", "Pennsylvania"],
+  ["RI", "Rhode Island"],
+  ["SC", "South Carolina"],
+  ["SD", "South Dakota"],
+  ["TN", "Tennessee"],
+  ["TX", "Texas"],
+  ["UT", "Utah"],
+  ["VT", "Vermont"],
+  ["VA", "Virginia"],
+  ["WA", "Washington"],
+  ["WV", "West Virginia"],
+  ["WI", "Wisconsin"],
+  ["WY", "Wyoming"],
+];
+
+function formatMoney(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
 }
 
-function money(value) {
-  const amount = number(value);
-  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
-  if (amount >= 1000) return `$${Math.round(amount / 1000)}K`;
-  return `$${Math.round(amount).toLocaleString()}`;
+function normalizeState(value) {
+  return String(value || "").trim().toUpperCase();
 }
 
-function normalizeArray(value) {
-  return Array.isArray(value) ? value : [];
+function displaySource(value) {
+  if (value === "fec_schedule_a") return "FEC Schedule A";
+  if (value === "manual_live_seed") return "Seeded Donor Data";
+  if (value === "manual") return "Manual Donor Data";
+  return value || "FEC";
 }
 
-function toneFromScore(score) {
-  const value = number(score);
-  if (value >= 85) return "danger";
-  if (value >= 70) return "danger";
-  if (value >= 50) return "warning";
-  if (value >= 30) return "info";
+function strengthTone(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "high") return "danger";
+  if (v === "medium") return "demo";
+  if (v === "growing") return "info";
+  if (v === "new") return "accent";
   return "default";
 }
 
-function toneFromSeverity(value) {
-  const next = String(value || "").toLowerCase();
-  if (["critical", "high"].includes(next)) return "danger";
-  if (["medium", "watch"].includes(next)) return "warning";
-  if (["low", "stable"].includes(next)) return "active";
-  return "default";
+function getInfluenceScore(donor) {
+  const amount = Number(donor.amount || donor.total_amount || 0);
+  const count = Number(donor.contribution_count || donor.count || 1);
+
+  const amountScore = Math.min(60, Math.round(amount / 25000));
+  const countScore = Math.min(25, count * 5);
+  const relationshipScore =
+    String(donor.relationship_strength || "").toLowerCase() === "high"
+      ? 15
+      : String(donor.relationship_strength || "").toLowerCase() === "medium"
+      ? 10
+      : 5;
+
+  return Math.min(100, amountScore + countScore + relationshipScore);
 }
 
-function joinText(values = []) {
-  return values.filter(Boolean).map(String).join(" - ");
-}
+async function loadDonors(params) {
+  if (typeof api.donorNetwork === "function") {
+    return api.donorNetwork(params);
+  }
 
-function ExposureRow({ item, onOpenProfile }) {
-  return (
-    <div className="vs-card-muted" style={{ padding: 14, display: "grid", gap: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: "var(--vs-text)", fontWeight: 900, fontSize: 16, lineHeight: 1.25 }}>
-            {item.committee_name || item.committee_id || "Unknown Committee"}
-          </div>
-          <div style={{ color: "var(--vs-text-muted)", fontSize: 12, marginTop: 4 }}>
-            {joinText([
-              item.committee_id || "Committee ID N/A",
-              normalizeArray(item.states).slice(0, 5).join(", ") || "National",
-              normalizeArray(item.parties).slice(0, 4).join(", ") || "Party N/A",
-            ])}
-          </div>
-        </div>
+  if (typeof api.get === "function") {
+    const response = await api.get("/donors/network", { params });
+    return response?.data || response;
+  }
 
-        <div className="vs-chip-row">
-          <Badge tone={toneFromScore(item.exposure_score)}>Exposure {item.exposure_score || 0}</Badge>
-          <Badge tone={toneFromSeverity(item.severity)}>{item.exposure_tier || "Signal"}</Badge>
-          <Badge tone="info">{money(item.total_amount)}</Badge>
-        </div>
-      </div>
-
-      <div className="vs-grid-4">
-        <StatCard label="Consultants" value={item.consultant_count || 0} subtext="Vendor links" />
-        <StatCard label="Candidates" value={item.candidate_count || 0} subtext="Candidate links" />
-        <StatCard label="States" value={item.state_count || 0} subtext="State footprint" />
-        <StatCard label="Battleground" value={money(item.battleground_amount)} subtext={`${item.battleground_candidate_count || 0} candidates`} />
-      </div>
-
-      <div className="vs-banner" style={{ margin: 0 }}>
-        <strong>Readout:</strong> {item.narrative || "No narrative available."}
-      </div>
-
-      <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" className="vs-button vs-button-secondary" onClick={() => onOpenProfile(item)}>
-          Open Exposure Profile
-        </button>
-        <Link
-          className="vs-button vs-button-secondary"
-          to={`/relationship-graph?committee=${encodeURIComponent(item.committee_name || item.committee_id || "")}`}
-        >
-          Open Graph
-        </Link>
-        <Link
-          className="vs-button"
-          to={`/committee-intel?committee=${encodeURIComponent(item.committee_name || item.committee_id || "")}`}
-        >
-          Committee Intel
-        </Link>
-      </div>
-    </div>
+  throw new Error(
+    "Missing api.donorNetwork. Add donorNetwork: (params) => get('/donors/network', { params }) to src/services/api.js."
   );
 }
 
-function ClusterPanel({ title, subtitle, rows = [], type = "cluster" }) {
-  return (
-    <SectionCard title={title} subtitle={subtitle}>
-      <div className="vs-stack">
-        {rows.length ? (
-          rows.slice(0, 10).map((row, index) => (
-            <div key={row.consultant_id || row.state || row.candidate_id || index} className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                <strong style={{ color: "var(--vs-text)" }}>
-                  {row.consultant_name || row.candidate_name || row.state || "Exposure Signal"}
-                </strong>
-                <Badge tone={toneFromScore(row.cluster_score || row.exposure_score || row.pressure_score)}>
-                  {row.cluster_score || row.exposure_score || row.pressure_score || 0}
-                </Badge>
-              </div>
+const fallbackData = {
+  results: [],
+  stateBreakdown: [],
+  committeeBreakdown: [],
+  summary: {
+    total_donors: 0,
+    total_amount: 0,
+    top_state: "N/A",
+    source: "No live donor data loaded",
+  },
+  _demo: false,
+};
 
-              <div className="vs-chip-row">
-                <Badge tone="info">{money(row.total_amount)}</Badge>
-                {type !== "state" ? <Badge tone="accent">{row.committee_count || 0} committees</Badge> : null}
-                <Badge tone="warning">{row.candidate_count || 0} candidates</Badge>
-                <Badge tone="default">{row.state_count || row.consultant_count || 0} {type === "state" ? "consultants" : "states"}</Badge>
-                {row.party_count ? <Badge tone="danger">{row.party_count} parties</Badge> : null}
-              </div>
-            </div>
-          ))
-        ) : (
-          <EmptyState text="No exposure signals available for this panel." />
-        )}
-      </div>
-    </SectionCard>
+function DonorRow({ donor }) {
+  const amount = Number(donor.amount || donor.total_amount || 0);
+  const sourceLabel = displaySource(donor.source);
+  const influenceScore = getInfluenceScore(donor);
+
+  return (
+    <ResponsiveRow
+      title={donor.donor_name || donor.name || "Unnamed Donor"}
+      subtitle={`${donor.state || "National"} | ${
+        donor.donor_type || "Unknown type"
+      } | ${donor.committee_name || "Committee unavailable"}`}
+      meta={[
+        { label: "Amount", value: formatMoney(amount) },
+        { label: "Contributions", value: donor.contribution_count || donor.count || 1 },
+        { label: "Relationship", value: donor.relationship_strength || "N/A" },
+        { label: "Influence", value: `${influenceScore}/100` },
+        { label: "Source", value: sourceLabel },
+      ]}
+      alert={
+        influenceScore >= 80
+          ? "vs-live-dot"
+          : influenceScore >= 50
+          ? "vs-live-dot-warning"
+          : "vs-live-dot-success"
+      }
+      right={
+        <Badge tone={influenceScore >= 80 ? "danger" : strengthTone(donor.relationship_strength)}>
+          {influenceScore}/100
+        </Badge>
+      }
+    />
   );
 }
 
-function ProfileModal({ profile, onClose }) {
-  if (!profile) return null;
-
-  const relationships = normalizeArray(profile.relationships);
-  const summary = profile.summary || {};
-
+function StateBreakdownRow({ item }) {
   return (
-    <div className="vs-modal-backdrop">
-      <div className="vs-modal-card" style={{ width: "min(980px, 100%)", maxHeight: "88vh", overflow: "auto" }}>
-        <div className="vs-modal-head">
-          <div>
-            <div className="vs-modal-eyebrow">Dark Money Exposure Profile</div>
-            <h3 className="vs-modal-title">{profile.committee_id}</h3>
-            <p className="vs-modal-subtitle">Committee relationship detail, consultant links, and candidate exposure paths.</p>
-          </div>
-          <button type="button" className="vs-modal-close" onClick={onClose}>×</button>
-        </div>
-
-        <div className="vs-grid-4">
-          <StatCard label="Exposure" value={summary.exposure_score || 0} subtext={summary.exposure_tier || "Signal"} />
-          <StatCard label="Spend" value={money(summary.total_amount)} subtext="Mapped flow" />
-          <StatCard label="Consultants" value={summary.consultant_count || 0} subtext="Vendor links" />
-          <StatCard label="Candidates" value={summary.candidate_count || 0} subtext="Candidate links" />
-        </div>
-
-        <div className="vs-stack" style={{ marginTop: 14 }}>
-          {relationships.length ? (
-            relationships.slice(0, 50).map((row) => (
-              <div key={row.id || `${row.consultant_id}-${row.candidate_id}-${row.committee_id}`} className="vs-card-muted" style={{ padding: 12, display: "grid", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                  <strong style={{ color: "var(--vs-text)" }}>
-                    {joinText([row.consultant_name || row.firm_name || "Consultant", row.candidate_name || "Candidate"])}
-                  </strong>
-                  <Badge tone="info">{money(row.total_amount)}</Badge>
-                </div>
-                <div className="vs-chip-row">
-                  <Badge tone="accent">{row.category || row.consultant_category || "Consulting"}</Badge>
-                  <Badge tone="warning">{row.candidate_state || "State N/A"}</Badge>
-                  <Badge tone="default">{row.candidate_party || "Party N/A"}</Badge>
-                  <Badge tone="info">{row.transaction_count || 0} transactions</Badge>
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState text="No profile relationships available." />
-          )}
-        </div>
-      </div>
-    </div>
+    <ResponsiveRow
+      title={item.state || "Unknown"}
+      subtitle={`${item.donor_count || 0} donors`}
+      meta={[
+        { label: "Amount", value: formatMoney(item.total_amount || 0) },
+        { label: "Average", value: formatMoney(item.average_amount || 0) },
+      ]}
+      right={<Badge tone="accent">{formatMoney(item.total_amount || 0)}</Badge>}
+    />
   );
 }
 
-export default function DarkMoneyExposure() {
-  const navigate = useNavigate();
+function CommitteeRow({ item }) {
+  return (
+    <ResponsiveRow
+      title={item.committee_name || item.committee_id || "Unknown Committee"}
+      subtitle={`${item.committee_id || "No committee ID"} | ${item.state || "National"}`}
+      meta={[
+        { label: "Amount", value: formatMoney(item.total_amount || 0) },
+        { label: "Donors", value: item.donor_count || 0 },
+      ]}
+      right={<Badge tone="info">{formatMoney(item.total_amount || 0)}</Badge>}
+    />
+  );
+}
+
+export default function DonorNetwork() {
+  const { demoMode } = useDemoMode();
+  const { filters } = useExecutiveFilters();
 
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState({
-    summary: {},
-    results: [],
-    top_exposure: [],
-    consultant_clusters: [],
-    cross_party_exposure: [],
-    state_chains: [],
-    candidate_exposure: [],
-    briefing: [],
-  });
-  const [profile, setProfile] = useState(null);
-  const [filters, setFilters] = useState({
-    search: "",
-    state: "",
-    party: "",
-    minAmount: "",
-  });
-
-  const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
-
-  async function loadData() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const result = await api
-        .get("/dark-money-exposure", {
-          params: {
-            limit: 100,
-            search: filters.search || undefined,
-            state: filters.state || undefined,
-            party: filters.party || undefined,
-            minAmount: filters.minAmount || undefined,
-          },
-        })
-        .then((response) => response.data);
-
-      setData(result || {});
-    } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Failed to load dark money exposure intelligence.");
-      setData({
-        summary: {},
-        results: [],
-        top_exposure: [],
-        consultant_clusters: [],
-        cross_party_exposure: [],
-        state_chains: [],
-        candidate_exposure: [],
-        briefing: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function openProfile(item) {
-    const id = item.committee_id;
-    if (!id) return;
-
-    try {
-      setProfileLoading(true);
-      const result = await api
-        .get(`/dark-money-exposure/profile/${encodeURIComponent(id)}`)
-        .then((response) => response.data);
-      setProfile(result);
-    } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Failed to load exposure profile.");
-    } finally {
-      setProfileLoading(false);
-    }
-  }
+  const [networkData, setNetworkData] = useState(fallbackData);
+  const [localSearch, setLocalSearch] = useState("");
+  const [cycle, setCycle] = useState("2026");
+  const [selectedState, setSelectedState] = useState("");
+  const [isDemoData, setIsDemoData] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState("");
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (filters.state) {
+      setSelectedState(normalizeState(filters.state));
+    }
+  }, [filters.state]);
 
-  const summary = data.summary || {};
-  const results = normalizeArray(data.results);
-  const briefing = normalizeArray(data.briefing);
+  useEffect(() => {
+    let active = true;
 
-  const stateOptions = useMemo(() => {
-    const values = new Set();
-    for (const row of results) normalizeArray(row.states).forEach((state) => values.add(state));
-    return [...values].filter(Boolean).sort();
-  }, [results]);
+    async function loadDonorNetwork() {
+      try {
+        setLoading((current) => !networkData?.results?.length || current);
+        setRefreshing(Boolean(networkData?.results?.length));
+        setError("");
+
+        const params = {
+          cycle,
+          limit: 250,
+        };
+
+        if (selectedState) params.state = selectedState;
+        if (localSearch.trim()) params.search = localSearch.trim();
+
+        const data = await loadDonors(params);
+
+        if (!active) return;
+
+        setNetworkData(data || fallbackData);
+        setIsDemoData(Boolean(data?._demo || data?.demo));
+        setLastUpdated(
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        );
+      } catch (err) {
+        if (!active) return;
+
+        const status = err?.response?.status;
+        if (status === 401 || status === 402) {
+          setError(
+            "Donor Intelligence is an Enterprise feature. Please sign in with an active Enterprise subscription."
+          );
+        } else {
+          setError(
+            err?.response?.data?.error ||
+              err?.message ||
+              "Failed to load donor intelligence"
+          );
+        }
+
+        setNetworkData(fallbackData);
+        setIsDemoData(false);
+      } finally {
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    }
+
+    const timer = setTimeout(loadDonorNetwork, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [selectedState, localSearch, cycle]);
+
+  const filteredResults = useMemo(() => {
+    let rows = Array.isArray(networkData?.results) ? networkData.results : [];
+
+    if (selectedState) {
+      rows = rows.filter((row) => normalizeState(row.state) === selectedState);
+    }
+
+    if (localSearch.trim()) {
+      const q = localSearch.trim().toLowerCase();
+
+      rows = rows.filter((row) => {
+        return (
+          String(row.donor_name || row.name || "").toLowerCase().includes(q) ||
+          String(row.donor_type || "").toLowerCase().includes(q) ||
+          String(row.relationship_strength || "").toLowerCase().includes(q) ||
+          String(row.state || "").toLowerCase().includes(q) ||
+          String(row.committee_name || "").toLowerCase().includes(q) ||
+          String(row.employer || "").toLowerCase().includes(q) ||
+          String(row.occupation || "").toLowerCase().includes(q) ||
+          String(row.city || "").toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return rows;
+  }, [networkData, selectedState, localSearch]);
+
+  const summary = useMemo(() => {
+    if (networkData?.summary && !localSearch.trim() && !selectedState) {
+      return networkData.summary;
+    }
+
+    if (!filteredResults.length) {
+      return {
+        total_donors: 0,
+        total_amount: 0,
+        top_state: "N/A",
+        source: networkData?.summary?.source || "FEC",
+      };
+    }
+
+    const totalAmount = filteredResults.reduce(
+      (sum, row) => sum + Number(row.amount || row.total_amount || 0),
+      0
+    );
+
+    const stateTotals = filteredResults.reduce((acc, row) => {
+      const key = row.state || "Unknown";
+      acc[key] = (acc[key] || 0) + Number(row.amount || row.total_amount || 0);
+      return acc;
+    }, {});
+
+    const topState =
+      Object.entries(stateTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+
+    return {
+      total_donors: filteredResults.length,
+      total_amount: totalAmount,
+      top_state: topState,
+      source: networkData?.summary?.source || "FEC",
+    };
+  }, [filteredResults, networkData, localSearch, selectedState]);
+
+  const stateBreakdown = useMemo(() => {
+    const grouped = filteredResults.reduce((acc, row) => {
+      const state = row.state || "Unknown";
+
+      if (!acc[state]) {
+        acc[state] = {
+          state,
+          total_amount: 0,
+          donor_count: 0,
+          average_amount: 0,
+        };
+      }
+
+      acc[state].total_amount += Number(row.amount || row.total_amount || 0);
+      acc[state].donor_count += 1;
+
+      return acc;
+    }, {});
+
+    return Object.values(grouped)
+      .map((item) => ({
+        ...item,
+        average_amount: item.donor_count ? item.total_amount / item.donor_count : 0,
+      }))
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 12);
+  }, [filteredResults]);
+
+  const committeeBreakdown = useMemo(() => {
+    const grouped = filteredResults.reduce((acc, row) => {
+      const key = row.committee_id || row.committee_name || "Unknown Committee";
+
+      if (!acc[key]) {
+        acc[key] = {
+          committee_id: row.committee_id,
+          committee_name: row.committee_name || key,
+          state: row.state || "National",
+          total_amount: 0,
+          donor_count: 0,
+        };
+      }
+
+      acc[key].total_amount += Number(row.amount || row.total_amount || 0);
+      acc[key].donor_count += 1;
+
+      return acc;
+    }, {});
+
+    return Object.values(grouped)
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 10);
+  }, [filteredResults]);
+
+  const topInfluence = useMemo(() => {
+    return [...filteredResults]
+      .sort((a, b) => getInfluenceScore(b) - getInfluenceScore(a))
+      .slice(0, 8);
+  }, [filteredResults]);
+
+  const highStrengthCount = filteredResults.filter(
+    (row) => String(row.relationship_strength || "").toLowerCase() === "high"
+  ).length;
+
+  const averageInfluence = filteredResults.length
+    ? Math.round(
+        filteredResults.reduce((sum, row) => sum + getInfluenceScore(row), 0) /
+          filteredResults.length
+      )
+    : 0;
 
   return (
     <PageShell
-      eyebrow="Dark Money Exposure"
-      title="Trace hidden political money and influence networks."
-      description="Detect committee concentration, shared consultant clusters, cross-party exposure, multi-state influence chains, and candidate risk paths."
+      eyebrow="Enterprise Donor Intelligence"
+      title="Donor Intelligence Command Center"
+      description="Track live FEC donor activity, funding concentration, committee channels, influence scores, state movement, and high-value fundraising relationships."
       demo={demoMode}
-      demoText="Demo dark money exposure mode is active."
+      demoText="Enterprise Donor Intelligence is protected by subscription access. Live FEC data loads when the backend donor endpoint and FEC key are configured."
       tickerItems={[
-        { label: "Committees", value: summary.total_committees || 0, dotClass: "vs-live-dot-success" },
-        { label: "High Exposure", value: summary.high_exposure || 0, dotClass: "vs-live-dot-warning" },
-        { label: "Mapped Flow", value: money(summary.total_amount), dotClass: "vs-live-dot" },
+        { label: "Donors", value: `${summary.total_donors || 0}`, dotClass: "vs-live-dot-success" },
+        { label: "High Strength", value: `${highStrengthCount}`, dotClass: "vs-live-dot" },
+        { label: "Avg Influence", value: `${averageInfluence}/100`, dotClass: "vs-live-dot-warning" },
+        { label: "Top State", value: `${summary.top_state || "N/A"}`, dotClass: "vs-live-dot-warning" },
+        { label: "Source", value: displaySource(summary.source), dotClass: isDemoData ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Updated", value: refreshing ? "Refreshing" : lastUpdated || "Live", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
-      {error ? (
-        <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>
-          {error}
-        </div>
-      ) : null}
+      <style>{`
+        .donor-command-toolbar {
+          display: grid;
+          grid-template-columns: minmax(0, 1.4fr) minmax(160px, 0.35fr) minmax(220px, 0.55fr);
+          gap: 12px;
+          align-items: center;
+        }
+
+        .donor-command-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+          gap: 18px;
+          align-items: start;
+        }
+
+        .donor-stack {
+          display: grid;
+          gap: 12px;
+        }
+
+        .donor-source-card {
+          border-radius: 22px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.68));
+          padding: 16px;
+        }
+
+        .donor-source-card span {
+          display: block;
+          color: rgba(147, 197, 253, 0.92);
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+        }
+
+        .donor-source-card strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: 22px;
+          letter-spacing: -0.04em;
+        }
+
+        .donor-source-card p {
+          margin: 8px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        @media (max-width: 1000px) {
+          .donor-command-grid,
+          .donor-command-toolbar {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <DemoBanner
+        active={isDemoData}
+        text="Demo donor network data is active. Configure FEC_API_KEY on Render to populate live FEC contributions."
+      />
+
+      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
-        <StatCard label="Tracked Committees" value={summary.total_committees || 0} subtext="Exposure model coverage" />
-        <StatCard label="Critical Exposure" value={summary.critical_exposure || 0} subtext="Immediate review" />
-        <StatCard label="High Exposure" value={summary.high_exposure || 0} subtext="High-risk clusters" />
-        <StatCard label="Mapped Flow" value={money(summary.total_amount)} subtext="Consultant-related spend" />
+        <StatCard label="Tracked Donors" value={summary.total_donors || 0} subtext="Visible across current filters" />
+        <StatCard label="Total Amount" value={formatMoney(summary.total_amount || 0)} subtext="Combined itemized contribution value" />
+        <StatCard label="Average Influence" value={`${averageInfluence}/100`} subtext="Composite donor power score" />
+        <StatCard label="Top State" value={summary.top_state || "N/A"} subtext="Highest donor concentration" />
       </div>
 
       <SectionCard
-        title="Exposure Controls"
-        subtitle="Filter by state, party, committee, consultant, candidate, purpose, or minimum spend."
+        title="Donor Intelligence Filters"
+        subtitle="Use All States to view the full national donor network, or focus on a single state."
         right={
-          <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="vs-button vs-button-secondary" onClick={() => navigate("/relationship-graph")}>Open Graph</button>
-            <button type="button" className="vs-button" onClick={loadData} disabled={loading}>{loading ? "Loading..." : "Apply / Reload"}</button>
-          </div>
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => {
+              setLocalSearch("");
+              setSelectedState("");
+            }}
+          >
+            Clear Filters
+          </button>
         }
       >
-        <div className="vs-grid-4">
+        <div className="donor-command-toolbar">
           <input
             className="vs-input"
-            value={filters.search}
-            onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-            placeholder="Search committees, vendors, candidates..."
+            value={localSearch}
+            onChange={(event) => setLocalSearch(event.target.value)}
+            placeholder="Search donor, employer, occupation, committee, state..."
           />
 
+          <select className="vs-input" value={cycle} onChange={(event) => setCycle(event.target.value)}>
+            <option value="2026">2026 Cycle</option>
+            <option value="2024">2024 Cycle</option>
+            <option value="2022">2022 Cycle</option>
+            <option value="2020">2020 Cycle</option>
+          </select>
+
           <select
             className="vs-input"
-            value={filters.state}
-            onChange={(event) => setFilters((prev) => ({ ...prev, state: event.target.value }))}
+            value={selectedState}
+            onChange={(event) => setSelectedState(event.target.value)}
           >
-            <option value="">All states</option>
-            {stateOptions.map((state) => (
-              <option key={state} value={state}>{state}</option>
+            {STATES.map(([value, label]) => (
+              <option key={value || "ALL"} value={value}>
+                {label}
+              </option>
             ))}
           </select>
-
-          <select
-            className="vs-input"
-            value={filters.party}
-            onChange={(event) => setFilters((prev) => ({ ...prev, party: event.target.value }))}
-          >
-            <option value="">All parties</option>
-            <option value="DEM">Democratic</option>
-            <option value="REP">Republican</option>
-            <option value="IND">Independent</option>
-            <option value="Democratic">Democratic Text</option>
-            <option value="Republican">Republican Text</option>
-          </select>
-
-          <select
-            className="vs-input"
-            value={filters.minAmount}
-            onChange={(event) => setFilters((prev) => ({ ...prev, minAmount: event.target.value }))}
-          >
-            <option value="">Any spend</option>
-            <option value="10000">$10K+</option>
-            <option value="50000">$50K+</option>
-            <option value="100000">$100K+</option>
-            <option value="500000">$500K+</option>
-          </select>
         </div>
       </SectionCard>
 
-      <SectionCard title="AI Exposure Briefing" subtitle="Generated from committee, consultant, candidate, state, party, and money-flow signals.">
-        <div className="vs-stack">
-          {briefing.length ? briefing.map((line) => <div key={line} className="vs-banner">{line}</div>) : <EmptyState text="No briefing available yet." />}
-        </div>
-      </SectionCard>
+      <div className="donor-command-grid">
+        <SectionCard
+          title="Donor Relationship Board"
+          subtitle="Live itemized contributors, influence score, relationship strength, and committee funding connections."
+          right={<Badge tone={isDemoData ? "demo" : "active"}>{isDemoData ? "Demo Data" : "Live FEC"}</Badge>}
+        >
+          <div className="vs-stack">
+            {loading ? (
+              <EmptyState text="Loading donor intelligence..." />
+            ) : !filteredResults.length ? (
+              <EmptyState text="No donors match the active filters. Select All States or clear search." />
+            ) : (
+              filteredResults.map((donor) => (
+                <DonorRow
+                  key={donor.id || `${donor.donor_name}-${donor.committee_id}-${donor.amount}`}
+                  donor={donor}
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
 
-      {loading ? (
-        <EmptyState text="Loading dark money exposure intelligence..." />
-      ) : (
-        <div className="vs-stack">
+        <div className="donor-stack">
+          <div className="donor-source-card">
+            <span>Enterprise Intelligence Source</span>
+            <strong>{displaySource(summary.source) || "FEC Schedule A"}</strong>
+            <p>
+              This command center converts itemized contribution records into donor influence,
+              funding concentration, state movement, and committee-channel intelligence.
+            </p>
+          </div>
+
           <SectionCard
-            title="Highest Exposure Committees"
-            subtitle="Committees with concentrated consultant/vendor networks, broad candidate links, multi-state activity, or cross-party signals."
-            right={<Badge tone={results.length ? "danger" : "default"}>{results.length} committees</Badge>}
+            title="Top Influence Donors"
+            subtitle="Highest composite donor power scores."
+            right={<Badge tone="danger">{topInfluence.length} ranked</Badge>}
           >
             <div className="vs-stack">
-              {results.length ? (
-                results.map((item) => (
-                  <ExposureRow key={item.committee_id || item.committee_name} item={item} onOpenProfile={openProfile} />
-                ))
+              {!topInfluence.length ? (
+                <EmptyState text="No influence donors available." />
               ) : (
-                <EmptyState text="No dark money exposure records match the current filters." />
+                topInfluence.map((donor) => <DonorRow key={`top-${donor.id || donor.donor_name}`} donor={donor} />)
               )}
             </div>
           </SectionCard>
-
-          <div className="vs-grid-2" style={{ alignItems: "start" }}>
-            <ClusterPanel
-              title="Shared Consultant / Vendor Clusters"
-              subtitle="Consultants and vendors appearing across multiple committees, candidates, or states."
-              rows={normalizeArray(data.consultant_clusters)}
-            />
-            <ClusterPanel
-              title="Cross-Party Exposure"
-              subtitle="Consultants or vendors appearing across multiple party environments."
-              rows={normalizeArray(data.cross_party_exposure)}
-            />
-          </div>
-
-          <div className="vs-grid-2" style={{ alignItems: "start" }}>
-            <ClusterPanel
-              title="State Influence Chains"
-              subtitle="States with concentrated committee, consultant, and candidate pressure."
-              rows={normalizeArray(data.state_chains)}
-              type="state"
-            />
-            <ClusterPanel
-              title="Candidate Exposure Paths"
-              subtitle="Candidates receiving pressure from multiple committees, consultants, and spend categories."
-              rows={normalizeArray(data.candidate_exposure)}
-              type="candidate"
-            />
-          </div>
         </div>
-      )}
+      </div>
 
-      {profileLoading ? <div className="vs-banner">Loading exposure profile...</div> : null}
-      <ProfileModal profile={profile} onClose={() => setProfile(null)} />
+      <div className="vs-grid-2" style={{ marginTop: 18 }}>
+        <SectionCard
+          title="State Funding Concentration"
+          subtitle="States receiving the highest visible donor concentration."
+          right={<Badge tone="accent">{stateBreakdown.length} states</Badge>}
+        >
+          <div className="vs-stack">
+            {!stateBreakdown.length ? (
+              <EmptyState text="No state concentration available." />
+            ) : (
+              stateBreakdown.map((item) => <StateBreakdownRow key={item.state} item={item} />)
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Committee Funding Channels"
+          subtitle="Committees receiving the largest visible contribution totals."
+          right={<Badge tone="info">{committeeBreakdown.length} committees</Badge>}
+        >
+          <div className="vs-stack">
+            {!committeeBreakdown.length ? (
+              <EmptyState text="No committee funding channels available." />
+            ) : (
+              committeeBreakdown.map((item) => (
+                <CommitteeRow key={item.committee_id || item.committee_name} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
     </PageShell>
   );
 }
