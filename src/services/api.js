@@ -654,6 +654,16 @@ export const vendorsApi = {
       params: withWorkspaceParams(params),
     }),
 
+    fecSpend: (params = {}) =>
+    tryGet(["/vendor-fec/spend"], {
+      params: withWorkspaceParams(params),
+    }),
+
+  fecSync: (params = {}) =>
+    tryPost(["/vendor-fec/sync"], {}, {
+      params: withWorkspaceParams(params),
+    }),
+
   dispatchAlerts: () =>
     tryPost(["/vendors/intelligence/dispatch-alerts"], {}),
 };
@@ -933,6 +943,8 @@ export const api = {
   vendors: vendorsApi.list,
   vendorScoring: vendorsApi.scoring,
   vendorPerformance: vendorsApi.performance,
+  vendorFecSpend: vendorsApi.fecSpend,
+  vendorFecSync: vendorsApi.fecSync,
   dispatchVendorAlerts: vendorsApi.dispatchAlerts,
   
   donorNetwork: donorsApi.network,
