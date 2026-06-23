@@ -69,6 +69,14 @@ const STATE_NAME_TO_ABBR = {
   "District of Columbia": "DC",
 };
 
+const STATE_ABBR_TO_NAME = Object.entries(STATE_NAME_TO_ABBR).reduce(
+  (acc, [name, abbr]) => {
+    acc[abbr] = name;
+    return acc;
+  },
+  {}
+);
+
 const STATE_CENTROIDS = {
   AL: [-86.8, 32.8],
   AK: [-152.4, 64.2],
@@ -159,6 +167,29 @@ function officeTone(value) {
   return "default";
 }
 
+function displaySource(value) {
+  if (value === "fec_schedule_a") return "FEC Schedule A";
+  if (value === "manual_live_seed") return "Seeded Donor Data";
+  if (value === "manual") return "Manual Donor Data";
+  return value || "FEC";
+}
+
+function getInfluenceScore(donor) {
+  const amount = Number(donor.amount || donor.total_amount || 0);
+  const count = Number(donor.contribution_count || donor.count || 1);
+
+  const amountScore = Math.min(60, Math.round(amount / 25000));
+  const countScore = Math.min(25, count * 5);
+  const relationshipScore =
+    String(donor.relationship_strength || "").toLowerCase() === "high"
+      ? 15
+      : String(donor.relationship_strength || "").toLowerCase() === "medium"
+      ? 10
+      : 5;
+
+  return Math.min(100, amountScore + countScore + relationshipScore);
+}
+
 function getStateFill(item) {
   const tier = String(item?.overlayTier || "").toLowerCase();
   if (tier === "critical") return "#7f1d1d";
@@ -166,6 +197,19 @@ function getStateFill(item) {
   if (tier === "watch") return "#92400e";
   if (tier === "monitor") return "#1e3a8a";
   return "#111827";
+}
+
+async function loadDonorIntel(params) {
+  if (typeof api.donorNetwork === "function") {
+    return api.donorNetwork(params);
+  }
+
+  const response = await api.get("/donors/network", {
+    timeout: 8000,
+    params,
+  });
+
+  return response?.data || response;
 }
 
 function CandidateCard({ candidate, isSelected, onSelect }) {
@@ -191,7 +235,7 @@ function CandidateCard({ candidate, isSelected, onSelect }) {
           {candidate.name}
         </div>
         <div style={{ marginTop: "6px", fontSize: "12px", lineHeight: 1.45, color: "var(--vs-text-muted)" }}>
-          {candidate.party || "N/A"} • Rank #{candidate.rank || "—"}
+          {candidate.party || "N/A"} | Rank #{candidate.rank || "—"}
         </div>
       </div>
 
@@ -220,27 +264,62 @@ function CandidateCard({ candidate, isSelected, onSelect }) {
 }
 
 function DonorCard({ donor }) {
+  const influence = getInfluenceScore(donor);
+  const location = [donor.city, donor.state, donor.postal_code]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <div
       className="vs-card-muted"
       style={{
         padding: "14px",
         display: "grid",
-        gap: "8px",
+        gap: "10px",
         color: "var(--vs-text)",
       }}
     >
-      <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
-        {donor.donor_name || donor.name || "Unknown Donor"}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
+            {donor.donor_name || donor.name || "Unknown Donor"}
+          </div>
+          <div style={{ marginTop: 4, fontSize: "12px", color: "var(--vs-text-muted)" }}>
+            {donor.donor_type || "Donor"} | {donor.committee_name || "Committee unavailable"}
+          </div>
+        </div>
+        <Badge tone={influence >= 80 ? "danger" : influence >= 50 ? "demo" : "info"}>
+          {influence}/100
+        </Badge>
       </div>
-      <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
-        {donor.donor_type || "Donor"} • {donor.state || "Unknown state"}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "10px" }}>
+        <div>
+          <div className="vs-stat-label">Amount</div>
+          <div style={{ marginTop: 4, fontSize: 14, fontWeight: 800 }}>
+            {formatMoney(donor.amount || 0)}
+          </div>
+        </div>
+        <div>
+          <div className="vs-stat-label">Relationship</div>
+          <div style={{ marginTop: 4, fontSize: 14, fontWeight: 800 }}>
+            {donor.relationship_strength || "N/A"}
+          </div>
+        </div>
       </div>
-      <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--vs-text)" }}>
-        {formatMoney(donor.amount || 0)}
+
+      <div style={{ fontSize: "12px", color: "var(--vs-text-muted)", lineHeight: 1.45 }}>
+        Source: {displaySource(donor.source)} | Contributions: {donor.contribution_count || 1}
       </div>
-      <div style={{ fontSize: "12px", color: "var(--vs-text-muted)" }}>
-        {donor.relationship_strength || "Relationship strength unavailable"}
+
+      <div style={{ fontSize: "12px", color: "var(--vs-text-muted)", lineHeight: 1.45 }}>
+        {location || "Location unavailable"}
+        {donor.employer || donor.occupation ? (
+          <>
+            <br />
+            {[donor.employer, donor.occupation].filter(Boolean).join(" | ")}
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -273,7 +352,7 @@ function OverlayCard({ item, isActive, onSelect }) {
           <Badge tone={officeTone(item.office)}>{item.office}</Badge>
         </div>
         <div style={{ marginTop: "6px", fontSize: "12px", lineHeight: 1.45, color: "var(--vs-text-muted)" }}>
-          {item.candidates?.length || 0} candidate signals • Top 5 shown
+          {item.candidates?.length || 0} candidate signals | Top 5 shown
         </div>
       </div>
 
@@ -341,7 +420,7 @@ function OfficeChip({ item, isActive, onSelect }) {
         <Badge tone={overlayTone(item.overlayTier)}>{item.overlayTier}</Badge>
       </div>
       <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
-        Score {item.overlayScore} • {formatMoneyShort(item.totalReceipts || 0)}
+        Score {item.overlayScore} | {formatMoneyShort(item.totalReceipts || 0)}
       </div>
     </button>
   );
@@ -409,7 +488,7 @@ function MapTooltip({ tooltip, onSelectOffice }) {
               </span>
             </div>
             <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
-              Score {item.overlayScore} • {formatMoneyShort(item.totalReceipts || 0)}
+              Score {item.overlayScore} | {formatMoneyShort(item.totalReceipts || 0)}
             </div>
             <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--vs-text-muted)" }}>
               Top signal:{" "}
@@ -437,7 +516,15 @@ export default function ElectionMap() {
   });
   const [selectedOverlay, setSelectedOverlay] = useState(null);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
-  const [candidateDonors, setCandidateDonors] = useState([]);
+  const [donorIntel, setDonorIntel] = useState({
+    donors: [],
+    summary: {},
+    stateBreakdown: [],
+    committeeBreakdown: [],
+    locked: false,
+    source: "FEC Schedule A",
+    error: "",
+  });
   const [donorLoading, setDonorLoading] = useState(false);
   const [selectedState, setSelectedState] = useState("");
   const [selectedOffice, setSelectedOffice] = useState("");
@@ -591,30 +678,94 @@ export default function ElectionMap() {
     let active = true;
 
     async function loadDonors() {
-      if (!selectedCandidate) {
-        setCandidateDonors([]);
+      if (!selectedOverlay?.state) {
+        setDonorIntel({
+          donors: [],
+          summary: {},
+          stateBreakdown: [],
+          committeeBreakdown: [],
+          locked: false,
+          source: "FEC Schedule A",
+          error: "",
+        });
         return;
       }
 
       try {
         setDonorLoading(true);
 
-        const response = await api.get("/donors/network/public", {
-          timeout: 8000,
-          params: {
-            candidate_id: selectedCandidate.candidate_id || "",
-            state: selectedOverlay?.state || "",
-            search: selectedCandidate.name || "",
-            limit: 10,
-          },
+        const stateAbbr =
+          STATE_NAME_TO_ABBR[selectedOverlay.state] ||
+          selectedOverlay.state ||
+          "";
+
+        const candidateName = selectedCandidate?.name || "";
+        const donorSearch =
+          candidateName && candidateName.length >= 4 ? candidateName : "";
+
+        const data = await loadDonorIntel({
+          state: stateAbbr,
+          cycle: "2026",
+          limit: 25,
+          live: 1,
+          search: donorSearch,
+          candidate_id: selectedCandidate?.candidate_id || "",
         });
 
         if (!active) return;
-        const results = response?.data?.results || [];
-        setCandidateDonors(Array.isArray(results) ? results.slice(0, 10) : []);
-      } catch {
+
+        const directResults = Array.isArray(data?.results) ? data.results : [];
+
+        if (directResults.length || donorSearch === "") {
+          setDonorIntel({
+            donors: directResults.slice(0, 10),
+            summary: data?.summary || {},
+            stateBreakdown: data?.stateBreakdown || [],
+            committeeBreakdown: data?.committeeBreakdown || [],
+            locked: false,
+            source: data?.summary?.source || "FEC Schedule A",
+            error: "",
+          });
+          return;
+        }
+
+        const fallbackData = await loadDonorIntel({
+          state: stateAbbr,
+          cycle: "2026",
+          limit: 25,
+          live: 1,
+        });
+
         if (!active) return;
-        setCandidateDonors([]);
+
+        setDonorIntel({
+          donors: Array.isArray(fallbackData?.results)
+            ? fallbackData.results.slice(0, 10)
+            : [],
+          summary: fallbackData?.summary || {},
+          stateBreakdown: fallbackData?.stateBreakdown || [],
+          committeeBreakdown: fallbackData?.committeeBreakdown || [],
+          locked: false,
+          source: fallbackData?.summary?.source || "FEC Schedule A",
+          error: "",
+        });
+      } catch (err) {
+        if (!active) return;
+
+        const status = err?.response?.status;
+
+        setDonorIntel({
+          donors: [],
+          summary: {},
+          stateBreakdown: [],
+          committeeBreakdown: [],
+          locked: status === 401 || status === 402,
+          source: status === 401 || status === 402 ? "Enterprise required" : "Unavailable",
+          error:
+            err?.response?.data?.error ||
+            err?.message ||
+            "Failed to load donor intelligence",
+        });
       } finally {
         if (active) setDonorLoading(false);
       }
@@ -625,7 +776,11 @@ export default function ElectionMap() {
     return () => {
       active = false;
     };
-  }, [selectedCandidate?.candidate_id, selectedCandidate?.name, selectedOverlay?.state]);
+  }, [
+    selectedCandidate?.candidate_id,
+    selectedCandidate?.name,
+    selectedOverlay?.state,
+  ]);
 
   const topOverlay = filteredOverlays[0] || null;
 
@@ -674,6 +829,7 @@ export default function ElectionMap() {
       tickerItems={[
         { label: "Tracked States", value: String(mapData.summary?.trackedStates || 0), dotClass: "vs-live-dot" },
         { label: "Overlays", value: String(mapData.summary?.overlays || 0), dotClass: "vs-live-dot-warning" },
+        { label: "Donor Source", value: donorIntel.source || "FEC Schedule A", dotClass: donorIntel.locked ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "Last Sync", value: formatDateTime(mapData.summary?.last_synced_at), dotClass: "vs-live-dot-success" },
       ]}
     >
@@ -718,7 +874,7 @@ export default function ElectionMap() {
       <div className="vs-grid-4">
         <StatCard label="Tracked States" value={String(mapData.summary?.trackedStates || 0)} delta="States with live finance overlays" tone="up" />
         <StatCard label="Overlay Count" value={String(filteredOverlays.length || 0)} delta="State-office combinations" tone="up" />
-        <StatCard label="Top Overlay" value={topOverlay ? topOverlay.state : "N/A"} delta={topOverlay ? topOverlay.office + " • " + topOverlay.overlayTier : "No overlays match"} tone="up" />
+        <StatCard label="State Donors" value={String(donorIntel.donors?.length || 0)} delta={donorIntel.locked ? "Enterprise donor access required" : "Loaded from donor intelligence"} tone="up" />
         <StatCard label="Last Sync" value={formatDateTime(mapData.summary?.last_synced_at)} delta="Latest FEC finance ingestion" tone="up" />
       </div>
 
@@ -734,161 +890,160 @@ export default function ElectionMap() {
           <div data-tour="election-map-us">
             <SectionCard
               title="U.S. Finance Overlay Map"
-            subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
-            right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
-          >
-            <div
-              className="vs-card"
-              style={{
-              padding: "12px",
-              height: "420px",
-              minHeight: "420px",
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-              {loading ? (
-                <EmptyState text="Loading live map..." />
-              ) : !overlaysByState.length ? (
-                <EmptyState text="No live overlays match the selected filters." />
-              ) : (
-  
-                <ComposableMap
-                 projection="geoAlbersUsa"
-                 projectionConfig={{ scale: 1040 }}
-                 style={{
-                   width: "100%",
-                   maxWidth: "980px",
-                   height: "390px",
-                 }}
-               >
-                  <Geographies geography={US_TOPO_JSON}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => {
-                        const stateName = geo.properties?.name;
-                        const abbr = STATE_NAME_TO_ABBR[stateName];
-                        const stateGroup = abbr ? stateGroupByAbbr[abbr] : null;
-                        const strongest = stateGroup?.strongest || null;
-                        const isActive = stateGroup?.state === selectedStateGroupKey;
+              subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
+              right={<Badge tone="info">{filteredOverlays.length} overlays</Badge>}
+            >
+              <div
+                className="vs-card"
+                style={{
+                  padding: "12px",
+                  height: "420px",
+                  minHeight: "420px",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {loading ? (
+                  <EmptyState text="Loading live map..." />
+                ) : !overlaysByState.length ? (
+                  <EmptyState text="No live overlays match the selected filters." />
+                ) : (
+                  <ComposableMap
+                    projection="geoAlbersUsa"
+                    projectionConfig={{ scale: 1040 }}
+                    style={{
+                      width: "100%",
+                      maxWidth: "980px",
+                      height: "390px",
+                    }}
+                  >
+                    <Geographies geography={US_TOPO_JSON}>
+                      {({ geographies }) =>
+                        geographies.map((geo) => {
+                          const stateName = geo.properties?.name;
+                          const abbr = STATE_NAME_TO_ABBR[stateName];
+                          const stateGroup = abbr ? stateGroupByAbbr[abbr] : null;
+                          const strongest = stateGroup?.strongest || null;
+                          const isActive = stateGroup?.state === selectedStateGroupKey;
 
-                        return (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            onMouseEnter={(event) => {
-                              if (stateGroup) showTooltip(event, stateGroup);
-                            }}
-                            onMouseMove={(event) => {
-                              if (stateGroup) moveTooltip(event, stateGroup);
-                            }}
+                          return (
+                            <Geography
+                              key={geo.rsmKey}
+                              geography={geo}
+                              onMouseEnter={(event) => {
+                                if (stateGroup) showTooltip(event, stateGroup);
+                              }}
+                              onMouseMove={(event) => {
+                                if (stateGroup) moveTooltip(event, stateGroup);
+                              }}
+                              onMouseLeave={hideTooltip}
+                              onClick={() => {
+                                if (stateGroup) selectStateGroup(stateGroup);
+                              }}
+                              style={{
+                                default: {
+                                  fill: strongest ? getStateFill(strongest) : "#111827",
+                                  stroke: "#374151",
+                                  strokeWidth: isActive ? 1.5 : 0.75,
+                                  outline: "none",
+                                  cursor: stateGroup ? "pointer" : "default",
+                                },
+                                hover: {
+                                  fill: strongest ? getStateFill(strongest) : "#1f2937",
+                                  stroke: "#cbd5e1",
+                                  strokeWidth: 1.4,
+                                  outline: "none",
+                                  cursor: stateGroup ? "pointer" : "default",
+                                },
+                                pressed: {
+                                  fill: strongest ? getStateFill(strongest) : "#1f2937",
+                                  stroke: "#cbd5e1",
+                                  strokeWidth: 1.2,
+                                  outline: "none",
+                                },
+                              }}
+                            />
+                          );
+                        })
+                      }
+                    </Geographies>
+
+                    {overlaysByState.map((group) => {
+                      const abbr = STATE_NAME_TO_ABBR[group.state];
+                      const coords = abbr ? STATE_CENTROIDS[abbr] : null;
+                      if (!coords) return null;
+
+                      const isActive = selectedStateGroupKey === group.state;
+
+                      return (
+                        <Marker key={group.state} coordinates={coords}>
+                          <circle
+                            r={isActive ? 9 : 7}
+                            fill="#f8fafc"
+                            stroke="#111827"
+                            strokeWidth={2}
+                            style={{ cursor: "pointer" }}
+                            onMouseEnter={(event) => showTooltip(event, group)}
+                            onMouseMove={(event) => moveTooltip(event, group)}
                             onMouseLeave={hideTooltip}
-                            onClick={() => {
-                              if (stateGroup) selectStateGroup(stateGroup);
-                            }}
-                            style={{
-                              default: {
-                                fill: strongest ? getStateFill(strongest) : "#111827",
-                                stroke: "#374151",
-                                strokeWidth: isActive ? 1.5 : 0.75,
-                                outline: "none",
-                                cursor: stateGroup ? "pointer" : "default",
-                              },
-                              hover: {
-                                fill: strongest ? getStateFill(strongest) : "#1f2937",
-                                stroke: "#cbd5e1",
-                                strokeWidth: 1.4,
-                                outline: "none",
-                                cursor: stateGroup ? "pointer" : "default",
-                              },
-                              pressed: {
-                                fill: strongest ? getStateFill(strongest) : "#1f2937",
-                                stroke: "#cbd5e1",
-                                strokeWidth: 1.2,
-                                outline: "none",
-                              },
-                            }}
+                            onClick={() => selectStateGroup(group)}
                           />
-                        );
-                      })
-                    }
-                  </Geographies>
-
-                  {overlaysByState.map((group) => {
-                    const abbr = STATE_NAME_TO_ABBR[group.state];
-                    const coords = abbr ? STATE_CENTROIDS[abbr] : null;
-                    if (!coords) return null;
-
-                    const isActive = selectedStateGroupKey === group.state;
-
-                    return (
-                      <Marker key={group.state} coordinates={coords}>
-                        <circle
-                          r={isActive ? 9 : 7}
-                          fill="#f8fafc"
-                          stroke="#111827"
-                          strokeWidth={2}
-                          style={{ cursor: "pointer" }}
-                          onMouseEnter={(event) => showTooltip(event, group)}
-                          onMouseMove={(event) => moveTooltip(event, group)}
-                          onMouseLeave={hideTooltip}
-                          onClick={() => selectStateGroup(group)}
-                        />
-                        <text
-                          textAnchor="middle"
-                          y={-12}
-                          style={{
-                            fontFamily: "inherit",
-                            fill: "#e5e7eb",
-                            fontSize: 10,
-                            fontWeight: 700,
-                            pointerEvents: "none",
-                          }}
-                        >
-                          {STATE_NAME_TO_ABBR[group.state] || group.state}
-                        </text>
-                      </Marker>
-                    );
-                  })}
-                </ComposableMap>
-              )}
-            </div>
+                          <text
+                            textAnchor="middle"
+                            y={-12}
+                            style={{
+                              fontFamily: "inherit",
+                              fill: "#e5e7eb",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              pointerEvents: "none",
+                            }}
+                          >
+                            {STATE_NAME_TO_ABBR[group.state] || group.state}
+                          </text>
+                        </Marker>
+                      );
+                    })}
+                  </ComposableMap>
+                )}
+              </div>
             </SectionCard>
           </div>
 
           <div data-tour="election-map-candidates">
             <SectionCard
               title="Candidates"
-            subtitle={
-              selectedOverlay
-                ? selectedOverlay.state + " • " + selectedOverlay.office + " candidate field"
-                : "Select an office overlay to inspect candidates."
-            }
-            right={
-              selectedOverlay ? (
-                <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-                  {selectedOverlay.overlayTier}
-                </Badge>
-              ) : null
-            }
-          >
-            {!selectedOverlay ? (
-              <EmptyState text="Select an office overlay to view candidates." />
-            ) : !(selectedOverlay.candidates || []).length ? (
-              <EmptyState text="No candidates available for this overlay." />
-            ) : (
-              <div className="vs-stack">
-                {(selectedOverlay.candidates || []).map((candidate) => (
-                  <CandidateCard
-                    key={candidate.candidate_id}
-                    candidate={candidate}
-                    isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
-                    onSelect={setSelectedCandidate}
-                  />
-                ))}
-              </div>
-            )}
+              subtitle={
+                selectedOverlay
+                  ? selectedOverlay.state + " | " + selectedOverlay.office + " candidate field"
+                  : "Select an office overlay to inspect candidates."
+              }
+              right={
+                selectedOverlay ? (
+                  <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                    {selectedOverlay.overlayTier}
+                  </Badge>
+                ) : null
+              }
+            >
+              {!selectedOverlay ? (
+                <EmptyState text="Select an office overlay to view candidates." />
+              ) : !(selectedOverlay.candidates || []).length ? (
+                <EmptyState text="No candidates available for this overlay." />
+              ) : (
+                <div className="vs-stack">
+                  {(selectedOverlay.candidates || []).map((candidate) => (
+                    <CandidateCard
+                      key={candidate.candidate_id}
+                      candidate={candidate}
+                      isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
+                      onSelect={setSelectedCandidate}
+                    />
+                  ))}
+                </div>
+              )}
             </SectionCard>
           </div>
 
@@ -896,31 +1051,36 @@ export default function ElectionMap() {
             <SectionCard
               title={
                 selectedCandidate
-                  ? "Donor Intelligence • " + selectedCandidate.name
+                  ? "Donor Intelligence | " + selectedCandidate.name
                   : "Donor Intelligence"
               }
-            subtitle={
-              selectedCandidate
-                ? "Showing donor network matches for the selected candidate."
-                : "Select a candidate to inspect donor records."
-            }
-          >
-            {donorLoading ? (
-              <EmptyState text="Loading donor records..." />
-            ) : !selectedCandidate ? (
-              <EmptyState text="Select a candidate to load donor data." />
-            ) : !candidateDonors.length ? (
-              <EmptyState text="No donor records available yet for this candidate." />
-            ) : (
-              <div className="vs-stack">
-                {candidateDonors.map((donor, index) => (
-                  <DonorCard
-                    key={donor.id || donor.donor_name || index}
-                    donor={donor}
-                  />
-                ))}
-              </div>
-            )}
+              subtitle={
+                selectedCandidate
+                  ? "Showing protected donor intelligence for this candidate/state context."
+                  : "Select a candidate to inspect donor records."
+              }
+              right={<Badge tone={donorIntel.locked ? "demo" : "active"}>{donorIntel.source}</Badge>}
+            >
+              {donorLoading ? (
+                <EmptyState text="Loading donor intelligence..." />
+              ) : donorIntel.locked ? (
+                <EmptyState text="Donor Intelligence is available with an Enterprise subscription." />
+              ) : !selectedCandidate ? (
+                <EmptyState text="Select a candidate to load donor data." />
+              ) : donorIntel.error ? (
+                <EmptyState text={donorIntel.error} />
+              ) : !donorIntel.donors.length ? (
+                <EmptyState text="No donor intelligence available for this state/candidate yet." />
+              ) : (
+                <div className="vs-stack">
+                  {donorIntel.donors.map((donor, index) => (
+                    <DonorCard
+                      key={donor.id || `${donor.donor_name}-${donor.state}-${index}`}
+                      donor={donor}
+                    />
+                  ))}
+                </div>
+              )}
             </SectionCard>
           </div>
         </div>
@@ -930,68 +1090,68 @@ export default function ElectionMap() {
             <SectionCard
               title={
                 selectedStateGroup
-                ? selectedStateGroup.state + " • Office Overlays"
-                : "Overlay Detail"
-            }
-            subtitle={
-              selectedStateGroup
-                ? selectedStateGroup.overlays.length +
-                  " office overlay" +
-                  (selectedStateGroup.overlays.length === 1 ? "" : "s") +
-                  " • Last synced " +
-                  formatDateTime(mapData.summary?.last_synced_at)
-                : "Select a state to inspect all office overlays."
-            }
-            right={
-              selectedOverlay ? (
-                <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
-                  {selectedOverlay.overlayTier}
-                </Badge>
-              ) : null
-            }
-          >
-            <div className="vs-stack">
-              {!selectedStateGroup ? (
-                <EmptyState text="Select a highlighted state to see all live office overlays." />
-              ) : (
-                <>
-                  <div className="vs-grid-3">
-                    <StatCard
-                      label="State Overlays"
-                      value={String(selectedStateGroup.overlays?.length || 0)}
-                      delta="Office overlays in state"
-                      tone="up"
-                    />
-                    <StatCard
-                      label="Top Receipts"
-                      value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
-                      delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
-                      tone="up"
-                    />
-                    <StatCard
-                      label="Top Tier"
-                      value={selectedStateGroup.strongest?.overlayTier || "N/A"}
-                      delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
-                      tone="up"
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: "10px" }}>
-                    {(selectedStateGroup.overlays || []).map((item) => (
-                      <OfficeChip
-                        key={item.state + "-" + item.office}
-                        item={item}
-                        isActive={
-                          selectedOverlay?.state === item.state &&
-                          selectedOverlay?.office === item.office
-                        }
-                        onSelect={selectOfficeOverlay}
+                  ? selectedStateGroup.state + " | Office Overlays"
+                  : "Overlay Detail"
+              }
+              subtitle={
+                selectedStateGroup
+                  ? selectedStateGroup.overlays.length +
+                    " office overlay" +
+                    (selectedStateGroup.overlays.length === 1 ? "" : "s") +
+                    " | Last synced " +
+                    formatDateTime(mapData.summary?.last_synced_at)
+                  : "Select a state to inspect all office overlays."
+              }
+              right={
+                selectedOverlay ? (
+                  <Badge tone={overlayTone(selectedOverlay.overlayTier)}>
+                    {selectedOverlay.overlayTier}
+                  </Badge>
+                ) : null
+              }
+            >
+              <div className="vs-stack">
+                {!selectedStateGroup ? (
+                  <EmptyState text="Select a highlighted state to see all live office overlays." />
+                ) : (
+                  <>
+                    <div className="vs-grid-3">
+                      <StatCard
+                        label="State Overlays"
+                        value={String(selectedStateGroup.overlays?.length || 0)}
+                        delta="Office overlays in state"
+                        tone="up"
                       />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+                      <StatCard
+                        label="Top Receipts"
+                        value={formatMoneyShort(selectedStateGroup.strongest?.totalReceipts || 0)}
+                        delta={"Strongest office: " + (selectedStateGroup.strongest?.office || "N/A")}
+                        tone="up"
+                      />
+                      <StatCard
+                        label="Top Tier"
+                        value={selectedStateGroup.strongest?.overlayTier || "N/A"}
+                        delta={"Score " + (selectedStateGroup.strongest?.overlayScore || 0)}
+                        tone="up"
+                      />
+                    </div>
+
+                    <div style={{ display: "grid", gap: "10px" }}>
+                      {(selectedStateGroup.overlays || []).map((item) => (
+                        <OfficeChip
+                          key={item.state + "-" + item.office}
+                          item={item}
+                          isActive={
+                            selectedOverlay?.state === item.state &&
+                            selectedOverlay?.office === item.office
+                          }
+                          onSelect={selectOfficeOverlay}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </SectionCard>
           </div>
 
