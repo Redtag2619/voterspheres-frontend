@@ -8,6 +8,15 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+const VENDOR_GROUPS = [
+  "Mail",
+  "Digital",
+  "Media",
+  "Compliance",
+  "Consulting",
+  "Events",
+];
+
 function fmtMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
@@ -61,6 +70,81 @@ function sourceLabel(value) {
   return value || "Database";
 }
 
+function normalizeVendorGroup(category = "", services = "") {
+  const value = `${category} ${services}`.toLowerCase();
+
+  if (
+    value.includes("mail") ||
+    value.includes("print") ||
+    value.includes("postage") ||
+    value.includes("postcard") ||
+    value.includes("letter") ||
+    value.includes("mailer")
+  ) {
+    return "Mail";
+  }
+
+  if (
+    value.includes("digital") ||
+    value.includes("data") ||
+    value.includes("software") ||
+    value.includes("text") ||
+    value.includes("sms") ||
+    value.includes("email") ||
+    value.includes("crm") ||
+    value.includes("website")
+  ) {
+    return "Digital";
+  }
+
+  if (
+    value.includes("media") ||
+    value.includes("advertising") ||
+    value.includes("tv") ||
+    value.includes("radio") ||
+    value.includes("broadcast") ||
+    value.includes("ad buy") ||
+    value.includes("placement")
+  ) {
+    return "Media";
+  }
+
+  if (
+    value.includes("compliance") ||
+    value.includes("legal") ||
+    value.includes("treasurer") ||
+    value.includes("accounting") ||
+    value.includes("finance")
+  ) {
+    return "Compliance";
+  }
+
+  if (
+    value.includes("consult") ||
+    value.includes("strategy") ||
+    value.includes("poll") ||
+    value.includes("survey") ||
+    value.includes("research") ||
+    value.includes("field") ||
+    value.includes("canvass")
+  ) {
+    return "Consulting";
+  }
+
+  if (
+    value.includes("event") ||
+    value.includes("venue") ||
+    value.includes("travel") ||
+    value.includes("lodging") ||
+    value.includes("hotel") ||
+    value.includes("catering")
+  ) {
+    return "Events";
+  }
+
+  return "Consulting";
+}
+
 function getActionKey(action = {}, fallback = "") {
   return String(
     action.id ||
@@ -101,8 +185,15 @@ function statesMatch(a, b) {
   return Boolean(left && right && left === right);
 }
 
-function goToCommandCenter() {
-  window.location.href = "/command-center";
+function goToCommandCenter(params = {}) {
+  const query = new URLSearchParams();
+
+  if (params.vendor) query.set("vendor", params.vendor);
+  if (params.state) query.set("state", params.state);
+  query.set("source", params.source || "vendor-network");
+
+  const queryString = query.toString();
+  window.location.href = queryString ? `/command-center?${queryString}` : "/command-center";
 }
 
 async function loadFecVendorSpend(params = {}) {
@@ -153,7 +244,7 @@ function mergeByVendorName(primaryRows = [], fecRows = []) {
   return [...map.values()];
 }
 
-function VendorRow({ vendor, highlighted = false }) {
+function VendorRow({ vendor, highlighted = false, onCreateCommandTask }) {
   const name = vendor.name || vendor.vendor_name || "Unnamed Vendor";
   const category = vendor.category || "Campaign Vendor";
   const state = vendor.state || vendor.primary_state || "Unknown";
@@ -162,6 +253,7 @@ function VendorRow({ vendor, highlighted = false }) {
     vendor.capabilities ||
     vendor.description ||
     "Campaign operations and political services";
+  const group = normalizeVendorGroup(category, services);
 
   return (
     <div
@@ -171,7 +263,7 @@ function VendorRow({ vendor, highlighted = false }) {
     >
       <ResponsiveRow
         title={name}
-        subtitle={`${state} | ${category} | ${sourceLabel(vendor.source)}`}
+        subtitle={`${state} | ${group} | ${category} | ${sourceLabel(vendor.source)}`}
         meta={[
           { label: "Coverage", value: vendor.coverage_area || state || "—" },
           { label: "Spend / Contract", value: fmtMoney(vendor.contract_value || vendor.fec_contract_value) },
@@ -181,17 +273,92 @@ function VendorRow({ vendor, highlighted = false }) {
         right={
           <div className="vs-inline-actions">
             {highlighted ? <Badge tone="demo">Task Match</Badge> : null}
+            <Badge tone="info">{group}</Badge>
             <Badge tone="accent">{vendor.status || "active"}</Badge>
           </div>
         }
       />
 
-      {vendor.committee_clients ? (
-        <div className="vs-vendor-source-strip">
-          Committee clients: {String(vendor.committee_clients).split(",").slice(0, 4).join(", ")}
+      <div className="vs-vendor-source-strip">
+        {vendor.committee_clients ? (
+          <span>
+            Committee clients: {String(vendor.committee_clients).split(",").slice(0, 4).join(", ")}
+          </span>
+        ) : (
+          <span>Committee clients unavailable from current record.</span>
+        )}
+
+        <div className="vs-vendor-row-actions">
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() =>
+              goToCommandCenter({
+                vendor: name,
+                state,
+              })
+            }
+          >
+            Open in Command Center
+          </button>
+
+          <button
+            type="button"
+            className="vs-button"
+            onClick={() => onCreateCommandTask?.({
+              title: `Review ${name}`,
+              detail: services,
+              state,
+              owner: "Operations",
+              priority: "Medium",
+              vendor_name: name,
+            })}
+          >
+            Create Command Task
+          </button>
         </div>
-      ) : null}
+      </div>
     </div>
+  );
+}
+
+function VendorGroupCard({ group, vendors = [], onOpenGroup }) {
+  const total = vendors.reduce(
+    (sum, vendor) => sum + Number(vendor.contract_value || vendor.fec_contract_value || 0),
+    0
+  );
+
+  const stateCount = new Set(
+    vendors.map((vendor) => vendor.state || vendor.primary_state).filter(Boolean)
+  ).size;
+
+  const committeeCount = vendors.reduce(
+    (sum, vendor) => sum + Number(vendor.committee_count || 0),
+    0
+  );
+
+  return (
+    <button
+      type="button"
+      className="vs-vendor-group-card"
+      onClick={() => onOpenGroup(group)}
+    >
+      <div>
+        <div className="vs-vendor-group-title">{group}</div>
+        <div className="vs-vendor-group-subtitle">
+          {vendors.length} vendors | {stateCount} states
+        </div>
+      </div>
+
+      <div className="vs-vendor-group-money">{fmtMoneyShort(total)}</div>
+
+      <div className="vs-vendor-group-meta">
+        <Badge tone={vendors.length ? "active" : "default"}>
+          {vendors.length ? "Active" : "No Records"}
+        </Badge>
+        <Badge tone="info">{committeeCount} committee links</Badge>
+      </div>
+    </button>
   );
 }
 
@@ -359,6 +526,8 @@ export default function Vendors() {
     limit: 12,
     cycle: "2026",
   });
+
+  const [selectedGroup, setSelectedGroup] = useState("");
 
   const isFromExecutionBoard = sourceContext === "execution-board";
   const highlightedState = isFromExecutionBoard ? filters.state : "";
@@ -544,6 +713,31 @@ export default function Vendors() {
   const displayRows = useMemo(() => {
     return mergeByVendorName(rows, fecRows);
   }, [rows, fecRows]);
+
+  const groupedVendors = useMemo(() => {
+    const grouped = {};
+
+    VENDOR_GROUPS.forEach((group) => {
+      grouped[group] = [];
+    });
+
+    displayRows.forEach((vendor) => {
+      const group = normalizeVendorGroup(vendor.category, vendor.services || vendor.description);
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(vendor);
+    });
+
+    return grouped;
+  }, [displayRows]);
+
+  const visibleRows = useMemo(() => {
+    if (!selectedGroup) return displayRows;
+
+    return displayRows.filter(
+      (vendor) =>
+        normalizeVendorGroup(vendor.category, vendor.services || vendor.description) === selectedGroup
+    );
+  }, [displayRows, selectedGroup]);
 
   useEffect(() => {
     if (!isFromExecutionBoard || loading || !displayRows.length) return;
@@ -787,6 +981,62 @@ export default function Vendors() {
           line-height: 1.45;
         }
 
+        .vs-vendor-row-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .vs-vendor-group-card {
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 32%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.48));
+          box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18);
+          color: var(--vs-text);
+          cursor: pointer;
+          display: grid;
+          gap: 14px;
+          min-height: 154px;
+          padding: 16px;
+          text-align: left;
+          transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .vs-vendor-group-card:hover {
+          transform: translateY(-2px);
+          border-color: rgba(96, 165, 250, 0.42);
+          box-shadow: 0 18px 42px rgba(2, 6, 23, 0.28);
+        }
+
+        .vs-vendor-group-title {
+          color: var(--vs-text);
+          font-size: 17px;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .vs-vendor-group-subtitle {
+          color: rgba(203, 213, 225, 0.72);
+          font-size: 12px;
+          margin-top: 5px;
+        }
+
+        .vs-vendor-group-money {
+          color: var(--vs-text);
+          font-size: 24px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .vs-vendor-group-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
         .vs-execution-filter-banner {
           display: flex;
           align-items: center;
@@ -992,9 +1242,39 @@ export default function Vendors() {
               <VendorRow
                 key={vendor.id || vendor.vendor_id || `${vendor.vendor_name}-${index}`}
                 vendor={vendor}
+                onCreateCommandTask={createVendorTask}
               />
             ))
           )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Vendor Spend Groups"
+        subtitle="FEC-imported vendors organized by Mail, Digital, Media, Compliance, Consulting, and Events."
+        right={
+          selectedGroup ? (
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={() => setSelectedGroup("")}
+            >
+              Show All Groups
+            </button>
+          ) : (
+            <Badge tone="info">6 groups</Badge>
+          )
+        }
+      >
+        <div className="vs-grid-3">
+          {VENDOR_GROUPS.map((group) => (
+            <VendorGroupCard
+              key={group}
+              group={group}
+              vendors={groupedVendors[group] || []}
+              onOpenGroup={setSelectedGroup}
+            />
+          ))}
         </div>
       </SectionCard>
 
@@ -1040,21 +1320,21 @@ export default function Vendors() {
       <div className="vs-grid-2">
         <div ref={vendorDirectoryRef}>
           <SectionCard
-            title="Live Vendor Directory"
+            title={selectedGroup ? `${selectedGroup} Vendor Directory` : "Live Vendor Directory"}
             subtitle={
               filters.state
                 ? `Database and FEC-backed vendor network filtered to ${filters.state}.`
                 : "Database and FEC-backed vendor network with operating coverage and status."
             }
-            right={<Badge tone="accent">{displayRows.length} shown</Badge>}
+            right={<Badge tone="accent">{visibleRows.length} shown</Badge>}
           >
             <div className="vs-stack">
               {loading && fecLoading ? (
                 <EmptyState text="Loading vendors..." />
-              ) : displayRows.length === 0 ? (
+              ) : visibleRows.length === 0 ? (
                 <EmptyState text="No vendors found." />
               ) : (
-                displayRows.map((vendor, index) => {
+                visibleRows.map((vendor, index) => {
                   const highlighted =
                     isFromExecutionBoard &&
                     filters.state &&
@@ -1069,6 +1349,7 @@ export default function Vendors() {
                       }
                       vendor={vendor}
                       highlighted={highlighted}
+                      onCreateCommandTask={createVendorTask}
                     />
                   );
                 })
