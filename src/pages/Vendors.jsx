@@ -12,6 +12,13 @@ function fmtMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+function fmtMoneyShort(value) {
+  const amount = Number(value || 0);
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1000) return `$${Math.round(amount / 1000)}K`;
+  return fmtMoney(amount);
+}
+
 function normalizeList(data, keys = []) {
   if (Array.isArray(data)) return data;
 
@@ -47,6 +54,11 @@ function performanceLabel(score) {
   if (next >= 70) return "Watch";
 
   return "Risk";
+}
+
+function sourceLabel(value) {
+  if (value === "fec_schedule_b") return "FEC Schedule B";
+  return value || "Database";
 }
 
 function getActionKey(action = {}, fallback = "") {
@@ -93,6 +105,54 @@ function goToCommandCenter() {
   window.location.href = "/command-center";
 }
 
+async function loadFecVendorSpend(params = {}) {
+  if (typeof api.vendorFecSpend === "function") {
+    return api.vendorFecSpend(params);
+  }
+
+  if (typeof api.get === "function") {
+    const response = await api.get("/vendor-fec/spend", {
+      params,
+      timeout: 10000,
+    });
+
+    return response?.data || response;
+  }
+
+  return null;
+}
+
+function mergeByVendorName(primaryRows = [], fecRows = []) {
+  const map = new Map();
+
+  primaryRows.forEach((row) => {
+    const key = String(row.name || row.vendor_name || "").toLowerCase();
+    if (key) map.set(key, row);
+  });
+
+  fecRows.forEach((row) => {
+    const key = String(row.name || row.vendor_name || "").toLowerCase();
+    if (!key) return;
+
+    if (!map.has(key)) {
+      map.set(key, row);
+      return;
+    }
+
+    const existing = map.get(key);
+    map.set(key, {
+      ...row,
+      ...existing,
+      fec_contract_value: row.contract_value,
+      fec_transaction_count: row.transaction_count,
+      committee_clients: existing.committee_clients || row.committee_clients,
+      source: existing.source || row.source,
+    });
+  });
+
+  return [...map.values()];
+}
+
 function VendorRow({ vendor, highlighted = false }) {
   const name = vendor.name || vendor.vendor_name || "Unnamed Vendor";
   const category = vendor.category || "Campaign Vendor";
@@ -111,10 +171,11 @@ function VendorRow({ vendor, highlighted = false }) {
     >
       <ResponsiveRow
         title={name}
-        subtitle={`${state} • ${category}`}
+        subtitle={`${state} | ${category} | ${sourceLabel(vendor.source)}`}
         meta={[
           { label: "Coverage", value: vendor.coverage_area || state || "—" },
-          { label: "Contract", value: fmtMoney(vendor.contract_value) },
+          { label: "Spend / Contract", value: fmtMoney(vendor.contract_value || vendor.fec_contract_value) },
+          { label: "Transactions", value: vendor.transaction_count || vendor.fec_transaction_count || "—" },
           { label: "Services", value: services },
         ]}
         right={
@@ -124,6 +185,12 @@ function VendorRow({ vendor, highlighted = false }) {
           </div>
         }
       />
+
+      {vendor.committee_clients ? (
+        <div className="vs-vendor-source-strip">
+          Committee clients: {String(vendor.committee_clients).split(",").slice(0, 4).join(", ")}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -157,14 +224,13 @@ function PerformanceRow({ item }) {
   const onTime = Number(item.on_time_score || 0);
   const reliability = Number(item.reliability_score || 0);
   const risk = Number(item.risk_score || 0);
-  const delayedJobs = Number(item.delayed_jobs || 0);
-  const totalJobs = Number(item.total_jobs || 0);
+  const totalJobs = Number(item.total_jobs || item.transaction_count || 0);
 
   return (
     <div className={`vs-premium-row-card ${score < 70 ? "is-elevated" : ""}`}>
       <ResponsiveRow
-        title={item.vendor_name || "Unnamed Vendor"}
-        subtitle={`${item.state || "National"} • ${totalJobs} MailOps job${
+        title={item.vendor_name || item.name || "Unnamed Vendor"}
+        subtitle={`${item.state || "National"} | ${totalJobs} FEC spend record${
           totalJobs === 1 ? "" : "s"
         }`}
         meta={[
@@ -172,7 +238,7 @@ function PerformanceRow({ item }) {
           { label: "On-Time", value: `${onTime}%` },
           { label: "Reliability", value: `${reliability}%` },
           { label: "Risk", value: `${risk}%` },
-          { label: "Delayed", value: delayedJobs },
+          { label: "Spend", value: fmtMoneyShort(item.contract_value || 0) },
         ]}
         right={
           <Badge tone={performanceTone(score)}>{performanceLabel(score)}</Badge>
@@ -238,11 +304,33 @@ function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
   );
 }
 
+function SpendCategoryRow({ item }) {
+  return (
+    <div className="vs-premium-row-card">
+      <ResponsiveRow
+        title={item.category || "Campaign Operations"}
+        subtitle={`${item.vendor_count || 0} vendors | ${item.transaction_count || 0} transactions`}
+        meta={[
+          { label: "Total Spend", value: fmtMoney(item.total_amount || 0) },
+          { label: "Source", value: "FEC Schedule B" },
+        ]}
+        right={<Badge tone="info">{fmtMoneyShort(item.total_amount || 0)}</Badge>}
+      />
+    </div>
+  );
+}
+
 export default function Vendors() {
   const initialUrl = getInitialUrlParams();
   const vendorDirectoryRef = useRef(null);
 
   const [rows, setRows] = useState([]);
+  const [fecRows, setFecRows] = useState([]);
+  const [fecCategories, setFecCategories] = useState([]);
+  const [fecStates, setFecStates] = useState([]);
+  const [fecLoading, setFecLoading] = useState(true);
+  const [fecError, setFecError] = useState("");
+
   const [states, setStates] = useState([]);
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -269,6 +357,7 @@ export default function Vendors() {
     status: "",
     page: 1,
     limit: 12,
+    cycle: "2026",
   });
 
   const isFromExecutionBoard = sourceContext === "execution-board";
@@ -337,6 +426,56 @@ export default function Vendors() {
     };
   }, [filters]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadFec() {
+      try {
+        setFecLoading(true);
+        setFecError("");
+
+        const data = await loadFecVendorSpend({
+          q: filters.q || undefined,
+          state: filters.state || undefined,
+          category: filters.category || undefined,
+          cycle: filters.cycle || "2026",
+          limit: 100,
+          live: 1,
+        });
+
+        if (!active) return;
+
+        setFecRows(normalizeList(data, ["results", "vendors", "rows"]));
+        setFecCategories(normalizeList(data?.categories, ["categories", "results"]));
+        setFecStates(normalizeList(data?.states, ["states", "results"]));
+
+        if (data?.intel) {
+          setIntel((current) => current || data.intel);
+        }
+
+        if (data?.performance?.length) {
+          setPerformance((current) => current.length ? current : data.performance);
+          setPerformanceSummary((current) => current || data.performanceSummary || null);
+        }
+      } catch (err) {
+        if (!active) return;
+
+        setFecError(err?.response?.data?.error || err?.message || "FEC vendor spend unavailable.");
+        setFecRows([]);
+        setFecCategories([]);
+        setFecStates([]);
+      } finally {
+        if (active) setFecLoading(false);
+      }
+    }
+
+    loadFec();
+
+    return () => {
+      active = false;
+    };
+  }, [filters.q, filters.state, filters.category, filters.cycle]);
+
   async function loadIntel() {
     setIntelLoading(true);
 
@@ -382,7 +521,8 @@ export default function Vendors() {
 
         if (!active) return;
 
-        setPerformance(data?.results || []);
+        const apiPerformance = data?.results || [];
+        setPerformance(apiPerformance.length ? apiPerformance : []);
         setPerformanceSummary(data?.summary || null);
       } catch {
         if (!active) return;
@@ -401,8 +541,12 @@ export default function Vendors() {
     };
   }, [filters.state]);
 
+  const displayRows = useMemo(() => {
+    return mergeByVendorName(rows, fecRows);
+  }, [rows, fecRows]);
+
   useEffect(() => {
-    if (!isFromExecutionBoard || loading || !rows.length) return;
+    if (!isFromExecutionBoard || loading || !displayRows.length) return;
 
     const timer = setTimeout(() => {
       vendorDirectoryRef.current?.scrollIntoView({
@@ -412,7 +556,7 @@ export default function Vendors() {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [isFromExecutionBoard, loading, rows.length]);
+  }, [isFromExecutionBoard, loading, displayRows.length]);
 
   async function dispatchVendorAlerts() {
     try {
@@ -473,51 +617,107 @@ export default function Vendors() {
     }
   }
 
+  const fallbackIntel = useMemo(() => {
+    const activeStates = fecStates.filter((row) => Number(row.vendor_count || 0) < 3);
+    const gaps = activeStates.slice(0, 8).map((row) => ({
+      title: `${row.state || "State"} vendor coverage requires review`,
+      detail: `${row.vendor_count || 0} FEC-derived vendors and ${row.transaction_count || 0} spending records are visible.`,
+      state: row.state || "National",
+      severity: Number(row.vendor_count || 0) < 2 ? "High" : "Medium",
+      coverage_score: Math.min(100, Number(row.vendor_count || 0) * 20),
+    }));
+
+    return {
+      summary: {
+        total_vendors: displayRows.length,
+        active_vendors: displayRows.filter((row) => String(row.status || "").toLowerCase() === "active").length,
+        states_covered: new Set(displayRows.map((row) => row.state).filter(Boolean)).size,
+        categories_covered: new Set(displayRows.map((row) => row.category).filter(Boolean)).size,
+        high_gap_states: gaps.filter((row) => row.severity === "High").length,
+        medium_gap_states: gaps.filter((row) => row.severity !== "High").length,
+        resolved_gap_states: 0,
+      },
+      gaps,
+      resolved_gaps: [],
+      recommended_actions: gaps.slice(0, 6).map((gap) => ({
+        title: `Expand vendor coverage in ${gap.state}`,
+        detail: gap.detail,
+        state: gap.state,
+        priority: gap.severity === "High" ? "High" : "Medium",
+        owner: "Operations",
+        due: gap.severity === "High" ? "Today" : "This Week",
+      })),
+    };
+  }, [displayRows, fecStates]);
+
+  const effectiveIntel = intel || fallbackIntel;
+
   const summary = useMemo(() => {
     return (
-      intel?.summary || {
-        total_vendors: rows.length,
-        active_vendors: rows.filter(
+      effectiveIntel?.summary || {
+        total_vendors: displayRows.length,
+        active_vendors: displayRows.filter(
           (row) => String(row.status || "").toLowerCase() === "active"
         ).length,
-        states_covered: new Set(rows.map((row) => row.state).filter(Boolean)).size,
+        states_covered: new Set(displayRows.map((row) => row.state).filter(Boolean)).size,
         categories_covered: new Set(
-          rows.map((row) => row.category).filter(Boolean)
+          displayRows.map((row) => row.category).filter(Boolean)
         ).size,
         high_gap_states: 0,
         medium_gap_states: 0,
         resolved_gap_states: 0,
       }
     );
-  }, [intel, rows]);
+  }, [effectiveIntel, displayRows]);
 
   const gapCount =
     Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
 
   const resolvedGapCount = Number(
-    summary.resolved_gap_states || intel?.resolved_gaps?.length || 0
+    summary.resolved_gap_states || effectiveIntel?.resolved_gaps?.length || 0
   );
 
-  const strongPerformanceCount = Number(performanceSummary?.strong_vendors || 0);
-  const riskPerformanceCount = Number(performanceSummary?.risk_vendors || 0);
+  const effectivePerformance = performance.length ? performance : fecRows;
+  const strongPerformanceCount = Number(
+    performanceSummary?.strong_vendors ||
+      effectivePerformance.filter((row) => Number(row.overall_score || 0) >= 85).length
+  );
+  const riskPerformanceCount = Number(
+    performanceSummary?.risk_vendors ||
+      effectivePerformance.filter((row) => Number(row.overall_score || 0) < 70).length
+  );
 
   const highlightedRowsCount = useMemo(() => {
     if (!highlightedState) return 0;
 
-    return rows.filter((row) =>
+    return displayRows.filter((row) =>
       statesMatch(row.state || row.primary_state, highlightedState)
     ).length;
-  }, [rows, highlightedState]);
+  }, [displayRows, highlightedState]);
+
+  const mergedStates = useMemo(() => {
+    const values = new Set();
+    states.forEach((item) => values.add(item.name || item.state || item));
+    fecStates.forEach((item) => values.add(item.name || item.state || item));
+    return [...values].filter(Boolean).sort();
+  }, [states, fecStates]);
+
+  const mergedCategories = useMemo(() => {
+    const values = new Set();
+    categories.forEach((item) => values.add(item.name || item.category || item));
+    fecCategories.forEach((item) => values.add(item.name || item.category || item));
+    return [...values].filter(Boolean).sort();
+  }, [categories, fecCategories]);
 
   return (
     <PageShell
       eyebrow="Vendor Intelligence"
       title="Vendor Network"
-      description="Live campaign vendor coverage, performance scoring, operational readiness, and execution tasking."
+      description="Live campaign vendor coverage, FEC spending intelligence, performance scoring, operational readiness, and execution tasking."
       tickerItems={[
         {
           label: "Vendors",
-          value: `${summary.total_vendors || 0} live`,
+          value: `${summary.total_vendors || displayRows.length || 0} live`,
           dotClass: "vs-live-dot-success",
         },
         {
@@ -526,9 +726,9 @@ export default function Vendors() {
           dotClass: "vs-live-dot-warning",
         },
         {
-          label: "Gaps",
-          value: `${gapCount} active`,
-          dotClass: gapCount ? "vs-live-dot" : "vs-live-dot-success",
+          label: "FEC Spend",
+          value: fmtMoneyShort(fecRows.reduce((sum, row) => sum + Number(row.contract_value || 0), 0)),
+          dotClass: fecRows.length ? "vs-live-dot-success" : "vs-live-dot-warning",
         },
         {
           label: "Performance",
@@ -578,6 +778,13 @@ export default function Vendors() {
         .vs-premium-row-card .vs-responsive-row {
           border: 0;
           background: transparent;
+        }
+
+        .vs-vendor-source-strip {
+          padding: 0 16px 14px;
+          color: rgba(203, 213, 225, 0.72);
+          font-size: 12px;
+          line-height: 1.45;
         }
 
         .vs-execution-filter-banner {
@@ -652,7 +859,7 @@ export default function Vendors() {
       ) : null}
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-
+      {fecError ? <div className="vs-banner vs-banner-danger">{fecError}</div> : null}
       {dispatchMessage ? <div className="vs-banner">{dispatchMessage}</div> : null}
 
       {taskMessage ? (
@@ -662,14 +869,14 @@ export default function Vendors() {
       <div className="vs-grid-4">
         <StatCard
           label="Total Vendors"
-          value={summary.total_vendors || 0}
-          delta="Live vendor records"
+          value={summary.total_vendors || displayRows.length || 0}
+          delta="Database + FEC vendor records"
           tone="up"
         />
         <StatCard
-          label="Active Vendors"
-          value={summary.active_vendors || 0}
-          delta="Ready capacity"
+          label="FEC Vendors"
+          value={fecRows.length}
+          delta="Schedule B payee intelligence"
           tone="up"
         />
         <StatCard
@@ -681,14 +888,14 @@ export default function Vendors() {
         <StatCard
           label="Risk Vendors"
           value={riskPerformanceCount}
-          delta="MailOps-linked performance risk"
+          delta="Spend-linked performance risk"
           tone={riskPerformanceCount ? "down" : "up"}
         />
       </div>
 
       <SectionCard
         title="Vendor Controls"
-        subtitle="Filter the live vendor network and dispatch vendor intelligence alerts."
+        subtitle="Filter the live vendor network and FEC operating expenditure vendor intelligence."
         right={
           <button
             type="button"
@@ -725,15 +932,11 @@ export default function Vendors() {
             }
           >
             <option value="">All states</option>
-            {states.map((item, index) => {
-              const value = item.name || item.state || item;
-
-              return (
-                <option key={`${value}-${index}`} value={value}>
-                  {value}
-                </option>
-              );
-            })}
+            {mergedStates.map((value, index) => (
+              <option key={`${value}-${index}`} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
 
           <select
@@ -748,57 +951,47 @@ export default function Vendors() {
             }
           >
             <option value="">All categories</option>
-            {categories.map((item, index) => {
-              const value = item.name || item.category || item;
-
-              return (
-                <option key={`${value}-${index}`} value={value}>
-                  {value}
-                </option>
-              );
-            })}
+            {mergedCategories.map((value, index) => (
+              <option key={`${value}-${index}`} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
 
           <select
             className="vs-input"
-            value={filters.status}
+            value={filters.cycle}
             onChange={(e) =>
               setFilters((prev) => ({
                 ...prev,
-                status: e.target.value,
+                cycle: e.target.value,
                 page: 1,
               }))
             }
           >
-            <option value="">All statuses</option>
-            {statuses.map((item, index) => {
-              const value = item.name || item.status || item;
-
-              return (
-                <option key={`${value}-${index}`} value={value}>
-                  {value}
-                </option>
-              );
-            })}
+            <option value="2026">2026 Cycle</option>
+            <option value="2024">2024 Cycle</option>
+            <option value="2022">2022 Cycle</option>
+            <option value="2020">2020 Cycle</option>
           </select>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Top Vendor Performance"
-        subtitle="MailOps-linked vendor reliability, delivery risk, and operational execution scoring."
-        right={<Badge tone="accent">{performance.length} scored</Badge>}
+        title="FEC Vendor Spend Intelligence"
+        subtitle="Campaign operating expenditure payees grouped into vendor, service, state, committee, and spend signals."
+        right={<Badge tone={fecRows.length ? "active" : "demo"}>{fecLoading ? "Loading" : `${fecRows.length} FEC vendors`}</Badge>}
       >
         <div className="vs-stack">
-          {performanceLoading ? (
-            <EmptyState text="Loading vendor performance..." />
-          ) : !performance.length ? (
-            <EmptyState text="No vendor performance history yet." />
+          {fecLoading ? (
+            <EmptyState text="Loading FEC vendor spend intelligence..." />
+          ) : !fecRows.length ? (
+            <EmptyState text="No FEC vendor spending found for the selected filters." />
           ) : (
-            performance.slice(0, 8).map((item) => (
-              <PerformanceRow
-                key={item.id || item.vendor_id || item.vendor_name}
-                item={item}
+            fecRows.slice(0, 8).map((vendor, index) => (
+              <VendorRow
+                key={vendor.id || vendor.vendor_id || `${vendor.vendor_name}-${index}`}
+                vendor={vendor}
               />
             ))
           )}
@@ -806,23 +999,62 @@ export default function Vendors() {
       </SectionCard>
 
       <div className="vs-grid-2">
+        <SectionCard
+          title="FEC Spend Categories"
+          subtitle="Vendor services inferred from reported operating expenditure purposes."
+          right={<Badge tone="info">{fecCategories.length} categories</Badge>}
+        >
+          <div className="vs-stack">
+            {!fecCategories.length ? (
+              <EmptyState text="No FEC spend categories available." />
+            ) : (
+              fecCategories.slice(0, 8).map((item) => (
+                <SpendCategoryRow key={item.category} item={item} />
+              ))
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Top Vendor Performance"
+          subtitle="Vendor reliability modeled from internal MailOps history or FEC spend activity."
+          right={<Badge tone="accent">{effectivePerformance.length} scored</Badge>}
+        >
+          <div className="vs-stack">
+            {performanceLoading && !fecRows.length ? (
+              <EmptyState text="Loading vendor performance..." />
+            ) : !effectivePerformance.length ? (
+              <EmptyState text="No vendor performance history yet." />
+            ) : (
+              effectivePerformance.slice(0, 8).map((item) => (
+                <PerformanceRow
+                  key={item.id || item.vendor_id || item.vendor_name}
+                  item={item}
+                />
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="vs-grid-2">
         <div ref={vendorDirectoryRef}>
           <SectionCard
             title="Live Vendor Directory"
             subtitle={
               filters.state
-                ? `Database-backed vendor network filtered to ${filters.state}.`
-                : "Database-backed vendor network with operating coverage and status."
+                ? `Database and FEC-backed vendor network filtered to ${filters.state}.`
+                : "Database and FEC-backed vendor network with operating coverage and status."
             }
-            right={<Badge tone="accent">{rows.length} shown</Badge>}
+            right={<Badge tone="accent">{displayRows.length} shown</Badge>}
           >
             <div className="vs-stack">
-              {loading ? (
+              {loading && fecLoading ? (
                 <EmptyState text="Loading vendors..." />
-              ) : rows.length === 0 ? (
+              ) : displayRows.length === 0 ? (
                 <EmptyState text="No vendors found." />
               ) : (
-                rows.map((vendor, index) => {
+                displayRows.map((vendor, index) => {
                   const highlighted =
                     isFromExecutionBoard &&
                     filters.state &&
@@ -856,12 +1088,12 @@ export default function Vendors() {
             }
           >
             <div className="vs-stack">
-              {intelLoading ? (
+              {intelLoading && fecLoading ? (
                 <EmptyState text="Loading vendor intelligence..." />
-              ) : !intel?.gaps?.length ? (
+              ) : !effectiveIntel?.gaps?.length ? (
                 <EmptyState text="No active vendor coverage gaps." />
               ) : (
-                intel.gaps
+                effectiveIntel.gaps
                   .slice(0, 6)
                   .map((gap, index) => (
                     <RiskRow key={`${gap.state}-${index}`} item={gap} />
@@ -878,10 +1110,10 @@ export default function Vendors() {
             <div className="vs-stack">
               {intelLoading ? (
                 <EmptyState text="Loading resolved vendor history..." />
-              ) : !intel?.resolved_gaps?.length ? (
+              ) : !effectiveIntel?.resolved_gaps?.length ? (
                 <EmptyState text="No resolved vendor gaps yet." />
               ) : (
-                intel.resolved_gaps
+                effectiveIntel.resolved_gaps
                   .slice(0, 6)
                   .map((gap, index) => (
                     <ResolvedGapRow key={`${gap.state}-${index}`} item={gap} />
@@ -895,15 +1127,15 @@ export default function Vendors() {
             subtitle="Create execution tasks directly from active vendor intelligence."
             right={
               <Badge tone="demo">
-                {intel?.recommended_actions?.length || 0} actions
+                {effectiveIntel?.recommended_actions?.length || 0} actions
               </Badge>
             }
           >
             <div className="vs-stack">
-              {!intel?.recommended_actions?.length ? (
+              {!effectiveIntel?.recommended_actions?.length ? (
                 <EmptyState text="No recommended vendor actions." />
               ) : (
-                intel.recommended_actions.slice(0, 6).map((action, index) => {
+                effectiveIntel.recommended_actions.slice(0, 6).map((action, index) => {
                   const taskKey = getActionKey(action, index);
 
                   return (
