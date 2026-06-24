@@ -85,6 +85,7 @@ const BetaOnboardingCenter = lazy(() => import("./pages/BetaOnboardingCenter.jsx
 const LaunchDataSeeder = lazy(() => import("./pages/LaunchDataSeeder.jsx"));
 const LiveDataRefreshCenter = lazy(() => import("./pages/LiveDataRefreshCenter.jsx"));
 const LaunchAutomationEngine = lazy(() => import("./pages/LaunchAutomationEngine.jsx"));
+const EndorsementIntelligence = lazy(() => import("./pages/EndorsementIntelligence.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -285,6 +286,7 @@ function AppRoutes() {
               <Route path="/live-data-refresh" element={<LiveDataRefreshCenter />} />
               <Route path="/launch-automation" element={<LaunchAutomationEngine />} />
               <Route path="/platform-tour" element={<PlatformTour />} />
+              <Route path="/endorsements" element={<EndorsementIntelligence />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
