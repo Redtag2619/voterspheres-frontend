@@ -1536,20 +1536,21 @@ export default function Vendors() {
 
         .vs-vendor-map-shell {
           display: grid;
-          grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
-          gap: 18px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 16px;
           align-items: stretch;
         }
 
         .vs-vendor-map-side {
           display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 14px;
-          align-content: start;
+          align-items: stretch;
         }
 
         .vs-vendor-map-frame {
-          height: 560px;
-          min-height: 560px;
+          height: 540px;
+          min-height: 540px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1648,6 +1649,32 @@ export default function Vendors() {
           min-height: auto;
         }
 
+        .vs-vendor-map-side > section,
+        .vs-vendor-map-side > .vs-card {
+          min-height: 100%;
+        }
+
+        .vs-vendor-balanced-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+          align-items: start;
+        }
+
+        .vs-vendor-balanced-grid > * {
+          min-width: 0;
+        }
+
+        .vs-vendor-compact-list .vs-stack {
+          gap: 10px;
+        }
+
+        @media (max-width: 1100px) {
+          .vs-vendor-balanced-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         @keyframes vsGapIn {
           from {
             opacity: 0;
@@ -1678,7 +1705,7 @@ export default function Vendors() {
         }
 
         @media (max-width: 1280px) {
-          .vs-vendor-map-shell {
+          .vs-vendor-map-side {
             grid-template-columns: 1fr;
           }
 
@@ -1864,7 +1891,7 @@ export default function Vendors() {
                 style={{
                   width: "100%",
                   maxWidth: "980px",
-                  height: "535px",
+                  height: "515px",
                 }}
               >
                 <Geographies geography={US_TOPO_JSON}>
@@ -2163,7 +2190,7 @@ export default function Vendors() {
         </div>
       </SectionCard>
 
-      <div className="vs-grid-2">
+      <div className="vs-vendor-balanced-grid">
         <SectionCard
           title="Coverage Gaps"
           subtitle="States with vendor coverage detected but not enough depth for operational readiness."
@@ -2207,7 +2234,7 @@ export default function Vendors() {
         </SectionCard>
       </div>
 
-      <div className="vs-grid-2">
+      <div className="vs-vendor-balanced-grid">
         <SectionCard
           title="FEC Spend Categories"
           subtitle="Vendor services inferred from reported operating expenditure purposes."
@@ -2246,7 +2273,7 @@ export default function Vendors() {
         </SectionCard>
       </div>
 
-      <div className="vs-grid-2">
+      <div className="vs-vendor-balanced-grid">
         <div ref={vendorDirectoryRef}>
           <SectionCard
             title={selectedGroup && selectedGroup !== "All" ? `${selectedGroup} Vendor Directory` : "Live Vendor Directory"}
