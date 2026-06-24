@@ -14,6 +14,9 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+const US_TOPO_JSON =
+  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
 const VENDOR_GROUPS = [
   "Mail",
   "Digital",
@@ -22,9 +25,6 @@ const VENDOR_GROUPS = [
   "Consulting",
   "Events",
 ];
-
-const US_TOPO_JSON =
-  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const MAP_GROUPS = ["All", ...VENDOR_GROUPS];
 
@@ -144,12 +144,67 @@ const STATE_CENTROIDS = {
   DC: [-77.0, 38.9],
 };
 
+const BASELINE_GROUPS = {
+  AK: ["Digital", "Compliance", "Consulting"],
+  AL: ["Mail", "Media", "Compliance", "Consulting"],
+  AR: ["Mail", "Compliance", "Consulting"],
+  AZ: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  CA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  CO: ["Digital", "Media", "Compliance", "Consulting", "Events"],
+  CT: ["Digital", "Compliance", "Consulting"],
+  DC: ["Digital", "Media", "Compliance", "Consulting", "Events"],
+  DE: ["Digital", "Compliance", "Consulting"],
+  FL: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  GA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  HI: ["Digital", "Compliance", "Consulting", "Events"],
+  IA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  ID: ["Mail", "Digital", "Compliance", "Consulting"],
+  IL: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  IN: ["Mail", "Digital", "Media", "Compliance", "Consulting"],
+  KS: ["Mail", "Digital", "Compliance", "Consulting"],
+  KY: ["Mail", "Digital", "Media", "Compliance", "Consulting"],
+  LA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  MA: ["Digital", "Media", "Compliance", "Consulting", "Events"],
+  MD: ["Digital", "Media", "Compliance", "Consulting", "Events"],
+  ME: ["Mail", "Digital", "Compliance", "Consulting"],
+  MI: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  MN: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  MO: ["Mail", "Digital", "Media", "Compliance", "Consulting"],
+  MS: ["Mail", "Compliance", "Consulting"],
+  MT: ["Mail", "Digital", "Compliance", "Consulting"],
+  NC: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  ND: ["Mail", "Compliance", "Consulting"],
+  NE: ["Mail", "Digital", "Compliance", "Consulting"],
+  NH: ["Mail", "Digital", "Media", "Compliance", "Consulting"],
+  NJ: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  NM: ["Mail", "Digital", "Compliance", "Consulting"],
+  NV: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  NY: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  OH: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  OK: ["Mail", "Digital", "Compliance", "Consulting"],
+  OR: ["Digital", "Media", "Compliance", "Consulting", "Events"],
+  PA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  RI: ["Digital", "Compliance", "Consulting"],
+  SC: ["Mail", "Digital", "Media", "Compliance", "Consulting"],
+  SD: ["Mail", "Compliance", "Consulting"],
+  TN: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  TX: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  UT: ["Mail", "Digital", "Media", "Compliance", "Consulting"],
+  VA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  VT: ["Digital", "Compliance", "Consulting"],
+  WA: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  WI: ["Mail", "Digital", "Media", "Compliance", "Consulting", "Events"],
+  WV: ["Mail", "Compliance", "Consulting"],
+  WY: ["Mail", "Compliance", "Consulting"],
+};
+
 function fmtMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
 function fmtMoneyShort(value) {
   const amount = Number(value || 0);
+  if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
   if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1000) return `$${Math.round(amount / 1000)}K`;
   return fmtMoney(amount);
@@ -165,229 +220,167 @@ function normalizeList(data, keys = []) {
   return data?.results || data?.vendors || data?.rows || [];
 }
 
-function severityTone(value) {
-  const v = String(value || "").toLowerCase();
-
-  if (v === "high" || v === "critical" || v === "elevated") return "danger";
-  if (v === "medium" || v === "watch") return "demo";
-
-  return "accent";
-}
-
-function performanceTone(score) {
-  const next = Number(score || 0);
-
-  if (next >= 85) return "accent";
-  if (next >= 70) return "demo";
-
-  return "danger";
-}
-
-function performanceLabel(score) {
-  const next = Number(score || 0);
-
-  if (next >= 85) return "Strong";
-  if (next >= 70) return "Watch";
-
-  return "Risk";
-}
-
-function sourceLabel(value) {
-  if (value === "fec_schedule_b") return "FEC Schedule B";
-  return value || "Database";
+function normalizeState(value = "") {
+  const raw = String(value || "").trim();
+  const upper = raw.toUpperCase();
+  if (STATE_ABBR_TO_NAME[upper]) return upper;
+  return STATE_NAME_TO_ABBR[raw] || "";
 }
 
 function normalizeVendorGroup(category = "", services = "") {
   const value = `${category} ${services}`.toLowerCase();
 
-  if (
-    value.includes("mail") ||
-    value.includes("print") ||
-    value.includes("postage") ||
-    value.includes("postcard") ||
-    value.includes("letter") ||
-    value.includes("mailer")
-  ) {
-    return "Mail";
-  }
-
-  if (
-    value.includes("digital") ||
-    value.includes("data") ||
-    value.includes("software") ||
-    value.includes("text") ||
-    value.includes("sms") ||
-    value.includes("email") ||
-    value.includes("crm") ||
-    value.includes("website")
-  ) {
-    return "Digital";
-  }
-
-  if (
-    value.includes("media") ||
-    value.includes("advertising") ||
-    value.includes("tv") ||
-    value.includes("radio") ||
-    value.includes("broadcast") ||
-    value.includes("ad buy") ||
-    value.includes("placement")
-  ) {
-    return "Media";
-  }
-
-  if (
-    value.includes("compliance") ||
-    value.includes("legal") ||
-    value.includes("treasurer") ||
-    value.includes("accounting") ||
-    value.includes("finance")
-  ) {
-    return "Compliance";
-  }
-
-  if (
-    value.includes("consult") ||
-    value.includes("strategy") ||
-    value.includes("poll") ||
-    value.includes("survey") ||
-    value.includes("research") ||
-    value.includes("field") ||
-    value.includes("canvass")
-  ) {
-    return "Consulting";
-  }
-
-  if (
-    value.includes("event") ||
-    value.includes("venue") ||
-    value.includes("travel") ||
-    value.includes("lodging") ||
-    value.includes("hotel") ||
-    value.includes("catering")
-  ) {
-    return "Events";
-  }
+  if (/(mail|print|postage|postcard|letter|mailer)/.test(value)) return "Mail";
+  if (/(digital|data|software|text|sms|email|crm|website)/.test(value)) return "Digital";
+  if (/(media|advertising|tv|radio|broadcast|ad buy|placement)/.test(value)) return "Media";
+  if (/(compliance|legal|treasurer|accounting|finance)/.test(value)) return "Compliance";
+  if (/(consult|strategy|poll|survey|research|field|canvass)/.test(value)) return "Consulting";
+  if (/(event|venue|travel|lodging|hotel|catering)/.test(value)) return "Events";
 
   return "Consulting";
 }
 
-
-function normalizeState(value = "") {
-  const raw = String(value || "").trim();
-  const upper = raw.toUpperCase();
-
-  if (STATE_ABBR_TO_NAME[upper]) return upper;
-
-  return STATE_NAME_TO_ABBR[raw] || "";
+function severityTone(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "high" || v === "critical" || v === "elevated") return "danger";
+  if (v === "medium" || v === "watch") return "demo";
+  return "accent";
 }
 
-function coverageStatus(score = 0) {
+function performanceTone(score) {
+  const next = Number(score || 0);
+  if (next >= 85) return "accent";
+  if (next >= 70) return "demo";
+  return "danger";
+}
+
+function performanceLabel(score) {
+  const next = Number(score || 0);
+  if (next >= 85) return "Strong";
+  if (next >= 70) return "Watch";
+  return "Risk";
+}
+
+function sourceLabel(value) {
+  if (value === "fec_schedule_b") return "FEC Schedule B";
+  if (value === "modeled_baseline") return "Modeled Baseline";
+  return value || "Database";
+}
+
+function coverageStatus(score = 0, modeled = false) {
   const value = Number(score || 0);
 
   if (value >= 76) {
-    return {
-      label: "Covered",
-      tone: "active",
-      fill: "#166534",
-      stroke: "#86efac",
-    };
+    return { label: modeled ? "Modeled Covered" : "Covered", tone: "active", fill: "#166534", stroke: "#86efac" };
   }
 
   if (value >= 45) {
-    return {
-      label: "Thin",
-      tone: "demo",
-      fill: "#92400e",
-      stroke: "#fbbf24",
-    };
+    return { label: modeled ? "Modeled Thin" : "Thin", tone: "demo", fill: "#92400e", stroke: "#fbbf24" };
   }
 
-  if (value > 0) {
-    return {
-      label: "Gap",
-      tone: "danger",
-      fill: "#7f1d1d",
-      stroke: "#fca5a5",
-    };
-  }
+  return { label: modeled ? "Modeled Gap" : "Gap", tone: "danger", fill: "#7f1d1d", stroke: "#fca5a5" };
+}
 
+function baselineVendorForState(state, group) {
   return {
-    label: "No Data",
-    tone: "default",
-    fill: "#111827",
-    stroke: "#374151",
+    id: `baseline-${state}-${group}`,
+    vendor_id: `baseline-${state}-${group}`,
+    name: `${STATE_ABBR_TO_NAME[state]} ${group} Coverage`,
+    vendor_name: `${STATE_ABBR_TO_NAME[state]} ${group} Coverage`,
+    state,
+    primary_state: state,
+    category: group,
+    services: `${group} vendor coverage modeled from VoterSpheres national execution baseline.`,
+    description: `${group} vendor coverage modeled from VoterSpheres national execution baseline.`,
+    contract_value: 0,
+    transaction_count: 0,
+    committee_count: 0,
+    status: "modeled",
+    source: "modeled_baseline",
+    committee_clients: "",
   };
 }
 
-function calculateCoverageScore(stateVendors = []) {
-  if (!stateVendors.length) return 0;
-
-  const vendorCount = new Set(
-    stateVendors
-      .map((vendor) => vendor.vendor_name || vendor.name)
-      .filter(Boolean)
+function coverageScoreForState(stateVendors = [], baselineGroups = [], selectedGroup = "All") {
+  const liveRows = stateVendors.filter((vendor) => vendor.source !== "modeled_baseline");
+  const liveVendorCount = new Set(
+    liveRows.map((vendor) => vendor.vendor_name || vendor.name).filter(Boolean)
   ).size;
 
-  const categoryCount = new Set(
-    stateVendors.map((vendor) =>
-      normalizeVendorGroup(vendor.category, vendor.services || vendor.description)
-    )
-  ).size;
+  const liveGroups = new Set(
+    liveRows.map((vendor) => normalizeVendorGroup(vendor.category, vendor.services || vendor.description))
+  );
 
-  const totalSpend = stateVendors.reduce(
+  const totalSpend = liveRows.reduce(
     (sum, vendor) =>
       sum + Number(vendor.contract_value || vendor.fec_contract_value || vendor.amount || 0),
     0
   );
 
-  const transactionCount = stateVendors.reduce(
+  const liveTransactions = liveRows.reduce(
     (sum, vendor) =>
-      sum + Number(vendor.transaction_count || vendor.fec_transaction_count || 1),
+      sum + Number(vendor.transaction_count || vendor.fec_transaction_count || 0),
     0
   );
 
-  const vendorScore = Math.min(38, vendorCount * 6);
-  const categoryScore = Math.min(32, categoryCount * 6);
-  const spendScore = Math.min(20, Math.round(totalSpend / 50000));
-  const activityScore = Math.min(10, transactionCount);
+  const filteredBaselineGroups =
+    selectedGroup === "All"
+      ? baselineGroups
+      : baselineGroups.includes(selectedGroup)
+      ? [selectedGroup]
+      : [];
 
-  return Math.min(100, vendorScore + categoryScore + spendScore + activityScore);
+  const baselineScore =
+    selectedGroup === "All"
+      ? Math.min(44, filteredBaselineGroups.length * 6)
+      : filteredBaselineGroups.length
+      ? 42
+      : 18;
+
+  const vendorScore = Math.min(30, liveVendorCount * 6);
+  const groupScore = Math.min(18, liveGroups.size * 4);
+  const spendScore = Math.min(18, Math.round(totalSpend / 50000));
+  const activityScore = Math.min(12, liveTransactions);
+
+  return Math.min(100, baselineScore + vendorScore + groupScore + spendScore + activityScore);
 }
 
-function buildStateCoverage(vendors = [], group = "All") {
+function buildStateCoverage(vendors = [], selectedGroup = "All") {
   const stateMap = new Map();
 
   Object.entries(STATE_ABBR_TO_NAME).forEach(([abbr, name]) => {
+    const baselineGroups = BASELINE_GROUPS[abbr] || ["Digital", "Compliance", "Consulting"];
+    const baselineVendors =
+      selectedGroup === "All"
+        ? baselineGroups.map((group) => baselineVendorForState(abbr, group))
+        : baselineGroups.includes(selectedGroup)
+        ? [baselineVendorForState(abbr, selectedGroup)]
+        : [baselineVendorForState(abbr, selectedGroup)];
+
     stateMap.set(abbr, {
       state: abbr,
       state_name: name,
-      vendors: [],
-      vendor_count: 0,
-      categories: [],
+      vendors: baselineVendors,
+      baseline_groups: baselineGroups,
+      vendor_count: baselineVendors.length,
+      live_vendor_count: 0,
+      categories: baselineVendors.map((vendor) => vendor.category),
       total_spend: 0,
       transaction_count: 0,
       coverage_score: 0,
-      status: coverageStatus(0),
+      status: coverageStatus(0, true),
+      modeled: true,
     });
   });
 
   vendors.forEach((vendor) => {
-    const state = normalizeState(
-      vendor.state || vendor.primary_state || vendor.payee_state
-    );
-
+    const state = normalizeState(vendor.state || vendor.primary_state || vendor.payee_state);
     if (!state || !stateMap.has(state)) return;
 
-    const vendorGroup = normalizeVendorGroup(
-      vendor.category,
-      vendor.services || vendor.description
-    );
-
-    if (group !== "All" && vendorGroup !== group) return;
+    const vendorGroup = normalizeVendorGroup(vendor.category, vendor.services || vendor.description);
+    if (selectedGroup !== "All" && vendorGroup !== selectedGroup) return;
 
     const item = stateMap.get(state);
-
     item.vendors.push({
       ...vendor,
       vendor_group: vendorGroup,
@@ -395,35 +388,91 @@ function buildStateCoverage(vendors = [], group = "All") {
   });
 
   stateMap.forEach((item) => {
+    const liveRows = item.vendors.filter((vendor) => vendor.source !== "modeled_baseline");
+
+    item.live_vendor_count = new Set(
+      liveRows.map((vendor) => vendor.vendor_name || vendor.name).filter(Boolean)
+    ).size;
+
     item.vendor_count = new Set(
-      item.vendors
-        .map((vendor) => vendor.vendor_name || vendor.name)
-        .filter(Boolean)
+      item.vendors.map((vendor) => vendor.vendor_name || vendor.name).filter(Boolean)
     ).size;
 
     item.categories = [
-      ...new Set(item.vendors.map((vendor) => vendor.vendor_group).filter(Boolean)),
+      ...new Set(
+        item.vendors
+          .map((vendor) => vendor.vendor_group || normalizeVendorGroup(vendor.category, vendor.services || vendor.description))
+          .filter(Boolean)
+      ),
     ];
 
-    item.total_spend = item.vendors.reduce(
+    item.total_spend = liveRows.reduce(
       (sum, vendor) =>
         sum + Number(vendor.contract_value || vendor.fec_contract_value || vendor.amount || 0),
       0
     );
 
-    item.transaction_count = item.vendors.reduce(
+    item.transaction_count = liveRows.reduce(
       (sum, vendor) =>
-        sum + Number(vendor.transaction_count || vendor.fec_transaction_count || 1),
+        sum + Number(vendor.transaction_count || vendor.fec_transaction_count || 0),
       0
     );
 
-    item.coverage_score = calculateCoverageScore(item.vendors);
-    item.status = coverageStatus(item.coverage_score);
+    item.modeled = liveRows.length === 0;
+    item.coverage_score = coverageScoreForState(
+      item.vendors,
+      item.baseline_groups,
+      selectedGroup
+    );
+    item.status = coverageStatus(item.coverage_score, item.modeled);
   });
 
   return [...stateMap.values()].sort(
     (a, b) => b.coverage_score - a.coverage_score || b.total_spend - a.total_spend
   );
+}
+
+function getActionKey(action = {}, fallback = "") {
+  return String(
+    action.id ||
+      `${action.state || "National"}-${action.title || fallback || "vendor-action"}`
+  );
+}
+
+function getInitialUrlParams() {
+  if (typeof window === "undefined") return { state: "", source: "" };
+  const params = new URLSearchParams(window.location.search);
+  return {
+    state: params.get("state") || "",
+    source: params.get("source") || "",
+  };
+}
+
+function updateUrlState(state) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (state) url.searchParams.set("state", state);
+  else url.searchParams.delete("state");
+  if (!url.searchParams.get("source")) url.searchParams.set("source", "vendor-network");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+}
+
+function statesMatch(a, b) {
+  const left = String(a || "").trim().toLowerCase();
+  const right = String(b || "").trim().toLowerCase();
+  return Boolean(left && right && left === right);
+}
+
+function goToCommandCenter(params = {}) {
+  const query = new URLSearchParams();
+  if (params.vendor) query.set("vendor", params.vendor);
+  if (params.state) query.set("state", params.state);
+  if (params.coverage) query.set("coverage", params.coverage);
+  if (params.score) query.set("score", params.score);
+  if (params.group) query.set("group", params.group);
+  query.set("source", params.source || "vendor-network");
+  const queryString = query.toString();
+  window.location.href = queryString ? `/command-center?${queryString}` : "/command-center";
 }
 
 function goToStateOperations(state, group = "All") {
@@ -436,60 +485,6 @@ function goToExecutiveMap(state, group = "All") {
   window.location.href = `/executive-operations-map?state=${encodeURIComponent(state)}&source=vendor-network&group=${encodeURIComponent(group)}`;
 }
 
-function getActionKey(action = {}, fallback = "") {
-  return String(
-    action.id ||
-      `${action.state || "National"}-${action.title || fallback || "vendor-action"}`
-  );
-}
-
-function getInitialUrlParams() {
-  if (typeof window === "undefined") return { state: "", source: "" };
-
-  const params = new URLSearchParams(window.location.search);
-
-  return {
-    state: params.get("state") || "",
-    source: params.get("source") || "",
-  };
-}
-
-function updateUrlState(state) {
-  if (typeof window === "undefined") return;
-
-  const url = new URL(window.location.href);
-
-  if (state) url.searchParams.set("state", state);
-  else url.searchParams.delete("state");
-
-  if (!url.searchParams.get("source")) {
-    url.searchParams.set("source", "vendor-network");
-  }
-
-  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
-}
-
-function statesMatch(a, b) {
-  const left = String(a || "").trim().toLowerCase();
-  const right = String(b || "").trim().toLowerCase();
-
-  return Boolean(left && right && left === right);
-}
-
-function goToCommandCenter(params = {}) {
-  const query = new URLSearchParams();
-
-  if (params.vendor) query.set("vendor", params.vendor);
-  if (params.state) query.set("state", params.state);
-  if (params.group) query.set("group", params.group);
-  if (params.coverage) query.set("coverage", params.coverage);
-  if (params.score) query.set("score", params.score);
-  query.set("source", params.source || "vendor-network");
-
-  const queryString = query.toString();
-  window.location.href = queryString ? `/command-center?${queryString}` : "/command-center";
-}
-
 async function loadFecVendorSpend(params = {}) {
   if (typeof api.vendorFecSpend === "function") {
     return api.vendorFecSpend(params);
@@ -500,7 +495,6 @@ async function loadFecVendorSpend(params = {}) {
       params,
       timeout: 10000,
     });
-
     return response?.data || response;
   }
 
@@ -548,6 +542,7 @@ function VendorRow({ vendor, highlighted = false, onCreateCommandTask }) {
     vendor.description ||
     "Campaign operations and political services";
   const group = normalizeVendorGroup(category, services);
+  const isModeled = vendor.source === "modeled_baseline";
 
   return (
     <div
@@ -560,15 +555,15 @@ function VendorRow({ vendor, highlighted = false, onCreateCommandTask }) {
         subtitle={`${state} | ${group} | ${category} | ${sourceLabel(vendor.source)}`}
         meta={[
           { label: "Coverage", value: vendor.coverage_area || state || "—" },
-          { label: "Spend / Contract", value: fmtMoney(vendor.contract_value || vendor.fec_contract_value) },
-          { label: "Transactions", value: vendor.transaction_count || vendor.fec_transaction_count || "—" },
+          { label: "Spend / Contract", value: isModeled ? "Modeled" : fmtMoney(vendor.contract_value || vendor.fec_contract_value) },
+          { label: "Transactions", value: isModeled ? "Baseline" : vendor.transaction_count || vendor.fec_transaction_count || "—" },
           { label: "Services", value: services },
         ]}
         right={
           <div className="vs-inline-actions">
             {highlighted ? <Badge tone="demo">Task Match</Badge> : null}
             <Badge tone="info">{group}</Badge>
-            <Badge tone="accent">{vendor.status || "active"}</Badge>
+            <Badge tone={isModeled ? "demo" : "accent"}>{isModeled ? "Modeled" : vendor.status || "active"}</Badge>
           </div>
         }
       />
@@ -579,19 +574,14 @@ function VendorRow({ vendor, highlighted = false, onCreateCommandTask }) {
             Committee clients: {String(vendor.committee_clients).split(",").slice(0, 4).join(", ")}
           </span>
         ) : (
-          <span>Committee clients unavailable from current record.</span>
+          <span>{isModeled ? "Modeled national coverage baseline until live FEC records are available." : "Committee clients unavailable from current record."}</span>
         )}
 
         <div className="vs-vendor-row-actions">
           <button
             type="button"
             className="vs-button vs-button-secondary"
-            onClick={() =>
-              goToCommandCenter({
-                vendor: name,
-                state,
-              })
-            }
+            onClick={() => goToCommandCenter({ vendor: name, state })}
           >
             Open in Command Center
           </button>
@@ -604,7 +594,7 @@ function VendorRow({ vendor, highlighted = false, onCreateCommandTask }) {
               detail: services,
               state,
               owner: "Operations",
-              priority: "Medium",
+              priority: isModeled ? "High" : "Medium",
               vendor_name: name,
             })}
           >
@@ -616,17 +606,18 @@ function VendorRow({ vendor, highlighted = false, onCreateCommandTask }) {
   );
 }
 
-function VendorGroupCard({ group, vendors = [], onOpenGroup }) {
-  const total = vendors.reduce(
+function VendorGroupCard({ group, vendors = [], selected, onOpenGroup }) {
+  const liveVendors = vendors.filter((vendor) => vendor.source !== "modeled_baseline");
+  const total = liveVendors.reduce(
     (sum, vendor) => sum + Number(vendor.contract_value || vendor.fec_contract_value || 0),
     0
   );
 
   const stateCount = new Set(
-    vendors.map((vendor) => vendor.state || vendor.primary_state).filter(Boolean)
+    vendors.map((vendor) => normalizeState(vendor.state || vendor.primary_state)).filter(Boolean)
   ).size;
 
-  const committeeCount = vendors.reduce(
+  const committeeCount = liveVendors.reduce(
     (sum, vendor) => sum + Number(vendor.committee_count || 0),
     0
   );
@@ -634,13 +625,13 @@ function VendorGroupCard({ group, vendors = [], onOpenGroup }) {
   return (
     <button
       type="button"
-      className="vs-vendor-group-card"
+      className={`vs-vendor-group-card ${selected ? "is-active" : ""}`}
       onClick={() => onOpenGroup(group)}
     >
       <div>
         <div className="vs-vendor-group-title">{group}</div>
         <div className="vs-vendor-group-subtitle">
-          {vendors.length} vendors | {stateCount} states
+          {vendors.length} records | {stateCount} states
         </div>
       </div>
 
@@ -656,20 +647,59 @@ function VendorGroupCard({ group, vendors = [], onOpenGroup }) {
   );
 }
 
+function StateCoverageRow({ item, selectedGroup, onCreateTask }) {
+  return (
+    <div className="vs-vendor-coverage-row">
+      <ResponsiveRow
+        title={`${item.state} - ${item.state_name}`}
+        subtitle={`${item.status.label} | ${item.live_vendor_count} live vendors | ${item.vendor_count} total records`}
+        meta={[
+          { label: "Coverage", value: `${item.coverage_score}/100` },
+          { label: "Live Spend", value: fmtMoneyShort(item.total_spend) },
+          { label: "Live Transactions", value: item.transaction_count },
+          { label: "Groups", value: item.categories.join(", ") || "None" },
+        ]}
+        right={<Badge tone={item.status.tone}>{item.status.label}</Badge>}
+      />
+
+      <div className="vs-coverage-actions">
+        <button type="button" className="vs-button vs-button-secondary" onClick={() => goToStateOperations(item.state, selectedGroup)}>
+          State Operations
+        </button>
+        <button type="button" className="vs-button vs-button-secondary" onClick={() => goToExecutiveMap(item.state, selectedGroup)}>
+          Executive Map
+        </button>
+        <button
+          type="button"
+          className="vs-button"
+          onClick={() =>
+            goToCommandCenter({
+              state: item.state,
+              coverage: item.status.label,
+              score: String(item.coverage_score),
+              group: selectedGroup,
+              source: "vendor-network",
+            })
+          }
+        >
+          Command Center
+        </button>
+        <button type="button" className="vs-button vs-button-secondary" onClick={() => onCreateTask(item)}>
+          Create Coverage Task
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RiskRow({ item }) {
   const severity = item.severity || item.priority || "Medium";
 
   return (
-    <div
-      className={`vs-premium-row-card ${
-        severity === "High" ? "is-elevated" : ""
-      }`}
-    >
+    <div className={`vs-premium-row-card ${severity === "High" ? "is-elevated" : ""}`}>
       <ResponsiveRow
         title={item.title || "Vendor intelligence signal"}
-        subtitle={
-          item.detail || "Review vendor coverage and operational readiness."
-        }
+        subtitle={item.detail || "Review vendor coverage and operational readiness."}
         meta={[
           { label: "Severity", value: severity },
           { label: "State", value: item.state || "National" },
@@ -691,9 +721,7 @@ function PerformanceRow({ item }) {
     <div className={`vs-premium-row-card ${score < 70 ? "is-elevated" : ""}`}>
       <ResponsiveRow
         title={item.vendor_name || item.name || "Unnamed Vendor"}
-        subtitle={`${item.state || "National"} | ${totalJobs} FEC spend record${
-          totalJobs === 1 ? "" : "s"
-        }`}
+        subtitle={`${item.state || "National"} | ${totalJobs} FEC spend record${totalJobs === 1 ? "" : "s"}`}
         meta={[
           { label: "Overall", value: `${score}%` },
           { label: "On-Time", value: `${onTime}%` },
@@ -701,9 +729,7 @@ function PerformanceRow({ item }) {
           { label: "Risk", value: `${risk}%` },
           { label: "Spend", value: fmtMoneyShort(item.contract_value || 0) },
         ]}
-        right={
-          <Badge tone={performanceTone(score)}>{performanceLabel(score)}</Badge>
-        }
+        right={<Badge tone={performanceTone(score)}>{performanceLabel(score)}</Badge>}
       />
     </div>
   );
@@ -714,10 +740,7 @@ function ResolvedGapRow({ item }) {
     <div className="vs-premium-row-card is-resolved-gap">
       <ResponsiveRow
         title={item.title || `${item.state || "State"} vendor gap resolved`}
-        subtitle={
-          item.detail ||
-          "This vendor coverage gap has been resolved by a completed task."
-        }
+        subtitle={item.detail || "This vendor coverage gap has been resolved by a completed task."}
         meta={[
           { label: "State", value: item.state || "National" },
           { label: "Score", value: item.coverage_score ?? "—" },
@@ -733,11 +756,7 @@ function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
   const severity = action.priority || action.severity || "Medium";
 
   return (
-    <div
-      className={`vs-premium-row-card ${
-        severity === "High" ? "is-elevated" : "is-action"
-      }`}
-    >
+    <div className={`vs-premium-row-card ${severity === "High" ? "is-elevated" : "is-action"}`}>
       <ResponsiveRow
         title={action.title || "Review vendor coverage"}
         subtitle={action.detail || "Generated by vendor scoring."}
@@ -765,60 +784,18 @@ function ActionTaskRow({ action, onCreateTask, creating, taskExists }) {
   );
 }
 
-
-function StateCoverageRow({ item, selectedGroup, onCreateTask }) {
+function SpendCategoryRow({ item }) {
   return (
-    <div className="vs-vendor-coverage-row">
+    <div className="vs-premium-row-card">
       <ResponsiveRow
-        title={`${item.state} - ${item.state_name}`}
-        subtitle={`${item.status.label} | ${item.vendor_count} vendors | ${item.categories.length} groups`}
+        title={item.category || "Campaign Operations"}
+        subtitle={`${item.vendor_count || 0} vendors | ${item.transaction_count || 0} transactions`}
         meta={[
-          { label: "Coverage", value: `${item.coverage_score}/100` },
-          { label: "Spend", value: fmtMoneyShort(item.total_spend) },
-          { label: "Transactions", value: item.transaction_count },
-          { label: "Categories", value: item.categories.join(", ") || "None" },
+          { label: "Total Spend", value: fmtMoney(item.total_amount || 0) },
+          { label: "Source", value: "FEC Schedule B" },
         ]}
-        right={<Badge tone={item.status.tone}>{item.status.label}</Badge>}
+        right={<Badge tone="info">{fmtMoneyShort(item.total_amount || 0)}</Badge>}
       />
-
-      <div className="vs-coverage-actions">
-        <button
-          type="button"
-          className="vs-button vs-button-secondary"
-          onClick={() => goToStateOperations(item.state, selectedGroup)}
-        >
-          State Operations
-        </button>
-        <button
-          type="button"
-          className="vs-button vs-button-secondary"
-          onClick={() => goToExecutiveMap(item.state, selectedGroup)}
-        >
-          Executive Map
-        </button>
-        <button
-          type="button"
-          className="vs-button"
-          onClick={() =>
-            goToCommandCenter({
-              state: item.state,
-              coverage: item.status.label,
-              score: String(item.coverage_score),
-              group: selectedGroup,
-              source: "vendor-network",
-            })
-          }
-        >
-          Command Center
-        </button>
-        <button
-          type="button"
-          className="vs-button vs-button-secondary"
-          onClick={() => onCreateTask(item)}
-        >
-          Create Coverage Task
-        </button>
-      </div>
     </div>
   );
 }
@@ -826,17 +803,18 @@ function StateCoverageRow({ item, selectedGroup, onCreateTask }) {
 function VendorMiniRow({ vendor }) {
   const name = vendor.vendor_name || vendor.name || "Unnamed Vendor";
   const group = vendor.vendor_group || normalizeVendorGroup(vendor.category, vendor.services || vendor.description);
+  const isModeled = vendor.source === "modeled_baseline";
 
   return (
     <ResponsiveRow
       title={name}
-      subtitle={`${group} | ${vendor.category || "Campaign Operations"}`}
+      subtitle={`${group} | ${sourceLabel(vendor.source)}`}
       meta={[
-        { label: "Spend", value: fmtMoneyShort(vendor.contract_value || vendor.fec_contract_value || vendor.amount || 0) },
-        { label: "Transactions", value: vendor.transaction_count || vendor.fec_transaction_count || 1 },
+        { label: "Spend", value: isModeled ? "Modeled" : fmtMoneyShort(vendor.contract_value || vendor.fec_contract_value || vendor.amount || 0) },
+        { label: "Transactions", value: isModeled ? "Baseline" : vendor.transaction_count || vendor.fec_transaction_count || 1 },
         { label: "Committees", value: vendor.committee_count || "—" },
       ]}
-      right={<Badge tone="info">{group}</Badge>}
+      right={<Badge tone={isModeled ? "demo" : "info"}>{group}</Badge>}
     />
   );
 }
@@ -861,29 +839,15 @@ function MapTooltip({ tooltip }) {
         {state.status.label} coverage | {state.coverage_score}/100
       </div>
       <div className="vs-tooltip-grid">
-        <span>Vendors</span>
+        <span>Live vendors</span>
+        <strong>{state.live_vendor_count}</strong>
+        <span>Total records</span>
         <strong>{state.vendor_count}</strong>
-        <span>Spend</span>
+        <span>Live spend</span>
         <strong>{fmtMoneyShort(state.total_spend)}</strong>
         <span>Groups</span>
         <strong>{state.categories.length}</strong>
       </div>
-    </div>
-  );
-}
-
-function SpendCategoryRow({ item }) {
-  return (
-    <div className="vs-premium-row-card">
-      <ResponsiveRow
-        title={item.category || "Campaign Operations"}
-        subtitle={`${item.vendor_count || 0} vendors | ${item.transaction_count || 0} transactions`}
-        meta={[
-          { label: "Total Spend", value: fmtMoney(item.total_amount || 0) },
-          { label: "Source", value: "FEC Schedule B" },
-        ]}
-        right={<Badge tone="info">{fmtMoneyShort(item.total_amount || 0)}</Badge>}
-      />
     </div>
   );
 }
@@ -901,7 +865,6 @@ export default function Vendors() {
 
   const [states, setStates] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [statuses, setStatuses] = useState([]);
   const [intel, setIntel] = useState(null);
   const [performance, setPerformance] = useState([]);
   const [performanceSummary, setPerformanceSummary] = useState(null);
@@ -949,17 +912,15 @@ export default function Vendors() {
 
     async function loadFilters() {
       try {
-        const [stateData, categoryData, statusData] = await Promise.all([
+        const [stateData, categoryData] = await Promise.all([
           api.vendorStates?.(),
           api.vendorCategories?.(),
-          api.vendorStatuses?.(),
         ]);
 
         if (!active) return;
 
         setStates(normalizeList(stateData, ["states", "results"]));
         setCategories(normalizeList(categoryData, ["categories", "results"]));
-        setStatuses(normalizeList(statusData, ["statuses", "results"]));
       } catch (err) {
         if (!active) return;
         setError(err?.message || "Failed to load vendor filters");
@@ -1016,7 +977,7 @@ export default function Vendors() {
           state: filters.state || undefined,
           category: filters.category || undefined,
           cycle: filters.cycle || "2026",
-          limit: 100,
+          limit: 250,
           live: 1,
         });
 
@@ -1122,32 +1083,6 @@ export default function Vendors() {
     return mergeByVendorName(rows, fecRows);
   }, [rows, fecRows]);
 
-  const groupedVendors = useMemo(() => {
-    const grouped = {};
-
-    MAP_GROUPS.forEach((group) => {
-      grouped[group] = [];
-    });
-
-    displayRows.forEach((vendor) => {
-      const group = normalizeVendorGroup(vendor.category, vendor.services || vendor.description);
-      grouped.All.push(vendor);
-      if (!grouped[group]) grouped[group] = [];
-      grouped[group].push(vendor);
-    });
-
-    return grouped;
-  }, [displayRows]);
-
-  const visibleRows = useMemo(() => {
-    if (!selectedGroup || selectedGroup === "All") return displayRows;
-
-    return displayRows.filter(
-      (vendor) =>
-        normalizeVendorGroup(vendor.category, vendor.services || vendor.description) === selectedGroup
-    );
-  }, [displayRows, selectedGroup]);
-
   const stateCoverage = useMemo(() => {
     return buildStateCoverage(displayRows, selectedGroup || "All");
   }, [displayRows, selectedGroup]);
@@ -1168,6 +1103,52 @@ export default function Vendors() {
       null
     );
   }, [stateCoverage, selectedState]);
+
+  const displayRowsWithBaseline = useMemo(() => {
+    if (!selectedStateCoverage?.vendors?.length) return displayRows;
+    return displayRows;
+  }, [displayRows, selectedStateCoverage]);
+
+  const groupedVendors = useMemo(() => {
+    const grouped = {};
+    MAP_GROUPS.forEach((group) => {
+      grouped[group] = [];
+    });
+
+    displayRowsWithBaseline.forEach((vendor) => {
+      const group = normalizeVendorGroup(vendor.category, vendor.services || vendor.description);
+      grouped.All.push(vendor);
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(vendor);
+    });
+
+    stateCoverage.forEach((state) => {
+      state.vendors
+        .filter((vendor) => vendor.source === "modeled_baseline")
+        .forEach((vendor) => {
+          const group = normalizeVendorGroup(vendor.category, vendor.services || vendor.description);
+          if (!grouped.All.some((row) => row.id === vendor.id)) grouped.All.push(vendor);
+          if (!grouped[group]) grouped[group] = [];
+          if (!grouped[group].some((row) => row.id === vendor.id)) grouped[group].push(vendor);
+        });
+    });
+
+    return grouped;
+  }, [displayRowsWithBaseline, stateCoverage]);
+
+  const visibleRows = useMemo(() => {
+    const rowsForGroup =
+      !selectedGroup || selectedGroup === "All"
+        ? displayRows
+        : displayRows.filter(
+            (vendor) =>
+              normalizeVendorGroup(vendor.category, vendor.services || vendor.description) === selectedGroup
+          );
+
+    if (rowsForGroup.length) return rowsForGroup;
+
+    return selectedStateCoverage?.vendors || [];
+  }, [displayRows, selectedGroup, selectedStateCoverage]);
 
   const coveredStates = useMemo(
     () => stateCoverage.filter((state) => state.coverage_score >= 76),
@@ -1267,7 +1248,7 @@ export default function Vendors() {
 
     await createVendorTask({
       title: `${state.state} ${selectedGroup} vendor coverage review`,
-      detail: `${state.state_name} has ${state.status.label.toLowerCase()} vendor coverage for ${selectedGroup}. Coverage score: ${state.coverage_score}/100. Vendors: ${state.vendor_count}. Categories: ${state.categories.join(", ") || "none"}.`,
+      detail: `${state.state_name} has ${state.status.label.toLowerCase()} vendor coverage for ${selectedGroup}. Coverage score: ${state.coverage_score}/100. Live vendors: ${state.live_vendor_count}. Total records: ${state.vendor_count}. Groups: ${state.categories.join(", ") || "none"}.`,
       state: state.state,
       owner: "Operations",
       priority: state.coverage_score < 45 ? "High" : "Medium",
@@ -1277,20 +1258,19 @@ export default function Vendors() {
   }
 
   const fallbackIntel = useMemo(() => {
-    const activeStates = fecStates.filter((row) => Number(row.vendor_count || 0) < 3);
-    const gaps = activeStates.slice(0, 8).map((row) => ({
-      title: `${row.state || "State"} vendor coverage requires review`,
-      detail: `${row.vendor_count || 0} FEC-derived vendors and ${row.transaction_count || 0} spending records are visible.`,
-      state: row.state || "National",
-      severity: Number(row.vendor_count || 0) < 2 ? "High" : "Medium",
-      coverage_score: Math.min(100, Number(row.vendor_count || 0) * 20),
+    const gaps = gapStates.slice(0, 8).map((row) => ({
+      title: `${row.state} vendor coverage requires review`,
+      detail: `${row.live_vendor_count} live vendors and ${row.vendor_count} total coverage records are visible for ${row.state_name}.`,
+      state: row.state,
+      severity: row.coverage_score < 45 ? "High" : "Medium",
+      coverage_score: row.coverage_score,
     }));
 
     return {
       summary: {
         total_vendors: displayRows.length,
         active_vendors: displayRows.filter((row) => String(row.status || "").toLowerCase() === "active").length,
-        states_covered: new Set(displayRows.map((row) => row.state).filter(Boolean)).size,
+        states_covered: coveredStates.length,
         categories_covered: new Set(displayRows.map((row) => row.category).filter(Boolean)).size,
         high_gap_states: gaps.filter((row) => row.severity === "High").length,
         medium_gap_states: gaps.filter((row) => row.severity !== "High").length,
@@ -1307,7 +1287,7 @@ export default function Vendors() {
         due: gap.severity === "High" ? "Today" : "This Week",
       })),
     };
-  }, [displayRows, fecStates]);
+  }, [displayRows, gapStates, coveredStates.length]);
 
   const effectiveIntel = intel || fallbackIntel;
 
@@ -1318,7 +1298,7 @@ export default function Vendors() {
         active_vendors: displayRows.filter(
           (row) => String(row.status || "").toLowerCase() === "active"
         ).length,
-        states_covered: new Set(displayRows.map((row) => row.state).filter(Boolean)).size,
+        states_covered: coveredStates.length,
         categories_covered: new Set(
           displayRows.map((row) => row.category).filter(Boolean)
         ).size,
@@ -1327,7 +1307,7 @@ export default function Vendors() {
         resolved_gap_states: 0,
       }
     );
-  }, [effectiveIntel, displayRows]);
+  }, [effectiveIntel, displayRows, coveredStates.length]);
 
   const gapCount =
     Number(summary.high_gap_states || 0) + Number(summary.medium_gap_states || 0);
@@ -1355,59 +1335,34 @@ export default function Vendors() {
   }, [displayRows, highlightedState]);
 
   const mergedStates = useMemo(() => {
-  const values = new Set();
+    const values = new Set(Object.keys(STATE_ABBR_TO_NAME));
 
-  function addState(item) {
-    if (!item) return;
+    function addState(item) {
+      if (!item) return;
 
-    if (typeof item === "string") {
-      values.add(item);
-      return;
+      if (typeof item === "string") {
+        const state = normalizeState(item);
+        if (state) values.add(state);
+        return;
+      }
+
+      const value =
+        item.state ||
+        item.name ||
+        item.primary_state ||
+        item.payee_state ||
+        item.abbr ||
+        "";
+
+      const state = normalizeState(value);
+      if (state) values.add(state);
     }
 
-    const value =
-      item.state ||
-      item.name ||
-      item.primary_state ||
-      item.payee_state ||
-      item.abbr ||
-      "";
+    states.forEach(addState);
+    fecStates.forEach(addState);
 
-    if (value) values.add(String(value));
-  }
-
-  states.forEach(addState);
-  fecStates.forEach(addState);
-
-  return [...values].filter(Boolean).sort();
-}, [states, fecStates]);
-
-  const mergedCategories = useMemo(() => {
-  const values = new Set();
-
-  function addCategory(item) {
-    if (!item) return;
-
-    if (typeof item === "string") {
-      values.add(item);
-      return;
-    }
-
-    const value =
-      item.category ||
-      item.name ||
-      item.service ||
-      item.vendor_group ||
-      "";
-
-    if (value) values.add(String(value));
-  }
-
-  categories.forEach(addCategory);
-  fecCategories.forEach(addCategory);
-
-  return [...values].filter(Boolean).sort();
-}, [categories, fecCategories]);
+    return [...values].filter(Boolean).sort();
+  }, [states, fecStates]);
 
   const totalFecSpend = fecRows.reduce(
     (sum, row) => sum + Number(row.contract_value || row.amount || 0),
@@ -1431,7 +1386,7 @@ export default function Vendors() {
     <PageShell
       eyebrow="Vendor Intelligence"
       title="Vendor Network"
-      description="Live campaign vendor coverage, FEC spending intelligence, performance scoring, operational readiness, and execution tasking."
+      description="Live campaign vendor coverage, FEC spending intelligence, U.S. coverage mapping, performance scoring, operational readiness, and execution tasking."
       tickerItems={[
         {
           label: "Vendors",
@@ -1439,9 +1394,9 @@ export default function Vendors() {
           dotClass: "vs-live-dot-success",
         },
         {
-          label: "Coverage",
-          value: `${summary.states_covered || 0} states`,
-          dotClass: "vs-live-dot-warning",
+          label: "Covered States",
+          value: `${coveredStates.length}`,
+          dotClass: "vs-live-dot-success",
         },
         {
           label: "FEC Spend",
@@ -1533,6 +1488,11 @@ export default function Vendors() {
           transform: translateY(-2px);
           border-color: rgba(96, 165, 250, 0.42);
           box-shadow: 0 18px 42px rgba(2, 6, 23, 0.28);
+        }
+
+        .vs-vendor-group-card.is-active {
+          border-color: rgba(96, 165, 250, 0.58);
+          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18), 0 18px 42px rgba(2, 6, 23, 0.28);
         }
 
         .vs-vendor-group-title {
@@ -1673,12 +1633,6 @@ export default function Vendors() {
           padding: 0 16px 16px;
         }
 
-        @media (max-width: 1100px) {
-          .vs-vendor-map-shell {
-            grid-template-columns: 1fr;
-          }
-        }
-
         @keyframes vsGapIn {
           from {
             opacity: 0;
@@ -1705,6 +1659,12 @@ export default function Vendors() {
             opacity: 1;
             transform: translateY(0) scale(1);
             box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.22), 0 18px 46px rgba(22, 163, 74, 0.10);
+          }
+        }
+
+        @media (max-width: 1100px) {
+          .vs-vendor-map-shell {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
@@ -1751,32 +1711,32 @@ export default function Vendors() {
         <StatCard
           label="Total Vendors"
           value={summary.total_vendors || displayRows.length || 0}
-          delta="Database + FEC vendor records"
+          delta="Live database records"
           tone="up"
         />
         <StatCard
-          label="FEC Vendors"
+          label="All States Covered"
+          value="51"
+          delta="Live plus modeled baseline"
+          tone="up"
+        />
+        <StatCard
+          label="Live FEC Vendors"
           value={fecRows.length}
           delta="Schedule B payee intelligence"
           tone="up"
         />
         <StatCard
-          label="Active Gaps"
-          value={gapCount}
-          delta="Open coverage pressure"
-          tone={gapCount ? "down" : "up"}
-        />
-        <StatCard
-          label="Risk Vendors"
-          value={riskPerformanceCount}
-          delta="Spend-linked performance risk"
-          tone={riskPerformanceCount ? "down" : "up"}
+          label="FEC Spend"
+          value={fmtMoneyShort(totalFecSpend)}
+          delta="Imported live spending"
+          tone="up"
         />
       </div>
 
       <SectionCard
         title="Vendor Controls"
-        subtitle="Filter the live vendor network and FEC operating expenditure vendor intelligence."
+        subtitle="Filter the live vendor network and modeled national coverage baseline."
         right={
           <button
             type="button"
@@ -1805,17 +1765,21 @@ export default function Vendors() {
             className="vs-input"
             value={filters.state}
             onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                state: e.target.value,
-                page: 1,
-              }))
+              setFilters((prev) => {
+                const state = e.target.value;
+                if (state) setSelectedState(state);
+                return {
+                  ...prev,
+                  state,
+                  page: 1,
+                };
+              })
             }
           >
             <option value="">All states</option>
-            {mergedStates.map((value, index) => (
-              <option key={`${value}-${index}`} value={value}>
-                {value}
+            {mergedStates.map((value) => (
+              <option key={value} value={value}>
+                {value} - {STATE_ABBR_TO_NAME[value] || value}
               </option>
             ))}
           </select>
@@ -1851,16 +1815,14 @@ export default function Vendors() {
         </div>
       </SectionCard>
 
-
       <SectionCard
         title="U.S. Vendor Coverage Map"
-        subtitle={`${selectedGroup} vendor coverage by state. Click a state to connect Vendor Network into State Operations, Executive Operations, and Command Center.`}
+        subtitle={`${selectedGroup} vendor coverage by state. Every state is visible using VoterSpheres modeled baseline, with live FEC data layered on top where available.`}
         right={
           <div className="vs-map-legend">
             <span className="vs-legend-item"><span className="vs-legend-swatch" style={{ background: "#166534" }} /> Covered</span>
             <span className="vs-legend-item"><span className="vs-legend-swatch" style={{ background: "#92400e" }} /> Thin</span>
             <span className="vs-legend-item"><span className="vs-legend-swatch" style={{ background: "#7f1d1d" }} /> Gap</span>
-            <span className="vs-legend-item"><span className="vs-legend-swatch" style={{ background: "#111827" }} /> No Data</span>
           </div>
         }
       >
@@ -1884,7 +1846,7 @@ export default function Vendors() {
                       const stateName = geo.properties?.name;
                       const abbr = STATE_NAME_TO_ABBR[stateName];
                       const state = abbr ? stateCoverageByAbbr[abbr] : null;
-                      const status = state?.status || coverageStatus(0);
+                      const status = state?.status || coverageStatus(1, true);
                       const isActive = selectedState === abbr;
 
                       return (
@@ -1930,7 +1892,7 @@ export default function Vendors() {
                 </Geographies>
 
                 {stateCoverage
-                  .filter((state) => state.coverage_score > 0 && STATE_CENTROIDS[state.state])
+                  .filter((state) => STATE_CENTROIDS[state.state])
                   .map((state) => {
                     const isActive = selectedState === state.state;
                     const coords = STATE_CENTROIDS[state.state];
@@ -1938,8 +1900,8 @@ export default function Vendors() {
                     return (
                       <Marker key={state.state} coordinates={coords}>
                         <circle
-                          r={isActive ? 8 : 5}
-                          fill="#f8fafc"
+                          r={isActive ? 8 : 4.8}
+                          fill={state.modeled ? "#cbd5e1" : "#f8fafc"}
                           stroke="#020617"
                           strokeWidth={2}
                           onMouseEnter={(event) => showTooltip(event, state)}
@@ -1994,21 +1956,21 @@ export default function Vendors() {
                 <div className="vs-stack">
                   <div className="vs-grid-3">
                     <StatCard
-                      label="Vendors"
+                      label="Live Vendors"
+                      value={selectedStateCoverage.live_vendor_count}
+                      delta="Imported / database"
+                      tone="up"
+                    />
+                    <StatCard
+                      label="Total Records"
                       value={selectedStateCoverage.vendor_count}
-                      delta="Unique vendors"
+                      delta="Live + modeled"
                       tone="up"
                     />
                     <StatCard
-                      label="Spend"
+                      label="Live Spend"
                       value={fmtMoneyShort(selectedStateCoverage.total_spend)}
-                      delta="FEC / vendor mapped spend"
-                      tone="up"
-                    />
-                    <StatCard
-                      label="Groups"
-                      value={selectedStateCoverage.categories.length}
-                      delta={selectedStateCoverage.categories.join(", ") || "No groups"}
+                      delta="FEC spend layer"
                       tone="up"
                     />
                   </div>
@@ -2059,14 +2021,20 @@ export default function Vendors() {
 
             <SectionCard
               title="Top Vendors in Selected State"
-              subtitle="Vendors driving current state coverage."
-              right={<Badge tone="accent">{selectedStateCoverage?.vendors?.length || 0} vendors</Badge>}
+              subtitle="Live records appear first; modeled records fill state coverage until live vendor data is available."
+              right={<Badge tone="accent">{selectedStateCoverage?.vendors?.length || 0} records</Badge>}
             >
               <div className="vs-stack">
                 {!selectedStateCoverage?.vendors?.length ? (
                   <EmptyState text="No vendor records available for this state/group." />
                 ) : (
                   selectedStateCoverage.vendors
+                    .slice()
+                    .sort((a, b) => {
+                      if (a.source === "modeled_baseline" && b.source !== "modeled_baseline") return 1;
+                      if (a.source !== "modeled_baseline" && b.source === "modeled_baseline") return -1;
+                      return Number(b.contract_value || b.fec_contract_value || 0) - Number(a.contract_value || a.fec_contract_value || 0);
+                    })
                     .slice(0, 6)
                     .map((vendor, index) => (
                       <VendorMiniRow
@@ -2078,6 +2046,24 @@ export default function Vendors() {
               </div>
             </SectionCard>
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Vendor Spend Groups"
+        subtitle="FEC-imported vendors and modeled baseline coverage organized by Mail, Digital, Media, Compliance, Consulting, and Events."
+        right={<Badge tone="info">6 groups</Badge>}
+      >
+        <div className="vs-grid-3">
+          {VENDOR_GROUPS.map((group) => (
+            <VendorGroupCard
+              key={group}
+              group={group}
+              vendors={groupedVendors[group] || []}
+              selected={selectedGroup === group}
+              onOpenGroup={setSelectedGroup}
+            />
+          ))}
         </div>
       </SectionCard>
 
@@ -2102,36 +2088,6 @@ export default function Vendors() {
           )}
         </div>
       </SectionCard>
-
-      <SectionCard
-        title="Vendor Spend Groups"
-        subtitle="FEC-imported vendors organized by Mail, Digital, Media, Compliance, Consulting, and Events."
-        right={
-          selectedGroup && selectedGroup !== "All" ? (
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={() => setSelectedGroup("All")}
-            >
-              Show All Groups
-            </button>
-          ) : (
-            <Badge tone="info">6 groups</Badge>
-          )
-        }
-      >
-        <div className="vs-grid-3">
-          {VENDOR_GROUPS.map((group) => (
-            <VendorGroupCard
-              key={group}
-              group={group}
-              vendors={groupedVendors[group] || []}
-              onOpenGroup={setSelectedGroup}
-            />
-          ))}
-        </div>
-      </SectionCard>
-
 
       <div className="vs-grid-2">
         <SectionCard
@@ -2231,7 +2187,7 @@ export default function Vendors() {
               {loading && fecLoading ? (
                 <EmptyState text="Loading vendors..." />
               ) : visibleRows.length === 0 ? (
-                <EmptyState text="No vendors found." />
+                <EmptyState text="No live vendors found; select a state on the map to inspect modeled coverage." />
               ) : (
                 visibleRows.map((vendor, index) => {
                   const highlighted =
