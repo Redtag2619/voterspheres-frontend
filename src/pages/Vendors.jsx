@@ -1536,14 +1536,20 @@ export default function Vendors() {
 
         .vs-vendor-map-shell {
           display: grid;
-          grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
-          gap: 16px;
-          align-items: start;
+          grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+          gap: 18px;
+          align-items: stretch;
+        }
+
+        .vs-vendor-map-side {
+          display: grid;
+          gap: 14px;
+          align-content: start;
         }
 
         .vs-vendor-map-frame {
-          height: 490px;
-          min-height: 490px;
+          height: 560px;
+          min-height: 560px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1633,6 +1639,15 @@ export default function Vendors() {
           padding: 0 16px 16px;
         }
 
+        .vs-vendor-map-side .vs-card,
+        .vs-vendor-map-side section {
+          height: auto;
+        }
+
+        .vs-vendor-map-side .vs-responsive-row {
+          min-height: auto;
+        }
+
         @keyframes vsGapIn {
           from {
             opacity: 0;
@@ -1662,9 +1677,21 @@ export default function Vendors() {
           }
         }
 
-        @media (max-width: 1100px) {
+        @media (max-width: 1280px) {
           .vs-vendor-map-shell {
             grid-template-columns: 1fr;
+          }
+
+          .vs-vendor-map-frame {
+            height: 500px;
+            min-height: 500px;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .vs-vendor-map-frame {
+            height: 390px;
+            min-height: 390px;
           }
         }
       `}</style>
@@ -1837,7 +1864,7 @@ export default function Vendors() {
                 style={{
                   width: "100%",
                   maxWidth: "980px",
-                  height: "470px",
+                  height: "535px",
                 }}
               >
                 <Geographies geography={US_TOPO_JSON}>
@@ -1930,7 +1957,7 @@ export default function Vendors() {
             )}
           </div>
 
-          <div className="vs-stack">
+          <div className="vs-vendor-map-side">
             <SectionCard
               title={
                 selectedStateCoverage
@@ -2044,6 +2071,53 @@ export default function Vendors() {
                     ))
                 )}
               </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Coverage Workflow"
+              subtitle="Use this state coverage signal to move directly into the operational workflow."
+              right={<Badge tone={selectedStateCoverage?.modeled ? "demo" : "active"}>{selectedStateCoverage?.modeled ? "Modeled" : "Live"}</Badge>}
+            >
+              {!selectedStateCoverage ? (
+                <EmptyState text="Select a state to see workflow actions." />
+              ) : (
+                <div className="vs-stack">
+                  <ResponsiveRow
+                    title={`${selectedStateCoverage.state} execution readiness`}
+                    subtitle={`${selectedStateCoverage.status.label} vendor coverage for ${selectedGroup}`}
+                    meta={[
+                      { label: "Coverage Score", value: `${selectedStateCoverage.coverage_score}/100` },
+                      { label: "Live Vendors", value: selectedStateCoverage.live_vendor_count },
+                      { label: "Total Records", value: selectedStateCoverage.vendor_count },
+                      { label: "Groups", value: selectedStateCoverage.categories.join(", ") || "None" },
+                    ]}
+                    right={<Badge tone={selectedStateCoverage.status.tone}>{selectedStateCoverage.status.label}</Badge>}
+                  />
+
+                  <div className="vs-grid-2">
+                    <button
+                      type="button"
+                      className="vs-button vs-button-secondary"
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          state: selectedStateCoverage.state,
+                          page: 1,
+                        }))
+                      }
+                    >
+                      Filter Directory
+                    </button>
+                    <button
+                      type="button"
+                      className="vs-button"
+                      onClick={() => createCoverageTask(selectedStateCoverage)}
+                    >
+                      Create Task
+                    </button>
+                  </div>
+                </div>
+              )}
             </SectionCard>
           </div>
         </div>
