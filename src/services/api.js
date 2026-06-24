@@ -732,6 +732,29 @@ export const enterpriseLeadsApi = {
   delete: (leadId) => tryDelete([`/enterprise-leads/admin/${leadId}`]),
 };
 
+export const endorsementsApi = {
+  list: (params = {}) =>
+    tryGet(["/endorsements"], { params: withWorkspaceParams(params) }),
+
+  summary: (params = {}) =>
+    tryGet(["/endorsements/summary"], { params: withWorkspaceParams(params) }),
+
+  options: () => tryGet(["/endorsements/options"]),
+
+  create: (payload = {}) =>
+    tryPost(["/endorsements"], withWorkspacePayload(payload)),
+
+  update: (id, payload = {}) =>
+    tryPatch([`/endorsements/${id}`], withWorkspacePayload(payload)),
+
+  delete: (id) => tryDelete([`/endorsements/${id}`]),
+
+  syncModeled: (payload = { limit: 50 }) =>
+    tryPost(["/endorsements/sync-modeled"], withWorkspacePayload(payload)),
+
+  taskPayload: (id) => tryPost([`/endorsements/${id}/task-payload`], {}),
+};
+
 export const consultantOpportunityApi = {
   list: (params = {}) =>
     tryGet(["/consultant-opportunities"], {
@@ -946,6 +969,15 @@ export const api = {
   vendorFecSpend: vendorsApi.fecSpend,
   vendorFecSync: vendorsApi.fecSync,
   dispatchVendorAlerts: vendorsApi.dispatchAlerts,
+
+  endorsements: endorsementsApi.list,
+  endorsementSummary: endorsementsApi.summary,
+  endorsementOptions: endorsementsApi.options,
+  createEndorsement: endorsementsApi.create,
+  updateEndorsement: endorsementsApi.update,
+  deleteEndorsement: endorsementsApi.delete,
+  syncModeledEndorsements: endorsementsApi.syncModeled,
+  endorsementTaskPayload: endorsementsApi.taskPayload,
   
   donorNetwork: donorsApi.network,
 
