@@ -890,18 +890,59 @@ export default function Vendors() {
   }, [displayRows, highlightedState]);
 
   const mergedStates = useMemo(() => {
-    const values = new Set();
-    states.forEach((item) => values.add(item.name || item.state || item));
-    fecStates.forEach((item) => values.add(item.name || item.state || item));
-    return [...values].filter(Boolean).sort();
-  }, [states, fecStates]);
+  const values = new Set();
+
+  function addState(item) {
+    if (!item) return;
+
+    if (typeof item === "string") {
+      values.add(item);
+      return;
+    }
+
+    const value =
+      item.state ||
+      item.name ||
+      item.primary_state ||
+      item.payee_state ||
+      item.abbr ||
+      "";
+
+    if (value) values.add(String(value));
+  }
+
+  states.forEach(addState);
+  fecStates.forEach(addState);
+
+  return [...values].filter(Boolean).sort();
+}, [states, fecStates]);
 
   const mergedCategories = useMemo(() => {
-    const values = new Set();
-    categories.forEach((item) => values.add(item.name || item.category || item));
-    fecCategories.forEach((item) => values.add(item.name || item.category || item));
-    return [...values].filter(Boolean).sort();
-  }, [categories, fecCategories]);
+  const values = new Set();
+
+  function addCategory(item) {
+    if (!item) return;
+
+    if (typeof item === "string") {
+      values.add(item);
+      return;
+    }
+
+    const value =
+      item.category ||
+      item.name ||
+      item.service ||
+      item.vendor_group ||
+      "";
+
+    if (value) values.add(String(value));
+  }
+
+  categories.forEach(addCategory);
+  fecCategories.forEach(addCategory);
+
+  return [...values].filter(Boolean).sort();
+}, [categories, fecCategories]);
 
   return (
     <PageShell
