@@ -33,7 +33,6 @@ const ElectionForecast = lazy(() => import("./pages/ElectionForecast.jsx"));
 const PowerRankings = lazy(() => import("./pages/PowerRankings.jsx"));
 const FundraisingDashboard = lazy(() => import("./pages/FundraisingDashboard.jsx"));
 const Vendors = lazy(() => import("./pages/Vendors.jsx"));
-const VendorCoverageMap = lazy(() => import("./pages/VendorCoverageMap.jsx"));
 const ConsultantMarketplace = lazy(() => import("./pages/ConsultantMarketplace.jsx"));
 const AIChat = lazy(() => import("./pages/AIChat.jsx"));
 const AIWarRoom = lazy(() => import("./pages/AIWarRoom.jsx"));
@@ -285,8 +284,7 @@ function AppRoutes() {
               <Route path="/launch-data-seeder" element={<LaunchDataSeeder />} />
               <Route path="/live-data-refresh" element={<LiveDataRefreshCenter />} />
               <Route path="/launch-automation" element={<LaunchAutomationEngine />} />
-                <Route path="/platform-tour" element={<PlatformTour />} />
-                <Route path="/vendor-coverage-map" element={<VendorCoverageMap />} />
+              <Route path="/platform-tour" element={<PlatformTour />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
