@@ -30,7 +30,7 @@ export const navigationSections = [
       { label: "Strategic Advisor", to: "/strategic-advisor" },
       { label: "Election Forecast", to: "/forecast" },
       { label: "Donor Network", to: "/donors" },
-      { label: "Endorsement Intelligence", to: "/endorsements",}
+      { label: "Endorsement Intelligence", to: "/endorsements" },
       { label: "Candidates", to: "/candidates" },
     ],
   },
