@@ -9,6 +9,7 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 import DemoBanner from "../components/ui/DemoBanner";
 import { useDemoMode } from "../context/DemoModeContext.jsx";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
 const STATES = [
   ["", "All States"],
@@ -735,6 +736,18 @@ export default function DonorNetwork() {
             )}
           </div>
         </SectionCard>
+
+        {selectedDonor ? (
+          <PoliticalGraphContextPanel
+            entityType="donor"
+            entityId={selectedDonor.id}
+            entityName={selectedDonor.donor_name || selectedDonor.name}
+            state={selectedDonor.state}
+            title="Donor Relationship Graph"
+            subtitle="Candidates, endorsements, states, vendors, and tasks connected to this donor."
+            compact
+         />
+      ) : null}
 
         <SectionCard
           title="Committee Funding Channels"
