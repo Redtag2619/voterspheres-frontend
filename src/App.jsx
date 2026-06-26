@@ -87,6 +87,7 @@ const LiveDataRefreshCenter = lazy(() => import("./pages/LiveDataRefreshCenter.j
 const LaunchAutomationEngine = lazy(() => import("./pages/LaunchAutomationEngine.jsx"));
 const EndorsementIntelligence = lazy(() => import("./pages/EndorsementIntelligence.jsx"));
 const PlatformIntelligenceGraph = lazy(() => import("./pages/PlatformIntelligenceGraph.jsx"));
+const PoliticalRelationshipGraph = lazy(() => import("./pages/PoliticalRelationshipGraph.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -263,6 +264,7 @@ function AppRoutes() {
               <Route path="/mission-control" element={<ExecutiveMissionControl />} />
               <Route path="/strategic-advisor" element={<AIStrategicAdvisor />} />
               <Route path="/intelligence-reports" element={<IntelligenceReports />} />
+              <Route path="/political-graph" element={<PoliticalRelationshipGraph />} />
               <Route path="/campaign-copilot" element={<AICampaignCopilot />} />
               <Route path="/client-portal/:token" element={<ClientPortalView />} />
               <Route path="/client-portal-admin" element={<ClientPortalAdmin />} />
