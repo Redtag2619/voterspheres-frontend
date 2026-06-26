@@ -902,6 +902,7 @@ export default function Vendors() {
   });
 
   const [selectedGroup, setSelectedGroup] = useState("All");
+  const [selectedVendor, setSelectedVendor] = useState(null);
   const [selectedState, setSelectedState] = useState(normalizeState(initialUrl.state) || "PA");
   const [tooltip, setTooltip] = useState({
     visible: false,
@@ -1154,6 +1155,12 @@ export default function Vendors() {
             (vendor) =>
               normalizeVendorGroup(vendor.category, vendor.services || vendor.description) === selectedGroup
           );
+
+    useEffect(() => {
+  if (!selectedVendor && visibleRows?.length) {
+    setSelectedVendor(visibleRows[0]);
+  }
+}, [selectedVendor, visibleRows]);
 
     if (rowsForGroup.length) return rowsForGroup;
 
@@ -2204,12 +2211,18 @@ export default function Vendors() {
             <EmptyState text="No FEC vendor spending found for the selected filters." />
           ) : (
             fecRows.slice(0, 8).map((vendor, index) => (
-              <VendorRow
-                key={vendor.id || vendor.vendor_id || `${vendor.vendor_name}-${index}`}
-                vendor={vendor}
-                onCreateCommandTask={createVendorTask}
-                onInspectVendor={setSelectedVendor}
-              />
+              <div onClick={() => setSelectedVendor(vendor)}>
+  <VendorRow
+    key={
+      vendor.id ??
+      vendor.vendor_id ??
+      `${vendor.name || vendor.vendor_name}-${index}`
+    }
+    vendor={vendor}
+    highlighted={highlighted}
+    onCreateCommandTask={createVendorTask}
+  />
+</div>
             ))
           )}
         </div>
@@ -2300,20 +2313,24 @@ export default function Vendors() {
 
       <div className="vs-vendor-balanced-grid">
         <div ref={vendorDirectoryRef}>
-          {activeVendor ? (
-            <PoliticalGraphContextPanel
-              entityType="vendor"
-              entityId={activeVendor.id || activeVendor.vendor_id}
-              entityName={activeVendor.vendor_name || activeVendor.name}
-              state={activeVendor.state || activeVendor.primary_state || activeVendor.payee_state}
-              title="Vendor Relationship Graph"
-              subtitle="Political relationships connected to the selected vendor."
-              compact
-            />
-          ) : null}
+  {selectedVendor ? (
+    <PoliticalGraphContextPanel
+      entityType="vendor"
+      entityId={selectedVendor.id || selectedVendor.vendor_id}
+      entityName={selectedVendor.vendor_name || selectedVendor.name}
+      state={
+        selectedVendor.state ||
+        selectedVendor.primary_state ||
+        selectedVendor.payee_state
+      }
+      title="Vendor Relationship Graph"
+      subtitle="Candidates, states, tasks, donors, and endorsements connected to this vendor."
+      compact
+    />
+  ) : null}
 
-          <SectionCard
-            title={selectedGroup && selectedGroup !== "All" ? `${selectedGroup} Vendor Directory` : "Live Vendor Directory"}
+  <SectionCard
+    title={selectedGroup && selectedGroup !== "All" ? `${selectedGroup} Vendor Directory` : "Live Vendor Directory"}
             subtitle={
               filters.state
                 ? `Database and FEC-backed vendor network filtered to ${filters.state}.`
