@@ -13,6 +13,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
 const US_TOPO_JSON =
   "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
@@ -2149,6 +2150,18 @@ export default function Vendors() {
           </div>
         </div>
       </SectionCard>
+
+      {selectedVendor ? (
+        <PoliticalGraphContextPanel
+          entityType="vendor"
+          entityId={selectedVendor.id || selectedVendor.vendor_id}
+          entityName={selectedVendor.vendor_name || selectedVendor.name}
+          state={selectedVendor.state || selectedVendor.primary_state}
+          title="Vendor Relationship Graph"
+          subtitle="Candidates, states, tasks, donors, and endorsements connected to this vendor."
+          compact
+       />
+     ) : null}
 
       <SectionCard
         title="Vendor Spend Groups"
