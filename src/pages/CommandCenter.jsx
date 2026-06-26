@@ -8,6 +8,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
 const fallbackData = {
   metrics: [
@@ -1514,6 +1515,18 @@ export default function CommandCenter() {
           </div>
         </div>
       ) : null}
+
+      {selectedTask ? (
+        <PoliticalGraphContextPanel
+          entityType="task"
+          entityId={selectedTask.id}
+          entityName={selectedTask.title}
+          state={selectedTask.state}
+          title="Task Relationship Graph"
+          subtitle="Candidates, donors, vendors, endorsements, and states connected to this task."
+          compact
+        />
+     ) : null}
 
       {isExecutiveMapBridge ? (
         <div className="vs-grid-4" data-tour="command-map-filter-summary">
