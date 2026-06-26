@@ -14,6 +14,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
@@ -2450,6 +2451,17 @@ export default function ExecutiveOperationsMap() {
         )}
         </SectionCard>
       </div>
+
+      {selectedState ? (
+        <PoliticalGraphContextPanel
+          entityType="state"
+          entityName={selectedState}
+          state={selectedState}
+          title="State Political Relationship Graph"
+          subtitle="Candidates, donors, vendors, endorsements, and tasks connected to this state."
+          compact
+        />
+     ) : null}
 
       <div data-tour="operations-state-drilldown">
         <ExecutiveStateDrilldown
