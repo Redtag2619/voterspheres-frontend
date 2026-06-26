@@ -901,6 +901,18 @@ export default function Vendors() {
     state: null,
   });
 
+  {activeVendor ? (
+  <PoliticalGraphContextPanel
+    entityType="vendor"
+    entityId={activeVendor.id || activeVendor.vendor_id}
+    entityName={activeVendor.vendor_name || activeVendor.name}
+    state={activeVendor.state || activeVendor.primary_state || activeVendor.payee_state}
+    title="Vendor Relationship Graph"
+    subtitle="Candidates, states, tasks, donors, and endorsements connected to this vendor."
+    compact
+  />
+) : null}
+  
   const isFromExecutionBoard = sourceContext === "execution-board";
   const highlightedState = isFromExecutionBoard ? filters.state : "";
 
@@ -2150,19 +2162,7 @@ export default function Vendors() {
           </div>
         </div>
       </SectionCard>
-
-      {selectedVendor ? (
-        <PoliticalGraphContextPanel
-          entityType="vendor"
-          entityId={selectedVendor.id || selectedVendor.vendor_id}
-          entityName={selectedVendor.vendor_name || selectedVendor.name}
-          state={selectedVendor.state || selectedVendor.primary_state}
-          title="Vendor Relationship Graph"
-          subtitle="Candidates, states, tasks, donors, and endorsements connected to this vendor."
-          compact
-       />
-     ) : null}
-
+      
       <SectionCard
         title="Vendor Spend Groups"
         subtitle="FEC-imported vendors and modeled baseline coverage organized by Mail, Digital, Media, Compliance, Consulting, and Events."
