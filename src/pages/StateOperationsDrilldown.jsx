@@ -8,6 +8,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
@@ -816,6 +817,15 @@ export default function StateOperationsDrilldown() {
               </div>
             )}
           </SectionCard>
+
+          <PoliticalGraphContextPanel
+            entityType="state"
+            entityName={stateCode}
+            state={stateCode}
+            title="State Operations Relationship Graph"
+            subtitle="Political graph context for this state operation."
+            compact
+          />
 
           <SectionCard
             title="DMA / Regional Operations"
