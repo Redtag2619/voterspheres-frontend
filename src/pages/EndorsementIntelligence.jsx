@@ -7,6 +7,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 import RelatedIntelligencePanel from "../components/intelligence/RelatedIntelligencePanel";
 
 const DEFAULT_FORM = {
@@ -1052,6 +1053,18 @@ export default function EndorsementIntelligence() {
               />
             </div>
           ) : null}
+
+          {selected ? (
+            <PoliticalGraphContextPanel
+              entityType="endorsement"
+              entityId={selected.id}
+              entityName={selected.endorser_name}
+              state={selected.state}
+              title="Political Graph Context"
+              subtitle="Relationship graph context for this endorsement."
+              compact
+            />
+         ) : null}
 
           <SectionCard
             title="Endorsement Types"
