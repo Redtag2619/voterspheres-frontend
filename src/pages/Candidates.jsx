@@ -548,18 +548,6 @@ function RelationshipIntelligenceCard({
         </div>
       ) : null}
 
-      {selectedCandidate ? (
-        <PoliticalGraphContextPanel
-          entityType="candidate"
-          entityId={selectedCandidate.id || selectedCandidate.candidate_id}
-          entityName={selectedCandidate.name || selectedCandidate.candidate_name}
-          state={selectedCandidate.state || selectedCandidate.state_code}
-          title="Candidate Relationship Graph"
-          subtitle="Donors, endorsements, vendors, tasks, and states connected to this candidate."
-          compact
-        />
-     ) : null}
-
       <div className="vs-inline-actions" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button type="button" className="vs-button" onClick={onOpenGraph}>
           Analyze Full Network
@@ -854,6 +842,18 @@ export default function Candidates() {
       active = false;
     };
   }, [selectedCandidateId, data.results]);
+
+  {selectedDetail?.candidate ? (
+  <PoliticalGraphContextPanel
+    entityType="candidate"
+    entityId={selectedDetail.candidate.id || selectedDetail.candidate.candidate_id}
+    entityName={selectedDetail.candidate.name || selectedDetail.candidate.candidate_name}
+    state={selectedDetail.candidate.state || selectedDetail.candidate.state_code}
+    title="Candidate Relationship Graph"
+    subtitle="Donors, endorsements, vendors, tasks, and states connected to this candidate."
+    compact
+  />
+) : null}
 
   const candidates = useMemo(() => data.results || [], [data.results]);
 
