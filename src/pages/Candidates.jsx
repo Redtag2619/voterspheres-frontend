@@ -7,6 +7,7 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ConsultantCommandPanel from "../components/consultants/ConsultantCommandPanel";
+import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
 const fallbackListData = { total: 0, results: [] };
 const fallbackDetail = { candidate: null, profile: null };
@@ -546,6 +547,18 @@ function RelationshipIntelligenceCard({
           ))}
         </div>
       ) : null}
+
+      {selectedCandidate ? (
+        <PoliticalGraphContextPanel
+          entityType="candidate"
+          entityId={selectedCandidate.id || selectedCandidate.candidate_id}
+          entityName={selectedCandidate.name || selectedCandidate.candidate_name}
+          state={selectedCandidate.state || selectedCandidate.state_code}
+          title="Candidate Relationship Graph"
+          subtitle="Donors, endorsements, vendors, tasks, and states connected to this candidate."
+          compact
+        />
+     ) : null}
 
       <div className="vs-inline-actions" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button type="button" className="vs-button" onClick={onOpenGraph}>
