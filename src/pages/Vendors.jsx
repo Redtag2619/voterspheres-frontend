@@ -1175,12 +1175,6 @@ export default function Vendors() {
     selectedStateCoverage?.vendors?.[0] ||
     null;
 
-  useEffect(() => {
-    if (!selectedVendor && visibleRows?.length) {
-      setSelectedVendor(visibleRows[0]);
-    }
-  }, [selectedVendor, visibleRows]);
-
   const coveredStates = useMemo(
     () => stateCoverage.filter((state) => state.coverage_score >= 76),
     [stateCoverage]
