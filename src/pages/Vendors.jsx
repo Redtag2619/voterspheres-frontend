@@ -902,7 +902,6 @@ export default function Vendors() {
   });
 
   const [selectedGroup, setSelectedGroup] = useState("All");
-  const [selectedVendor, setSelectedVendor] = useState(null);
   const [selectedState, setSelectedState] = useState(normalizeState(initialUrl.state) || "PA");
   const [tooltip, setTooltip] = useState({
     visible: false,
