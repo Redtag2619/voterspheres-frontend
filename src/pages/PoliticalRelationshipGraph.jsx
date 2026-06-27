@@ -29,6 +29,11 @@ function normalizeText(value = "") {
   return String(value || "").trim();
 }
 
+function toNumber(value, fallback = 0) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
+
 function formatMoney(value) {
   const num = Number(value || 0);
 
@@ -76,10 +81,13 @@ function safeArray(value) {
 }
 
 function nodeTitle(node = {}) {
+  if (!node) return "Unnamed Node";
   return node.label || node.name || node.title || "Unnamed Node";
 }
 
 function nodeSubtitle(node = {}) {
+  if (!node) return "Political intelligence entity";
+
   return (
     node.subtitle ||
     [
@@ -99,10 +107,13 @@ function nodeSubtitle(node = {}) {
 }
 
 function nodeScore(node = {}) {
+  if (!node) return 0;
   return Number(node.score || node.raw?.score || 0);
 }
 
 function nodeValue(node = {}) {
+  if (!node) return 0;
+
   return Number(
     node.value ||
       node.raw?.amount ||
@@ -169,6 +180,8 @@ async function createCommandTask(payload) {
 }
 
 function NodeOrb({ node, selected, onSelect }) {
+  if (!node) return null;
+
   const score = nodeScore(node);
   const size = Math.max(58, Math.min(112, 54 + Number(node.connections || 0) * 8));
 
@@ -191,6 +204,8 @@ function NodeOrb({ node, selected, onSelect }) {
 }
 
 function NodeCard({ node, selected, onSelect }) {
+  if (!node) return null;
+
   const score = nodeScore(node);
   const value = nodeValue(node);
 
@@ -219,8 +234,10 @@ function NodeCard({ node, selected, onSelect }) {
 }
 
 function EdgeRow({ edge, nodesById }) {
-  const from = nodesById[edge.from] || {};
-  const to = nodesById[edge.to] || {};
+  if (!edge) return null;
+
+  const from = nodesById?.[edge.from] || {};
+  const to = nodesById?.[edge.to] || {};
 
   return (
     <ResponsiveRow
@@ -254,6 +271,8 @@ function EdgeRow({ edge, nodesById }) {
 }
 
 function ActionRow({ action, onCreateTask }) {
+  if (!action) return null;
+
   return (
     <ResponsiveRow
       title={action.title || "Recommended Action"}
@@ -295,6 +314,8 @@ function ActionRow({ action, onCreateTask }) {
 }
 
 function StateRow({ item, onSelect }) {
+  if (!item) return null;
+
   return (
     <button
       type="button"
@@ -315,13 +336,13 @@ function StateRow({ item, onSelect }) {
   );
 }
 
-function Inspector({ node, relatedEdges, nodesById, onCreateTask }) {
-  const score = nodeScore(node);
-  const value = nodeValue(node);
-
+function Inspector({ node, relatedEdges = [], nodesById = {}, onCreateTask }) {
   if (!node) {
     return <EmptyState text="Select a node to inspect its relationships." />;
   }
+
+  const score = nodeScore(node);
+  const value = nodeValue(node);
 
   return (
     <div className="pg-inspector">
@@ -455,10 +476,13 @@ export default function PoliticalRelationshipGraph() {
         sources: payload?.sources || {},
       };
 
+      nextData.graph.nodes = safeArray(nextData.graph?.nodes).filter(Boolean);
+      nextData.graph.edges = safeArray(nextData.graph?.edges).filter(Boolean);
+
       setGraphData(nextData);
 
       setSelectedNode((current) => {
-        if (current && nextData.graph.nodes.some((node) => node.id === current.id)) {
+        if (current && nextData.graph.nodes.some((node) => node?.id === current.id)) {
           return current;
         }
 
@@ -489,8 +513,8 @@ export default function PoliticalRelationshipGraph() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.search]);
 
-  const nodes = safeArray(graphData.graph?.nodes);
-  const edges = safeArray(graphData.graph?.edges);
+  const nodes = safeArray(graphData.graph?.nodes).filter(Boolean);
+  const edges = safeArray(graphData.graph?.edges).filter(Boolean);
   const summary = graphData.summary || {};
   const byType = summary.by_type || {};
 
@@ -505,6 +529,7 @@ export default function PoliticalRelationshipGraph() {
     const q = normalizeText(filters.search).toLowerCase();
 
     return nodes.filter((node) => {
+      if (!node) return false;
       if (filters.type && node.type !== filters.type) return false;
 
       if (filters.state && node.state !== filters.state) return false;
@@ -521,6 +546,7 @@ export default function PoliticalRelationshipGraph() {
           node.donor_type,
           node.status,
         ]
+          .filter(Boolean)
           .join(" ")
           .toLowerCase();
 
@@ -532,21 +558,21 @@ export default function PoliticalRelationshipGraph() {
   }, [nodes, filters]);
 
   const visibleNodeIds = useMemo(
-    () => new Set(visibleNodes.map((node) => node.id)),
+    () => new Set(visibleNodes.map((node) => node?.id).filter(Boolean)),
     [visibleNodes]
   );
 
   const visibleEdges = useMemo(() => {
     return edges.filter(
-      (edge) => visibleNodeIds.has(edge.from) || visibleNodeIds.has(edge.to)
+      (edge) => edge && (visibleNodeIds.has(edge.from) || visibleNodeIds.has(edge.to))
     );
   }, [edges, visibleNodeIds]);
 
   const relatedEdges = useMemo(() => {
-    if (!selectedNode) return [];
+    if (!selectedNode?.id) return [];
 
     return edges.filter(
-      (edge) => edge.from === selectedNode.id || edge.to === selectedNode.id
+      (edge) => edge && (edge.from === selectedNode.id || edge.to === selectedNode.id)
     );
   }, [edges, selectedNode]);
 
@@ -555,7 +581,7 @@ export default function PoliticalRelationshipGraph() {
       .sort(
         (a, b) =>
           Number(b.connections || 0) - Number(a.connections || 0) ||
-          Number(b.score || 0) - Number(a.score || 0)
+          nodeScore(b) - nodeScore(a)
       )
       .slice(0, 15);
   }, [visibleNodes]);
@@ -564,13 +590,15 @@ export default function PoliticalRelationshipGraph() {
     return [...visibleNodes]
       .sort(
         (a, b) =>
-          Number(b.score || 0) - Number(a.score || 0) ||
+          nodeScore(b) - nodeScore(a) ||
           Number(b.connections || 0) - Number(a.connections || 0)
       )
       .slice(0, 38);
   }, [visibleNodes]);
 
   async function handleInspectNode(node) {
+    if (!node) return;
+
     try {
       setSelectedNode(node);
       setMessage("");
@@ -592,30 +620,30 @@ export default function PoliticalRelationshipGraph() {
       setMessage("Creating Command Center task...");
 
       const payload = {
-        title: action.title || "Review political graph signal",
+        title: action?.title || "Review political graph signal",
         description:
-          action.detail ||
-          action.description ||
+          action?.detail ||
+          action?.description ||
           "Review political relationship graph signal and connected entities.",
-        source: action.source || "political_relationship_graph",
-        state: action.state || selectedNode?.state || "National",
-        office: action.office || selectedNode?.office || "Statewide",
+        source: action?.source || "political_relationship_graph",
+        state: action?.state || selectedNode?.state || "National",
+        office: action?.office || selectedNode?.office || "Statewide",
         priority:
-          normalizeText(action.priority).toLowerCase() === "high"
+          normalizeText(action?.priority).toLowerCase() === "high"
             ? "high"
-            : normalizeText(action.priority).toLowerCase() === "medium"
+            : normalizeText(action?.priority).toLowerCase() === "medium"
             ? "medium"
             : "normal",
         status: "open",
-        assigned_to: action.owner || "Political Intelligence",
+        assigned_to: action?.owner || "Political Intelligence",
         due_label:
-          normalizeText(action.priority).toLowerCase() === "high"
+          normalizeText(action?.priority).toLowerCase() === "high"
             ? "Today"
             : "This Week",
         metadata: {
           source: "political_relationship_graph",
-          entity_type: action.entity_type || selectedNode?.type,
-          entity_id: action.entity_id || selectedNode?.id,
+          entity_type: action?.entity_type || selectedNode?.type,
+          entity_id: action?.entity_id || selectedNode?.id,
           entity_label: selectedNode?.label,
         },
       };
@@ -652,7 +680,7 @@ export default function PoliticalRelationshipGraph() {
 
       setPathResult({
         path: safeArray(payload?.path),
-        nodes: safeArray(payload?.nodes),
+        nodes: safeArray(payload?.nodes).filter(Boolean),
       });
 
       if (!payload?.path?.length) {
@@ -1055,7 +1083,7 @@ export default function PoliticalRelationshipGraph() {
           <SectionCard
             title="Node Inspector"
             subtitle="Select any graph node to view direct relationships and create follow-up work."
-            right={selectedNode ? <Badge tone={typeTone(selectedNode.type)}>{selectedNode.type}</Badge> : null}
+            right={selectedNode ? <Badge tone={typeTone(selectedNode?.type)}>{selectedNode?.type}</Badge> : null}
           >
             <Inspector
               node={selectedNode}
@@ -1150,7 +1178,7 @@ export default function PoliticalRelationshipGraph() {
           ) : (
             <div className="pg-path-strip">
               {pathResult.nodes.map((node, index) => (
-                <span key={`${node.id}-${index}`} className="pg-path-pill">
+                <span key={`${node?.id || index}-${index}`} className="pg-path-pill">
                   {nodeTitle(node)}
                 </span>
               ))}
@@ -1183,13 +1211,13 @@ export default function PoliticalRelationshipGraph() {
         <SectionCard
           title="Recommended Actions"
           subtitle="Operational recommendations generated from relationship graph signals."
-          right={<Badge tone="danger">{graphData.actions.length} actions</Badge>}
+          right={<Badge tone="danger">{safeArray(graphData.actions).length} actions</Badge>}
         >
           <div className="vs-stack">
-            {!graphData.actions.length ? (
+            {!safeArray(graphData.actions).length ? (
               <EmptyState text="No recommended actions generated yet." />
             ) : (
-              graphData.actions.slice(0, 16).map((action, index) => (
+              safeArray(graphData.actions).slice(0, 16).map((action, index) => (
                 <ActionRow
                   key={`${action.title}-${index}`}
                   action={action}
