@@ -42,6 +42,7 @@ const LAYERS = [
   { id: "turnout", label: "Turnout" },
   { id: "alerts", label: "Alerts" },
   { id: "signals", label: "Political Signals" },
+  { id: "graph", label: "Political Graph" },
 ];
 
 const STATE_NAME_TO_ABBR = {
@@ -849,6 +850,192 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
 
 
 
+
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeGraphSummaryPayload(payload = {}) {
+  const graph = payload?.graph || {};
+  const summary = payload?.summary || {};
+  const nodes = safeArray(graph.nodes).filter(Boolean);
+  const edges = safeArray(graph.edges).filter(Boolean);
+
+  const byStateFromSummary = safeArray(summary.by_state);
+  const stateRows = byStateFromSummary.length
+    ? byStateFromSummary
+    : nodes.reduce((acc, node) => {
+        const state = String(node?.state || "").toUpperCase();
+        if (!state || state.length !== 2) return acc;
+
+        if (!acc[state]) {
+          acc[state] = {
+            state,
+            nodes: 0,
+            connections: 0,
+            total_score: 0,
+            high_risk_nodes: 0,
+          };
+        }
+
+        const score = Number(node.score || node.raw?.score || 0);
+        acc[state].nodes += 1;
+        acc[state].connections += Number(node.connections || 0);
+        acc[state].total_score += score;
+        if (score >= 80) acc[state].high_risk_nodes += 1;
+
+        return acc;
+      }, {});
+
+  const byState = Array.isArray(stateRows)
+    ? stateRows
+    : Object.values(stateRows).map((item) => ({
+        ...item,
+        avg_score: item.nodes ? Math.round(item.total_score / item.nodes) : 0,
+      }));
+
+  return {
+    summary,
+    nodes,
+    edges,
+    actions: safeArray(payload?.actions),
+    sources: payload?.sources || {},
+    byState: safeArray(byState),
+  };
+}
+
+async function fetchExecutivePoliticalGraph(params = {}) {
+  if (typeof api.politicalGraph === "function") {
+    return api.politicalGraph(params);
+  }
+
+  const response = await api.get("/political-graph", {
+    params,
+    timeout: 15000,
+  });
+
+  return response?.data || response;
+}
+
+function buildGraphLookup(graphData = {}) {
+  return safeArray(graphData.byState).reduce((acc, item) => {
+    const state = String(item.state || item.state_code || "").toUpperCase();
+    if (!state) return acc;
+
+    const nodes = Number(item.nodes || item.total_nodes || item.node_count || 0);
+    const connections = Number(item.connections || item.edges || item.total_edges || item.edge_count || 0);
+    const avgScore = Number(item.avg_score || item.average_score || item.score || 0);
+    const highRiskNodes = Number(item.high_risk_nodes || item.critical_nodes || item.risk_nodes || 0);
+
+    acc[state] = {
+      state,
+      nodes,
+      connections,
+      avg_score: avgScore,
+      high_risk_nodes: highRiskNodes,
+      density_score: Math.min(100, Math.round(avgScore * 0.55 + connections * 0.18 + highRiskNodes * 8)),
+    };
+
+    return acc;
+  }, {});
+}
+
+function getGraphStateFill(graphState) {
+  if (!graphState || !Number(graphState.nodes || 0)) return "rgba(30, 41, 59, 0.78)";
+
+  const score = Number(graphState.density_score || graphState.avg_score || 0);
+  if (score >= 82) return "rgba(124, 58, 237, 0.96)";
+  if (score >= 65) return "rgba(37, 99, 235, 0.92)";
+  if (score >= 42) return "rgba(14, 165, 233, 0.86)";
+  return "rgba(20, 184, 166, 0.74)";
+}
+
+function getGraphIndicatorTone(graphState) {
+  if (!graphState || !Number(graphState.nodes || 0)) return "missing";
+
+  const score = Number(graphState.density_score || graphState.avg_score || 0);
+  if (score >= 82) return "critical";
+  if (score >= 65) return "high";
+  if (score >= 42) return "signal";
+  return "stable";
+}
+
+function getGraphLayerValue(graphState) {
+  if (!graphState) return 0;
+  return Number(graphState.nodes || 0);
+}
+
+function GraphExecutiveSummaryPanel({ graphData, selected, graphLookup, onSelectState }) {
+  const totalNodes = Number(graphData?.summary?.total_nodes || graphData?.nodes?.length || 0);
+  const totalEdges = Number(graphData?.summary?.total_edges || graphData?.edges?.length || 0);
+  const statesCovered = Number(graphData?.summary?.states_covered || Object.keys(graphLookup || {}).length || 0);
+  const selectedGraph = selected?.state ? graphLookup?.[selected.state] : null;
+
+  const topStates = Object.values(graphLookup || {})
+    .sort((a, b) => Number(b.density_score || 0) - Number(a.density_score || 0))
+    .slice(0, 8);
+
+  return (
+    <SectionCard
+      title="Political Graph Executive Overlay"
+      subtitle="Relationship density by state from candidates, donors, vendors, endorsements, and Command Center task context."
+      right={<Badge tone={totalNodes ? "active" : "default"}>{statesCovered} states covered</Badge>}
+    >
+      <div className="ops-graph-summary">
+        <div><span>Graph Nodes</span><strong>{fmtNumber(totalNodes)}</strong></div>
+        <div><span>Graph Links</span><strong>{fmtNumber(totalEdges)}</strong></div>
+        <div><span>States Covered</span><strong>{fmtNumber(statesCovered)}</strong></div>
+        <div><span>Selected Nodes</span><strong>{selectedGraph?.nodes || 0}</strong></div>
+      </div>
+
+      <div className="ops-graph-grid">
+        <div className="ops-graph-selected">
+          <span>Selected State Graph Readout</span>
+          <strong>{selected?.state || "National"}</strong>
+          <p>
+            {selectedGraph
+              ? `${selectedGraph.nodes || 0} relationship nodes, ${selectedGraph.connections || 0} links, average score ${Math.round(Number(selectedGraph.avg_score || 0))}.`
+              : "Select a state or load graph coverage to see relationship density."}
+          </p>
+          {selected?.state ? (
+            <div className="ops-graph-actions">
+              <button type="button" onClick={() => openPath(`/political-graph?state=${selected.state}`)}>
+                Open Political Graph
+              </button>
+              <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "political-graph-review", layer: "graph", panel: "relationship-density" })}>
+                Send to Command Center
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="ops-graph-list">
+          {!topStates.length ? (
+            <EmptyState text="No state-level political graph coverage loaded yet." />
+          ) : (
+            topStates.map((item) => (
+              <button
+                key={item.state}
+                type="button"
+                className="ops-graph-state-row"
+                onClick={() => onSelectState?.(item.state)}
+              >
+                <div>
+                  <strong>{item.state}</strong>
+                  <span>{item.nodes || 0} nodes • {item.connections || 0} links</span>
+                </div>
+                <b>{Math.round(Number(item.density_score || item.avg_score || 0))}</b>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+
 function getMarkerColor(tone) {
   if (tone === "critical") return "#dc2626";
   if (tone === "high") return "#ea580c";
@@ -858,12 +1045,12 @@ function getMarkerColor(tone) {
   return "#334155";
 }
 
-function MapStateMarker({ abbr, coords, state, overlay, layer, selected, onSelectState }) {
-  const value = getIndicatorValue(state, overlay, layer);
-  const tone = getIndicatorTone(state, overlay, layer);
+function MapStateMarker({ abbr, coords, state, overlay, graphState, layer, selected, onSelectState }) {
+  const value = layer === "graph" ? getGraphLayerValue(graphState) : getIndicatorValue(state, overlay, layer);
+  const tone = layer === "graph" ? getGraphIndicatorTone(graphState) : getIndicatorTone(state, overlay, layer);
   const color = getMarkerColor(tone);
   const isSelected = selected?.state === abbr;
-  const hasLiveData = Boolean(state || overlay);
+  const hasLiveData = Boolean(state || overlay || graphState);
   const layerLabel = getIndicatorLabel(layer);
 
   return (
@@ -1005,6 +1192,15 @@ export default function ExecutiveOperationsMap() {
   const [lastUpdated, setLastUpdated] = useState("");
   const [signalOverlay, setSignalOverlay] = useState({ summary: {}, states: [] });
   const [signalOverlayError, setSignalOverlayError] = useState("");
+  const [politicalGraph, setPoliticalGraph] = useState({
+    summary: {},
+    nodes: [],
+    edges: [],
+    actions: [],
+    sources: {},
+    byState: [],
+  });
+  const [politicalGraphError, setPoliticalGraphError] = useState("");
   const intervalRef = useRef(null);
   useEffect(() => {
     if (requestedLayer && LAYERS.some((item) => item.id === requestedLayer)) {
@@ -1030,6 +1226,36 @@ export default function ExecutiveOperationsMap() {
           "Failed to load executive map signal overlay."
       );
       setSignalOverlay({ summary: {}, states: [] });
+    }
+  }
+
+
+  async function loadPoliticalGraph({ quiet = false } = {}) {
+    try {
+      setPoliticalGraphError("");
+
+      const payload = await fetchExecutivePoliticalGraph({
+        limit: 500,
+      });
+
+      setPoliticalGraph(normalizeGraphSummaryPayload(payload));
+    } catch (err) {
+      setPoliticalGraphError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load executive political graph overlay."
+      );
+
+      if (!quiet) {
+        setPoliticalGraph({
+          summary: {},
+          nodes: [],
+          edges: [],
+          actions: [],
+          sources: {},
+          byState: [],
+        });
+      }
     }
   }
 
@@ -1120,10 +1346,12 @@ export default function ExecutiveOperationsMap() {
   useEffect(() => {
     load();
     loadSignalOverlay();
+    loadPoliticalGraph();
 
     intervalRef.current = setInterval(() => {
       load({ quiet: true });
       loadSignalOverlay();
+      loadPoliticalGraph({ quiet: true });
     }, 30000);
 
     return () => {
@@ -1149,6 +1377,8 @@ export default function ExecutiveOperationsMap() {
       return acc;
     }, {});
   }, [overlayStates]);
+
+  const graphLookup = useMemo(() => buildGraphLookup(politicalGraph), [politicalGraph]);
 
   const stateLookup = useMemo(() => {
     return states.reduce((acc, item) => {
@@ -2009,7 +2239,9 @@ export default function ExecutiveOperationsMap() {
           .ops-signal-summary,
           .ops-drilldown-hero,
           .ops-drilldown-grid,
-          .ops-command-handoff {
+          .ops-command-handoff,
+          .ops-graph-summary,
+          .ops-graph-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 10px;
@@ -2274,6 +2506,112 @@ export default function ExecutiveOperationsMap() {
           color: white;
         }
 
+
+        .ops-graph-summary {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+
+        .ops-graph-summary div,
+        .ops-graph-selected {
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background:
+            radial-gradient(circle at top right, rgba(124, 58, 237, 0.12), transparent 36%),
+            rgba(15, 23, 42, 0.58);
+          padding: 14px;
+        }
+
+        .ops-graph-summary span,
+        .ops-graph-selected span {
+          display: block;
+          color: rgba(203, 213, 225, 0.68);
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ops-graph-summary strong,
+        .ops-graph-selected strong {
+          display: block;
+          margin-top: 6px;
+          color: white;
+          font-size: 24px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .ops-graph-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          gap: 14px;
+          align-items: start;
+        }
+
+        .ops-graph-selected p {
+          margin: 10px 0 0;
+          color: rgba(226, 232, 240, 0.82);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .ops-graph-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 14px;
+        }
+
+        .ops-graph-actions button,
+        .ops-graph-state-row {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .ops-graph-actions button:hover,
+        .ops-graph-state-row:hover {
+          border-color: rgba(129, 140, 248, 0.52);
+          background: rgba(79, 70, 229, 0.24);
+          color: white;
+        }
+
+        .ops-graph-list {
+          display: grid;
+          gap: 10px;
+        }
+
+        .ops-graph-state-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: center;
+          text-align: left;
+        }
+
+        .ops-graph-state-row strong,
+        .ops-graph-state-row b {
+          display: block;
+          color: white;
+          font-weight: 950;
+        }
+
+        .ops-graph-state-row span {
+          display: block;
+          margin-top: 4px;
+          color: rgba(203, 213, 225, 0.64);
+          font-size: 11px;
+        }
+
+
         @media (max-width: 1150px) {
           .ops-command-layout,
           .ops-threat-matrix {
@@ -2303,7 +2641,9 @@ export default function ExecutiveOperationsMap() {
           .ops-signal-summary,
           .ops-drilldown-hero,
           .ops-drilldown-grid,
-          .ops-command-handoff {
+          .ops-command-handoff,
+          .ops-graph-summary,
+          .ops-graph-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -2401,7 +2741,13 @@ export default function ExecutiveOperationsMap() {
                             key={geo.rsmKey}
                             geography={geo}
                             className={`ops-geography ${isSelected ? "is-selected" : ""}`}
-                            fill={layer === "signals" ? getSignalStateFill(overlayLookup[abbr]) : getStateFill(stateData, layer)}
+                            fill={
+                              layer === "signals"
+                                ? getSignalStateFill(overlayLookup[abbr])
+                                : layer === "graph"
+                                ? getGraphStateFill(graphLookup[abbr])
+                                : getStateFill(stateData, layer)
+                            }
                             onClick={() => {
                               if (stateData) setSelectedState(stateData);
                             }}
@@ -2423,6 +2769,7 @@ export default function ExecutiveOperationsMap() {
                       coords={coords}
                       state={stateLookup[abbr] || getBaselineState(abbr)}
                       overlay={overlayLookup[abbr]}
+                      graphState={graphLookup[abbr]}
                       layer={layer}
                       selected={selected}
                       onSelectState={selectStateFromOverlay}
@@ -2452,12 +2799,23 @@ export default function ExecutiveOperationsMap() {
         </SectionCard>
       </div>
 
-      {selectedState ? (
+      {politicalGraphError ? <div className="vs-banner vs-banner-warning">{politicalGraphError}</div> : null}
+
+      <div data-tour="operations-graph-overlay">
+        <GraphExecutiveSummaryPanel
+          graphData={politicalGraph}
+          selected={selected}
+          graphLookup={graphLookup}
+          onSelectState={selectStateFromOverlay}
+        />
+      </div>
+
+      {selected ? (
         <PoliticalGraphContextPanel
           entityType="state"
-          entityName={selectedState}
-          state={selectedState}
-          title="State Political Relationship Graph"
+          entityName={selected.state}
+          state={selected.state}
+          title={`${selected.state} Political Relationship Graph`}
           subtitle="Candidates, donors, vendors, endorsements, and tasks connected to this state."
           compact
         />
