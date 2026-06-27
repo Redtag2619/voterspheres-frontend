@@ -103,15 +103,18 @@ function safeJson(value) {
   }
 }
 
-function getTaskId(task) {
+function getTaskId(task = null) {
+  if (!task) return null;
   return task.id || task.task_id || task.uuid || null;
 }
 
-function getTaskMetadata(task) {
+function getTaskMetadata(task = null) {
+  if (!task) return {};
   return safeJson(task.metadata);
 }
 
-function getTaskStatus(task) {
+function getTaskStatus(task = null) {
+  if (!task) return "open";
   return String(task.status || task.task_status || "open").toLowerCase();
 }
 
@@ -119,15 +122,18 @@ function isTaskCompleted(task) {
   return ["complete", "completed", "done", "resolved"].includes(getTaskStatus(task));
 }
 
-function getTaskPriority(task) {
+function getTaskPriority(task = null) {
+  if (!task) return "";
   return String(task.priority || task.risk || task.severity || "").toLowerCase();
 }
 
-function getTaskTitle(task) {
+function getTaskTitle(task = null) {
+  if (!task) return "Untitled task";
   return task.title || task.name || task.subject || "Untitled task";
 }
 
-function getTaskDescription(task) {
+function getTaskDescription(task = null) {
+  if (!task) return "";
   return task.description || task.details || task.detail || "";
 }
 
@@ -154,7 +160,8 @@ function isVendorTask(task) {
 }
 
 
-function getTaskStateCode(task) {
+function getTaskStateCode(task = null) {
+  if (!task) return "";
   const metadata = getTaskMetadata(task);
   return String(
     task.state ||
@@ -170,6 +177,12 @@ function getTaskStateCode(task) {
 function getTaskCountyName(task) {
   const metadata = getTaskMetadata(task);
   return String(task.county || task.county_name || metadata.county || metadata.county_name || "");
+}
+
+
+function sameTask(left = null, right = null) {
+  if (!left || !right) return false;
+  return String(getTaskId(left) || getTaskTitle(left)) === String(getTaskId(right) || getTaskTitle(right));
 }
 
 function stateMatchesTask(task, stateCode) {
@@ -1660,7 +1673,7 @@ export default function CommandCenter() {
                     <CountyEscalationTaskCard
                       key={getTaskId(task) || getTaskTitle(task)}
                       task={task}
-                      selected={String(getTaskId(task) || getTaskTitle(task)) === String(getTaskId(selectedTask) || getTaskTitle(selectedTask))}
+                      selected={sameTask(task, selectedTask)}
                       onSelectTask={setSelectedTask}
                       onStatusChange={handleCountyTaskStatus}
                       changing={changingTaskId === getTaskId(task)}
@@ -1675,7 +1688,7 @@ export default function CommandCenter() {
                     <StandardTaskCard
                       key={getTaskId(task) || getTaskTitle(task)}
                       task={task}
-                      selected={String(getTaskId(task) || getTaskTitle(task)) === String(getTaskId(selectedTask) || getTaskTitle(selectedTask))}
+                      selected={sameTask(task, selectedTask)}
                       onSelectTask={setSelectedTask}
                     />
                   ))}
@@ -1703,3 +1716,4 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
