@@ -316,7 +316,7 @@ function PremiumRow({ title, subtitle, meta = [], tone = "default", right, live 
   );
 }
 
-function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
+function CountyEscalationTaskCard({ task, onStatusChange, changing, selected = false, onSelectTask }) {
   const metadata = getTaskMetadata(task);
   const status = getTaskStatus(task);
   const completed = isTaskCompleted(task);
@@ -330,7 +330,7 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
   const taskId = getTaskId(task);
 
   return (
-    <div className={`county-task-card ${toneFromSeverity(risk)} ${completed ? "is-completed" : ""}`}>
+    <div className={`county-task-card ${toneFromSeverity(risk)} ${completed ? "is-completed" : ""} ${selected ? "is-selected-graph-task" : ""}`}>
       <div className="county-task-top">
         <div className="county-task-title-wrap">
           <span className="county-task-kicker">
@@ -364,6 +364,14 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
 
         <button
           type="button"
+          className="vs-button vs-button-secondary"
+          onClick={() => onSelectTask?.(task)}
+        >
+          Graph Context
+        </button>
+
+        <button
+          type="button"
           className={completed ? "vs-button vs-button-secondary" : "vs-button"}
           disabled={!taskId || changing}
           onClick={() => onStatusChange(task, completed ? "open" : "completed")}
@@ -375,24 +383,37 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing }) {
   );
 }
 
-function StandardTaskCard({ task }) {
+function StandardTaskCard({ task, selected = false, onSelectTask }) {
   const metadata = getTaskMetadata(task);
   const status = getTaskStatus(task);
   const priority = getTaskPriority(task) || "normal";
 
   return (
-    <PremiumRow
-      title={getTaskTitle(task)}
-      subtitle={getTaskDescription(task) || metadata.recommendation || "Task details unavailable."}
-      tone={toneFromSeverity(priority || status)}
-      meta={[
-        { label: "Status", value: status },
-        { label: "Priority", value: priority },
-        { label: "State", value: task.state || metadata.state || "National" },
-        { label: "Source", value: task.source || metadata.source || task.type || "Task" },
-      ]}
-      right={<Badge tone={toneFromSeverity(priority || status)}>{status}</Badge>}
-    />
+    <div className={selected ? "selected-graph-task-wrap" : ""}>
+      <PremiumRow
+        title={getTaskTitle(task)}
+        subtitle={getTaskDescription(task) || metadata.recommendation || "Task details unavailable."}
+        tone={toneFromSeverity(priority || status)}
+        meta={[
+          { label: "Status", value: status },
+          { label: "Priority", value: priority },
+          { label: "State", value: task.state || metadata.state || "National" },
+          { label: "Source", value: task.source || metadata.source || task.type || "Task" },
+        ]}
+        right={
+          <div className="vs-inline-actions command-panel-actions">
+            <Badge tone={toneFromSeverity(priority || status)}>{status}</Badge>
+            <button
+              type="button"
+              className="vs-button vs-button-secondary"
+              onClick={() => onSelectTask?.(task)}
+            >
+              Graph
+            </button>
+          </div>
+        }
+      />
+    </div>
   );
 }
 
@@ -864,6 +885,7 @@ export default function CommandCenter() {
   const [taskFilter, setTaskFilter] = useState("all");
   const [changingTaskId, setChangingTaskId] = useState(null);
   const [taskSyncMessage, setTaskSyncMessage] = useState("");
+  const [selectedTask, setSelectedTask] = useState(null);
 
   const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
 
@@ -1118,7 +1140,21 @@ export default function CommandCenter() {
 
   const countyEscalationTasks = useMemo(() => filteredTasks.filter(isCountyEscalationTask), [filteredTasks]);
   const standardTasks = useMemo(() => filteredTasks.filter((task) => !isCountyEscalationTask(task)), [filteredTasks]);
-  const selectedTask = filteredTasks?.[0] || countyEscalationTasks?.[0] || standardTasks?.[0] || null;
+
+  useEffect(() => {
+    if (!filteredTasks.length) {
+      setSelectedTask(null);
+      return;
+    }
+
+    setSelectedTask((current) => {
+      if (current && filteredTasks.some((task) => String(getTaskId(task) || getTaskTitle(task)) === String(getTaskId(current) || getTaskTitle(current)))) {
+        return current;
+      }
+
+      return filteredTasks[0];
+    });
+  }, [filteredTasks]);
 
   const stateScopedFeed = useMemo(() => {
     if (!isExecutiveMapBridge || !mapBridgeState) return feed;
@@ -1329,6 +1365,12 @@ export default function CommandCenter() {
           border-color: rgba(34, 197, 94, 0.34);
         }
 
+        .county-task-card.is-selected-graph-task,
+        .selected-graph-task-wrap .vs-premium-row-card {
+          border-color: rgba(96, 165, 250, 0.66);
+          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28), 0 18px 45px rgba(37, 99, 235, 0.14);
+        }
+
         .county-task-card.danger {
           border-color: rgba(248, 113, 113, 0.34);
         }
@@ -1517,6 +1559,31 @@ export default function CommandCenter() {
         </div>
       ) : null}
 
+      {selectedTask ? (
+        <PoliticalGraphContextPanel
+          entityType="task"
+          entityId={getTaskId(selectedTask)}
+          entityName={getTaskTitle(selectedTask)}
+          state={getTaskStateCode(selectedTask)}
+          title="Task Relationship Graph"
+          subtitle="Click any Command Center task to load its candidates, donors, vendors, endorsements, states, and related actions."
+          compact
+        />
+      ) : null}
+
+      <div className="vs-inline-actions command-panel-actions">
+        <Link
+          className="vs-button vs-button-secondary"
+          to={
+            selectedTask
+              ? `/political-graph?search=${encodeURIComponent(getTaskTitle(selectedTask))}`
+              : "/political-graph"
+          }
+        >
+          Open Political Graph
+        </Link>
+      </div>
+
       {isExecutiveMapBridge ? (
         <div className="vs-grid-4" data-tour="command-map-filter-summary">
           <StatCard label="State Filter" value={mapBridgeState} subtext={mapBridgeRegion || "Executive map handoff"} tone="up" />
@@ -1544,18 +1611,6 @@ export default function CommandCenter() {
       </div>
 
       <MetricGrid metrics={metrics} />
-
-      {selectedTask ? (
-        <PoliticalGraphContextPanel
-          entityType="task"
-          entityId={getTaskId(selectedTask)}
-          entityName={getTaskTitle(selectedTask)}
-          state={getTaskStateCode(selectedTask)}
-          title="Task Relationship Graph"
-          subtitle="Candidates, donors, vendors, endorsements, and states connected to this task."
-          compact
-       />
-    ) : null}
 
       <div data-tour="command-recommended-action">
         <SectionCard
@@ -1605,6 +1660,8 @@ export default function CommandCenter() {
                     <CountyEscalationTaskCard
                       key={getTaskId(task) || getTaskTitle(task)}
                       task={task}
+                      selected={String(getTaskId(task) || getTaskTitle(task)) === String(getTaskId(selectedTask) || getTaskTitle(selectedTask))}
+                      onSelectTask={setSelectedTask}
                       onStatusChange={handleCountyTaskStatus}
                       changing={changingTaskId === getTaskId(task)}
                     />
@@ -1615,7 +1672,12 @@ export default function CommandCenter() {
               {standardTasks.length ? (
                 <div className="vs-stack">
                   {standardTasks.slice(0, 24).map((task) => (
-                    <StandardTaskCard key={getTaskId(task) || getTaskTitle(task)} task={task} />
+                    <StandardTaskCard
+                      key={getTaskId(task) || getTaskTitle(task)}
+                      task={task}
+                      selected={String(getTaskId(task) || getTaskTitle(task)) === String(getTaskId(selectedTask) || getTaskTitle(selectedTask))}
+                      onSelectTask={setSelectedTask}
+                    />
                   ))}
                 </div>
               ) : countyEscalationTasks.length ? null : (
