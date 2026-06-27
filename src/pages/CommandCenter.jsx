@@ -1118,6 +1118,7 @@ export default function CommandCenter() {
 
   const countyEscalationTasks = useMemo(() => filteredTasks.filter(isCountyEscalationTask), [filteredTasks]);
   const standardTasks = useMemo(() => filteredTasks.filter((task) => !isCountyEscalationTask(task)), [filteredTasks]);
+  const selectedTask = filteredTasks?.[0] || countyEscalationTasks?.[0] || standardTasks?.[0] || null;
 
   const stateScopedFeed = useMemo(() => {
     if (!isExecutiveMapBridge || !mapBridgeState) return feed;
@@ -1516,18 +1517,6 @@ export default function CommandCenter() {
         </div>
       ) : null}
 
-      {selectedTask ? (
-        <PoliticalGraphContextPanel
-          entityType="task"
-          entityId={selectedTask.id}
-          entityName={selectedTask.title}
-          state={selectedTask.state}
-          title="Task Relationship Graph"
-          subtitle="Candidates, donors, vendors, endorsements, and states connected to this task."
-          compact
-        />
-     ) : null}
-
       {isExecutiveMapBridge ? (
         <div className="vs-grid-4" data-tour="command-map-filter-summary">
           <StatCard label="State Filter" value={mapBridgeState} subtext={mapBridgeRegion || "Executive map handoff"} tone="up" />
@@ -1555,6 +1544,18 @@ export default function CommandCenter() {
       </div>
 
       <MetricGrid metrics={metrics} />
+
+      {selectedTask ? (
+        <PoliticalGraphContextPanel
+          entityType="task"
+          entityId={getTaskId(selectedTask)}
+          entityName={getTaskTitle(selectedTask)}
+          state={getTaskStateCode(selectedTask)}
+          title="Task Relationship Graph"
+          subtitle="Candidates, donors, vendors, endorsements, and states connected to this task."
+          compact
+       />
+    ) : null}
 
       <div data-tour="command-recommended-action">
         <SectionCard
