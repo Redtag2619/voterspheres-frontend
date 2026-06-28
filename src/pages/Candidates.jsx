@@ -560,6 +560,203 @@ function RelationshipIntelligenceCard({
   );
 }
 
+
+function number(value, fallback = 0) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function formatInfluenceScore(value) {
+  return `${Math.round(number(value))}/100`;
+}
+
+function influenceTone(value) {
+  const score = number(value);
+  if (score >= 90) return "danger";
+  if (score >= 75) return "demo";
+  if (score >= 55) return "info";
+  return "accent";
+}
+
+function getCandidateInfluenceEntityName(candidate, selectedName) {
+  return (
+    selectedName ||
+    candidate?.candidate_name ||
+    candidate?.full_name ||
+    candidate?.name ||
+    [candidate?.first_name, candidate?.last_name].filter(Boolean).join(" ") ||
+    ""
+  );
+}
+
+async function loadCandidateInfluenceEntity(candidate, selectedName) {
+  const entityName = getCandidateInfluenceEntityName(candidate, selectedName);
+  const state = candidate?.state || candidate?.state_code || "";
+
+  if (!entityName) {
+    return { entity: null, related: [], edges: [], alerts: [] };
+  }
+
+  if (typeof api.influenceEntity === "function") {
+    return api.influenceEntity({
+      entityType: "candidate",
+      entityName,
+      state,
+    });
+  }
+
+  const response = await api.get("/influence/entity", {
+    params: {
+      entityType: "candidate",
+      entityName,
+      state,
+    },
+    timeout: 15000,
+  });
+
+  return response?.data || response;
+}
+
+function CandidateInfluencePanel({
+  candidate,
+  selectedName,
+  influence,
+  loading,
+  error,
+  onOpenInfluence,
+}) {
+  if (!candidate) return null;
+
+  const entity = influence?.entity || null;
+  const related = Array.isArray(influence?.related) ? influence.related : [];
+  const alerts = Array.isArray(influence?.alerts) ? influence.alerts : [];
+  const edges = Array.isArray(influence?.edges) ? influence.edges : [];
+
+  const score =
+    entity?.influence_score ??
+    entity?.centrality_score ??
+    0;
+
+  return (
+    <SectionCard
+      title="Candidate Influence Engine"
+      subtitle="Build 2A influence scoring connected to the national influence graph."
+      right={
+        <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Badge tone={loading ? "warning" : entity ? "active" : "default"}>
+            {loading ? "Loading Influence" : entity ? "Influence Matched" : "No Influence Match"}
+          </Badge>
+          <button type="button" className="vs-button vs-button-secondary" onClick={onOpenInfluence}>
+            Open Influence Dashboard
+          </button>
+        </div>
+      }
+    >
+      {error ? (
+        <div
+          className="vs-banner"
+          style={{
+            borderColor: "#fde68a",
+            background: "#fffbeb",
+            color: "#92400e",
+            marginBottom: 12,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
+
+      <div className="vs-grid-4">
+        <StatCard
+          label="Influence"
+          value={entity ? formatInfluenceScore(entity.influence_score) : "—"}
+          subtext="Composite national score"
+        />
+        <StatCard
+          label="Centrality"
+          value={entity ? formatInfluenceScore(entity.centrality_score) : "—"}
+          subtext="Graph position"
+        />
+        <StatCard
+          label="Reach"
+          value={entity ? formatInfluenceScore(entity.reach_score) : "—"}
+          subtext="Downstream visibility"
+        />
+        <StatCard
+          label="Connections"
+          value={entity?.total_connections || related.length || edges.length || 0}
+          subtext="Direct relationships"
+        />
+      </div>
+
+      <div className="vs-card-muted" style={{ marginTop: 14, padding: 16, display: "grid", gap: 8 }}>
+        <div className="vs-stat-label">Influence Summary</div>
+        <div style={{ color: "var(--vs-text)", fontWeight: 700, lineHeight: 1.55 }}>
+          {entity
+            ? `${selectedName || "This candidate"} has a national influence score of ${formatInfluenceScore(score)} with ${entity.total_connections || related.length || edges.length || 0} mapped relationship connection${(entity.total_connections || related.length || edges.length || 0) === 1 ? "" : "s"}. Use this to prioritize endorsements, donor proximity, consultant fit, and Command Center follow-up.`
+            : loading
+              ? "Loading candidate influence from the national Influence Engine."
+              : "No influence entity is matched yet. Run Influence Sync, then return here to connect this candidate to donor, endorsement, vendor, and organizational influence data."}
+        </div>
+      </div>
+
+      {alerts.length ? (
+        <div className="vs-stack" style={{ marginTop: 14 }}>
+          {alerts.slice(0, 3).map((alert) => (
+            <div
+              key={alert.id || alert.alert_key || alert.title}
+              className="vs-banner"
+              style={{
+                margin: 0,
+                borderColor: number(alert.influence_score) >= 90 ? "#fecaca" : "#fde68a",
+                background: number(alert.influence_score) >= 90 ? "#fef2f2" : "#fffbeb",
+                color: number(alert.influence_score) >= 90 ? "#991b1b" : "#92400e",
+              }}
+            >
+              <strong>{alert.title || "Influence Alert"}</strong>
+              <div style={{ marginTop: 4 }}>{alert.detail || "Influence signal detected."}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {entity ? (
+        <div className="vs-grid-2" style={{ marginTop: 14 }}>
+          <button type="button" className="vs-button" onClick={onOpenInfluence}>
+            Open Influence Dashboard
+          </button>
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.set("entityType", "candidate");
+              params.set("entityName", selectedName || entity.entity_name || "");
+              if (candidate?.state) params.set("state", candidate.state);
+              window.location.href = `/political-graph?${params.toString()}`;
+            }}
+          >
+            Open Political Graph
+          </button>
+        </div>
+      ) : null}
+
+      <div style={{ marginTop: 14 }}>
+        <PoliticalGraphContextPanel
+          entityType="candidate"
+          entityId={candidate.id || candidate.candidate_id || entity?.entity_key}
+          entityName={selectedName || entity?.entity_name}
+          state={candidate.state || candidate.state_code || entity?.state}
+          title="Candidate Influence Relationship Graph"
+          subtitle="Donors, endorsements, vendors, tasks, states, and organizations connected to this candidate."
+          compact
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
+
 export default function Candidates() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -580,6 +777,9 @@ export default function Candidates() {
   const [relationshipGraph, setRelationshipGraph] = useState({ nodes: [], links: [], insights: {}, counts: {} });
   const [loadingRelationshipGraph, setLoadingRelationshipGraph] = useState(false);
   const [relationshipGraphError, setRelationshipGraphError] = useState("");
+  const [candidateInfluence, setCandidateInfluence] = useState({ entity: null, related: [], edges: [], alerts: [] });
+  const [loadingCandidateInfluence, setLoadingCandidateInfluence] = useState(false);
+  const [candidateInfluenceError, setCandidateInfluenceError] = useState("");
   const [refreshingProfile, setRefreshingProfile] = useState(false);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [savingLocks, setSavingLocks] = useState(false);
@@ -843,17 +1043,55 @@ export default function Candidates() {
     };
   }, [selectedCandidateId, data.results]);
 
-  {selectedDetail?.candidate ? (
-  <PoliticalGraphContextPanel
-    entityType="candidate"
-    entityId={selectedDetail.candidate.id || selectedDetail.candidate.candidate_id}
-    entityName={selectedDetail.candidate.name || selectedDetail.candidate.candidate_name}
-    state={selectedDetail.candidate.state || selectedDetail.candidate.state_code}
-    title="Candidate Relationship Graph"
-    subtitle="Donors, endorsements, vendors, tasks, and states connected to this candidate."
-    compact
-  />
-) : null}
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadInfluence() {
+      if (!detailCandidate) {
+        setCandidateInfluence({ entity: null, related: [], edges: [], alerts: [] });
+        setCandidateInfluenceError("");
+        return;
+      }
+
+      try {
+        setLoadingCandidateInfluence(true);
+        setCandidateInfluenceError("");
+
+        const payload = await loadCandidateInfluenceEntity(detailCandidate, selectedName);
+
+        if (!active) return;
+
+        setCandidateInfluence(payload || { entity: null, related: [], edges: [], alerts: [] });
+      } catch (err) {
+        if (!active) return;
+
+        const status = err?.response?.status;
+
+        if (status === 404) {
+          setCandidateInfluenceError("Influence Engine routes are not deployed yet.");
+        } else if (status === 401) {
+          setCandidateInfluenceError("Influence Engine requires an active sign-in token.");
+        } else {
+          setCandidateInfluenceError(
+            err?.response?.data?.error ||
+              err?.message ||
+              "Candidate influence intelligence is unavailable."
+          );
+        }
+
+        setCandidateInfluence({ entity: null, related: [], edges: [], alerts: [] });
+      } finally {
+        if (active) setLoadingCandidateInfluence(false);
+      }
+    }
+
+    loadInfluence();
+
+    return () => {
+      active = false;
+    };
+  }, [detailCandidate, selectedName]);
 
   const candidates = useMemo(() => data.results || [], [data.results]);
 
@@ -1274,6 +1512,21 @@ export default function Candidates() {
                   connections={selectedRelationshipConnections}
                   onOpenGraph={() => navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)}
                   onOpenConsultants={() => navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)}
+                />
+
+                <CandidateInfluencePanel
+                  candidate={detailCandidate}
+                  selectedName={selectedName}
+                  influence={candidateInfluence}
+                  loading={loadingCandidateInfluence}
+                  error={candidateInfluenceError}
+                  onOpenInfluence={() => {
+                    const params = new URLSearchParams();
+                    if (detailCandidate?.state) params.set("state", detailCandidate.state);
+                    params.set("type", "candidate");
+                    if (selectedName) params.set("search", selectedName);
+                    navigate(`/influence?${params.toString()}`);
+                  }}
                 />
 
                 <SectionCard
