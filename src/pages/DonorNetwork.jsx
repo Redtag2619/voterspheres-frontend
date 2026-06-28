@@ -737,15 +737,12 @@ export default function DonorNetwork() {
           </div>
         </SectionCard>
 
-        {(filteredDonors?.[0] || donors?.[0] || rows?.[0]) ? (
+        {filteredResults?.[0] ? (
           <PoliticalGraphContextPanel
             entityType="donor"
-            entityId={(filteredDonors?.[0] || donors?.[0] || rows?.[0])?.id}
-            entityName={
-              (filteredDonors?.[0] || donors?.[0] || rows?.[0])?.donor_name ||
-              (filteredDonors?.[0] || donors?.[0] || rows?.[0])?.name
-            }
-            state={(filteredDonors?.[0] || donors?.[0] || rows?.[0])?.state}
+            entityId={filteredResults[0].id || filteredResults[0].donor_id}
+            entityName={filteredResults[0].donor_name || filteredResults[0].name}
+            state={filteredResults[0].state || filteredResults[0].state_code}
             title="Donor Relationship Graph"
             subtitle="Candidates, endorsements, states, vendors, and tasks connected to this donor."
             compact
