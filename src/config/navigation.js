@@ -39,6 +39,7 @@ export const navigationSections = [
     items: [
       { label: "Command Center", to: "/command-center" },
       { label: "Platform Intelligence", to: "/platform-intelligence" },
+      { label: "Influence Dashboard", to: "/influence" },
       { label: "Mission Control", to: "/mission-control" },
       { label: "War Room", to: "/war-room" },
       { label: "Campaign CRM", to: "/campaign-crm" },
