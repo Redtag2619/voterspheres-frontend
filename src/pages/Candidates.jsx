@@ -1044,6 +1044,36 @@ export default function Candidates() {
   }, [selectedCandidateId, data.results]);
 
 
+  const candidates = useMemo(() => data.results || [], [data.results]);
+
+  const intelById = useMemo(() => {
+    const map = new Map();
+    for (const row of candidateIntel?.results || []) {
+      map.set(String(row.id), row);
+    }
+    return map;
+  }, [candidateIntel]);
+
+  const selectedIntel = selectedCandidateId ? intelById.get(String(selectedCandidateId)) : null;
+
+  const summary = useMemo(() => {
+    const items = candidates;
+    return {
+      total_candidates: Number(data.total || items.length || 0),
+      democratic_candidates: items.filter((c) => String(c.party || "").toLowerCase().includes("democratic")).length,
+      republican_candidates: items.filter((c) => String(c.party || "").toLowerCase().includes("republican")).length,
+      other_candidates: items.filter((c) => {
+        const p = String(c.party || "").toLowerCase();
+        return !p.includes("democratic") && !p.includes("republican");
+      }).length
+    };
+  }, [candidates, data.total]);
+
+  const detailCandidate = selectedDetail?.candidate || null;
+  const profile = selectedDetail?.profile || {};
+  const selectedName = normalizeCandidateName(detailCandidate);
+
+
   useEffect(() => {
     let active = true;
 
@@ -1092,35 +1122,6 @@ export default function Candidates() {
       active = false;
     };
   }, [detailCandidate, selectedName]);
-
-  const candidates = useMemo(() => data.results || [], [data.results]);
-
-  const intelById = useMemo(() => {
-    const map = new Map();
-    for (const row of candidateIntel?.results || []) {
-      map.set(String(row.id), row);
-    }
-    return map;
-  }, [candidateIntel]);
-
-  const selectedIntel = selectedCandidateId ? intelById.get(String(selectedCandidateId)) : null;
-
-  const summary = useMemo(() => {
-    const items = candidates;
-    return {
-      total_candidates: Number(data.total || items.length || 0),
-      democratic_candidates: items.filter((c) => String(c.party || "").toLowerCase().includes("democratic")).length,
-      republican_candidates: items.filter((c) => String(c.party || "").toLowerCase().includes("republican")).length,
-      other_candidates: items.filter((c) => {
-        const p = String(c.party || "").toLowerCase();
-        return !p.includes("democratic") && !p.includes("republican");
-      }).length
-    };
-  }, [candidates, data.total]);
-
-  const detailCandidate = selectedDetail?.candidate || null;
-  const profile = selectedDetail?.profile || {};
-  const selectedName = normalizeCandidateName(detailCandidate);
   const scrapedPageCount = Array.isArray(profile?.scraped_pages) ? profile.scraped_pages.length : 0;
   const health = getProfileHealth(profile, detailCandidate);
   const commandSummary = buildCommandSummary(detailCandidate, profile, health);
