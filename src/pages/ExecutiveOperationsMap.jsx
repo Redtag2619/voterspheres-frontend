@@ -465,6 +465,19 @@ function openPath(path) {
   window.location.href = path;
 }
 
+function openPoliticalGraphForState(state) {
+  const code = String(state?.state || state?.state_code || "").toUpperCase();
+  const params = new URLSearchParams();
+
+  if (code) {
+    params.set("state", code);
+    params.set("entityType", "state");
+    params.set("entityName", code);
+  }
+
+  openPath(`/political-graph?${params.toString()}`);
+}
+
 function buildCommandCenterUrl(state, context = {}) {
   const code = String(state?.state || state?.state_code || context.state || "").toUpperCase();
   const params = new URLSearchParams();
@@ -762,6 +775,7 @@ function ExecutiveStateDrilldown({ selected, overlay, layer, onRefresh }) {
 
         <div className="ops-drilldown-buttons">
           <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "state-drilldown", layer })}>Open Command Center</button>
+          <button type="button" onClick={() => openPoliticalGraphForState(selected)}>Political Graph</button>
           <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>Operations Drilldown</button>
           <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>Vendor Coverage</button>
           <button type="button" onClick={() => openPath("/warroom")}>War Room</button>
@@ -816,6 +830,7 @@ function ExecutiveIntelPanel({ selected, layer, alerts = [], lastUpdated, onRefr
           <div className="ops-action-grid">
             <button type="button" onClick={() => openCommandCenterFromState(selected, { action: "intel-panel", layer })}>Open Command Center</button>
             <button type="button" onClick={() => openPath(`/vendors?state=${selected.state}&source=executive-map`)}>View Vendors</button>
+            <button type="button" onClick={() => openPoliticalGraphForState(selected)}>Political Graph</button>
             <button type="button" onClick={() => openPath("/warroom")}>Escalate War Room</button>
             <button type="button" onClick={onRefresh}>Refresh Intel</button>
             <button type="button" onClick={() => openPath(`/state-operations/${selected.state}`)}>Operations Drilldown</button>
