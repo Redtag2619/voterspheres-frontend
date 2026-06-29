@@ -83,7 +83,7 @@ function itemTitle(item = {}) {
 
 function itemDetail(item = {}) {
   return item.detail || [
-   {item.forecast_type || item.coalition_type || item.relationship_type || "link"},
+   {item.forecast_type || item.coalition_type || item.relationship_type || "link"}
     item.state,
     item.entity_type || item.source_type,
     item.horizon_days ? `${item.horizon_days} day horizon` : "",
