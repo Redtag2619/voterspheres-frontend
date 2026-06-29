@@ -740,4 +740,3 @@ export default function ExecutiveForecastDashboard() {
     </PageShell>
   );
 }
-
