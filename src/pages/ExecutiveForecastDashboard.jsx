@@ -46,6 +46,10 @@ function fmtScore(value) {
   return `${Math.round(n(value))}/100`;
 }
 
+function fmtFullPercent(value) {
+  return `${Math.round(n(value))}%`;
+}
+
 function fmtPct(value) {
   return `${Math.round(n(value))}%`;
 }
@@ -79,7 +83,7 @@ function itemTitle(item = {}) {
 
 function itemDetail(item = {}) {
   return item.detail || [
-    item.forecast_type || item.coalition_type || item.relationship_type,
+    {item.forecast_type || item.coalition_type || item.relationship_type || "link"}
     item.state,
     item.entity_type || item.source_type,
     item.horizon_days ? `${item.horizon_days} day horizon` : "",
@@ -139,10 +143,10 @@ function ForecastRow({ item, selected, onSelect }) {
         subtitle={itemDetail(item)}
         meta={[
           { label: "Probability", value: fmtPct(item.probability) },
-          { label: "Opportunity", value: fmtScore(item.opportunity_score || item.coalition_score) },
-          { label: "Momentum", value: fmtScore(item.momentum_score) },
-          { label: "Risk", value: fmtScore(item.risk_score) },
-          { label: "Confidence", value: fmtScore(item.confidence_score) },
+          { label: "Opportunity", value: fmtFullPercent(item.opportunity_score || item.coalition_score) },
+          { label: "Momentum", value: fmtFullPercent(item.momentum_score) },
+          { label: "Risk", value: fmtFullPercent(item.risk_score) },
+          { label: "Confidence", value: fmtFullPercent(item.confidence_score) },
         ]}
         alert={n(item.probability) >= 85 ? "vs-live-dot" : n(item.probability) >= 70 ? "vs-live-dot-warning" : "vs-live-dot-success"}
         right={
@@ -168,7 +172,7 @@ function RelationshipRow({ item, onSelect }) {
       subtitle={item.detail || `${item.relationship_type || "relationship"} forecast`}
       meta={[
         { label: "State", value: item.state || "National" },
-        { label: "Type", value: item.relationship_type || "relationship" },
+        { label: "Type", value: item.relationship_type || "link" },
         { label: "Probability", value: fmtPct(item.probability) },
         { label: "Strength", value: fmtScore(item.strength_score) },
       ]}
@@ -244,9 +248,9 @@ function SelectedForecastPanel({ item }) {
 
       <div className="vs-grid-2">
         <StatCard label="Probability" value={fmtPct(item.probability)} subtext="Forecast likelihood" />
-        <StatCard label="Confidence" value={fmtScore(item.confidence_score)} subtext="Data confidence" />
-        <StatCard label="Opportunity" value={fmtScore(item.opportunity_score || item.coalition_score)} subtext="Growth potential" />
-        <StatCard label="Risk" value={fmtScore(item.risk_score)} subtext="Downside exposure" />
+        <StatCard label="Confidence" value={fmtFullPercent(item.confidence_score)} subtext="Data confidence" />
+        <StatCard label="Opportunity" value={fmtFullPercent(item.opportunity_score || item.coalition_score)} subtext="Growth potential" />
+        <StatCard label="Risk" value={fmtFullPercent(item.risk_score)} subtext="Downside exposure" />
       </div>
 
       {item.recommended_action ? (
