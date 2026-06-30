@@ -91,6 +91,7 @@ const PoliticalRelationshipGraph = lazy(() => import("./pages/PoliticalRelations
 const InfluenceDashboard = lazy(() => import("./pages/InfluenceDashboard.jsx"));
 const ExecutiveForecastDashboard = lazy(() => import("./pages/ExecutiveForecastDashboard.jsx"));
 const CoalitionIntelligenceDashboard = lazy(() => import("./pages/CoalitionIntelligenceDashboard.jsx"));
+const StrategyRecommendationDashboard = lazy(() => import("./pages/StrategyRecommendationDashboard.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -297,6 +298,7 @@ function AppRoutes() {
               <Route path="/influence" element={<InfluenceDashboard />} />
               <Route path="/forecast" element={<ExecutiveForecastDashboard />} />
               <Route path="/coalitions" element={<CoalitionIntelligenceDashboard />} />
+              <Route path="/strategy" element={<StrategyRecommendationDashboard />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
