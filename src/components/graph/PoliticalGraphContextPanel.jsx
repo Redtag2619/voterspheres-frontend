@@ -96,7 +96,7 @@ function normalizePayload(payload = {}) {
     0;
 
   return {
-    matched: Boolean(payload.matched ?? graph.matched ?? nodes.length || edges.length || selected),
+    matched: Boolean((payload.matched ?? graph.matched) ?? Boolean(nodes.length || edges.length || selected)),
     nodes,
     edges,
     actions,
