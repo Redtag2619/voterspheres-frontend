@@ -136,33 +136,73 @@ async function recalculateForecast(syncFirst) {
   return apiPost("/influence/recalculate", { syncFirst });
 }
 
-function ForecastRow({ item, selected, onSelect }) {
+function ScoreMeter({ label, value, tone = "info" }) {
+  const score = Math.max(0, Math.min(100, Math.round(n(value))));
+
   return (
-    <div className={`forecast-row-shell ${selected ? "is-selected" : ""}`}>
-      <ResponsiveRow
-        title={itemTitle(item)}
-        subtitle={itemDetail(item)}
-        meta={[
-          { label: "Probability", value: fmtPct(item.probability) },
-          { label: "Opportunity", value: fmtFullPercent(item.opportunity_score || item.coalition_score) },
-          { label: "Momentum", value: fmtFullPercent(item.momentum_score) },
-          { label: "Risk", value: fmtFullPercent(item.risk_score) },
-          { label: "Confidence", value: fmtFullPercent(item.confidence_score) },
-        ]}
-        alert={n(item.probability) >= 85 ? "vs-live-dot" : n(item.probability) >= 70 ? "vs-live-dot-warning" : "vs-live-dot-success"}
-        right={
-          <div className="forecast-actions">
-            <Badge tone={typeTone(item.forecast_type || item.coalition_type || item.relationship_type)}>
-              {item.forecast_type || item.coalition_type || item.relationship_type || "forecast"}
-            </Badge>
-            <Badge tone={toneByScore(item.probability)}>{fmtPct(item.probability)}</Badge>
-            <button type="button" className="vs-button vs-button-secondary" onClick={() => onSelect(item)}>
-              Inspect
-            </button>
-          </div>
-        }
-      />
+    <div className={`vs-terminal-meter ${tone}`}>
+      <div className="vs-terminal-meter-head">
+        <span>{label}</span>
+        <strong>{score}%</strong>
+      </div>
+      <div className="vs-terminal-meter-track">
+        <i style={{ width: `${score}%` }} />
+      </div>
     </div>
+  );
+}
+
+function SignalGauge({ value, label, tone = "info" }) {
+  const score = Math.max(0, Math.min(100, Math.round(n(value))));
+
+  return (
+    <div className={`vs-terminal-gauge ${tone}`} style={{ "--score": `${score}%` }}>
+      <div className="vs-terminal-gauge-core">
+        <strong>{score}%</strong>
+        <span>{label}</span>
+      </div>
+    </div>
+  );
+}
+
+function ForecastRow({ item, selected, onSelect }) {
+  const probability = n(item.probability);
+  const opportunity = n(item.opportunity_score || item.coalition_score);
+  const momentum = n(item.momentum_score);
+  const risk = n(item.risk_score);
+  const confidence = n(item.confidence_score);
+  const signalTone = typeTone(item.forecast_type || item.coalition_type || item.relationship_type);
+
+  return (
+    <button
+      type="button"
+      className={`forecast-row-shell vs-terminal-signal ${selected ? "is-selected" : ""}`}
+      onClick={() => onSelect(item)}
+    >
+      <div className="vs-terminal-signal-head">
+        <div>
+          <div className="vs-terminal-kicker">
+            {String(item.forecast_type || item.coalition_type || item.relationship_type || "Forecast").replace(/_/g, " ")}
+          </div>
+          <h3>{itemTitle(item)}</h3>
+          <p>{itemDetail(item)}</p>
+        </div>
+        <SignalGauge value={probability} label="Probability" tone={toneByScore(probability)} />
+      </div>
+
+      <div className="vs-terminal-signal-grid">
+        <ScoreMeter label="Opportunity" value={opportunity} tone={toneByScore(opportunity)} />
+        <ScoreMeter label="Momentum" value={momentum} tone={toneByScore(momentum)} />
+        <ScoreMeter label="Risk" value={risk} tone={toneByScore(risk)} />
+        <ScoreMeter label="Confidence" value={confidence} tone={toneByScore(confidence)} />
+      </div>
+
+      <div className="vs-terminal-signal-foot">
+        <Badge tone={signalTone}>{String(item.forecast_type || item.coalition_type || item.relationship_type || "forecast").replace(/_/g, " ")}</Badge>
+        <span>Probability {fmtFullPercent(probability)}</span>
+        <em>Inspect →</em>
+      </div>
+    </button>
   );
 }
 
@@ -426,23 +466,198 @@ export default function ExecutiveForecastDashboard() {
     return { high, critical, avgConfidence };
   }, [predictions]);
 
+  const topOpportunityScore = n(opportunities?.[0]?.opportunity_score || opportunities?.[0]?.coalition_score || 0);
+  const topRiskScore = n(risks?.[0]?.risk_score || 0);
+  const topMomentumScore = n(momentum?.[0]?.momentum_score || 0);
   const brief = buildBrief({ predictions, opportunities, risks, momentum, coalitions });
 
   return (
     <PageShell
       eyebrow="Build 2A.5"
-      title="Executive Forecast Dashboard"
-      description="Turn Influence Forecast Engine predictions into executive decisions: influence growth, decline risk, donor movement, endorsement probability, vendor fit, momentum, and coalition formation."
+      title="Executive Forecast Terminal"
+      description="Bloomberg/Palantir-style political forecasting command center for opportunity, risk, momentum, relationships, and coalition formation."
       tickerItems={[
         { label: "Predictions", value: `${fmtNum(predictions.length)}`, dotClass: "vs-live-dot-success" },
-        { label: "High Probability", value: `${summary.high}`, dotClass: summary.high ? "vs-live-dot-warning" : "vs-live-dot-success" },
-        { label: "Critical", value: `${summary.critical}`, dotClass: summary.critical ? "vs-live-dot" : "vs-live-dot-success" },
+        { label: "Opportunity", value: `${fmtFullPercent(topOpportunityScore)}`, dotClass: topOpportunityScore >= 70 ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Risk", value: `${fmtFullPercent(topRiskScore)}`, dotClass: topRiskScore >= 70 ? "vs-live-dot" : "vs-live-dot-success" },
         { label: "Coalitions", value: `${coalitions.length}`, dotClass: coalitions.length ? "vs-live-dot-warning" : "vs-live-dot-success" },
         { label: "Relationships", value: `${relationships.length}`, dotClass: relationships.length ? "vs-live-dot-success" : "vs-live-dot-warning" },
         { label: "Updated", value: recalculating ? "Recalculating" : lastUpdated || "Live", dotClass: recalculating ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
       <style>{`
+
+        .forecast-brief-grid {
+          position: relative;
+        }
+
+        .forecast-brief-grid::before {
+          content: "EXECUTIVE FORECAST TERMINAL";
+          grid-column: 1 / -1;
+          display: block;
+          color: rgba(125, 211, 252, 0.92);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          margin: 0 0 -2px;
+        }
+
+        .vs-terminal-signal {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 0;
+          cursor: pointer;
+          color: inherit;
+        }
+
+        .vs-terminal-signal-head {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 16px;
+          align-items: start;
+          padding: 16px 16px 12px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.62));
+        }
+
+        .vs-terminal-kicker {
+          color: rgba(147, 197, 253, 0.94);
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+        }
+
+        .vs-terminal-signal h3 {
+          margin: 8px 0 6px;
+          color: #fff;
+          font-size: 18px;
+          line-height: 1.08;
+          font-weight: 950;
+          letter-spacing: -0.045em;
+        }
+
+        .vs-terminal-signal p {
+          margin: 0;
+          color: rgba(203, 213, 225, 0.72);
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .vs-terminal-gauge {
+          width: 82px;
+          height: 82px;
+          border-radius: 999px;
+          background: conic-gradient(rgba(96, 165, 250, 0.95) var(--score), rgba(30, 41, 59, 0.85) 0);
+          display: grid;
+          place-items: center;
+          flex: none;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 12px 30px rgba(2, 6, 23, 0.28);
+        }
+
+        .vs-terminal-gauge.danger { background: conic-gradient(rgba(248, 113, 113, 0.95) var(--score), rgba(30, 41, 59, 0.85) 0); }
+        .vs-terminal-gauge.demo { background: conic-gradient(rgba(251, 191, 36, 0.95) var(--score), rgba(30, 41, 59, 0.85) 0); }
+        .vs-terminal-gauge.active { background: conic-gradient(rgba(74, 222, 128, 0.95) var(--score), rgba(30, 41, 59, 0.85) 0); }
+
+        .vs-terminal-gauge-core {
+          width: 66px;
+          height: 66px;
+          border-radius: inherit;
+          background: rgba(2, 6, 23, 0.9);
+          display: grid;
+          place-items: center;
+          align-content: center;
+          text-align: center;
+        }
+
+        .vs-terminal-gauge-core strong {
+          color: #fff;
+          font-size: 17px;
+          font-weight: 980;
+          letter-spacing: -0.06em;
+        }
+
+        .vs-terminal-gauge-core span {
+          color: rgba(203, 213, 225, 0.66);
+          font-size: 8px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .vs-terminal-signal-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          padding: 14px 16px;
+          background: rgba(2, 6, 23, 0.28);
+        }
+
+        .vs-terminal-meter {
+          display: grid;
+          gap: 6px;
+        }
+
+        .vs-terminal-meter-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          color: rgba(203, 213, 225, 0.72);
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .vs-terminal-meter-head strong {
+          color: white;
+          letter-spacing: 0;
+        }
+
+        .vs-terminal-meter-track {
+          height: 8px;
+          border-radius: 999px;
+          overflow: hidden;
+          background: rgba(30, 41, 59, 0.82);
+        }
+
+        .vs-terminal-meter-track i {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(96, 165, 250, 0.7), rgba(34, 211, 238, 0.96));
+        }
+
+        .vs-terminal-meter.danger .vs-terminal-meter-track i { background: linear-gradient(90deg, rgba(239, 68, 68, 0.72), rgba(248, 113, 113, 0.96)); }
+        .vs-terminal-meter.demo .vs-terminal-meter-track i { background: linear-gradient(90deg, rgba(245, 158, 11, 0.72), rgba(251, 191, 36, 0.96)); }
+        .vs-terminal-meter.active .vs-terminal-meter-track i { background: linear-gradient(90deg, rgba(34, 197, 94, 0.72), rgba(74, 222, 128, 0.96)); }
+
+        .vs-terminal-signal-foot {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          flex-wrap: wrap;
+          padding: 0 16px 16px;
+          color: rgba(203, 213, 225, 0.68);
+          font-size: 11px;
+          font-weight: 850;
+          background: rgba(2, 6, 23, 0.28);
+        }
+
+        .vs-terminal-signal-foot em {
+          color: rgba(147, 197, 253, 0.96);
+          font-style: normal;
+        }
+
+        .brief-card {
+          box-shadow: 0 18px 50px rgba(2, 6, 23, 0.22);
+        }
+
         .forecast-toolbar {
           display: grid;
           grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.4fr) minmax(220px, 0.48fr) minmax(150px, 0.25fr);
@@ -687,7 +902,7 @@ export default function ExecutiveForecastDashboard() {
           </SectionCard>
 
           <div className="vs-grid-2">
-            <SectionCard title="Top Opportunities" subtitle="Forecasts with the strongest campaign opportunity score." right={<Badge tone="active">{opportunities.length}</Badge>}>
+            <SectionCard title="Top Opportunities" subtitle="Forecasts with the strongest campaign opportunity score." right={<Badge tone="active">{fmtFullPercent(topOpportunityScore)}</Badge>}>
               <div className="vs-stack">
                 {!opportunities.length ? <EmptyState text="No forecast opportunities available." /> : opportunities.slice(0, 8).map((item) => (
                   <ForecastRow key={`opp-${item.prediction_key || item.id}`} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
@@ -695,7 +910,7 @@ export default function ExecutiveForecastDashboard() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Political Risk Center" subtitle="Forecasted decline, instability, and downside exposure." right={<Badge tone="danger">{risks.length}</Badge>}>
+            <SectionCard title="Political Risk Center" subtitle="Forecasted decline, instability, and downside exposure." right={<Badge tone="danger">{fmtFullPercent(topRiskScore)}</Badge>}>
               <div className="vs-stack">
                 {!risks.length ? <EmptyState text="No forecast risks available." /> : risks.slice(0, 8).map((item) => (
                   <ForecastRow key={`risk-${item.prediction_key || item.id}`} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
@@ -710,7 +925,7 @@ export default function ExecutiveForecastDashboard() {
             <SelectedForecastPanel item={selectedForecast} />
           </SectionCard>
 
-          <SectionCard title="Momentum Engine" subtitle="Fastest-rising entities by forecasted momentum." right={<Badge tone="demo">{momentum.length}</Badge>}>
+          <SectionCard title="Momentum Engine" subtitle="Fastest-rising entities by forecasted momentum." right={<Badge tone="demo">{fmtFullPercent(topMomentumScore)}</Badge>}>
             <div className="vs-stack">
               {!momentum.length ? <EmptyState text="No momentum forecasts available." /> : momentum.slice(0, 8).map((item) => (
                 <ForecastRow key={`momentum-${item.prediction_key || item.id}`} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
