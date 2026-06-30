@@ -198,7 +198,7 @@ function ForecastRow({ item, selected, onSelect }) {
       </div>
 
       <div className="vs-terminal-signal-foot">
-        <Badge tone={signalTone}>{String(item.forecast_type || item.coalition_type || item.relationship_type || "forecast").replace(/_/g, " ")}</Badge>
+        <Badge tone={signalTone}>Forecast Signal</Badge>
         <span>Probability {fmtFullPercent(probability)}</span>
         <em>Inspect →</em>
       </div>
