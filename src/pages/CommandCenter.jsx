@@ -298,6 +298,46 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
   };
 }
 
+
+function DecisionIntelligenceCommandCard() {
+  return (
+    <div data-tour="command-decision-intelligence">
+      <SectionCard
+        title="Executive Decision Intelligence"
+        subtitle="Build 2D decision center for AI recommendations, ranked options, confidence scoring, risk review, and executive action paths."
+        right={<Badge tone="accent">Build 2D</Badge>}
+      >
+        <div className="decision-intelligence-command-card">
+          <div className="decision-intelligence-command-copy">
+            <span className="decision-intelligence-kicker">AI Executive Decision Layer</span>
+            <h3>Turn cross-module intelligence into ranked executive decisions.</h3>
+            <p>
+              Review synthesized signals from Forecast, Influence, Coalitions, Strategy, Operations, Political Graph,
+              vendors, alerts, and execution tasks in one decision workspace.
+            </p>
+          </div>
+
+          <div className="decision-intelligence-command-grid">
+            <div><span>Decision Score</span><b>Live</b></div>
+            <div><span>Risk Matrix</span><b>Active</b></div>
+            <div><span>Scenario Options</span><b>Ranked</b></div>
+            <div><span>Action Paths</span><b>Ready</b></div>
+          </div>
+
+          <div className="decision-intelligence-command-actions">
+            <Link className="vs-button" to="/executive-decision-intelligence">
+              Open Decision Intelligence
+            </Link>
+            <Link className="vs-button vs-button-secondary" to="/strategy-recommendations">
+              Review Strategy Engine
+            </Link>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
 function MetricGrid({ metrics = [] }) {
   return (
     <div className="vs-grid-4" data-tour="command-kpis">
@@ -1504,11 +1544,109 @@ export default function CommandCenter() {
           font-size: 13px;
         }
 
+
+
+        .decision-intelligence-command-card {
+          border-radius: 24px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background:
+            radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.12), transparent 32%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.72));
+          padding: 18px;
+          display: grid;
+          grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr) auto;
+          gap: 18px;
+          align-items: center;
+          box-shadow: 0 22px 55px rgba(2, 6, 23, 0.22);
+          min-width: 0;
+        }
+
+        .decision-intelligence-command-copy {
+          min-width: 0;
+        }
+
+        .decision-intelligence-kicker {
+          display: inline-flex;
+          color: rgba(125, 211, 252, 0.96);
+          font-size: 11px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          margin-bottom: 8px;
+        }
+
+        .decision-intelligence-command-copy h3 {
+          margin: 0;
+          color: white;
+          font-size: 22px;
+          line-height: 1.18;
+          letter-spacing: -0.04em;
+          overflow-wrap: anywhere;
+        }
+
+        .decision-intelligence-command-copy p {
+          margin: 8px 0 0;
+          color: rgba(203, 213, 225, 0.76);
+          line-height: 1.5;
+          max-width: 820px;
+          overflow-wrap: anywhere;
+        }
+
+        .decision-intelligence-command-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .decision-intelligence-command-grid div {
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.58);
+          padding: 12px;
+          min-width: 0;
+        }
+
+        .decision-intelligence-command-grid span {
+          display: block;
+          color: rgba(203, 213, 225, 0.62);
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .decision-intelligence-command-grid b {
+          display: block;
+          margin-top: 5px;
+          color: white;
+          font-size: 15px;
+          overflow-wrap: anywhere;
+        }
+
+        .decision-intelligence-command-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          align-items: stretch;
+          justify-content: center;
+          min-width: 220px;
+        }
+
         @media (max-width: 1100px) {
           .county-task-grid-wrap,
           .command-bottom-grid,
-          .command-two-col {
+          .command-two-col,
+          .decision-intelligence-command-card {
             grid-template-columns: 1fr;
+          }
+
+          .decision-intelligence-command-actions {
+            min-width: 0;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: flex-start;
           }
         }
 
@@ -1624,6 +1762,8 @@ export default function CommandCenter() {
       </div>
 
       <MetricGrid metrics={metrics} />
+
+      <DecisionIntelligenceCommandCard />
 
       <div data-tour="command-recommended-action">
         <SectionCard
