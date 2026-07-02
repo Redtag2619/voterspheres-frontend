@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"; 
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchDecisionIntelligence, seedDecisionIntelligence } from "../api/decisionIntelligenceApi";
 
@@ -43,6 +43,7 @@ const fallbackDecisionData = {
           projected_risk: 39,
           confidence: 84,
           timeline: "7-14 days",
+          cost_level: "medium",
         },
         {
           id: "fallback-option-2",
@@ -52,6 +53,7 @@ const fallbackDecisionData = {
           projected_risk: 58,
           confidence: 81,
           timeline: "3-7 days",
+          cost_level: "high",
         },
       ],
       actions: [
@@ -128,16 +130,27 @@ function n(value, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+function pct(value) {
+  return `${Math.round(n(value))}%`;
+}
+
+function titleCase(value = "") {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function toneFromPriority(value) {
   const next = String(value || "").toLowerCase();
   if (["critical", "high"].includes(next)) return "danger";
-  if (["medium", "watch", "warning"].includes(next)) return "accent";
-  if (["open", "active", "stable"].includes(next)) return "active";
+  if (["medium", "watch", "warning", "planning"].includes(next)) return "accent";
+  if (["open", "active", "stable", "complete", "completed"].includes(next)) return "active";
   return "default";
 }
 
 function normalizeDecisionPayload(payload) {
   const source = payload || fallbackDecisionData;
+
   return {
     ...fallbackDecisionData,
     ...source,
@@ -151,9 +164,25 @@ function normalizeDecisionPayload(payload) {
 }
 
 function ScoreBar({ value = 0, inverse = false }) {
+  const width = Math.min(100, Math.max(0, n(value)));
+
   return (
     <div className={inverse ? "decision-score-bar inverse" : "decision-score-bar"}>
-      <span style={{ width: `${Math.min(100, Math.max(0, n(value)))}%` }} />
+      <span style={{ width: `${width}%` }} />
+    </div>
+  );
+}
+
+function FullPercentCard({ title, value, subtitle, inverse = false, tone = "info" }) {
+  return (
+    <div className="decision-score-card">
+      <span>{title}</span>
+      <strong>{pct(value)}</strong>
+      <p>{subtitle}</p>
+      <ScoreBar value={value} inverse={inverse} />
+      <div className="decision-score-footer">
+        <Badge tone={tone}>{title}: {pct(value)}</Badge>
+      </div>
     </div>
   );
 }
@@ -169,12 +198,12 @@ function DecisionRow({ decision, active, onClick }) {
         title={decision.title}
         subtitle={decision.rationale || decision.recommendation || "Executive decision requires review."}
         meta={[
-          { label: "Type", value: decision.decision_type || "strategic" },
-          { label: "Priority", value: decision.priority || "medium" },
-          { label: "Impact", value: `${n(decision.impact_score)}%` },
-          { label: "Risk", value: `${n(decision.risk_score)}%` },
+          { label: "Decision Type", value: titleCase(decision.decision_type || "strategic") },
+          { label: "Priority Level", value: titleCase(decision.priority || "medium") },
+          { label: "Impact Percentage", value: pct(decision.impact_score) },
+          { label: "Risk Percentage", value: pct(decision.risk_score) },
         ]}
-        right={<Badge tone={toneFromPriority(decision.priority)}>{decision.priority || "medium"}</Badge>}
+        right={<Badge tone={toneFromPriority(decision.priority)}>{titleCase(decision.priority || "medium")}</Badge>}
       />
     </button>
   );
@@ -187,11 +216,12 @@ function SignalRow({ signal }) {
         title={signal.title || "Executive signal"}
         subtitle={signal.description || "Review signal details."}
         meta={[
-          { label: "Source", value: signal.source_module || signal.signal_type || "intelligence" },
-          { label: "State", value: signal.state_code || "National" },
+          { label: "Signal Source", value: titleCase(signal.source_module || signal.signal_type || "intelligence") },
+          { label: "State Scope", value: signal.state_code || "National" },
+          { label: "Severity Level", value: titleCase(signal.severity || "signal") },
         ]}
         alert={String(signal.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
-        right={<Badge tone={toneFromPriority(signal.severity)}>{signal.severity || "signal"}</Badge>}
+        right={<Badge tone={toneFromPriority(signal.severity)}>{titleCase(signal.severity || "signal")}</Badge>}
       />
     </div>
   );
@@ -208,7 +238,9 @@ export default function ExecutiveDecisionIntelligence() {
     try {
       setLoading(true);
       setApiWarning("");
+
       const result = normalizeDecisionPayload(await fetchDecisionIntelligence(1));
+
       setData(result);
       setActiveDecisionId((current) => current || result.decisions?.[0]?.id || null);
     } catch (error) {
@@ -228,6 +260,7 @@ export default function ExecutiveDecisionIntelligence() {
     try {
       setSeedLoading(true);
       setApiWarning("");
+
       await seedDecisionIntelligence(1);
       await loadData();
     } catch (error) {
@@ -348,6 +381,18 @@ export default function ExecutiveDecisionIntelligence() {
           letter-spacing: -0.05em;
         }
 
+        .decision-score-card p {
+          margin: 4px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 11px;
+          line-height: 1.45;
+        }
+
+        .decision-score-footer {
+          display: flex;
+          margin-top: 10px;
+        }
+
         .decision-score-bar {
           height: 7px;
           margin-top: 10px;
@@ -459,8 +504,8 @@ export default function ExecutiveDecisionIntelligence() {
       <div className="vs-grid-4">
         <StatCard label="Open Decisions" value={summary.openDecisions || 0} subtext="Executive items requiring review" />
         <StatCard label="High Priority" value={summary.highPriority || 0} subtext="Requires executive attention" />
-        <StatCard label="Avg Confidence" value={`${summary.avgConfidence || 0}%`} subtext="Recommendation confidence" />
-        <StatCard label="Avg Risk" value={`${summary.avgRisk || 0}%`} subtext={`${summary.liveSignals || 0} live signals`} />
+        <StatCard label="Average Confidence" value={pct(summary.avgConfidence)} subtext="Full recommendation confidence percentage" />
+        <StatCard label="Average Risk" value={pct(summary.avgRisk)} subtext={`Full risk percentage • ${summary.liveSignals || 0} live signals`} />
       </div>
 
       <div className="decision-intel-grid">
@@ -489,7 +534,7 @@ export default function ExecutiveDecisionIntelligence() {
           <SectionCard
             title="AI Executive Recommendation"
             subtitle="Primary recommended action with rationale and source-module traceability."
-            right={<Badge tone={toneFromPriority(activeDecision?.priority)}>{activeDecision?.status || "open"}</Badge>}
+            right={<Badge tone={toneFromPriority(activeDecision?.priority)}>{titleCase(activeDecision?.status || "open")}</Badge>}
           >
             {activeDecision ? (
               <div className="vs-stack">
@@ -499,16 +544,37 @@ export default function ExecutiveDecisionIntelligence() {
                   <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale}</p>
                   <div className="decision-source-row">
                     {arr(activeDecision.source_modules).map((source) => (
-                      <Badge key={source} tone="accent">{source}</Badge>
+                      <Badge key={source} tone="accent">{titleCase(source)}</Badge>
                     ))}
                   </div>
                 </div>
 
                 <div className="decision-score-grid">
-                  <div className="decision-score-card"><span>Confidence</span><strong>{n(activeDecision.confidence_score)}%</strong><ScoreBar value={activeDecision.confidence_score} /></div>
-                  <div className="decision-score-card"><span>Impact</span><strong>{n(activeDecision.impact_score)}%</strong><ScoreBar value={activeDecision.impact_score} /></div>
-                  <div className="decision-score-card"><span>Urgency</span><strong>{n(activeDecision.urgency_score)}%</strong><ScoreBar value={activeDecision.urgency_score} /></div>
-                  <div className="decision-score-card"><span>Risk</span><strong>{n(activeDecision.risk_score)}%</strong><ScoreBar value={activeDecision.risk_score} inverse /></div>
+                  <FullPercentCard
+                    title="Confidence Percentage"
+                    value={activeDecision.confidence_score}
+                    subtitle="How reliable this executive recommendation is."
+                    tone="active"
+                  />
+                  <FullPercentCard
+                    title="Impact Percentage"
+                    value={activeDecision.impact_score}
+                    subtitle="Projected strategic value if executed."
+                    tone="info"
+                  />
+                  <FullPercentCard
+                    title="Urgency Percentage"
+                    value={activeDecision.urgency_score}
+                    subtitle="How quickly leadership should act."
+                    tone="accent"
+                  />
+                  <FullPercentCard
+                    title="Risk Percentage"
+                    value={activeDecision.risk_score}
+                    subtitle="Execution or strategic downside exposure."
+                    inverse
+                    tone="danger"
+                  />
                 </div>
               </div>
             ) : (
@@ -524,10 +590,11 @@ export default function ExecutiveDecisionIntelligence() {
                     <strong>{option.label}</strong>
                     <p>{option.description}</p>
                     <div className="decision-option-meta">
-                      <Badge tone="active">Impact {option.projected_impact || 0}%</Badge>
-                      <Badge tone="danger">Risk {option.projected_risk || 0}%</Badge>
-                      <Badge tone="info">Confidence {option.confidence || 0}%</Badge>
-                      <Badge tone="accent">{option.timeline || "7 days"}</Badge>
+                      <Badge tone="active">Projected Impact Percentage: {pct(option.projected_impact)}</Badge>
+                      <Badge tone="danger">Projected Risk Percentage: {pct(option.projected_risk)}</Badge>
+                      <Badge tone="info">Option Confidence Percentage: {pct(option.confidence)}</Badge>
+                      <Badge tone="accent">Timeline: {option.timeline || "7 days"}</Badge>
+                      {option.cost_level ? <Badge tone="default">Cost Level: {titleCase(option.cost_level)}</Badge> : null}
                     </div>
                   </div>
                 ))}
@@ -549,7 +616,7 @@ export default function ExecutiveDecisionIntelligence() {
                         <p>{action.owner || "Executive Team"} · {action.due_window || "72 hours"}</p>
                       </div>
                     </div>
-                    <Badge tone="info">{action.status || "pending"}</Badge>
+                    <Badge tone="info">{titleCase(action.status || "pending")}</Badge>
                   </div>
                 ))}
               </div>
@@ -565,11 +632,14 @@ export default function ExecutiveDecisionIntelligence() {
           right={<Badge tone="accent">{arr(data.signals).length} signals</Badge>}
         >
           <div className="vs-stack">
-            {arr(data.signals).length ? arr(data.signals).map((signal) => <SignalRow key={signal.id || signal.title} signal={signal} />) : <EmptyState text="No live signals loaded." />}
+            {arr(data.signals).length ? (
+              arr(data.signals).map((signal) => <SignalRow key={signal.id || signal.title} signal={signal} />)
+            ) : (
+              <EmptyState text="No live signals loaded." />
+            )}
           </div>
         </SectionCard>
       </div>
     </PageShell>
   );
 }
-
