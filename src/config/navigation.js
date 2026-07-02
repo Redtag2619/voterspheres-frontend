@@ -18,6 +18,7 @@ export const navigationSections = [
     items: [
       { label: "Platform Intelligence", to: "/platform-intelligence" },
       { label: "Political Intelligence Graph", to: "/political-intelligence" },
+      { label: "Decision Intelligence", to: "/executive-decision-intelligence" },
       { label: "Relationship Graph", to: "/relationship-graph" },
       { label: "Political Signals", to: "/political-signals" },
       { label: "Power Rankings", to: "/power-rankings" },
