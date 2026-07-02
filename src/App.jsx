@@ -14,6 +14,7 @@ import AdminAlerts from "./pages/AdminAlerts";
 import RelationshipGraph from "./pages/RelationshipGraph";
 import CommitteeIntel from "./pages/CommitteeIntel.jsx";
 import ExecutiveDecisionIntelligence from "./pages/ExecutiveDecisionIntelligence";
+import PredictiveCampaignSimulation from "./pages/PredictiveCampaignSimulation";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
@@ -301,6 +302,7 @@ function AppRoutes() {
               <Route path="/coalitions" element={<CoalitionIntelligenceDashboard />} />
               <Route path="/strategy" element={<StrategyRecommendationDashboard />} />
               <Route path="/executive-decision-intelligence" element={<ExecutiveDecisionIntelligence />} />
+              <Route path="/predictive-campaign-simulation" element={<PredictiveCampaignSimulation />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
