@@ -4,7 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
-      { label: "Executive Operations Map", to: "/operations-map" },
+      { label: "Executive Operations Map", to: "/operations-map" }, 
       { label: "Executive Forecast Dashboard", to: "/forecast" },
       { label: "AI Strategy Recommendations", to: "/strategy" },
       { label: "National Coalition Intelligence", to: "/coalitions" },
