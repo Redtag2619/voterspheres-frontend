@@ -5,7 +5,7 @@ import VirtualTour from "./components/VirtualTour.jsx";
 import AppShell from "./components/AppShell";
 import RequirePermission from "./components/RequirePermission.jsx";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx";
-import { DemoModeProvider } from "./context/DemoModeContext.jsx";
+import { DemoModeProvider } from "./context/DemoModeContext.jsx"; 
 import { WorkspaceProvider } from "./context/WorkspaceContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { PERMISSIONS } from "./lib/permissions.js";
