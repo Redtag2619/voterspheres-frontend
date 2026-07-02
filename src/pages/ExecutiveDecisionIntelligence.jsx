@@ -9,48 +9,144 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+const STATE_NAMES = {
+  AL: "Alabama",
+  AK: "Alaska",
+  AZ: "Arizona",
+  AR: "Arkansas",
+  CA: "California",
+  CO: "Colorado",
+  CT: "Connecticut",
+  DE: "Delaware",
+  FL: "Florida",
+  GA: "Georgia",
+  HI: "Hawaii",
+  ID: "Idaho",
+  IL: "Illinois",
+  IN: "Indiana",
+  IA: "Iowa",
+  KS: "Kansas",
+  KY: "Kentucky",
+  LA: "Louisiana",
+  ME: "Maine",
+  MD: "Maryland",
+  MA: "Massachusetts",
+  MI: "Michigan",
+  MN: "Minnesota",
+  MS: "Mississippi",
+  MO: "Missouri",
+  MT: "Montana",
+  NE: "Nebraska",
+  NV: "Nevada",
+  NH: "New Hampshire",
+  NJ: "New Jersey",
+  NM: "New Mexico",
+  NY: "New York",
+  NC: "North Carolina",
+  ND: "North Dakota",
+  OH: "Ohio",
+  OK: "Oklahoma",
+  OR: "Oregon",
+  PA: "Pennsylvania",
+  RI: "Rhode Island",
+  SC: "South Carolina",
+  SD: "South Dakota",
+  TN: "Tennessee",
+  TX: "Texas",
+  UT: "Utah",
+  VT: "Vermont",
+  VA: "Virginia",
+  WA: "Washington",
+  WV: "West Virginia",
+  WI: "Wisconsin",
+  WY: "Wyoming",
+  DC: "District of Columbia",
+};
+
+const MODULE_NAMES = {
+  forecast: "Executive Forecast Engine",
+  forecasts: "Executive Forecast Engine",
+  coalition: "National Coalition Intelligence",
+  coalitions: "National Coalition Intelligence",
+  influence: "Influence Intelligence Engine",
+  operations: "Executive Operations Center",
+  vendors: "Vendor Intelligence Network",
+  vendor: "Vendor Intelligence Network",
+  strategy: "AI Strategy Recommendation Engine",
+  command_center: "Executive Command Center",
+  "command center": "Executive Command Center",
+  "political graph": "National Political Graph Engine",
+  political_graph: "National Political Graph Engine",
+  intelligence: "Cross-Module Intelligence Layer",
+};
+
+const DECISION_TYPE_NAMES = {
+  resource_allocation: "Executive Resource Allocation",
+  coalition_activation: "Coalition Activation Strategy",
+  risk_control: "Executive Risk Control",
+  strategic: "Strategic Executive Decision",
+  forecast_opportunity: "Forecast Opportunity Decision",
+  vendor_execution: "Vendor Execution Decision",
+  donor_growth: "Donor Growth Decision",
+};
+
+const PRIORITY_NAMES = {
+  critical: "Critical Executive Alert",
+  high: "High Priority Executive Alert",
+  medium: "Executive Monitoring Priority",
+  low: "Informational Executive Signal",
+  open: "Open Executive Review",
+  active: "Active Executive Review",
+  stable: "Stable Executive Posture",
+  planning: "Planning Stage",
+  pending: "Pending Executive Action",
+  completed: "Completed Executive Action",
+  complete: "Completed Executive Action",
+};
+
 const fallbackDecisionData = {
   ok: true,
+  source: "frontend-enterprise-fallback",
   summary: {
     openDecisions: 3,
     highPriority: 2,
-    avgConfidence: 82,
-    avgRisk: 39,
-    liveSignals: 6,
+    avgConfidence: 85,
+    avgRisk: 31,
+    liveSignals: 3,
   },
   decisions: [
     {
       id: "fallback-1",
-      title: "Reallocate executive resources toward high-volatility battleground states",
+      title: "Reallocate resources toward high-volatility battleground states",
       decision_type: "resource_allocation",
       priority: "high",
       status: "open",
-      confidence_score: 84,
-      risk_score: 41,
-      impact_score: 92,
-      urgency_score: 88,
+      confidence_score: 91,
+      risk_score: 34,
+      impact_score: 88,
+      urgency_score: 86,
       recommendation:
-        "Shift field, vendor, and executive review capacity toward states with rising volatility and coalition movement.",
+        "Shift field, vendor, and executive review capacity toward the highest volatility states while preserving national monitoring coverage.",
       rationale:
-        "Forecast, coalition, influence, and operations signals indicate elevated movement in competitive states.",
+        "Forecast, coalition, influence, and operations indicators are clustering around competitive states with rising pressure.",
       source_modules: ["forecast", "coalitions", "influence", "operations"],
       options: [
         {
           id: "fallback-option-1",
-          label: "Balanced resource shift",
-          description: "Move 10-15% of resources while preserving national coverage.",
+          label: "Balanced executive resource shift",
+          description: "Move 10-15% of resources into priority states while preserving national coverage.",
           projected_impact: 86,
-          projected_risk: 39,
-          confidence: 84,
+          projected_risk: 32,
+          confidence: 88,
           timeline: "7-14 days",
           cost_level: "medium",
         },
         {
           id: "fallback-option-2",
-          label: "Aggressive resource shift",
-          description: "Move 20-30% of available resources into top volatility states.",
+          label: "Aggressive executive resource shift",
+          description: "Move 20-30% of available resources into the highest volatility states.",
           projected_impact: 94,
-          projected_risk: 58,
+          projected_risk: 55,
           confidence: 81,
           timeline: "3-7 days",
           cost_level: "high",
@@ -75,17 +171,56 @@ const fallbackDecisionData = {
     },
     {
       id: "fallback-2",
-      title: "Escalate coalition instability review in priority suburban blocs",
+      title: "Convert coalition instability into targeted field actions",
       decision_type: "coalition_activation",
-      priority: "medium",
+      priority: "high",
       status: "open",
-      confidence_score: 78,
-      risk_score: 34,
+      confidence_score: 84,
+      risk_score: 29,
       impact_score: 81,
-      urgency_score: 73,
-      recommendation: "Assign coalition owners and increase executive monitoring cadence.",
-      rationale: "Coalition movement suggests a near-term persuasion opportunity.",
-      source_modules: ["coalitions", "strategy", "political graph"],
+      urgency_score: 78,
+      recommendation:
+        "Assign coalition owners to the most unstable voter blocs and convert each movement signal into Command Center tasks.",
+      rationale:
+        "Coalition movement suggests a time-sensitive opening for persuasion and turnout coordination.",
+      source_modules: ["coalitions", "strategy", "command_center"],
+      options: [
+        {
+          id: "fallback-option-3",
+          label: "Activate coalition owners",
+          description: "Assign responsible owners to top coalition opportunities and track weekly movement.",
+          projected_impact: 82,
+          projected_risk: 25,
+          confidence: 84,
+          timeline: "5-10 days",
+          cost_level: "medium",
+        },
+      ],
+      actions: [
+        {
+          id: "fallback-action-3",
+          action_label: "Create coalition response tasks",
+          owner: "Coalition Director",
+          status: "pending",
+          due_window: "48 hours",
+        },
+      ],
+    },
+    {
+      id: "fallback-3",
+      title: "Reduce decision risk before expanding digital spend",
+      decision_type: "risk_control",
+      priority: "medium",
+      status: "planning",
+      confidence_score: 79,
+      risk_score: 30,
+      impact_score: 73,
+      urgency_score: 67,
+      recommendation:
+        "Hold major budget expansion until forecast confidence and message testing improve above executive threshold.",
+      rationale:
+        "Digital opportunity is present, but uncertainty remains in audience response and vendor capacity.",
+      source_modules: ["forecast", "vendors", "influence"],
       options: [],
       actions: [],
     },
@@ -111,11 +246,11 @@ const fallbackDecisionData = {
     },
     {
       id: "fallback-signal-3",
-      signal_type: "influence_pressure",
-      title: "Influence concentration increasing",
-      description: "External influence signals are clustering around key voter segments.",
-      severity: "high",
-      source_module: "influence",
+      signal_type: "vendor_capacity",
+      title: "Vendor readiness gap",
+      description: "Execution capacity needs verification before resource expansion.",
+      severity: "medium",
+      source_module: "vendors",
       state_code: "AZ",
     },
   ],
@@ -125,22 +260,42 @@ function arr(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function n(value, fallback = 0) {
+function number(value, fallback = 0) {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;
 }
 
 function pct(value) {
-  return `${Math.round(n(value))}%`;
+  return `${Math.round(number(value))}%`;
 }
 
-function titleCase(value = "") {
+function labelize(value = "") {
   return String(value || "")
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function toneFromPriority(value) {
+function fullStateName(value = "") {
+  const code = String(value || "").trim().toUpperCase();
+  return STATE_NAMES[code] || (code ? labelize(code) : "National Coverage");
+}
+
+function fullModuleName(value = "") {
+  const key = String(value || "").trim().toLowerCase();
+  return MODULE_NAMES[key] || labelize(value || "Cross-Module Intelligence Layer");
+}
+
+function fullDecisionType(value = "") {
+  const key = String(value || "").trim().toLowerCase();
+  return DECISION_TYPE_NAMES[key] || labelize(value || "Strategic Executive Decision");
+}
+
+function fullPriorityLabel(value = "") {
+  const key = String(value || "").trim().toLowerCase();
+  return PRIORITY_NAMES[key] || labelize(value || "Executive Monitoring Priority");
+}
+
+function toneFromPriority(value = "") {
   const next = String(value || "").toLowerCase();
   if (["critical", "high"].includes(next)) return "danger";
   if (["medium", "watch", "warning", "planning"].includes(next)) return "accent";
@@ -149,7 +304,7 @@ function toneFromPriority(value) {
 }
 
 function normalizeDecisionPayload(payload) {
-  const source = payload || fallbackDecisionData;
+  const source = payload && typeof payload === "object" ? payload : fallbackDecisionData;
 
   return {
     ...fallbackDecisionData,
@@ -164,19 +319,19 @@ function normalizeDecisionPayload(payload) {
 }
 
 function ScoreBar({ value = 0, inverse = false }) {
-  const width = Math.min(100, Math.max(0, n(value)));
+  const width = Math.max(0, Math.min(100, number(value)));
 
   return (
-    <div className={inverse ? "decision-score-bar inverse" : "decision-score-bar"}>
+    <div className={inverse ? "edi-score-bar inverse" : "edi-score-bar"}>
       <span style={{ width: `${width}%` }} />
     </div>
   );
 }
 
-function FullPercentCard({ title, value, subtitle, inverse = false }) {
+function ExecutivePercentCard({ title, value, subtitle, inverse = false }) {
   return (
-    <div className="decision-score-card">
-      <div className="decision-score-header">
+    <div className="edi-score-card">
+      <div className="edi-score-card-head">
         <span>{title}</span>
         <strong>{pct(value)}</strong>
       </div>
@@ -190,19 +345,19 @@ function DecisionRow({ decision, active, onClick }) {
   return (
     <button
       type="button"
-      className={active ? "decision-intel-row is-active" : "decision-intel-row"}
+      className={active ? "edi-decision-row is-active" : "edi-decision-row"}
       onClick={onClick}
     >
       <ResponsiveRow
-        title={decision.title}
+        title={decision.title || "Executive decision"}
         subtitle={decision.rationale || decision.recommendation || "Executive decision requires review."}
         meta={[
-          { label: "Decision Type", value: titleCase(decision.decision_type || "strategic") },
-          { label: "Priority Level", value: titleCase(decision.priority || "medium") },
-          { label: "Strategic Impact Percentage", value: pct(decision.impact_score) },
-          { label: "Execution Risk Percentage", value: pct(decision.risk_score) },
+          { label: "Decision Category", value: fullDecisionType(decision.decision_type) },
+          { label: "Executive Priority", value: fullPriorityLabel(decision.priority) },
+          { label: "Projected Strategic Impact Percentage", value: pct(decision.impact_score) },
+          { label: "Projected Execution Risk Percentage", value: pct(decision.risk_score) },
         ]}
-        right={<Badge tone={toneFromPriority(decision.priority)}>{titleCase(decision.priority || "medium")}</Badge>}
+        right={<Badge tone={toneFromPriority(decision.priority)}>{fullPriorityLabel(decision.priority)}</Badge>}
       />
     </button>
   );
@@ -210,18 +365,52 @@ function DecisionRow({ decision, active, onClick }) {
 
 function SignalRow({ signal }) {
   return (
-    <div className="decision-intel-signal">
+    <div className="edi-signal-row">
       <ResponsiveRow
-        title={signal.title || "Executive signal"}
+        title={signal.title || "Executive intelligence signal"}
         subtitle={signal.description || "Review signal details."}
         meta={[
-          { label: "Signal Source", value: titleCase(signal.source_module || signal.signal_type || "intelligence") },
-          { label: "State Scope", value: signal.state_code || "National" },
-          { label: "Severity Level", value: titleCase(signal.severity || "signal") },
+          { label: "Intelligence Source", value: fullModuleName(signal.source_module || signal.signal_type) },
+          { label: "Geographic Coverage", value: fullStateName(signal.state_code) },
+          { label: "Executive Alert Level", value: fullPriorityLabel(signal.severity) },
         ]}
         alert={String(signal.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"}
-        right={<Badge tone={toneFromPriority(signal.severity)}>{titleCase(signal.severity || "signal")}</Badge>}
+        right={<Badge tone={toneFromPriority(signal.severity)}>{fullPriorityLabel(signal.severity)}</Badge>}
       />
+    </div>
+  );
+}
+
+function DecisionOption({ option }) {
+  return (
+    <div className="edi-option-card">
+      <ResponsiveRow
+        title={option.label || "Executive decision option"}
+        subtitle={option.description || "Scenario path requires executive review."}
+        meta={[
+          { label: "Projected Strategic Impact Percentage", value: pct(option.projected_impact) },
+          { label: "Projected Execution Risk Percentage", value: pct(option.projected_risk) },
+          { label: "Option Confidence Percentage", value: pct(option.confidence) },
+          { label: "Execution Timeline", value: option.timeline || "7 days" },
+          { label: "Resource Cost Level", value: labelize(option.cost_level || "medium") },
+        ]}
+        right={<Badge tone="accent">Decision Path</Badge>}
+      />
+    </div>
+  );
+}
+
+function ExecutiveAction({ action }) {
+  return (
+    <div className="edi-action-card">
+      <div className="edi-action-left">
+        <span className="edi-live-dot" />
+        <div>
+          <strong>{action.action_label || "Executive action"}</strong>
+          <p>{action.owner || "Executive Team"} · {action.due_window || "72 hours"}</p>
+        </div>
+      </div>
+      <Badge tone={toneFromPriority(action.status || "pending")}>{fullPriorityLabel(action.status || "pending")}</Badge>
     </div>
   );
 }
@@ -239,9 +428,12 @@ export default function ExecutiveDecisionIntelligence() {
       setApiWarning("");
 
       const result = normalizeDecisionPayload(await fetchDecisionIntelligence(1));
-
       setData(result);
-      setActiveDecisionId((current) => current || result.decisions?.[0]?.id || null);
+
+      setActiveDecisionId((current) => {
+        if (current && arr(result.decisions).some((item) => String(item.id) === String(current))) return current;
+        return result.decisions?.[0]?.id || null;
+      });
     } catch (error) {
       setData(fallbackDecisionData);
       setActiveDecisionId(fallbackDecisionData.decisions[0]?.id || null);
@@ -259,14 +451,13 @@ export default function ExecutiveDecisionIntelligence() {
     try {
       setSeedLoading(true);
       setApiWarning("");
-
       await seedDecisionIntelligence(1);
       await loadData();
     } catch (error) {
       setApiWarning(
         error?.response?.data?.error ||
           error?.message ||
-          "Unable to seed Decision Intelligence. Backend migration may not be deployed yet."
+          "Unable to seed Executive Decision Intelligence. Backend migration may not be deployed yet."
       );
     } finally {
       setSeedLoading(false);
@@ -277,9 +468,12 @@ export default function ExecutiveDecisionIntelligence() {
     loadData();
   }, []);
 
+  const decisions = arr(data.decisions);
+  const signals = arr(data.signals);
+
   const activeDecision = useMemo(() => {
-    return arr(data.decisions).find((item) => String(item.id) === String(activeDecisionId)) || arr(data.decisions)[0] || null;
-  }, [data.decisions, activeDecisionId]);
+    return decisions.find((item) => String(item.id) === String(activeDecisionId)) || decisions[0] || null;
+  }, [decisions, activeDecisionId]);
 
   const summary = data.summary || fallbackDecisionData.summary;
 
@@ -287,10 +481,12 @@ export default function ExecutiveDecisionIntelligence() {
     <PageShell
       eyebrow="Build 2D · Executive Decision Intelligence"
       title="Executive Decision Intelligence"
-      description="Rank strategic choices, compare decision paths, score risk and impact, and convert cross-module intelligence into executive action."
+      description="A VoterSpheres executive command module for ranking strategic choices, comparing decision paths, scoring operational risk, and converting cross-module intelligence into executive action."
+      demo={Boolean(apiWarning) || String(data.source || "").includes("fallback")}
+      demoText="Fallback executive intelligence is active while the live Decision Intelligence API is unavailable."
     >
       <style>{`
-        .decision-intel-toolbar {
+        .edi-toolbar {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -298,162 +494,165 @@ export default function ExecutiveDecisionIntelligence() {
           flex-wrap: wrap;
         }
 
-        .decision-intel-grid {
+        .edi-layout-grid {
           display: grid;
-          grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.45fr) minmax(300px, 0.9fr);
+          grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.42fr) minmax(320px, 0.92fr);
           gap: 18px;
           align-items: start;
         }
 
-        .decision-intel-row {
-          width: 100%;
+        .edi-decision-row,
+        .edi-signal-row,
+        .edi-option-card,
+        .edi-action-card,
+        .edi-score-card {
           border: 1px solid var(--vs-exec-border, var(--vs-border));
           border-radius: 18px;
-          background: rgba(15, 23, 42, 0.48);
+          background: rgba(15, 23, 42, 0.50);
+          min-width: 0;
+        }
+
+        .edi-decision-row {
+          width: 100%;
           color: inherit;
           padding: 14px;
           text-align: left;
-          transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+          cursor: pointer;
+          transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
         }
 
-        .decision-intel-row:hover,
-        .decision-intel-row.is-active {
-          border-color: rgba(251, 146, 60, 0.44);
+        .edi-decision-row:hover,
+        .edi-decision-row.is-active {
+          border-color: rgba(251, 146, 60, 0.46);
           background: rgba(251, 146, 60, 0.08);
           transform: translateY(-1px);
+          box-shadow: 0 0 0 1px rgba(251, 146, 60, 0.14);
         }
 
-        .decision-intel-recommendation {
-          border: 1px solid rgba(251, 146, 60, 0.28);
-          border-radius: 22px;
+        .edi-recommendation-panel {
+          border: 1px solid rgba(251, 146, 60, 0.30);
+          border-radius: 24px;
           background:
-            radial-gradient(circle at top right, rgba(251, 146, 60, 0.12), transparent 34%),
-            rgba(15, 23, 42, 0.54);
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.14), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.55));
           padding: 18px;
         }
 
-        .decision-intel-recommendation h3 {
+        .edi-recommendation-panel h3 {
           margin: 8px 0 10px;
           color: var(--vs-text);
-          font-size: 18px;
-          line-height: 1.35;
-          letter-spacing: -0.03em;
+          font-size: 20px;
+          line-height: 1.32;
+          font-weight: 900;
+          letter-spacing: -0.035em;
         }
 
-        .decision-source-row,
-        .decision-option-meta {
+        .edi-module-row,
+        .edi-option-badges {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
           margin-top: 12px;
         }
 
-        .decision-score-grid {
+        .edi-score-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
         }
 
-        .decision-score-card {
-          border: 1px solid var(--vs-exec-border, var(--vs-border));
-          border-radius: 18px;
-          background: rgba(15, 23, 42, 0.52);
-          padding: 14px;
-          min-width: 0;
-          overflow: hidden;
+        .edi-score-card {
+          padding: 15px;
+          display: grid;
+          gap: 8px;
         }
 
-        .decision-score-header {
+        .edi-score-card-head {
           display: flex;
-          align-items: flex-start;
           justify-content: space-between;
+          align-items: flex-start;
           gap: 12px;
         }
 
-        .decision-score-card span {
+        .edi-score-card-head span {
           color: var(--vs-text-muted);
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 950;
           text-transform: uppercase;
           letter-spacing: 0.12em;
           line-height: 1.35;
-          overflow-wrap: anywhere;
         }
 
-        .decision-score-card strong {
+        .edi-score-card-head strong {
           color: var(--vs-text);
-          font-size: 26px;
+          font-size: 27px;
           font-weight: 950;
-          letter-spacing: -0.05em;
+          letter-spacing: -0.055em;
           white-space: nowrap;
-          flex: 0 0 auto;
         }
 
-        .decision-score-card p {
-          margin: 8px 0 0;
+        .edi-score-card p {
+          margin: 0;
           color: var(--vs-text-muted);
           font-size: 11px;
-          line-height: 1.45;
+          line-height: 1.5;
         }
 
-        .decision-score-bar {
-          height: 7px;
-          margin-top: 10px;
+        .edi-score-bar {
+          height: 8px;
           border-radius: 999px;
           background: rgba(148, 163, 184, 0.16);
           overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.10);
         }
 
-        .decision-score-bar span {
+        .edi-score-bar span {
           display: block;
           height: 100%;
           border-radius: inherit;
           background: linear-gradient(90deg, #fb923c, #22c55e);
         }
 
-        .decision-score-bar.inverse span {
+        .edi-score-bar.inverse span {
           background: linear-gradient(90deg, #f59e0b, #ef4444);
         }
 
-        .decision-option-card,
-        .decision-action-card,
-        .decision-intel-signal {
-          border: 1px solid var(--vs-exec-border, var(--vs-border));
-          border-radius: 18px;
-          background: rgba(15, 23, 42, 0.50);
+        .edi-signal-row,
+        .edi-option-card {
           padding: 14px;
-          min-width: 0;
         }
 
-        .decision-option-card strong,
-        .decision-action-card strong {
-          color: var(--vs-text);
-          font-size: 14px;
-        }
-
-        .decision-option-card p,
-        .decision-action-card p {
-          margin: 6px 0 0;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.55;
-        }
-
-        .decision-action-card {
+        .edi-action-card {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
+          padding: 14px;
         }
 
-        .decision-action-left {
+        .edi-action-left {
           display: flex;
           align-items: flex-start;
           gap: 10px;
           min-width: 0;
         }
 
-        .decision-dot {
+        .edi-action-left strong {
+          display: block;
+          color: var(--vs-text);
+          font-size: 14px;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
+        }
+
+        .edi-action-left p {
+          margin: 5px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        .edi-live-dot {
           width: 9px;
           height: 9px;
           margin-top: 5px;
@@ -463,59 +662,70 @@ export default function ExecutiveDecisionIntelligence() {
           flex: 0 0 auto;
         }
 
-        @media (max-width: 1240px) {
-          .decision-intel-grid {
+        .edi-footer-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        @media (max-width: 1280px) {
+          .edi-layout-grid {
             grid-template-columns: 1fr;
           }
         }
 
-        @media (max-width: 900px) {
-          .decision-score-grid {
+        @media (max-width: 760px) {
+          .edi-score-grid {
             grid-template-columns: 1fr;
+          }
+
+          .edi-action-card {
+            align-items: flex-start;
+            flex-direction: column;
           }
         }
       `}</style>
 
-      <div className="decision-intel-toolbar">
+      <div className="edi-toolbar">
         <div className="vs-chip-row">
-          <Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Mode" : "Live API"}</Badge>
-          <Badge tone="accent">Executive Layer</Badge>
-          <Badge tone="info">Cross-Module Synthesis</Badge>
+          <Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Executive Intelligence" : "Live Executive Intelligence API"}</Badge>
+          <Badge tone="accent">Executive Decision Layer</Badge>
+          <Badge tone="info">Cross-Module Intelligence Synthesis</Badge>
         </div>
 
         <div className="vs-inline-actions">
-          <button type="button" className="vs-button vs-button-secondary" onClick={loadData}>
-            Refresh Intelligence
+          <button type="button" className="vs-button vs-button-secondary" onClick={loadData} disabled={loading}>
+            {loading ? "Refreshing Executive Intelligence..." : "Refresh Executive Intelligence"}
           </button>
           <button type="button" className="vs-button vs-button-primary" onClick={handleSeed} disabled={seedLoading}>
-            {seedLoading ? "Seeding..." : "Seed Intelligence"}
+            {seedLoading ? "Seeding Executive Intelligence..." : "Seed Executive Intelligence"}
           </button>
           <Link className="vs-button vs-button-secondary" to="/command-center">
-            Command Center
+            Open Executive Command Center
           </Link>
         </div>
       </div>
 
       {apiWarning ? <div className="vs-banner vs-banner-danger">{apiWarning}</div> : null}
 
-      <div className="vs-grid-4">
-        <StatCard label="Open Executive Decisions" value={summary.openDecisions || 0} subtext="Executive items requiring review" />
-        <StatCard label="High Priority Decisions" value={summary.highPriority || 0} subtext="Requires executive attention" />
-        <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full recommendation confidence percentage" />
-        <StatCard label="Average Execution Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage • ${summary.liveSignals || 0} live signals`} />
+      <div className="vs-grid-4" data-tour="decision-intelligence-kpis">
+        <StatCard label="Open Executive Decisions" value={summary.openDecisions || decisions.length || 0} subtext="Executive decisions requiring leadership review" />
+        <StatCard label="High Priority Executive Alerts" value={summary.highPriority || 0} subtext="Decisions requiring elevated executive attention" />
+        <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full confidence percentage across active recommendations" />
+        <StatCard label="Average Operational Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage across ${summary.liveSignals || signals.length || 0} live decision signals`} />
       </div>
 
-      <div className="decision-intel-grid">
+      <div className="edi-layout-grid">
         <SectionCard
           title="Executive Decision Queue"
-          subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, and operations signals."
-          right={<Badge tone="info">{arr(data.decisions).length} Active Decisions</Badge>}
+          subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, vendor, political graph, and operations intelligence."
+          right={<Badge tone="info">{decisions.length} Active Executive Decisions</Badge>}
         >
           {loading ? (
-            <EmptyState text="Loading decision intelligence..." />
-          ) : (
+            <EmptyState text="Loading Executive Decision Intelligence..." />
+          ) : decisions.length ? (
             <div className="vs-stack">
-              {arr(data.decisions).map((decision) => (
+              {decisions.map((decision) => (
                 <DecisionRow
                   key={decision.id || decision.title}
                   decision={decision}
@@ -524,114 +734,111 @@ export default function ExecutiveDecisionIntelligence() {
                 />
               ))}
             </div>
+          ) : (
+            <EmptyState text="No executive decisions are currently available." />
           )}
         </SectionCard>
 
         <div className="vs-stack">
           <SectionCard
             title="AI Executive Recommendation"
-            subtitle="Primary recommended action with rationale and source-module traceability."
-            right={<Badge tone={toneFromPriority(activeDecision?.priority)}>{titleCase(activeDecision?.status || "open")}</Badge>}
+            subtitle="Primary recommended action with rationale, full percentage scoring, and source-module traceability."
+            right={<Badge tone={toneFromPriority(activeDecision?.status || activeDecision?.priority)}>{fullPriorityLabel(activeDecision?.status || activeDecision?.priority || "open")}</Badge>}
           >
             {activeDecision ? (
               <div className="vs-stack">
-                <div className="decision-intel-recommendation">
+                <div className="edi-recommendation-panel">
                   <div className="vs-page-eyebrow">Recommended Executive Decision Path</div>
                   <h3>{activeDecision.recommendation || activeDecision.title}</h3>
-                  <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale}</p>
-                  <div className="decision-source-row">
+                  <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale || "No executive rationale available."}</p>
+                  <div className="edi-module-row">
                     {arr(activeDecision.source_modules).map((source) => (
-                      <Badge key={source} tone="accent">{titleCase(source)}</Badge>
+                      <Badge key={source} tone="accent">{fullModuleName(source)}</Badge>
                     ))}
                   </div>
                 </div>
 
-                <div className="decision-score-grid">
-                  <FullPercentCard
+                <div className="edi-score-grid">
+                  <ExecutivePercentCard
                     title="Recommendation Confidence Percentage"
                     value={activeDecision.confidence_score}
                     subtitle="Reliability level for this executive recommendation."
                   />
-                  <FullPercentCard
+                  <ExecutivePercentCard
                     title="Strategic Impact Percentage"
                     value={activeDecision.impact_score}
-                    subtitle="Projected value if this decision path is executed."
+                    subtitle="Projected strategic value if this decision path is executed."
                   />
-                  <FullPercentCard
+                  <ExecutivePercentCard
                     title="Executive Urgency Percentage"
                     value={activeDecision.urgency_score}
-                    subtitle="How quickly leadership should act."
+                    subtitle="How quickly leadership should act on this decision path."
                   />
-                  <FullPercentCard
-                    title="Execution Risk Percentage"
+                  <ExecutivePercentCard
+                    title="Operational Risk Percentage"
                     value={activeDecision.risk_score}
-                    subtitle="Downside exposure or operational risk."
+                    subtitle="Downside exposure or operational execution risk."
                     inverse
                   />
                 </div>
               </div>
             ) : (
-              <EmptyState text="No active executive decision selected." />
+              <EmptyState text="No executive decision is currently selected." />
             )}
           </SectionCard>
 
-          <SectionCard title="Executive Decision Options" subtitle="Alternative paths with projected impact, risk, confidence, and timeline.">
+          <SectionCard
+            title="Executive Decision Options"
+            subtitle="Alternative decision paths with full projected impact, risk, confidence, timeline, and cost labels."
+            right={<Badge tone="accent">{arr(activeDecision?.options).length} Executive Options</Badge>}
+          >
             {arr(activeDecision?.options).length ? (
               <div className="vs-stack">
                 {arr(activeDecision.options).map((option) => (
-                  <div className="decision-option-card" key={option.id || option.label}>
-                    <strong>{option.label}</strong>
-                    <p>{option.description}</p>
-                    <div className="decision-option-meta">
-                      <Badge tone="active">Projected Strategic Impact Percentage: {pct(option.projected_impact)}</Badge>
-                      <Badge tone="danger">Projected Execution Risk Percentage: {pct(option.projected_risk)}</Badge>
-                      <Badge tone="info">Option Confidence Percentage: {pct(option.confidence)}</Badge>
-                      <Badge tone="accent">Execution Timeline: {option.timeline || "7 days"}</Badge>
-                      {option.cost_level ? <Badge tone="default">Cost Level: {titleCase(option.cost_level)}</Badge> : null}
-                    </div>
-                  </div>
+                  <DecisionOption key={option.id || option.label} option={option} />
                 ))}
               </div>
             ) : (
-              <EmptyState text="No decision options loaded yet." />
+              <EmptyState text="No executive decision options have been generated for this decision yet." />
             )}
           </SectionCard>
 
-          <SectionCard title="Executive Action Path" subtitle="Operational follow-through tied to the selected decision.">
+          <SectionCard
+            title="Executive Action Path"
+            subtitle="Operational follow-through connected to the selected executive decision."
+            right={<Badge tone="info">{arr(activeDecision?.actions).length} Executive Actions</Badge>}
+          >
             {arr(activeDecision?.actions).length ? (
               <div className="vs-stack">
                 {arr(activeDecision.actions).map((action) => (
-                  <div className="decision-action-card" key={action.id || action.action_label}>
-                    <div className="decision-action-left">
-                      <span className="decision-dot" />
-                      <div>
-                        <strong>{action.action_label}</strong>
-                        <p>{action.owner || "Executive Team"} · {action.due_window || "72 hours"}</p>
-                      </div>
-                    </div>
-                    <Badge tone="info">{titleCase(action.status || "pending")}</Badge>
-                  </div>
+                  <ExecutiveAction key={action.id || action.action_label} action={action} />
                 ))}
               </div>
             ) : (
-              <EmptyState text="No action path generated yet." />
+              <EmptyState text="No executive action path has been generated for this decision yet." />
             )}
           </SectionCard>
         </div>
 
         <SectionCard
           title="Live Executive Decision Signals"
-          subtitle="Signals driving executive recommendations across the platform."
-          right={<Badge tone="accent">{arr(data.signals).length} Live Signals</Badge>}
+          subtitle="Fully labeled intelligence signals driving executive recommendations across the VoterSpheres platform."
+          right={<Badge tone="accent">{signals.length} Live Executive Signals</Badge>}
         >
-          <div className="vs-stack">
-            {arr(data.signals).length ? (
-              arr(data.signals).map((signal) => <SignalRow key={signal.id || signal.title} signal={signal} />)
-            ) : (
-              <EmptyState text="No live signals loaded." />
-            )}
-          </div>
+          {signals.length ? (
+            <div className="vs-stack">
+              {signals.map((signal) => <SignalRow key={signal.id || signal.title} signal={signal} />)}
+            </div>
+          ) : (
+            <EmptyState text="No live executive decision signals are currently available." />
+          )}
         </SectionCard>
+      </div>
+
+      <div className="edi-footer-actions">
+        <Link className="vs-button vs-button-secondary" to="/command-center">Return to Executive Command Center</Link>
+        <Link className="vs-button vs-button-secondary" to="/executive-forecast">Open Executive Forecast Dashboard</Link>
+        <Link className="vs-button vs-button-secondary" to="/relationship-graph">Open National Political Graph</Link>
       </div>
     </PageShell>
   );
