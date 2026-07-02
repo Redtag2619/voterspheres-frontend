@@ -173,16 +173,15 @@ function ScoreBar({ value = 0, inverse = false }) {
   );
 }
 
-function FullPercentCard({ title, value, subtitle, inverse = false, tone = "info" }) {
+function FullPercentCard({ title, value, subtitle, inverse = false }) {
   return (
     <div className="decision-score-card">
-      <span>{title}</span>
-      <strong>{pct(value)}</strong>
+      <div className="decision-score-header">
+        <span>{title}</span>
+        <strong>{pct(value)}</strong>
+      </div>
       <p>{subtitle}</p>
       <ScoreBar value={value} inverse={inverse} />
-      <div className="decision-score-footer">
-        <Badge tone={tone}>{title}: {pct(value)}</Badge>
-      </div>
     </div>
   );
 }
@@ -200,8 +199,8 @@ function DecisionRow({ decision, active, onClick }) {
         meta={[
           { label: "Decision Type", value: titleCase(decision.decision_type || "strategic") },
           { label: "Priority Level", value: titleCase(decision.priority || "medium") },
-          { label: "Impact Percentage", value: pct(decision.impact_score) },
-          { label: "Risk Percentage", value: pct(decision.risk_score) },
+          { label: "Strategic Impact Percentage", value: pct(decision.impact_score) },
+          { label: "Execution Risk Percentage", value: pct(decision.risk_score) },
         ]}
         right={<Badge tone={toneFromPriority(decision.priority)}>{titleCase(decision.priority || "medium")}</Badge>}
       />
@@ -301,7 +300,7 @@ export default function ExecutiveDecisionIntelligence() {
 
         .decision-intel-grid {
           display: grid;
-          grid-template-columns: 360px minmax(0, 1fr) 340px;
+          grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.45fr) minmax(300px, 0.9fr);
           gap: 18px;
           align-items: start;
         }
@@ -351,7 +350,7 @@ export default function ExecutiveDecisionIntelligence() {
 
         .decision-score-grid {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
         }
 
@@ -361,36 +360,40 @@ export default function ExecutiveDecisionIntelligence() {
           background: rgba(15, 23, 42, 0.52);
           padding: 14px;
           min-width: 0;
+          overflow: hidden;
+        }
+
+        .decision-score-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
         }
 
         .decision-score-card span {
-          display: block;
           color: var(--vs-text-muted);
           font-size: 10px;
           font-weight: 900;
           text-transform: uppercase;
           letter-spacing: 0.12em;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
         }
 
         .decision-score-card strong {
-          display: block;
-          margin-top: 6px;
           color: var(--vs-text);
           font-size: 26px;
           font-weight: 950;
           letter-spacing: -0.05em;
+          white-space: nowrap;
+          flex: 0 0 auto;
         }
 
         .decision-score-card p {
-          margin: 4px 0 0;
+          margin: 8px 0 0;
           color: var(--vs-text-muted);
           font-size: 11px;
           line-height: 1.45;
-        }
-
-        .decision-score-footer {
-          display: flex;
-          margin-top: 10px;
         }
 
         .decision-score-bar {
@@ -468,12 +471,6 @@ export default function ExecutiveDecisionIntelligence() {
 
         @media (max-width: 900px) {
           .decision-score-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 640px) {
-          .decision-score-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -502,17 +499,17 @@ export default function ExecutiveDecisionIntelligence() {
       {apiWarning ? <div className="vs-banner vs-banner-danger">{apiWarning}</div> : null}
 
       <div className="vs-grid-4">
-        <StatCard label="Open Decisions" value={summary.openDecisions || 0} subtext="Executive items requiring review" />
-        <StatCard label="High Priority" value={summary.highPriority || 0} subtext="Requires executive attention" />
-        <StatCard label="Average Confidence" value={pct(summary.avgConfidence)} subtext="Full recommendation confidence percentage" />
-        <StatCard label="Average Risk" value={pct(summary.avgRisk)} subtext={`Full risk percentage • ${summary.liveSignals || 0} live signals`} />
+        <StatCard label="Open Executive Decisions" value={summary.openDecisions || 0} subtext="Executive items requiring review" />
+        <StatCard label="High Priority Decisions" value={summary.highPriority || 0} subtext="Requires executive attention" />
+        <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full recommendation confidence percentage" />
+        <StatCard label="Average Execution Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage • ${summary.liveSignals || 0} live signals`} />
       </div>
 
       <div className="decision-intel-grid">
         <SectionCard
-          title="Decision Queue"
+          title="Executive Decision Queue"
           subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, and operations signals."
-          right={<Badge tone="info">{arr(data.decisions).length} active</Badge>}
+          right={<Badge tone="info">{arr(data.decisions).length} Active Decisions</Badge>}
         >
           {loading ? (
             <EmptyState text="Loading decision intelligence..." />
@@ -539,7 +536,7 @@ export default function ExecutiveDecisionIntelligence() {
             {activeDecision ? (
               <div className="vs-stack">
                 <div className="decision-intel-recommendation">
-                  <div className="vs-page-eyebrow">Recommended Decision Path</div>
+                  <div className="vs-page-eyebrow">Recommended Executive Decision Path</div>
                   <h3>{activeDecision.recommendation || activeDecision.title}</h3>
                   <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale}</p>
                   <div className="decision-source-row">
@@ -551,29 +548,25 @@ export default function ExecutiveDecisionIntelligence() {
 
                 <div className="decision-score-grid">
                   <FullPercentCard
-                    title="Confidence Percentage"
+                    title="Recommendation Confidence Percentage"
                     value={activeDecision.confidence_score}
-                    subtitle="How reliable this executive recommendation is."
-                    tone="active"
+                    subtitle="Reliability level for this executive recommendation."
                   />
                   <FullPercentCard
-                    title="Impact Percentage"
+                    title="Strategic Impact Percentage"
                     value={activeDecision.impact_score}
-                    subtitle="Projected strategic value if executed."
-                    tone="info"
+                    subtitle="Projected value if this decision path is executed."
                   />
                   <FullPercentCard
-                    title="Urgency Percentage"
+                    title="Executive Urgency Percentage"
                     value={activeDecision.urgency_score}
                     subtitle="How quickly leadership should act."
-                    tone="accent"
                   />
                   <FullPercentCard
-                    title="Risk Percentage"
+                    title="Execution Risk Percentage"
                     value={activeDecision.risk_score}
-                    subtitle="Execution or strategic downside exposure."
+                    subtitle="Downside exposure or operational risk."
                     inverse
-                    tone="danger"
                   />
                 </div>
               </div>
@@ -582,7 +575,7 @@ export default function ExecutiveDecisionIntelligence() {
             )}
           </SectionCard>
 
-          <SectionCard title="Decision Options" subtitle="Alternative paths with projected impact, risk, confidence, and timeline.">
+          <SectionCard title="Executive Decision Options" subtitle="Alternative paths with projected impact, risk, confidence, and timeline.">
             {arr(activeDecision?.options).length ? (
               <div className="vs-stack">
                 {arr(activeDecision.options).map((option) => (
@@ -590,10 +583,10 @@ export default function ExecutiveDecisionIntelligence() {
                     <strong>{option.label}</strong>
                     <p>{option.description}</p>
                     <div className="decision-option-meta">
-                      <Badge tone="active">Projected Impact Percentage: {pct(option.projected_impact)}</Badge>
-                      <Badge tone="danger">Projected Risk Percentage: {pct(option.projected_risk)}</Badge>
+                      <Badge tone="active">Projected Strategic Impact Percentage: {pct(option.projected_impact)}</Badge>
+                      <Badge tone="danger">Projected Execution Risk Percentage: {pct(option.projected_risk)}</Badge>
                       <Badge tone="info">Option Confidence Percentage: {pct(option.confidence)}</Badge>
-                      <Badge tone="accent">Timeline: {option.timeline || "7 days"}</Badge>
+                      <Badge tone="accent">Execution Timeline: {option.timeline || "7 days"}</Badge>
                       {option.cost_level ? <Badge tone="default">Cost Level: {titleCase(option.cost_level)}</Badge> : null}
                     </div>
                   </div>
@@ -627,9 +620,9 @@ export default function ExecutiveDecisionIntelligence() {
         </div>
 
         <SectionCard
-          title="Live Decision Signals"
+          title="Live Executive Decision Signals"
           subtitle="Signals driving executive recommendations across the platform."
-          right={<Badge tone="accent">{arr(data.signals).length} signals</Badge>}
+          right={<Badge tone="accent">{arr(data.signals).length} Live Signals</Badge>}
         >
           <div className="vs-stack">
             {arr(data.signals).length ? (
@@ -643,3 +636,4 @@ export default function ExecutiveDecisionIntelligence() {
     </PageShell>
   );
 }
+
