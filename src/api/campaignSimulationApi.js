@@ -5,7 +5,7 @@ import { api } from "../services/api";
 VoterSpheres
 Build 2E - Predictive Campaign Simulation API
 =========================================================
-*/
+*/ 
 
 const fallbackCampaignSimulation = {
   ok: true,
