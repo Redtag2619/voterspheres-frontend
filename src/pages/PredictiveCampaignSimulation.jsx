@@ -13,6 +13,86 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+const STATE_OPTIONS = [
+  "All States",
+  "National Coverage",
+  "Alabama",
+  "Alaska",
+  "Arizona",
+  "Arkansas",
+  "California",
+  "Colorado",
+  "Connecticut",
+  "Delaware",
+  "District of Columbia",
+  "Florida",
+  "Georgia",
+  "Hawaii",
+  "Idaho",
+  "Illinois",
+  "Indiana",
+  "Iowa",
+  "Kansas",
+  "Kentucky",
+  "Louisiana",
+  "Maine",
+  "Maryland",
+  "Massachusetts",
+  "Michigan",
+  "Minnesota",
+  "Mississippi",
+  "Missouri",
+  "Montana",
+  "Nebraska",
+  "Nevada",
+  "New Hampshire",
+  "New Jersey",
+  "New Mexico",
+  "New York",
+  "North Carolina",
+  "North Dakota",
+  "Ohio",
+  "Oklahoma",
+  "Oregon",
+  "Pennsylvania",
+  "Rhode Island",
+  "South Carolina",
+  "South Dakota",
+  "Tennessee",
+  "Texas",
+  "Utah",
+  "Vermont",
+  "Virginia",
+  "Washington",
+  "West Virginia",
+  "Wisconsin",
+  "Wyoming",
+];
+
+const CAMPAIGN_OPTIONS = [
+  "All Campaigns",
+  "General Election Campaign",
+  "Primary Campaign",
+  "Turnout Campaign",
+  "Fundraising Campaign",
+  "Coalition Campaign",
+  "Resource Expansion Campaign",
+  "Digital Persuasion Campaign",
+  "Vendor Execution Campaign",
+];
+
+const RACE_OPTIONS = [
+  "All Races",
+  "Presidential Race",
+  "United States Senate Race",
+  "Governor Race",
+  "United States House Race",
+  "Statewide Race",
+  "State Legislative Race",
+  "County Race",
+  "Local Race",
+];
+
 function arr(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -32,12 +112,70 @@ function labelize(value = "") {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function normalizeSearch(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function tone(value = "") {
   const next = String(value || "").toLowerCase();
   if (["critical", "high"].includes(next)) return "danger";
   if (["medium", "monitoring", "watch"].includes(next)) return "accent";
   if (["active", "stable", "complete", "completed"].includes(next)) return "active";
   return "info";
+}
+
+function inferCampaignType(simulation = {}) {
+  const joined = normalizeSearch(
+    [
+      simulation.campaign_type,
+      simulation.simulation_type,
+      simulation.title,
+      simulation.scenario_label,
+      simulation.recommendation,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  if (joined.includes("turnout")) return "Turnout Campaign";
+  if (joined.includes("funding") || joined.includes("fundraising") || joined.includes("donor")) return "Fundraising Campaign";
+  if (joined.includes("coalition")) return "Coalition Campaign";
+  if (joined.includes("resource") || joined.includes("field")) return "Resource Expansion Campaign";
+  if (joined.includes("digital") || joined.includes("persuasion")) return "Digital Persuasion Campaign";
+  if (joined.includes("vendor") || joined.includes("execution")) return "Vendor Execution Campaign";
+  if (joined.includes("primary")) return "Primary Campaign";
+
+  return "General Election Campaign";
+}
+
+function inferRaceType(simulation = {}) {
+  const joined = normalizeSearch(
+    [
+      simulation.race_type,
+      simulation.office,
+      simulation.race,
+      simulation.title,
+      simulation.scenario_label,
+      simulation.metadata?.race_type,
+      simulation.metadata?.office,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  if (joined.includes("president")) return "Presidential Race";
+  if (joined.includes("senate")) return "United States Senate Race";
+  if (joined.includes("governor")) return "Governor Race";
+  if (joined.includes("house") || joined.includes("congress")) return "United States House Race";
+  if (joined.includes("state legislative") || joined.includes("state house") || joined.includes("state senate")) return "State Legislative Race";
+  if (joined.includes("county")) return "County Race";
+  if (joined.includes("local") || joined.includes("city") || joined.includes("mayor")) return "Local Race";
+
+  return "Statewide Race";
 }
 
 function ScoreCard({ title, value, subtitle, inverse = false }) {
@@ -70,6 +208,8 @@ function SimulationRow({ simulation, active, onClick }) {
         meta={[
           { label: "Simulation Category", value: labelize(simulation.simulation_type) },
           { label: "Geographic Coverage", value: simulation.state_code || "National Coverage" },
+          { label: "Campaign Type", value: inferCampaignType(simulation) },
+          { label: "Race Type", value: inferRaceType(simulation) },
           { label: "Baseline Win Probability Percentage", value: pct(simulation.baseline_win_probability) },
           { label: "Simulated Win Probability Percentage", value: pct(simulation.simulated_win_probability) },
         ]}
@@ -132,6 +272,9 @@ export default function PredictiveCampaignSimulation() {
   const [seedLoading, setSeedLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [selectedState, setSelectedState] = useState("All States");
+  const [selectedCampaign, setSelectedCampaign] = useState("All Campaigns");
+  const [selectedRace, setSelectedRace] = useState("All Races");
 
   async function loadData() {
     setLoading(true);
@@ -164,8 +307,12 @@ export default function PredictiveCampaignSimulation() {
       {
         title: "Executive What-If Campaign Simulation",
         simulation_type: "executive_what_if",
-        state_code: "National Coverage",
-        scenario_label: "Executive What-If Scenario",
+        state_code: selectedState === "All States" ? "National Coverage" : selectedState,
+        scenario_label: `${selectedCampaign === "All Campaigns" ? "Executive What-If Campaign" : selectedCampaign} · ${
+          selectedRace === "All Races" ? "All Race Types" : selectedRace
+        }`,
+        campaign_type: selectedCampaign === "All Campaigns" ? "General Election Campaign" : selectedCampaign,
+        race_type: selectedRace === "All Races" ? "Statewide Race" : selectedRace,
         baseline_win_probability: 50,
         turnout_lift_percentage: 5,
         funding_impact_percentage: 6,
@@ -189,9 +336,35 @@ export default function PredictiveCampaignSimulation() {
   const signals = arr(data?.signals);
   const summary = data?.summary || {};
 
+  const dynamicStateOptions = useMemo(() => {
+    const states = simulations.map((simulation) => simulation.state_code).filter(Boolean);
+    return ["All States", ...Array.from(new Set([...STATE_OPTIONS.filter((item) => item !== "All States"), ...states]))];
+  }, [simulations]);
+
+  const filteredSimulations = useMemo(() => {
+    return simulations.filter((simulation) => {
+      const simulationState = normalizeSearch(simulation.state_code || "National Coverage");
+      const simulationCampaign = normalizeSearch(inferCampaignType(simulation));
+      const simulationRace = normalizeSearch(inferRaceType(simulation));
+
+      const matchesState = selectedState === "All States" || simulationState === normalizeSearch(selectedState);
+      const matchesCampaign = selectedCampaign === "All Campaigns" || simulationCampaign === normalizeSearch(selectedCampaign);
+      const matchesRace = selectedRace === "All Races" || simulationRace === normalizeSearch(selectedRace);
+
+      return matchesState && matchesCampaign && matchesRace;
+    });
+  }, [simulations, selectedState, selectedCampaign, selectedRace]);
+
   const activeSimulation = useMemo(() => {
-    return simulations.find((item) => String(item.id) === String(activeSimulationId)) || simulations[0] || null;
-  }, [simulations, activeSimulationId]);
+    const source = filteredSimulations.length ? filteredSimulations : simulations;
+    return source.find((item) => String(item.id) === String(activeSimulationId)) || source[0] || null;
+  }, [filteredSimulations, simulations, activeSimulationId]);
+
+  useEffect(() => {
+    if (filteredSimulations.length && !filteredSimulations.some((item) => String(item.id) === String(activeSimulationId))) {
+      setActiveSimulationId(filteredSimulations[0].id);
+    }
+  }, [filteredSimulations, activeSimulationId]);
 
   return (
     <PageShell
@@ -217,9 +390,33 @@ export default function PredictiveCampaignSimulation() {
           justify-content: flex-end;
         }
 
+        .sim-filter-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .sim-filter-field {
+          display: grid;
+          gap: 7px;
+          min-width: 0;
+        }
+
+        .sim-filter-field label {
+          color: var(--vs-text-muted);
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+        }
+
+        .sim-filter-field select {
+          min-height: 42px;
+        }
+
         .sim-layout {
           display: grid;
-          grid-template-columns: minmax(420px, 1fr) minmax(0, 1.45fr);
+          grid-template-columns: minmax(460px, 1fr) minmax(0, 1.45fr);
           gap: 22px;
           align-items: start;
         }
@@ -362,7 +559,8 @@ export default function PredictiveCampaignSimulation() {
         @media (max-width: 900px) {
           .sim-score-grid,
           .sim-row .vs-responsive-meta,
-          .sim-panel-row .vs-responsive-meta {
+          .sim-panel-row .vs-responsive-meta,
+          .sim-filter-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -398,10 +596,57 @@ export default function PredictiveCampaignSimulation() {
 
       {message ? <div className="vs-banner">{message}</div> : null}
 
+      <SectionCard
+        title="Predictive Simulation Filters"
+        subtitle="Filter simulations by geographic coverage, campaign type, and race type."
+        right={<Badge tone="info">{filteredSimulations.length} Matching Simulations</Badge>}
+      >
+        <div className="sim-filter-grid">
+          <div className="sim-filter-field">
+            <label htmlFor="simulation-state-filter">State Filter</label>
+            <select
+              id="simulation-state-filter"
+              value={selectedState}
+              onChange={(event) => setSelectedState(event.target.value)}
+            >
+              {dynamicStateOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="sim-filter-field">
+            <label htmlFor="simulation-campaign-filter">Campaign Filter</label>
+            <select
+              id="simulation-campaign-filter"
+              value={selectedCampaign}
+              onChange={(event) => setSelectedCampaign(event.target.value)}
+            >
+              {CAMPAIGN_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="sim-filter-field">
+            <label htmlFor="simulation-race-filter">Race Filter</label>
+            <select
+              id="simulation-race-filter"
+              value={selectedRace}
+              onChange={(event) => setSelectedRace(event.target.value)}
+            >
+              {RACE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </SectionCard>
+
       <div className="vs-grid-4">
         <StatCard label="Active Predictive Simulations" value={summary.activeSimulations || simulations.length || 0} subtext="Executive campaign scenarios currently modeled" />
+        <StatCard label="Matching Predictive Simulations" value={filteredSimulations.length} subtext="Simulations matching the active filters" />
         <StatCard label="Average Simulated Win Probability Percentage" value={pct(summary.averageWinProbability)} subtext="Average win probability across active scenarios" />
-        <StatCard label="Average Turnout Lift Percentage" value={pct(summary.averageTurnoutLift)} subtext="Average turnout movement across simulations" />
         <StatCard label="Average Execution Readiness Percentage" value={pct(summary.averageExecutionReadiness)} subtext="Average vendor and operations readiness" />
       </div>
 
@@ -409,13 +654,13 @@ export default function PredictiveCampaignSimulation() {
         <SectionCard
           title="Predictive Campaign Simulation Queue"
           subtitle="Executive simulations modeling turnout, funding, coalition movement, vendor execution readiness, and win probability."
-          right={<Badge tone="info">{simulations.length} Active Simulations</Badge>}
+          right={<Badge tone="info">{filteredSimulations.length} Matching Simulations</Badge>}
         >
           {loading ? (
             <EmptyState text="Loading Predictive Campaign Simulations..." />
-          ) : simulations.length ? (
+          ) : filteredSimulations.length ? (
             <div className="vs-stack">
-              {simulations.map((simulation) => (
+              {filteredSimulations.map((simulation) => (
                 <SimulationRow
                   key={simulation.id || simulation.title}
                   simulation={simulation}
@@ -425,7 +670,7 @@ export default function PredictiveCampaignSimulation() {
               ))}
             </div>
           ) : (
-            <EmptyState text="No predictive campaign simulations are currently available." />
+            <EmptyState text="No predictive campaign simulations match the selected filters." />
           )}
         </SectionCard>
 
@@ -511,3 +756,4 @@ export default function PredictiveCampaignSimulation() {
     </PageShell>
   );
 }
+
