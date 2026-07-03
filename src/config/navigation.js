@@ -47,6 +47,7 @@ export const navigationSections = [
     label: "Operations",
     items: [
       { label: "Command Center", to: "/command-center" },
+      { label: "Autonomous Campaign Operations", to: "/autonomous-campaign-operations" },
       { label: "Vendor Network", to: "/vendors" },
       { label: "MailOps", to: "/mailops" },
       { label: "Task Ownership", to: "/task-ownership" },
