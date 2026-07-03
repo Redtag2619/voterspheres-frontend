@@ -16,6 +16,7 @@ import CommitteeIntel from "./pages/CommitteeIntel.jsx";
 import ExecutiveDecisionIntelligence from "./pages/ExecutiveDecisionIntelligence";
 import PredictiveCampaignSimulation from "./pages/PredictiveCampaignSimulation";
 import NationalPoliticalDigitalTwin from "./pages/NationalPoliticalDigitalTwin";
+import AutonomousCampaignOperations from "./pages/AutonomousCampaignOperations";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
@@ -305,6 +306,7 @@ function AppRoutes() {
               <Route path="/executive-decision-intelligence" element={<ExecutiveDecisionIntelligence />} />
               <Route path="/national-political-digital-twin" element={<NationalPoliticalDigitalTwin />} />
               <Route path="/predictive-campaign-simulation" element={<PredictiveCampaignSimulation />} />
+              <Route path="/autonomous-campaign-operations" element={<AutonomousCampaignOperations />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
