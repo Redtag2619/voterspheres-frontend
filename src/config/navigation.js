@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "National Political Digital Twin", to: "/national-political-digital-twin" },
       { label: "Executive Operations Map", to: "/operations-map" }, 
       { label: "Executive Forecast Dashboard", to: "/forecast" },
       { label: "AI Strategy Recommendations", to: "/strategy" },
