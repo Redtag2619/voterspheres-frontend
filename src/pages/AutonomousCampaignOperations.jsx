@@ -306,46 +306,49 @@ export default function AutonomousCampaignOperations() {
         }
 
         .auto-score-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 16px;
-        }
+         display: grid;
+         grid-template-columns: repeat(2, minmax(0, 1fr));
+         gap: 18px;
+       }
 
         .auto-score-card {
-          padding: 16px;
-          display: grid;
-          gap: 8px;
-        }
+         padding: 18px;
+         display: grid;
+         gap: 10px;
+         min-height: 132px;
+       }
 
         .auto-score-head {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          align-items: flex-start;
-        }
+         display: grid;
+         grid-template-columns: minmax(0, 1fr) auto;
+         gap: 14px;
+         align-items: start;
+       }
 
         .auto-score-head span {
-          color: var(--vs-text-muted);
-          font-size: 10px;
-          font-weight: 950;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          line-height: 1.4;
-        }
+         color: var(--vs-text-muted);
+         font-size: 10px;
+         font-weight: 950;
+         text-transform: uppercase;
+         letter-spacing: 0.09em;
+         line-height: 1.45;
+         white-space: normal;
+         overflow-wrap: anywhere;
+       }
 
         .auto-score-head strong {
-          color: var(--vs-text);
-          font-size: 28px;
-          font-weight: 950;
-          white-space: nowrap;
-        }
+         color: var(--vs-text);
+         font-size: 24px;
+         font-weight: 950;
+         white-space: nowrap;
+       }
 
         .auto-score-card p {
-          margin: 0;
-          color: var(--vs-text-muted);
-          font-size: 11px;
-          line-height: 1.5;
-        }
+         margin: 0;
+         color: var(--vs-text-muted);
+         font-size: 12px;
+         line-height: 1.55;
+       }
 
         .auto-score-bar {
           height: 8px;
@@ -409,8 +412,13 @@ export default function AutonomousCampaignOperations() {
           }
         }
 
+        @media (max-width: 1100px) {
+          .auto-score-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         @media (max-width: 900px) {
-          .auto-score-grid,
           .auto-row .vs-responsive-meta,
           .auto-panel-row .vs-responsive-meta,
           .auto-two-col {
