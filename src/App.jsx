@@ -221,7 +221,7 @@ function AppRoutes() {
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_FORECAST]} />}>
-              <Route path="/election-forecast" element={<ElectionForecast />} />
+              <Route path="/election-forecast" element={<Navigate to="/forecast" replace />}/>
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_POWER_RANKINGS]} />}>
