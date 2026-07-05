@@ -6,7 +6,10 @@ export const navigationSections = [
       { label: "Executive Workspace", to: "/executive-workspace" },
       { label: "Executive AI Command Platform", to: "/executive-ai-command-platform" },
       { label: "National Political Digital Twin", to: "/national-political-digital-twin" },
-      { label: "Executive Operations Map", to: "/operations-map" }, 
+      { label: "Autonomous Campaign Operations", to: "/autonomous-campaign-operations" },
+      { label: "Executive Decision Intelligence", to: "/executive-decision-intelligence" },
+      { label: "Predictive Campaign Simulation", to: "/predictive-campaign-simulation" },
+      { label: "Executive Operations Map", to: "/operations-map" },
       { label: "Executive Forecast Dashboard", to: "/forecast" },
       { label: "AI Strategy Recommendations", to: "/strategy" },
       { label: "National Coalition Intelligence", to: "/coalitions" },
@@ -20,8 +23,6 @@ export const navigationSections = [
     items: [
       { label: "Platform Intelligence", to: "/platform-intelligence" },
       { label: "Political Intelligence Graph", to: "/political-intelligence" },
-      { label: "Decision Intelligence", to: "/executive-decision-intelligence" },
-      { label: "Predictive Campaign Simulation", to: "/predictive-campaign-simulation" },
       { label: "Relationship Graph", to: "/relationship-graph" },
       { label: "Political Signals", to: "/political-signals" },
       { label: "Power Rankings", to: "/power-rankings" },
@@ -48,7 +49,6 @@ export const navigationSections = [
     label: "Operations",
     items: [
       { label: "Command Center", to: "/command-center" },
-      { label: "Autonomous Campaign Operations", to: "/autonomous-campaign-operations" },
       { label: "Vendor Network", to: "/vendors" },
       { label: "MailOps", to: "/mailops" },
       { label: "Task Ownership", to: "/task-ownership" },
