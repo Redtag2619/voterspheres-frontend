@@ -235,163 +235,69 @@ function buildFocusedGraph(nodes, edges, selected, mode) {
   };
 }
 
-function GraphCanvas({ nodes, edges, selectedId, onSelect, mode }) {
-  const layout = useMemo(() => {
-    const width = 1040;
-    const height = mode === "full" ? 720 : 560;
-    const centerX = width / 2;
-    const centerY = height / 2;
+function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
+  const selectedNode = nodes.find((node) => node.id === selectedId) || nodes[0];
+  const connectedIds = new Set();
 
-    const selectedNode = nodes.find((node) => node.id === selectedId) || nodes[0];
+  edges.forEach((edge) => {
+    if (edge.source === selectedNode?.id) connectedIds.add(edge.target);
+    if (edge.target === selectedNode?.id) connectedIds.add(edge.source);
+  });
 
-    if (mode === "focus" && selectedNode) {
-      const selected = { ...selectedNode, x: centerX, y: centerY };
-      const neighbors = nodes.filter((node) => node.id !== selected.id);
-      const radius = Math.min(230, Math.max(150, neighbors.length * 26));
+  const connectedNodes = nodes.filter((node) => connectedIds.has(node.id));
 
-      const positioned = [
-        selected,
-        ...neighbors.map((node, index) => {
-          const angle = (Math.PI * 2 * index) / Math.max(neighbors.length, 1) - Math.PI / 2;
-          return {
-            ...node,
-            x: centerX + Math.cos(angle) * radius,
-            y: centerY + Math.sin(angle) * radius,
-          };
-        }),
-      ];
-
-      return {
-        width,
-        height,
-        nodes: positioned,
-        map: new Map(positioned.map((node) => [node.id, node])),
-      };
-    }
-
-    const grouped = nodes.reduce((acc, node) => {
-      acc[node.type] = acc[node.type] || [];
-      acc[node.type].push(node);
-      return acc;
-    }, {});
-
-    const typeOrder = ["firm", "workspace", "signal", "client", "project", "vendor", "report", "contact", "task"];
-    const positioned = [];
-
-    typeOrder.forEach((type, groupIndex) => {
-      const group = grouped[type] || [];
-      if (!group.length) return;
-
-      const radius = type === "firm" ? 0 : 120 + groupIndex * 45;
-      group.forEach((node, index) => {
-        if (type === "firm") {
-          positioned.push({ ...node, x: centerX, y: centerY });
-          return;
-        }
-
-        const angle = (Math.PI * 2 * index) / Math.max(group.length, 1) + groupIndex * 0.32;
-        positioned.push({
-          ...node,
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
-        });
-      });
-    });
-
-    const remaining = nodes.filter((node) => !positioned.some((item) => item.id === node.id));
-    remaining.forEach((node, index) => {
-      const angle = (Math.PI * 2 * index) / Math.max(remaining.length, 1);
-      positioned.push({
-        ...node,
-        x: centerX + Math.cos(angle) * 340,
-        y: centerY + Math.sin(angle) * 340,
-      });
-    });
-
-    return {
-      width,
-      height,
-      nodes: positioned,
-      map: new Map(positioned.map((node) => [node.id, node])),
-    };
-  }, [nodes, selectedId, mode]);
+  if (!selectedNode) {
+    return <EmptyState text="Select an entity to view its relationship board." />;
+  }
 
   return (
-    <div className="pig-canvas-wrap">
-      <svg viewBox={`0 0 ${layout.width} ${layout.height}`} className="pig-canvas">
-        <defs>
-          <filter id="pig-glow">
-            <feGaussianBlur stdDeviation="3.5" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
+    <div className="pig-pro-board">
+      <div className="pig-pro-center">
+        <div className="pig-pro-kicker">Selected Intelligence Entity</div>
+        <h3>{selectedNode.label}</h3>
+        <p>{fullEntityType(selectedNode.type)} · {selectedNode.state || "National Coverage"}</p>
 
-        {edges.map((edge) => {
-          const source = layout.map.get(edge.source);
-          const target = layout.map.get(edge.target);
-          if (!source || !target) return null;
+        <div className="pig-selected-meta">
+          <Badge tone="info">{fullEntityType(selectedNode.type)}</Badge>
+          <Badge tone={tone(selectedNode.risk)}>{fullRisk(selectedNode.risk)}</Badge>
+          <Badge tone="accent">Relationship Score: {selectedNode.score || 0}</Badge>
+          <Badge tone="active">{connectedNodes.length} Direct Relationships</Badge>
+        </div>
+      </div>
 
-          const selectedEdge = edge.source === selectedId || edge.target === selectedId;
+      <div className="pig-pro-relationships">
+        {!connectedNodes.length ? (
+          <EmptyState text="No direct relationships are available for this entity." />
+        ) : (
+          connectedNodes.map((node) => (
+            <button
+              key={node.id}
+              type="button"
+              className="pig-pro-relation-card"
+              onClick={() => onSelect(node)}
+            >
+              <div className="pig-pro-card-top">
+                <span className="pig-pro-dot" style={{ background: nodeColor(node.type) }} />
+                <Badge tone={tone(node.risk)}>{fullRisk(node.risk)}</Badge>
+              </div>
 
-          return (
-            <line
-              key={edge.id || `${edge.source}-${edge.target}`}
-              x1={source.x}
-              y1={source.y}
-              x2={target.x}
-              y2={target.y}
-              stroke={selectedEdge ? "rgba(251, 146, 60, 0.72)" : "rgba(148, 163, 184, 0.20)"}
-              strokeWidth={selectedEdge ? 2.8 : Math.max(1, Math.min(3, Number(edge.weight || 1)))}
-            />
-          );
-        })}
+              <h4>{node.label}</h4>
+              <p>{fullEntityType(node.type)} · {node.state || "National Coverage"}</p>
 
-        {layout.nodes.map((node) => {
-          const selected = selectedId === node.id;
-          const radius = selected ? 24 : node.type === "firm" ? 20 : node.type === "workspace" ? 15 : 11;
-          const shouldShowLabel = selected || mode === "focus";
+              <div className="pig-pro-card-grid">
+                <span>Entity Type</span>
+                <strong>{fullEntityType(node.type)}</strong>
 
-          return (
-            <g key={node.id} onClick={() => onSelect(node)} style={{ cursor: "pointer" }}>
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={radius}
-                fill={nodeColor(node.type)}
-                stroke={selected ? "white" : "rgba(255,255,255,0.42)"}
-                strokeWidth={selected ? 3 : 1}
-                filter={selected || ["High", "Critical", "At Risk"].includes(node.risk) ? "url(#pig-glow)" : undefined}
-              />
+                <span>Relationship Score</span>
+                <strong>{node.score || 0}</strong>
 
-              {shouldShowLabel ? (
-                <g>
-                  <rect
-                    x={node.x + radius + 8}
-                    y={node.y - 14}
-                    width={Math.min(260, Math.max(110, String(node.label || "").length * 6.5))}
-                    height="30"
-                    rx="10"
-                    fill="rgba(2, 6, 23, 0.72)"
-                    stroke="rgba(148, 163, 184, 0.16)"
-                  />
-                  <text
-                    x={node.x + radius + 18}
-                    y={node.y + 5}
-                    fill="rgba(226,232,240,.94)"
-                    fontSize="11"
-                    fontWeight={selected ? "800" : "600"}
-                  >
-                    {node.label.length > 34 ? `${node.label.slice(0, 34)}…` : node.label}
-                  </text>
-                </g>
-              ) : null}
-            </g>
-          );
-        })}
-      </svg>
+                <span>Geographic Coverage</span>
+                <strong>{node.state || "National Coverage"}</strong>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -603,23 +509,122 @@ export default function PoliticalIntelligenceGraph() {
           justify-content: center;
         }
 
-        .pig-canvas-wrap {
-          width: 100%;
+        .pig-pro-board {
+          display: grid;
+          gap: 18px;
           min-height: 560px;
-          border-radius: 28px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          overflow: hidden;
-          background:
-            radial-gradient(circle at center, rgba(37, 99, 235, .18), transparent 36%),
-            radial-gradient(circle at top right, rgba(248, 113, 113, .10), transparent 30%),
-            linear-gradient(135deg, rgba(15, 23, 42, .96), rgba(2, 6, 23, .86));
-        }
+       }
 
-        .pig-canvas {
-          width: 100%;
-          min-height: 560px;
-          display: block;
-        }
+       .pig-pro-center {
+         border: 1px solid rgba(251, 146, 60, 0.34);
+         border-radius: 26px;
+         padding: 22px;
+         background:
+           radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 36%),
+           linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.62));
+       }
+
+       .pig-pro-kicker {
+         color: var(--vs-brand-orange, #fb923c);
+         font-size: 10px;
+         font-weight: 950;
+         text-transform: uppercase;
+         letter-spacing: 0.14em;
+       }
+
+       .pig-pro-center h3 {
+         margin: 8px 0 8px;
+         color: var(--vs-text);
+         font-size: 26px;
+         line-height: 1.2;
+         letter-spacing: -0.04em;
+       }
+
+       .pig-pro-center p {
+         margin: 0;
+         color: var(--vs-text-muted);
+         line-height: 1.55;
+       }
+
+       .pig-pro-relationships {
+         display: grid;
+         grid-template-columns: repeat(2, minmax(0, 1fr));
+         gap: 14px;
+       }
+
+       .pig-pro-relation-card {
+         border: 1px solid rgba(148, 163, 184, 0.16);
+         border-radius: 20px;
+         padding: 16px;
+         text-align: left;
+         color: inherit;
+         cursor: pointer;
+         background:
+           radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 34%),
+           linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.54));
+       }
+
+       .pig-pro-relation-card:hover {
+         border-color: rgba(251, 146, 60, 0.48);
+         background: rgba(251, 146, 60, 0.08);
+       }
+
+       .pig-pro-card-top {
+         display: flex;
+         justify-content: space-between;
+         gap: 10px;
+         align-items: center;
+         margin-bottom: 12px;
+      }
+
+      .pig-pro-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+      }
+
+      .pig-pro-relation-card h4 {
+        margin: 0 0 7px;
+        color: var(--vs-text);
+        font-size: 15px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .pig-pro-relation-card p {
+        margin: 0 0 14px;
+        color: var(--vs-text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .pig-pro-card-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .pig-pro-card-grid span {
+        color: var(--vs-text-muted);
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+      }
+
+      .pig-pro-card-grid strong {
+        color: var(--vs-text);
+        font-size: 13px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 900px) {
+        .pig-pro-relationships {
+          grid-template-columns: 1fr;
+      }
+    }
 
         .pig-node-list-row,
         .pig-row,
