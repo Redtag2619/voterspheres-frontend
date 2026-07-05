@@ -791,7 +791,7 @@ export default function ExecutiveDecisionIntelligence() {
               {seedLoading ? "Seeding Executive Intelligence..." : "Seed Executive Intelligence"}
             </button>
             <Link className="vs-button vs-button-secondary" to="/command-center">Open Executive Command Center</Link>
-            <Link className="vs-button vs-button-secondary" to="/executive-forecast">Open Executive Forecast Dashboard</Link>
+            <Link className="vs-button vs-button-secondary" to="/forecast">Open Executive Forecast Dashboard</Link>
             <Link className="vs-button vs-button-secondary" to="/relationship-graph">Open National Political Graph</Link>
           </div>
         </div>
