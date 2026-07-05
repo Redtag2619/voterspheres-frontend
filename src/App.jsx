@@ -262,6 +262,8 @@ function AppRoutes() {
               <Route path="/consultants/:id" element={<ConsultantProfile />} />
               <Route path="/committee-intel" element={<CommitteeIntel />} />
               <Route path="/operations-map" element={<ExecutiveOperationsMap />} />
+              <Route path="/executive-map" element={<Navigate to="/operations-map" replace />} />
+              <Route path="/executive-operations-map" element={<Navigate to="/operations-map" replace />} />
               <Route path="/state-operations" element={<StateOperationsIndex />} />
               <Route path="/state-operations/:state" element={<StateOperationsDrilldown />} />
               <Route path="/narrative-intelligence" element={<NewsNarrativeIntelligence />} />
