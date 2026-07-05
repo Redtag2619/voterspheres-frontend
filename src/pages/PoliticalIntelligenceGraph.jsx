@@ -237,6 +237,7 @@ function buildFocusedGraph(nodes, edges, selected, mode) {
 
 function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
   const selectedNode = nodes.find((node) => node.id === selectedId) || nodes[0];
+
   const connectedIds = new Set();
 
   edges.forEach((edge) => {
@@ -246,57 +247,94 @@ function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
 
   const connectedNodes = nodes.filter((node) => connectedIds.has(node.id));
 
+  const grouped = connectedNodes.reduce((acc, node) => {
+    const type = node.type || "other";
+    acc[type] = acc[type] || [];
+    acc[type].push(node);
+    return acc;
+  }, {});
+
+  const laneOrder = [
+    "workspace",
+    "signal",
+    "client",
+    "project",
+    "vendor",
+    "report",
+    "contact",
+    "task",
+  ];
+
   if (!selectedNode) {
-    return <EmptyState text="Select an entity to view its relationship board." />;
+    return <EmptyState text="Select an entity to view the Executive Relationship Explorer." />;
   }
 
   return (
-    <div className="pig-pro-board">
-      <div className="pig-pro-center">
-        <div className="pig-pro-kicker">Selected Intelligence Entity</div>
-        <h3>{selectedNode.label}</h3>
-        <p>{fullEntityType(selectedNode.type)} · {selectedNode.state || "National Coverage"}</p>
+    <div className="pig-explorer">
+      <div className="pig-explorer-root">
+        <div className="pig-explorer-root-card">
+          <div className="pig-pro-kicker">Executive Relationship Root</div>
+          <h3>{selectedNode.label}</h3>
+          <p>{fullEntityType(selectedNode.type)} · {selectedNode.state || "National Coverage"}</p>
 
-        <div className="pig-selected-meta">
-          <Badge tone="info">{fullEntityType(selectedNode.type)}</Badge>
-          <Badge tone={tone(selectedNode.risk)}>{fullRisk(selectedNode.risk)}</Badge>
-          <Badge tone="accent">Relationship Score: {selectedNode.score || 0}</Badge>
-          <Badge tone="active">{connectedNodes.length} Direct Relationships</Badge>
+          <div className="pig-selected-meta">
+            <Badge tone="info">{fullEntityType(selectedNode.type)}</Badge>
+            <Badge tone={tone(selectedNode.risk)}>{fullRisk(selectedNode.risk)}</Badge>
+            <Badge tone="accent">Relationship Score: {selectedNode.score || 0}</Badge>
+            <Badge tone="active">{connectedNodes.length} Direct Relationships</Badge>
+          </div>
         </div>
       </div>
 
-      <div className="pig-pro-relationships">
-        {!connectedNodes.length ? (
-          <EmptyState text="No direct relationships are available for this entity." />
-        ) : (
-          connectedNodes.map((node) => (
-            <button
-              key={node.id}
-              type="button"
-              className="pig-pro-relation-card"
-              onClick={() => onSelect(node)}
-            >
-              <div className="pig-pro-card-top">
-                <span className="pig-pro-dot" style={{ background: nodeColor(node.type) }} />
-                <Badge tone={tone(node.risk)}>{fullRisk(node.risk)}</Badge>
+      <div className="pig-explorer-lanes">
+        {laneOrder.map((type) => {
+          const items = grouped[type] || [];
+
+          if (!items.length) return null;
+
+          return (
+            <div key={type} className="pig-explorer-lane">
+              <div className="pig-explorer-lane-head">
+                <span className="pig-pro-dot" style={{ background: nodeColor(type) }} />
+                <div>
+                  <strong>{fullEntityType(type)}</strong>
+                  <small>{items.length} connected entities</small>
+                </div>
               </div>
 
-              <h4>{node.label}</h4>
-              <p>{fullEntityType(node.type)} · {node.state || "National Coverage"}</p>
+              <div className="pig-explorer-branch-list">
+                {items.map((node) => (
+                  <button
+                    key={node.id}
+                    type="button"
+                    className="pig-explorer-branch"
+                    onClick={() => onSelect(node)}
+                  >
+                    <div className="pig-explorer-connector" />
 
-              <div className="pig-pro-card-grid">
-                <span>Entity Type</span>
-                <strong>{fullEntityType(node.type)}</strong>
+                    <div className="pig-explorer-branch-card">
+                      <div className="pig-pro-card-top">
+                        <span className="pig-pro-dot" style={{ background: nodeColor(node.type) }} />
+                        <Badge tone={tone(node.risk)}>{fullRisk(node.risk)}</Badge>
+                      </div>
 
-                <span>Relationship Score</span>
-                <strong>{node.score || 0}</strong>
+                      <h4>{node.label}</h4>
+                      <p>{fullEntityType(node.type)} · {node.state || "National Coverage"}</p>
 
-                <span>Geographic Coverage</span>
-                <strong>{node.state || "National Coverage"}</strong>
+                      <div className="pig-pro-card-grid">
+                        <span>Relationship Score</span>
+                        <strong>{node.score || 0}</strong>
+
+                        <span>Geographic Coverage</span>
+                        <strong>{node.state || "National Coverage"}</strong>
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
-            </button>
-          ))
-        )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -747,7 +785,169 @@ export default function PoliticalIntelligenceGraph() {
             grid-template-columns: 1fr;
           }
         }
-      `}</style>
+
+        .pig-explorer {
+          display: grid;
+          gap: 22px;
+          min-height: 560px;
+       }
+
+       .pig-explorer-root {
+         justify-content: center;
+       }
+
+       .pig-explorer-root-card {
+         width: min(100%, 680px);
+         border: 1px solid rgba(251, 146, 60, 0.36);
+         border-radius: 28px;
+         padding: 24px;
+         background:
+           radial-gradient(circle at top right, rgba(251, 146, 60, 0.18), transparent 36%),
+           linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.64));
+         box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+      }
+
+      .pig-explorer-root-card h3 {
+        margin: 8px 0 8px;
+        color: var(--vs-text);
+        font-size: 28px;
+        line-height: 1.18;
+        letter-spacing: -0.05em;
+        overflow-wrap: anywhere;
+      }
+
+      .pig-explorer-root-card p {
+        margin: 0;
+        color: var(--vs-text-muted);
+        line-height: 1.55;
+      }
+
+      .pig-explorer-lanes {
+        display: grid;
+        gap: 18px;
+      }
+
+      .pig-explorer-lane {
+        position: relative;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 24px;
+        padding: 16px;
+        background:
+          radial-gradient(circle at top left, rgba(59, 130, 246, 0.10), transparent 30%),
+          linear-gradient(135deg, rgba(15, 23, 42, 0.70), rgba(2, 6, 23, 0.48));
+     }
+
+     .pig-explorer-lane-head {
+       display: flex;
+       align-items: center;
+       gap: 12px;
+       margin-bottom: 14px;
+    }
+
+    .pig-explorer-lane-head strong {
+      display: block;
+      color: var(--vs-text);
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .pig-explorer-lane-head small {
+      display: block;
+       margin-top: 3px;
+       color: var(--vs-text-muted);
+       font-size: 11px;
+    }
+
+    .pig-explorer-branch-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .pig-explorer-branch {
+      position: relative;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      width: 100%;
+      padding: 0;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+    }
+
+    .pig-explorer-connector {
+      position: relative;
+      min-height: 100%;
+    }
+
+    .pig-explorer-connector::before {
+      content: "";
+      position: absolute;
+      top: 22px;
+      left: 11px;
+      width: 2px;
+      height: calc(100% - 22px);
+      background: linear-gradient(
+        180deg,
+        rgba(251, 146, 60, 0.65),
+        rgba(148, 163, 184, 0.10)
+     );
+     border-radius: 999px;
+   }
+
+   .pig-explorer-connector::after {
+     content: "";
+     position: absolute;
+     top: 18px;
+     left: 6px;
+     width: 12px;
+     height: 12px;
+     border-radius: 999px;
+     background: var(--vs-brand-orange, #fb923c);
+     box-shadow: 0 0 16px rgba(251, 146, 60, 0.7);
+  }
+
+  .pig-explorer-branch-card {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 20px;
+    padding: 16px;
+    min-width: 0;
+    background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 34%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.54));
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+
+  .pig-explorer-branch:hover .pig-explorer-branch-card {
+    border-color: rgba(251, 146, 60, 0.48);
+    background: rgba(251, 146, 60, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .pig-explorer-branch-card h4 {
+    margin: 0 0 7px;
+    color: var(--vs-text);
+    font-size: 15px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .pig-explorer-branch-card p {
+    margin: 0 0 14px;
+    color: var(--vs-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 1100px) {
+    .pig-explorer-branch-list {
+      grid-template-columns: 1fr;
+     }
+   }
+ `}</style>
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
