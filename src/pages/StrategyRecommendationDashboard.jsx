@@ -460,7 +460,11 @@ function RecommendationRow({ recommendation, active, onClick }) {
     >
       <ResponsiveRow
         title={recommendation.title || "AI strategy recommendation"}
-        subtitle={recommendation.summary || recommendation.recommended_action || "Strategy recommendation requires executive review."}
+        subtitle={
+          recommendation.summary ||
+          recommendation.recommended_action ||
+          "Strategy recommendation requires executive review."
+        }
         meta={[
           {
             label: "Strategy Type",
@@ -479,7 +483,6 @@ function RecommendationRow({ recommendation, active, onClick }) {
             value: pct(recommendation.strategy_score),
           },
         ]}
-        right={<Badge tone={tone(recommendation.priority)}>{fullPriority(recommendation.priority)}</Badge>}
       />
     </button>
   );
@@ -755,6 +758,23 @@ export default function StrategyRecommendationDashboard() {
           margin: 8px 0 0;
           color: var(--vs-text-muted);
           line-height: 1.6;
+        }
+
+        .strategy-rec-row .vs-responsive-meta {
+          grid-template-columns: 1fr;
+        }
+
+        .strategy-rec-row .vs-responsive-meta > * {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          word-break: normal;
+        }
+
+        .strategy-rec-row .vs-responsive-meta span,
+        .strategy-rec-row .vs-responsive-meta strong,
+        .strategy-rec-row .vs-responsive-meta div {
+          white-space: normal;
+          max-width: 100%;
         }
 
         @media (max-width: 1280px) {
