@@ -496,6 +496,10 @@ function PriorityCard({ item }) {
         subtitle="Executive priority distribution across active AI strategy recommendations."
         meta={[
           {
+            label: "Executive Priority Level",
+            value: fullPriority(item.priority),
+          },
+          {
             label: "Recommendation Count",
             value: item.count || 0,
           },
@@ -508,7 +512,6 @@ function PriorityCard({ item }) {
             value: pct(item.top_score),
           },
         ]}
-        right={<Badge tone={tone(item.priority)}>{fullPriority(item.priority)}</Badge>}
       />
     </div>
   );
@@ -773,6 +776,23 @@ export default function StrategyRecommendationDashboard() {
         .strategy-rec-row .vs-responsive-meta span,
         .strategy-rec-row .vs-responsive-meta strong,
         .strategy-rec-row .vs-responsive-meta div {
+          white-space: normal;
+          max-width: 100%;
+        }
+
+        .strategy-priority-card .vs-responsive-meta {
+          grid-template-columns: 1fr;
+        }
+
+        .strategy-priority-card .vs-responsive-meta > * {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          word-break: normal;
+        }
+
+        .strategy-priority-card .vs-responsive-meta span,
+        .strategy-priority-card .vs-responsive-meta strong,
+        .strategy-priority-card .vs-responsive-meta div {
           white-space: normal;
           max-width: 100%;
         }
