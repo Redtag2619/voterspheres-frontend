@@ -170,9 +170,10 @@ function LeaderRow({ row }) {
 
 function SourceRow({ source, total, max }) {
   const width = max > 0 ? Math.max(3, Math.round((total / max) * 100)) : 0;
+  const isIndividual = optionKey(source) === "individual contributions";
 
   return (
-    <div className="fund-source-row">
+    <div className={isIndividual ? "fund-source-row is-individual" : "fund-source-row"}>
       <div className="fund-source-top">
         <strong>{source}</strong>
         <span>{formatMoney(total)}</span>
@@ -535,12 +536,24 @@ export default function FundraisingDashboard() {
         .fund-filter-field select {
           width: 100%;
           border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.74);
-          color: var(--vs-text);
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background: rgba(15, 23, 42, 0.92);
+          color: #f8fafc;
           padding: 11px 12px;
           outline: none;
           min-width: 0;
+          font-weight: 750;
+        }
+
+        .fund-filter-field select option {
+          background: #0f172a;
+          color: #f8fafc;
+          font-weight: 700;
+        }
+
+        .fund-filter-field select option:checked {
+          background: #1e293b;
+          color: #ffffff;
         }
 
         .fund-leader-row,
@@ -647,20 +660,21 @@ export default function FundraisingDashboard() {
         }
 
         .fund-source-top strong {
-          color: var(--vs-text);
+          color: #f8fafc;
           font-size: 13px;
+          font-weight: 950;
         }
 
         .fund-source-top span {
-          color: var(--vs-text-muted);
+          color: #e2e8f0;
           font-size: 12px;
-          font-weight: 800;
+          font-weight: 900;
         }
 
         .fund-source-bar {
-          height: 8px;
+          height: 9px;
           border-radius: 999px;
-          background: rgba(148, 163, 184, 0.14);
+          background: rgba(148, 163, 184, 0.22);
           overflow: hidden;
         }
 
@@ -669,6 +683,26 @@ export default function FundraisingDashboard() {
           height: 100%;
           border-radius: inherit;
           background: linear-gradient(90deg, #38bdf8, #fb923c);
+          min-width: 7px;
+        }
+
+        .fund-source-row {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 16px;
+          padding: 11px;
+          background: rgba(2, 6, 23, 0.36);
+        }
+
+        .fund-source-row.is-individual {
+          border-color: rgba(56, 189, 248, 0.34);
+          background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 34%),
+            rgba(2, 6, 23, 0.46);
+        }
+
+        .fund-source-row.is-individual .fund-source-top strong,
+        .fund-source-row.is-individual .fund-source-top span {
+          color: #ffffff;
         }
 
         .fund-source-breakdown {
