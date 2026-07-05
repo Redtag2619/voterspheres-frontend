@@ -18,6 +18,13 @@ const ENTITY_TYPE_LABELS = {
   report: "Intelligence Report",
   contact: "Relationship Contact",
   task: "Command Center Task",
+  state: "State Intelligence Profile",
+  county: "County Intelligence Profile",
+  coalition: "Coalition Intelligence Group",
+  donor: "Donor Network Entity",
+  candidate: "Candidate Profile",
+  race: "Election Race",
+  operation: "Campaign Operation",
 };
 
 const RISK_LABELS = {
@@ -32,28 +39,105 @@ const RISK_LABELS = {
   active: "Active",
   generated: "Generated",
   strong: "Strong",
+  monitoring: "Executive Monitoring",
 };
 
-const fallbackGraphData = {
-  summary: {
-    nodes: 9,
-    edges: 10,
-    high_risk: 2,
-    workspaces: 2,
-    signals: 2,
-    clients: 1,
-    reports: 1,
-  },
-  nodes: [
-    {
-      id: "firm-main",
-      type: "firm",
-      label: "VoterSpheres Executive Network",
-      state: "National",
-      risk: "Stable",
-      score: 92,
-      meta: { description: "Central enterprise political intelligence network." },
+const STATES = [
+  ["AL", "Alabama"],
+  ["AK", "Alaska"],
+  ["AZ", "Arizona"],
+  ["AR", "Arkansas"],
+  ["CA", "California"],
+  ["CO", "Colorado"],
+  ["CT", "Connecticut"],
+  ["DE", "Delaware"],
+  ["DC", "District of Columbia"],
+  ["FL", "Florida"],
+  ["GA", "Georgia"],
+  ["HI", "Hawaii"],
+  ["ID", "Idaho"],
+  ["IL", "Illinois"],
+  ["IN", "Indiana"],
+  ["IA", "Iowa"],
+  ["KS", "Kansas"],
+  ["KY", "Kentucky"],
+  ["LA", "Louisiana"],
+  ["ME", "Maine"],
+  ["MD", "Maryland"],
+  ["MA", "Massachusetts"],
+  ["MI", "Michigan"],
+  ["MN", "Minnesota"],
+  ["MS", "Mississippi"],
+  ["MO", "Missouri"],
+  ["MT", "Montana"],
+  ["NE", "Nebraska"],
+  ["NV", "Nevada"],
+  ["NH", "New Hampshire"],
+  ["NJ", "New Jersey"],
+  ["NM", "New Mexico"],
+  ["NY", "New York"],
+  ["NC", "North Carolina"],
+  ["ND", "North Dakota"],
+  ["OH", "Ohio"],
+  ["OK", "Oklahoma"],
+  ["OR", "Oregon"],
+  ["PA", "Pennsylvania"],
+  ["RI", "Rhode Island"],
+  ["SC", "South Carolina"],
+  ["SD", "South Dakota"],
+  ["TN", "Tennessee"],
+  ["TX", "Texas"],
+  ["UT", "Utah"],
+  ["VT", "Vermont"],
+  ["VA", "Virginia"],
+  ["WA", "Washington"],
+  ["WV", "West Virginia"],
+  ["WI", "Wisconsin"],
+  ["WY", "Wyoming"],
+];
+
+function stateRisk(index) {
+  if ([2, 10, 22, 28, 37, 48].includes(index)) return "High";
+  if ([5, 9, 21, 25, 33, 38, 42, 45].includes(index)) return "Elevated";
+  if ([6, 16, 24, 30, 34, 39, 43].includes(index)) return "Watch";
+  return "Stable";
+}
+
+function stateScore(index) {
+  return 62 + ((index * 7) % 34);
+}
+
+function buildNationalFallback() {
+  const root = {
+    id: "firm-main",
+    type: "firm",
+    label: "VoterSpheres Executive Network",
+    state: "National Coverage",
+    risk: "Stable",
+    score: 94,
+    meta: {
+      description: "Central enterprise political intelligence network across all states.",
+      coverage: "National political graph coverage",
     },
+  };
+
+  const stateNodes = STATES.map(([code, name], index) => ({
+    id: `state-${code.toLowerCase()}`,
+    type: "state",
+    label: `${name} State Intelligence Profile`,
+    state: name,
+    state_code: code,
+    risk: stateRisk(index),
+    score: stateScore(index),
+    meta: {
+      state_name: name,
+      state_code: code,
+      strategic_summary: `${name} state intelligence profile with campaign, vendor, signal, and operations relationships.`,
+      produced_information: "State profile, risk status, relationship score, connected assets, and executive monitoring context.",
+    },
+  }));
+
+  const priorityAssets = [
     {
       id: "workspace-ga",
       type: "workspace",
@@ -64,15 +148,6 @@ const fallbackGraphData = {
       meta: { focus: "Field operations, coalition movement, vendor readiness." },
     },
     {
-      id: "workspace-pa",
-      type: "workspace",
-      label: "Pennsylvania Coalition Workspace",
-      state: "Pennsylvania",
-      risk: "Watch",
-      score: 81,
-      meta: { focus: "Coalition volatility and persuasion response." },
-    },
-    {
       id: "signal-ga",
       type: "signal",
       label: "Georgia Forecast Movement Signal",
@@ -80,6 +155,24 @@ const fallbackGraphData = {
       risk: "High",
       score: 88,
       meta: { source: "Executive Forecast Engine" },
+    },
+    {
+      id: "task-ga",
+      type: "task",
+      label: "Georgia Command Center Follow-Up Task",
+      state: "Georgia",
+      risk: "Active",
+      score: 76,
+      meta: { owner: "Executive Operations" },
+    },
+    {
+      id: "workspace-pa",
+      type: "workspace",
+      label: "Pennsylvania Coalition Workspace",
+      state: "Pennsylvania",
+      risk: "Watch",
+      score: 81,
+      meta: { focus: "Coalition volatility and persuasion response." },
     },
     {
       id: "signal-pa",
@@ -103,7 +196,7 @@ const fallbackGraphData = {
       id: "client-national",
       type: "client",
       label: "National Campaign Client",
-      state: "National",
+      state: "National Coverage",
       risk: "Stable",
       score: 84,
       meta: { account: "Enterprise client account." },
@@ -112,35 +205,50 @@ const fallbackGraphData = {
       id: "report-brief",
       type: "report",
       label: "Executive Intelligence Brief",
-      state: "National",
+      state: "National Coverage",
       risk: "Generated",
       score: 91,
       meta: { report_type: "Executive intelligence report." },
     },
-    {
-      id: "task-command",
-      type: "task",
-      label: "Command Center Follow-Up Task",
-      state: "Georgia",
-      risk: "Active",
-      score: 76,
-      meta: { owner: "Executive Operations" },
+  ];
+
+  const edges = [
+    ...stateNodes.map((node, index) => ({
+      id: `edge-root-${node.id}`,
+      source: root.id,
+      target: node.id,
+      weight: index % 6 === 0 ? 3 : 2,
+    })),
+    { id: "edge-ga-workspace", source: "state-ga", target: "workspace-ga", weight: 3 },
+    { id: "edge-ga-signal", source: "workspace-ga", target: "signal-ga", weight: 3 },
+    { id: "edge-ga-task", source: "workspace-ga", target: "task-ga", weight: 2 },
+    { id: "edge-pa-workspace", source: "state-pa", target: "workspace-pa", weight: 3 },
+    { id: "edge-pa-signal", source: "workspace-pa", target: "signal-pa", weight: 3 },
+    { id: "edge-az-vendor", source: "state-az", target: "vendor-az", weight: 2 },
+    { id: "edge-client-report", source: "client-national", target: "report-brief", weight: 2 },
+    { id: "edge-root-client", source: root.id, target: "client-national", weight: 2 },
+    { id: "edge-report-ga", source: "report-brief", target: "signal-ga", weight: 1 },
+    { id: "edge-report-pa", source: "report-brief", target: "signal-pa", weight: 1 },
+  ];
+
+  return {
+    summary: {
+      nodes: 1 + stateNodes.length + priorityAssets.length,
+      edges: edges.length,
+      high_risk: stateNodes.filter((node) => ["High", "Critical"].includes(node.risk)).length + 1,
+      states: stateNodes.length,
+      workspaces: 2,
+      signals: 2,
+      clients: 1,
+      reports: 1,
     },
-  ],
-  edges: [
-    { id: "e1", source: "firm-main", target: "workspace-ga", weight: 3 },
-    { id: "e2", source: "firm-main", target: "workspace-pa", weight: 3 },
-    { id: "e3", source: "firm-main", target: "client-national", weight: 2 },
-    { id: "e4", source: "workspace-ga", target: "signal-ga", weight: 3 },
-    { id: "e5", source: "workspace-pa", target: "signal-pa", weight: 3 },
-    { id: "e6", source: "workspace-ga", target: "vendor-az", weight: 2 },
-    { id: "e7", source: "workspace-ga", target: "task-command", weight: 2 },
-    { id: "e8", source: "client-national", target: "report-brief", weight: 2 },
-    { id: "e9", source: "report-brief", target: "signal-ga", weight: 1 },
-    { id: "e10", source: "report-brief", target: "signal-pa", weight: 1 },
-  ],
-  type_counts: {},
-};
+    nodes: [root, ...stateNodes, ...priorityAssets],
+    edges,
+    type_counts: {},
+  };
+}
+
+const fallbackGraphData = buildNationalFallback();
 
 function arr(value) {
   return Array.isArray(value) ? value : [];
@@ -177,7 +285,7 @@ function fullRisk(value = "") {
 function tone(value) {
   const v = String(value || "").toLowerCase();
   if (["critical", "high", "at risk", "overdue"].includes(v)) return "danger";
-  if (["elevated", "watch", "medium", "open"].includes(v)) return "demo";
+  if (["elevated", "watch", "medium", "monitoring", "open"].includes(v)) return "demo";
   if (["stable", "active", "generated", "strong"].includes(v)) return "active";
   return "accent";
 }
@@ -193,51 +301,127 @@ function nodeColor(type) {
     report: "rgba(59, 130, 246, 0.9)",
     contact: "rgba(244, 114, 182, 0.9)",
     task: "rgba(249, 115, 22, 0.9)",
+    state: "rgba(56, 189, 248, 0.92)",
+    county: "rgba(45, 212, 191, 0.9)",
+    coalition: "rgba(217, 70, 239, 0.9)",
+    donor: "rgba(250, 204, 21, 0.9)",
+    candidate: "rgba(251, 113, 133, 0.9)",
+    race: "rgba(129, 140, 248, 0.9)",
+    operation: "rgba(251, 146, 60, 0.9)",
   }[type] || "rgba(148, 163, 184, 0.9)";
 }
 
-function buildFocusedGraph(nodes, edges, selected, mode) {
-  if (mode === "full" || !selected) {
-    return { visibleNodes: nodes, visibleEdges: edges };
+function nodeId(node) {
+  return String(node?.id ?? node?.node_id ?? node?.key ?? "");
+}
+
+function edgeSource(edge) {
+  return String(edge?.source ?? edge?.source_id ?? edge?.from ?? edge?.from_id ?? edge?.start ?? edge?.start_id ?? "");
+}
+
+function edgeTarget(edge) {
+  return String(edge?.target ?? edge?.target_id ?? edge?.to ?? edge?.to_id ?? edge?.end ?? edge?.end_id ?? "");
+}
+
+function edgeConnects(edge, id) {
+  const next = String(id ?? "");
+  return edgeSource(edge) === next || edgeTarget(edge) === next;
+}
+
+function otherEdgeId(edge, id) {
+  const next = String(id ?? "");
+  if (edgeSource(edge) === next) return edgeTarget(edge);
+  if (edgeTarget(edge) === next) return edgeSource(edge);
+  return "";
+}
+
+function normalizeLoadedData(result) {
+  const backendNodes = arr(result?.nodes);
+  const backendEdges = arr(result?.edges);
+
+  if (!backendNodes.length) return fallbackGraphData;
+
+  const hasStateCoverage = backendNodes.some((node) => String(node.type || "").toLowerCase() === "state");
+  const hasRoot = backendNodes.some((node) => String(node.type || "").toLowerCase() === "firm");
+
+  if (hasStateCoverage && backendEdges.length) {
+    return {
+      summary: result?.summary || fallbackGraphData.summary,
+      nodes: backendNodes,
+      edges: backendEdges,
+      type_counts: result?.type_counts || {},
+    };
   }
 
-  const connectedIds = new Set([selected.id]);
+  const fallback = buildNationalFallback();
+  const existingIds = new Set(backendNodes.map(nodeId));
+  const fallbackAdditions = fallback.nodes.filter((node) => !existingIds.has(nodeId(node)));
+  const mergedNodes = hasRoot ? [...backendNodes, ...fallbackAdditions] : [...fallback.nodes, ...backendNodes];
 
-  edges.forEach((edge) => {
-    if (edge.source === selected.id) connectedIds.add(edge.target);
-    if (edge.target === selected.id) connectedIds.add(edge.source);
-  });
+  const mergedIds = new Set(mergedNodes.map(nodeId));
+  const safeBackendEdges = backendEdges.filter((edge) => mergedIds.has(edgeSource(edge)) && mergedIds.has(edgeTarget(edge)));
+  const existingEdgeKeys = new Set(safeBackendEdges.map((edge) => `${edgeSource(edge)}-${edgeTarget(edge)}`));
+  const fallbackEdges = fallback.edges.filter((edge) => !existingEdgeKeys.has(`${edgeSource(edge)}-${edgeTarget(edge)}`));
 
   return {
-    visibleNodes: nodes.filter((node) => connectedIds.has(node.id)),
-    visibleEdges: edges.filter((edge) => connectedIds.has(edge.source) && connectedIds.has(edge.target)),
+    summary: {
+      ...(result?.summary || {}),
+      nodes: mergedNodes.length,
+      edges: safeBackendEdges.length + fallbackEdges.length,
+      states: STATES.length,
+    },
+    nodes: mergedNodes,
+    edges: [...safeBackendEdges, ...fallbackEdges],
+    type_counts: result?.type_counts || fallback.type_counts,
   };
 }
 
-function ExecutiveIntelligenceCanvas({ nodes, edges, selectedId, onSelect }) {
-  const selectedNode = nodes.find((node) => node.id === selectedId) || nodes[0];
-
-  const connectedIds = new Set();
+function connectedNodeIdsFor(edges, selected) {
+  const selectedId = nodeId(selected);
+  const ids = new Set();
 
   edges.forEach((edge) => {
-    if (edge.source === selectedNode?.id) connectedIds.add(edge.target);
-    if (edge.target === selectedNode?.id) connectedIds.add(edge.source);
+    const other = otherEdgeId(edge, selectedId);
+    if (other) ids.add(other);
   });
 
-  const connectedNodes = nodes.filter((node) => connectedIds.has(node.id));
+  return ids;
+}
+
+function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
+  const selectedNode = nodes.find((node) => nodeId(node) === String(selectedId || "")) || nodes[0];
+  const connectedIds = connectedNodeIdsFor(edges, selectedNode);
+  const connectedNodes = nodes.filter((node) => connectedIds.has(nodeId(node)));
 
   const groups = [
-    { key: "workspace", title: "Campaign Workspaces", description: "Campaign operating environments connected to this entity." },
-    { key: "signal", title: "Intelligence Signals", description: "Political intelligence signals influencing this entity." },
-    { key: "client", title: "Client Accounts", description: "Client or account relationships attached to this entity." },
-    { key: "project", title: "Campaign Projects", description: "Projects and execution work tied to this intelligence entity." },
-    { key: "vendor", title: "Vendor Network", description: "Vendors or partners connected to this entity." },
-    { key: "report", title: "Intelligence Reports", description: "Reports and briefs linked to this entity." },
-    { key: "contact", title: "Relationship Contacts", description: "Contacts and relationship records connected to this entity." },
-    { key: "task", title: "Command Center Tasks", description: "Operational tasks connected to this entity." },
+    { key: "state", title: "State Intelligence Profiles" },
+    { key: "workspace", title: "Campaign Workspaces" },
+    { key: "signal", title: "Intelligence Signals" },
+    { key: "client", title: "Client Accounts" },
+    { key: "project", title: "Campaign Projects" },
+    { key: "vendor", title: "Vendor Network" },
+    { key: "report", title: "Intelligence Reports" },
+    { key: "contact", title: "Relationship Contacts" },
+    { key: "task", title: "Command Center Tasks" },
+    { key: "candidate", title: "Candidate Profiles" },
+    { key: "donor", title: "Donor Network Entities" },
+    { key: "coalition", title: "Coalition Intelligence Groups" },
+    { key: "race", title: "Election Races" },
+    { key: "operation", title: "Campaign Operations" },
   ]
-    .map((group) => ({ ...group, items: connectedNodes.filter((node) => node.type === group.key) }))
+    .map((group) => ({
+      ...group,
+      items: connectedNodes.filter((node) => String(node.type || "").toLowerCase() === group.key),
+    }))
     .filter((group) => group.items.length);
+
+  const ungrouped = connectedNodes.filter(
+    (node) => !groups.some((group) => group.items.some((item) => nodeId(item) === nodeId(node)))
+  );
+
+  if (ungrouped.length) {
+    groups.push({ key: "other", title: "Additional Political Intelligence Assets", items: ungrouped });
+  }
 
   if (!selectedNode) {
     return <EmptyState text="Select an entity to open the Executive Intelligence Canvas." />;
@@ -256,7 +440,7 @@ function ExecutiveIntelligenceCanvas({ nodes, edges, selectedId, onSelect }) {
           <Badge tone="info">{fullEntityType(selectedNode.type)}</Badge>
           <Badge tone={tone(selectedNode.risk)}>{fullRisk(selectedNode.risk)}</Badge>
           <Badge tone="accent">Relationship Score: {selectedNode.score || 0}</Badge>
-          <Badge tone="active">{connectedNodes.length} Connected Assets</Badge>
+          <Badge tone="active">{connectedNodes.length} Connected Intelligence Assets</Badge>
         </div>
       </div>
 
@@ -271,54 +455,54 @@ function ExecutiveIntelligenceCanvas({ nodes, edges, selectedId, onSelect }) {
           <small>{fullEntityType(selectedNode.type)}</small>
         </div>
 
-        {groups.length ? (
-          <div className="pig-canvas-lanes">
-            {groups.map((group, groupIndex) => (
-              <div key={group.key} className="pig-canvas-lane">
-                <div className="pig-canvas-lane-title">
-                  <span style={{ background: nodeColor(group.key) }} />
-                  <div>
-                    <strong>{group.title}</strong>
-                    <small>{group.description}</small>
-                  </div>
-                </div>
-
-                <div className="pig-canvas-node-grid">
-                  {group.items.map((node, index) => (
-                    <button
-                      key={node.id}
-                      type="button"
-                      className="pig-canvas-node-card"
-                      onClick={() => onSelect(node)}
-                      style={{ "--delay": `${(groupIndex + index) * 40}ms` }}
-                    >
-                      <div className="pig-canvas-node-line" />
-
-                      <div className="pig-canvas-node-top">
-                        <span className="pig-pro-dot" style={{ background: nodeColor(node.type) }} />
-                        <Badge tone={tone(node.risk)}>{fullRisk(node.risk)}</Badge>
-                      </div>
-
-                      <h4>{node.label}</h4>
-                      <p>{fullEntityType(node.type)} · {node.state || "National Coverage"}</p>
-
-                      <div className="pig-canvas-node-meta">
-                        <span>Relationship Score</span>
-                        <strong>{node.score || 0}</strong>
-                        <span>Geographic Coverage</span>
-                        <strong>{node.state || "National Coverage"}</strong>
-                        <span>Entity Type</span>
-                        <strong>{fullEntityType(node.type)}</strong>
-                      </div>
-                    </button>
-                  ))}
+        <div className="pig-canvas-lanes">
+          {groups.map((group, groupIndex) => (
+            <div key={group.key} className="pig-canvas-lane">
+              <div className="pig-canvas-lane-title">
+                <span style={{ background: nodeColor(group.key) }} />
+                <div>
+                  <strong>{group.title}</strong>
+                  <small>{group.items.length} connected intelligence assets</small>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
+
+              <div className="pig-canvas-node-grid">
+                {group.items.slice(0, 18).map((node, index) => (
+                  <button
+                    key={nodeId(node)}
+                    type="button"
+                    className="pig-canvas-node-card"
+                    onClick={() => onSelect(node)}
+                    style={{ "--delay": `${(groupIndex + index) * 30}ms` }}
+                  >
+                    <div className="pig-canvas-node-line" />
+
+                    <div className="pig-canvas-node-top">
+                      <span className="pig-pro-dot" style={{ background: nodeColor(node.type) }} />
+                      <Badge tone={tone(node.risk)}>{fullRisk(node.risk)}</Badge>
+                    </div>
+
+                    <h4>{node.label}</h4>
+                    <p>{fullEntityType(node.type)} · {node.state || "National Coverage"}</p>
+
+                    <div className="pig-canvas-node-meta">
+                      <span>Information Produced</span>
+                      <strong>{node.meta?.produced_information || node.meta?.strategic_summary || "Relationship, risk, score, geography, and operational context."}</strong>
+                      <span>Relationship Score</span>
+                      <strong>{node.score || 0}</strong>
+                      <span>Geographic Coverage</span>
+                      <strong>{node.state || "National Coverage"}</strong>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!groups.length ? (
           <EmptyState text="No connected intelligence assets are available for this entity." />
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -363,7 +547,12 @@ function MetaRow({ label, value, type }) {
 
 export default function PoliticalIntelligenceGraph() {
   const [data, setData] = useState(fallbackGraphData);
-  const [filters, setFilters] = useState({ q: "", state: "", type: "", risk: "" });
+  const [filters, setFilters] = useState({
+    q: "",
+    state: "",
+    type: "",
+    risk: "",
+  });
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("focus");
   const [loading, setLoading] = useState(true);
@@ -384,16 +573,11 @@ export default function PoliticalIntelligenceGraph() {
         type: filters.type,
       });
 
-      const normalized = {
-        summary: result?.summary || fallbackGraphData.summary,
-        nodes: arr(result?.nodes).length ? arr(result.nodes) : fallbackGraphData.nodes,
-        edges: arr(result?.edges).length ? arr(result.edges) : fallbackGraphData.edges,
-        type_counts: result?.type_counts || {},
-      };
-
+      const normalized = normalizeLoadedData(result);
       setData(normalized);
+
       setSelected((current) => {
-        if (current && normalized.nodes.some((node) => node.id === current.id)) return current;
+        if (current && normalized.nodes.some((node) => nodeId(node) === nodeId(current))) return current;
         return normalized.nodes[0] || null;
       });
 
@@ -403,7 +587,7 @@ export default function PoliticalIntelligenceGraph() {
         err?.response?.data?.error ||
           err?.response?.data?.detail ||
           err?.message ||
-          "Failed to load Political Intelligence Graph."
+          "Failed to load Political Intelligence Graph. National fallback intelligence is active."
       );
       setData(fallbackGraphData);
       setSelected(fallbackGraphData.nodes[0]);
@@ -422,11 +606,11 @@ export default function PoliticalIntelligenceGraph() {
   const summary = data.summary || {};
 
   const states = useMemo(() => {
-    return Array.from(new Set(allNodes.map((node) => node.state).filter(Boolean))).sort();
+    return Array.from(new Set([...STATES.map(([, name]) => name), ...allNodes.map((node) => node.state).filter(Boolean)])).sort();
   }, [allNodes]);
 
   const types = useMemo(() => {
-    return Array.from(new Set(allNodes.map((node) => node.type).filter(Boolean))).sort();
+    return Array.from(new Set(allNodes.map((node) => String(node.type || "").toLowerCase()).filter(Boolean))).sort();
   }, [allNodes]);
 
   const risks = useMemo(() => {
@@ -437,40 +621,44 @@ export default function PoliticalIntelligenceGraph() {
     const q = String(filters.q || "").toLowerCase();
 
     return allNodes.filter((node) => {
-      const searchable = [node.label, node.type, node.state, node.risk, ...Object.values(node.meta || {})]
+      const searchable = [node.label, node.type, node.state, node.risk, node.state_code, ...Object.values(node.meta || {})]
         .join(" ")
         .toLowerCase();
 
       const matchesQ = !q || searchable.includes(q);
       const matchesState = !filters.state || String(node.state || "") === filters.state;
-      const matchesType = !filters.type || String(node.type || "") === filters.type;
+      const matchesType = !filters.type || String(node.type || "").toLowerCase() === filters.type;
       const matchesRisk = !filters.risk || String(node.risk || "") === filters.risk;
 
       return matchesQ && matchesState && matchesType && matchesRisk;
     });
   }, [allNodes, filters]);
 
-  const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((node) => node.id)), [filteredNodes]);
+  const filteredNodeIds = useMemo(() => new Set(filteredNodes.map(nodeId)), [filteredNodes]);
 
   const filteredEdges = useMemo(() => {
-    return allEdges.filter((edge) => filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target));
-  }, [allEdges, filteredNodeIds]);
+    if (viewMode === "focus") return allEdges;
+    return allEdges.filter((edge) => filteredNodeIds.has(edgeSource(edge)) && filteredNodeIds.has(edgeTarget(edge)));
+  }, [allEdges, filteredNodeIds, viewMode]);
 
   const selectedEdges = useMemo(() => {
     if (!selected) return [];
-    return allEdges.filter((edge) => edge.source === selected.id || edge.target === selected.id);
+    return allEdges.filter((edge) => edgeConnects(edge, nodeId(selected)));
   }, [allEdges, selected]);
 
   const connectedNodes = useMemo(() => {
     if (!selected) return [];
-    const ids = new Set(selectedEdges.flatMap((edge) => [edge.source, edge.target]));
-    ids.delete(selected.id);
-    return allNodes.filter((node) => ids.has(node.id));
-  }, [allNodes, selected, selectedEdges]);
+    const ids = connectedNodeIdsFor(allEdges, selected);
+    return allNodes.filter((node) => ids.has(nodeId(node)));
+  }, [allNodes, allEdges, selected]);
 
-  const graphData = useMemo(() => {
-    return buildFocusedGraph(filteredNodes, filteredEdges, selected, viewMode);
-  }, [filteredNodes, filteredEdges, selected, viewMode]);
+  const canvasNodes = useMemo(() => {
+    if (viewMode === "full") return filteredNodes;
+    if (!selected) return filteredNodes;
+    const ids = connectedNodeIdsFor(allEdges, selected);
+    ids.add(nodeId(selected));
+    return allNodes.filter((node) => ids.has(nodeId(node)));
+  }, [allNodes, allEdges, filteredNodes, selected, viewMode]);
 
   const highRiskCount = filteredNodes.filter((node) =>
     ["critical", "high", "at risk", "overdue"].includes(String(node.risk || "").toLowerCase())
@@ -480,11 +668,11 @@ export default function PoliticalIntelligenceGraph() {
     <PageShell
       eyebrow="Political Intelligence Graph"
       title="Political Intelligence Graph"
-      description="A professional Executive Intelligence Canvas for navigating relationships between workspaces, clients, projects, vendors, reports, contacts, tasks, and political intelligence signals."
+      description="Executive Intelligence Canvas for navigating all-state political intelligence, relationships, risk status, produced information, and connected campaign assets."
       tickerItems={[
-        { label: "Visible Nodes", value: `${filteredNodes.length}`, dotClass: "vs-live-dot-success" },
-        { label: "Visible Connections", value: `${filteredEdges.length}`, dotClass: "vs-live-dot-success" },
-        { label: "High Risk Entities", value: `${highRiskCount}`, dotClass: highRiskCount ? "vs-live-dot-warning" : "vs-live-dot-success" },
+        { label: "Visible Entities", value: `${filteredNodes.length}`, dotClass: "vs-live-dot-success" },
+        { label: "All States", value: `${STATES.length}`, dotClass: "vs-live-dot-success" },
+        { label: "Connected Assets", value: `${connectedNodes.length}`, dotClass: "vs-live-dot-success" },
         { label: "Updated", value: refreshing ? "Live" : lastUpdated || "Ready", dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
       ]}
     >
@@ -517,6 +705,121 @@ export default function PoliticalIntelligenceGraph() {
           padding: 11px 12px;
           outline: none;
           min-width: 0;
+        }
+
+        .pig-node-list-row,
+        .pig-row,
+        .pig-node-summary-card {
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, .16);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, .1), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, .78), rgba(2, 6, 23, .54));
+          overflow: hidden;
+          min-width: 0;
+        }
+
+        .pig-node-list-row {
+          width: 100%;
+          padding: 0;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .pig-node-list-row:hover,
+        .pig-node-list-row.is-active {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.08);
+        }
+
+        .pig-node-list-row .vs-responsive-row,
+        .pig-row .vs-responsive-row {
+          border: 0;
+          background: transparent;
+        }
+
+        .pig-node-list-row .vs-responsive-meta,
+        .pig-row .vs-responsive-meta {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+
+        .pig-node-list-row .vs-responsive-meta *,
+        .pig-row .vs-responsive-meta * {
+          white-space: normal;
+          overflow-wrap: anywhere;
+          max-width: 100%;
+        }
+
+        .pig-legend {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .pig-legend span {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+          border-radius: 999px;
+          border: 1px solid rgba(148, 163, 184, .16);
+          background: rgba(15, 23, 42, .58);
+          color: rgba(226,232,240,.86);
+          padding: 7px 9px;
+          font-size: 11px;
+          line-height: 1.25;
+          white-space: normal;
+        }
+
+        .pig-dot,
+        .pig-pro-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          flex: 0 0 auto;
+          box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+        }
+
+        .pig-selected-panel {
+          border: 1px solid rgba(251, 146, 60, 0.30);
+          border-radius: 24px;
+          background:
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.14), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.55));
+          padding: 18px;
+        }
+
+        .pig-selected-panel h3 {
+          margin: 8px 0 10px;
+          color: var(--vs-text);
+          font-size: 22px;
+          line-height: 1.25;
+          letter-spacing: -0.04em;
+          overflow-wrap: anywhere;
+        }
+
+        .pig-selected-panel p {
+          margin: 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.6;
+        }
+
+        .pig-selected-meta {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-top: 14px;
+        }
+
+        .pig-pro-kicker {
+          color: var(--vs-brand-orange, #fb923c);
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
         }
 
         .pig-canvas-pro {
@@ -573,11 +876,7 @@ export default function PoliticalIntelligenceGraph() {
           bottom: 34px;
           left: 50%;
           width: 2px;
-          background: linear-gradient(
-            180deg,
-            rgba(251, 146, 60, 0.78),
-            rgba(148, 163, 184, 0.12)
-          );
+          background: linear-gradient(180deg, rgba(251, 146, 60, 0.78), rgba(148, 163, 184, 0.12));
           border-radius: 999px;
           opacity: 0.75;
         }
@@ -654,7 +953,6 @@ export default function PoliticalIntelligenceGraph() {
           height: 12px;
           border-radius: 999px;
           box-shadow: 0 0 18px rgba(255, 255, 255, 0.18);
-          flex: 0 0 auto;
         }
 
         .pig-canvas-lane-title strong {
@@ -668,7 +966,6 @@ export default function PoliticalIntelligenceGraph() {
           margin-top: 3px;
           color: var(--vs-text-muted);
           font-size: 11px;
-          line-height: 1.35;
         }
 
         .pig-canvas-node-grid {
@@ -752,126 +1049,11 @@ export default function PoliticalIntelligenceGraph() {
           overflow-wrap: anywhere;
         }
 
-        .pig-pro-kicker {
-          color: var(--vs-brand-orange, #fb923c);
-          font-size: 10px;
-          font-weight: 950;
-          text-transform: uppercase;
-          letter-spacing: 0.14em;
-        }
-
-        .pig-pro-dot,
-        .pig-dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 999px;
-          flex: 0 0 auto;
-          box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
-        }
-
-        .pig-node-list-row,
-        .pig-row {
-          border-radius: 20px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, .1), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, .78), rgba(2, 6, 23, .54));
-          overflow: hidden;
-          min-width: 0;
-        }
-
-        .pig-node-list-row {
-          width: 100%;
-          padding: 0;
-          color: inherit;
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .pig-node-list-row:hover,
-        .pig-node-list-row.is-active {
-          border-color: rgba(251, 146, 60, 0.48);
-          background: rgba(251, 146, 60, 0.08);
-        }
-
-        .pig-node-list-row .vs-responsive-row,
-        .pig-row .vs-responsive-row {
-          border: 0;
-          background: transparent;
-        }
-
-        .pig-node-list-row .vs-responsive-meta,
-        .pig-row .vs-responsive-meta {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-
-        .pig-node-list-row .vs-responsive-meta *,
-        .pig-row .vs-responsive-meta * {
-          white-space: normal;
-          overflow-wrap: anywhere;
-          max-width: 100%;
-        }
-
-        .pig-legend {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .pig-legend span {
-          display: inline-flex;
-          gap: 6px;
-          align-items: center;
-          border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          background: rgba(15, 23, 42, .58);
-          color: rgba(226,232,240,.86);
-          padding: 7px 9px;
-          font-size: 11px;
-          line-height: 1.25;
-          white-space: normal;
-        }
-
-        .pig-selected-panel {
-          border: 1px solid rgba(251, 146, 60, 0.30);
-          border-radius: 24px;
-          background:
-            radial-gradient(circle at top right, rgba(251, 146, 60, 0.14), transparent 36%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.55));
-          padding: 18px;
-        }
-
-        .pig-selected-panel h3 {
-          margin: 8px 0 10px;
-          color: var(--vs-text);
-          font-size: 22px;
-          line-height: 1.25;
-          letter-spacing: -0.04em;
-          overflow-wrap: anywhere;
-        }
-
-        .pig-selected-panel p {
-          margin: 0;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.6;
-        }
-
-        .pig-selected-meta {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-top: 14px;
-        }
-
         @keyframes pigCanvasIn {
           from {
             opacity: 0;
             transform: translateY(6px);
           }
-
           to {
             opacity: 1;
             transform: translateY(0);
@@ -911,10 +1093,10 @@ export default function PoliticalIntelligenceGraph() {
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <div className="vs-grid-4">
-        <StatCard label="Visible Graph Entities" value={fmt(filteredNodes.length)} delta={`${fmt(summary.nodes || allNodes.length)} total entities`} tone="up" />
-        <StatCard label="Visible Relationships" value={fmt(filteredEdges.length)} delta={`${fmt(summary.edges || allEdges.length)} total connections`} tone="up" />
+        <StatCard label="Visible Political Intelligence Entities" value={fmt(filteredNodes.length)} delta={`${fmt(summary.nodes || allNodes.length)} total entities`} tone="up" />
+        <StatCard label="National State Coverage" value={fmt(STATES.length)} delta="All states and District of Columbia" tone="up" />
+        <StatCard label="Connected Intelligence Assets" value={fmt(connectedNodes.length)} delta="First-degree relationships" tone="up" />
         <StatCard label="High Risk Political Entities" value={fmt(highRiskCount)} delta="Entities requiring attention" tone={highRiskCount ? "down" : "up"} />
-        <StatCard label="Selected Entity Connections" value={fmt(selectedEdges.length)} delta="First-degree relationships" tone="up" />
       </div>
 
       <SectionCard title="Graph Controls" subtitle="Search, filter, and switch between focused relationship view and full network view.">
@@ -967,20 +1149,20 @@ export default function PoliticalIntelligenceGraph() {
           <div className="pig-stack">
             <SectionCard
               title="Entity Navigator"
-              subtitle="Select one entity to focus the canvas on its immediate intelligence relationships."
+              subtitle="Select any state or entity to focus the canvas on its connected intelligence."
               right={<Badge tone="info">{filteredNodes.length} Entities</Badge>}
             >
               {!filteredNodes.length ? (
                 <EmptyState text="No graph entities match the current filters." />
               ) : (
                 <div className="pig-stack">
-                  {filteredNodes.slice(0, 18).map((node) => (
+                  {filteredNodes.slice(0, 72).map((node) => (
                     <NodeListRow
-                      key={node.id}
+                      key={nodeId(node)}
                       node={node}
-                      active={selected?.id === node.id}
+                      active={nodeId(selected) === nodeId(node)}
                       onSelect={setSelected}
-                      connectionCount={allEdges.filter((edge) => edge.source === node.id || edge.target === node.id).length}
+                      connectionCount={allEdges.filter((edge) => edgeConnects(edge, nodeId(node))).length}
                     />
                   ))}
                 </div>
@@ -990,21 +1172,21 @@ export default function PoliticalIntelligenceGraph() {
 
           <div className="pig-stack">
             <SectionCard
-              title={viewMode === "focus" ? "Executive Intelligence Canvas" : "Full Political Intelligence Canvas"}
+              title={viewMode === "focus" ? "Executive Intelligence Canvas" : "Full Political Intelligence Network"}
               subtitle={
                 viewMode === "focus"
-                  ? "Clean executive canvas showing the selected entity and first-degree intelligence relationships."
-                  : "Expanded canvas using filtered network entities."
+                  ? "Focused canvas showing the selected entity and connected intelligence assets."
+                  : "Expanded network mode using the current filters."
               }
-              right={<Badge tone="accent">{graphData.visibleNodes.length} Visible Entities</Badge>}
+              right={<Badge tone="accent">{connectedNodes.length} Connected Assets</Badge>}
             >
-              {!graphData.visibleNodes.length ? (
-                <EmptyState text="No visible graph entities available." />
+              {!canvasNodes.length ? (
+                <EmptyState text="No visible graph nodes available." />
               ) : (
-                <ExecutiveIntelligenceCanvas
-                  nodes={graphData.visibleNodes}
-                  edges={graphData.visibleEdges}
-                  selectedId={selected?.id}
+                <GraphCanvas
+                  nodes={viewMode === "focus" ? allNodes : canvasNodes}
+                  edges={viewMode === "focus" ? allEdges : filteredEdges}
+                  selectedId={nodeId(selected)}
                   onSelect={setSelected}
                 />
               )}
@@ -1030,7 +1212,7 @@ export default function PoliticalIntelligenceGraph() {
           <div className="pig-stack pig-right-column">
             <SectionCard
               title="Selected Entity Intelligence"
-              subtitle="Entity details, risk status, score, and relationship metadata."
+              subtitle="Entity details, risk status, relationship score, and produced information."
               right={selected ? <Badge tone={tone(selected.risk)}>{fullRisk(selected.risk)}</Badge> : null}
             >
               {!selected ? (
@@ -1049,7 +1231,7 @@ export default function PoliticalIntelligenceGraph() {
                     </div>
                   </div>
 
-                  {Object.entries(selected.meta || {}).slice(0, 8).map(([key, value]) => (
+                  {Object.entries(selected.meta || {}).slice(0, 10).map(([key, value]) => (
                     <MetaRow key={key} label={key} value={value} type={selected.type} />
                   ))}
                 </div>
@@ -1057,7 +1239,7 @@ export default function PoliticalIntelligenceGraph() {
             </SectionCard>
 
             <SectionCard
-              title="Connected Political Entities"
+              title="Connected Political Intelligence"
               subtitle="Immediate neighbors connected to the selected entity."
               right={<Badge tone="accent">{connectedNodes.length} Connected Entities</Badge>}
             >
@@ -1065,8 +1247,8 @@ export default function PoliticalIntelligenceGraph() {
                 {!connectedNodes.length ? (
                   <EmptyState text="No connected entities selected." />
                 ) : (
-                  connectedNodes.slice(0, 12).map((item) => (
-                    <div key={item.id} className="pig-row">
+                  connectedNodes.slice(0, 18).map((item) => (
+                    <div key={nodeId(item)} className="pig-row">
                       <ResponsiveRow
                         title={item.label}
                         subtitle={`${fullEntityType(item.type)} · ${item.state || "National Coverage"}`}
