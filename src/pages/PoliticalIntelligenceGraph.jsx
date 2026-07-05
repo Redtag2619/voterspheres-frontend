@@ -52,9 +52,7 @@ const fallbackGraphData = {
       state: "National",
       risk: "Stable",
       score: 92,
-      meta: {
-        description: "Central enterprise political intelligence network.",
-      },
+      meta: { description: "Central enterprise political intelligence network." },
     },
     {
       id: "workspace-ga",
@@ -63,9 +61,7 @@ const fallbackGraphData = {
       state: "Georgia",
       risk: "Active",
       score: 86,
-      meta: {
-        focus: "Field operations, coalition movement, vendor readiness.",
-      },
+      meta: { focus: "Field operations, coalition movement, vendor readiness." },
     },
     {
       id: "workspace-pa",
@@ -74,9 +70,7 @@ const fallbackGraphData = {
       state: "Pennsylvania",
       risk: "Watch",
       score: 81,
-      meta: {
-        focus: "Coalition volatility and persuasion response.",
-      },
+      meta: { focus: "Coalition volatility and persuasion response." },
     },
     {
       id: "signal-ga",
@@ -85,9 +79,7 @@ const fallbackGraphData = {
       state: "Georgia",
       risk: "High",
       score: 88,
-      meta: {
-        source: "Executive Forecast Engine",
-      },
+      meta: { source: "Executive Forecast Engine" },
     },
     {
       id: "signal-pa",
@@ -96,9 +88,7 @@ const fallbackGraphData = {
       state: "Pennsylvania",
       risk: "Elevated",
       score: 78,
-      meta: {
-        source: "National Coalition Intelligence",
-      },
+      meta: { source: "National Coalition Intelligence" },
     },
     {
       id: "vendor-az",
@@ -107,9 +97,7 @@ const fallbackGraphData = {
       state: "Arizona",
       risk: "Medium",
       score: 69,
-      meta: {
-        source: "Vendor Intelligence Network",
-      },
+      meta: { source: "Vendor Intelligence Network" },
     },
     {
       id: "client-national",
@@ -118,9 +106,7 @@ const fallbackGraphData = {
       state: "National",
       risk: "Stable",
       score: 84,
-      meta: {
-        account: "Enterprise client account.",
-      },
+      meta: { account: "Enterprise client account." },
     },
     {
       id: "report-brief",
@@ -129,9 +115,7 @@ const fallbackGraphData = {
       state: "National",
       risk: "Generated",
       score: 91,
-      meta: {
-        report_type: "Executive intelligence report.",
-      },
+      meta: { report_type: "Executive intelligence report." },
     },
     {
       id: "task-command",
@@ -140,9 +124,7 @@ const fallbackGraphData = {
       state: "Georgia",
       risk: "Active",
       score: 76,
-      meta: {
-        owner: "Executive Operations",
-      },
+      meta: { owner: "Executive Operations" },
     },
   ],
   edges: [
@@ -216,10 +198,7 @@ function nodeColor(type) {
 
 function buildFocusedGraph(nodes, edges, selected, mode) {
   if (mode === "full" || !selected) {
-    return {
-      visibleNodes: nodes,
-      visibleEdges: edges,
-    };
+    return { visibleNodes: nodes, visibleEdges: edges };
   }
 
   const connectedIds = new Set([selected.id]);
@@ -235,7 +214,7 @@ function buildFocusedGraph(nodes, edges, selected, mode) {
   };
 }
 
-function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
+function ExecutiveIntelligenceCanvas({ nodes, edges, selectedId, onSelect }) {
   const selectedNode = nodes.find((node) => node.id === selectedId) || nodes[0];
 
   const connectedIds = new Set();
@@ -247,73 +226,75 @@ function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
 
   const connectedNodes = nodes.filter((node) => connectedIds.has(node.id));
 
-  const grouped = connectedNodes.reduce((acc, node) => {
-    const type = node.type || "other";
-    acc[type] = acc[type] || [];
-    acc[type].push(node);
-    return acc;
-  }, {});
-
-  const laneOrder = [
-    "workspace",
-    "signal",
-    "client",
-    "project",
-    "vendor",
-    "report",
-    "contact",
-    "task",
-  ];
+  const groups = [
+    { key: "workspace", title: "Campaign Workspaces", description: "Campaign operating environments connected to this entity." },
+    { key: "signal", title: "Intelligence Signals", description: "Political intelligence signals influencing this entity." },
+    { key: "client", title: "Client Accounts", description: "Client or account relationships attached to this entity." },
+    { key: "project", title: "Campaign Projects", description: "Projects and execution work tied to this intelligence entity." },
+    { key: "vendor", title: "Vendor Network", description: "Vendors or partners connected to this entity." },
+    { key: "report", title: "Intelligence Reports", description: "Reports and briefs linked to this entity." },
+    { key: "contact", title: "Relationship Contacts", description: "Contacts and relationship records connected to this entity." },
+    { key: "task", title: "Command Center Tasks", description: "Operational tasks connected to this entity." },
+  ]
+    .map((group) => ({ ...group, items: connectedNodes.filter((node) => node.type === group.key) }))
+    .filter((group) => group.items.length);
 
   if (!selectedNode) {
-    return <EmptyState text="Select an entity to view the Executive Relationship Explorer." />;
+    return <EmptyState text="Select an entity to open the Executive Intelligence Canvas." />;
   }
 
   return (
-    <div className="pig-explorer">
-      <div className="pig-explorer-root">
-        <div className="pig-explorer-root-card">
-          <div className="pig-pro-kicker">Executive Relationship Root</div>
+    <div className="pig-canvas-pro">
+      <div className="pig-canvas-header">
+        <div>
+          <div className="pig-pro-kicker">Executive Intelligence Canvas</div>
           <h3>{selectedNode.label}</h3>
           <p>{fullEntityType(selectedNode.type)} · {selectedNode.state || "National Coverage"}</p>
+        </div>
 
-          <div className="pig-selected-meta">
-            <Badge tone="info">{fullEntityType(selectedNode.type)}</Badge>
-            <Badge tone={tone(selectedNode.risk)}>{fullRisk(selectedNode.risk)}</Badge>
-            <Badge tone="accent">Relationship Score: {selectedNode.score || 0}</Badge>
-            <Badge tone="active">{connectedNodes.length} Direct Relationships</Badge>
-          </div>
+        <div className="pig-selected-meta">
+          <Badge tone="info">{fullEntityType(selectedNode.type)}</Badge>
+          <Badge tone={tone(selectedNode.risk)}>{fullRisk(selectedNode.risk)}</Badge>
+          <Badge tone="accent">Relationship Score: {selectedNode.score || 0}</Badge>
+          <Badge tone="active">{connectedNodes.length} Connected Assets</Badge>
         </div>
       </div>
 
-      <div className="pig-explorer-lanes">
-        {laneOrder.map((type) => {
-          const items = grouped[type] || [];
+      <div className="pig-canvas-body">
+        <div className="pig-canvas-centerline" />
 
-          if (!items.length) return null;
+        <div className="pig-canvas-root-node">
+          <div className="pig-canvas-root-ring">
+            <span className="pig-canvas-root-dot" style={{ background: nodeColor(selectedNode.type) }} />
+          </div>
+          <strong>{selectedNode.label}</strong>
+          <small>{fullEntityType(selectedNode.type)}</small>
+        </div>
 
-          return (
-            <div key={type} className="pig-explorer-lane">
-              <div className="pig-explorer-lane-head">
-                <span className="pig-pro-dot" style={{ background: nodeColor(type) }} />
-                <div>
-                  <strong>{fullEntityType(type)}</strong>
-                  <small>{items.length} connected entities</small>
+        {groups.length ? (
+          <div className="pig-canvas-lanes">
+            {groups.map((group, groupIndex) => (
+              <div key={group.key} className="pig-canvas-lane">
+                <div className="pig-canvas-lane-title">
+                  <span style={{ background: nodeColor(group.key) }} />
+                  <div>
+                    <strong>{group.title}</strong>
+                    <small>{group.description}</small>
+                  </div>
                 </div>
-              </div>
 
-              <div className="pig-explorer-branch-list">
-                {items.map((node) => (
-                  <button
-                    key={node.id}
-                    type="button"
-                    className="pig-explorer-branch"
-                    onClick={() => onSelect(node)}
-                  >
-                    <div className="pig-explorer-connector" />
+                <div className="pig-canvas-node-grid">
+                  {group.items.map((node, index) => (
+                    <button
+                      key={node.id}
+                      type="button"
+                      className="pig-canvas-node-card"
+                      onClick={() => onSelect(node)}
+                      style={{ "--delay": `${(groupIndex + index) * 40}ms` }}
+                    >
+                      <div className="pig-canvas-node-line" />
 
-                    <div className="pig-explorer-branch-card">
-                      <div className="pig-pro-card-top">
+                      <div className="pig-canvas-node-top">
                         <span className="pig-pro-dot" style={{ background: nodeColor(node.type) }} />
                         <Badge tone={tone(node.risk)}>{fullRisk(node.risk)}</Badge>
                       </div>
@@ -321,20 +302,23 @@ function GraphCanvas({ nodes, edges, selectedId, onSelect }) {
                       <h4>{node.label}</h4>
                       <p>{fullEntityType(node.type)} · {node.state || "National Coverage"}</p>
 
-                      <div className="pig-pro-card-grid">
+                      <div className="pig-canvas-node-meta">
                         <span>Relationship Score</span>
                         <strong>{node.score || 0}</strong>
-
                         <span>Geographic Coverage</span>
                         <strong>{node.state || "National Coverage"}</strong>
+                        <span>Entity Type</span>
+                        <strong>{fullEntityType(node.type)}</strong>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        ) : (
+          <EmptyState text="No connected intelligence assets are available for this entity." />
+        )}
       </div>
     </div>
   );
@@ -379,12 +363,7 @@ function MetaRow({ label, value, type }) {
 
 export default function PoliticalIntelligenceGraph() {
   const [data, setData] = useState(fallbackGraphData);
-  const [filters, setFilters] = useState({
-    q: "",
-    state: "",
-    type: "",
-    risk: "",
-  });
+  const [filters, setFilters] = useState({ q: "", state: "", type: "", risk: "" });
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("focus");
   const [loading, setLoading] = useState(true);
@@ -501,7 +480,7 @@ export default function PoliticalIntelligenceGraph() {
     <PageShell
       eyebrow="Political Intelligence Graph"
       title="Political Intelligence Graph"
-      description="A focused enterprise graph explorer for navigating relationships between workspaces, clients, projects, vendors, reports, contacts, tasks, and political intelligence signals."
+      description="A professional Executive Intelligence Canvas for navigating relationships between workspaces, clients, projects, vendors, reports, contacts, tasks, and political intelligence signals."
       tickerItems={[
         { label: "Visible Nodes", value: `${filteredNodes.length}`, dotClass: "vs-live-dot-success" },
         { label: "Visible Connections", value: `${filteredEdges.length}`, dotClass: "vs-live-dot-success" },
@@ -540,133 +519,258 @@ export default function PoliticalIntelligenceGraph() {
           min-width: 0;
         }
 
-        .pig-view-toggle {
-          display: inline-flex;
-          gap: 8px;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .pig-pro-board {
+        .pig-canvas-pro {
+          position: relative;
           display: grid;
           gap: 18px;
-          min-height: 560px;
-       }
+          min-height: 640px;
+        }
 
-       .pig-pro-center {
-         border: 1px solid rgba(251, 146, 60, 0.34);
-         border-radius: 26px;
-         padding: 22px;
-         background:
-           radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 36%),
-           linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.62));
-       }
+        .pig-canvas-header {
+          display: flex;
+          justify-content: space-between;
+          gap: 18px;
+          align-items: flex-start;
+          border: 1px solid rgba(251, 146, 60, 0.34);
+          border-radius: 28px;
+          padding: 22px;
+          background:
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.18), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.64));
+          box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+        }
 
-       .pig-pro-kicker {
-         color: var(--vs-brand-orange, #fb923c);
-         font-size: 10px;
-         font-weight: 950;
-         text-transform: uppercase;
-         letter-spacing: 0.14em;
-       }
+        .pig-canvas-header h3 {
+          margin: 8px 0 8px;
+          color: var(--vs-text);
+          font-size: 28px;
+          line-height: 1.18;
+          letter-spacing: -0.05em;
+          overflow-wrap: anywhere;
+        }
 
-       .pig-pro-center h3 {
-         margin: 8px 0 8px;
-         color: var(--vs-text);
-         font-size: 26px;
-         line-height: 1.2;
-         letter-spacing: -0.04em;
-       }
+        .pig-canvas-header p {
+          margin: 0;
+          color: var(--vs-text-muted);
+          line-height: 1.55;
+        }
 
-       .pig-pro-center p {
-         margin: 0;
-         color: var(--vs-text-muted);
-         line-height: 1.55;
-       }
+        .pig-canvas-body {
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 30px;
+          padding: 24px;
+          background:
+            radial-gradient(circle at center, rgba(59, 130, 246, 0.14), transparent 34%),
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.10), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.62));
+        }
 
-       .pig-pro-relationships {
-         display: grid;
-         grid-template-columns: repeat(2, minmax(0, 1fr));
-         gap: 14px;
-       }
+        .pig-canvas-centerline {
+          position: absolute;
+          top: 112px;
+          bottom: 34px;
+          left: 50%;
+          width: 2px;
+          background: linear-gradient(
+            180deg,
+            rgba(251, 146, 60, 0.78),
+            rgba(148, 163, 184, 0.12)
+          );
+          border-radius: 999px;
+          opacity: 0.75;
+        }
 
-       .pig-pro-relation-card {
-         border: 1px solid rgba(148, 163, 184, 0.16);
-         border-radius: 20px;
-         padding: 16px;
-         text-align: left;
-         color: inherit;
-         cursor: pointer;
-         background:
-           radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 34%),
-           linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.54));
-       }
+        .pig-canvas-root-node {
+          position: relative;
+          z-index: 2;
+          width: min(100%, 520px);
+          margin: 0 auto 28px;
+          text-align: center;
+          border: 1px solid rgba(251, 146, 60, 0.30);
+          border-radius: 26px;
+          padding: 20px;
+          background: rgba(2, 6, 23, 0.72);
+        }
 
-       .pig-pro-relation-card:hover {
-         border-color: rgba(251, 146, 60, 0.48);
-         background: rgba(251, 146, 60, 0.08);
-       }
+        .pig-canvas-root-ring {
+          width: 58px;
+          height: 58px;
+          margin: 0 auto 12px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(251, 146, 60, 0.45);
+          background: rgba(251, 146, 60, 0.08);
+          box-shadow: 0 0 32px rgba(251, 146, 60, 0.18);
+        }
 
-       .pig-pro-card-top {
-         display: flex;
-         justify-content: space-between;
-         gap: 10px;
-         align-items: center;
-         margin-bottom: 12px;
-      }
+        .pig-canvas-root-dot {
+          width: 28px;
+          height: 28px;
+          border-radius: 999px;
+          box-shadow: 0 0 22px rgba(255, 255, 255, 0.22);
+        }
 
-      .pig-pro-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 999px;
-        box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
-      }
+        .pig-canvas-root-node strong {
+          display: block;
+          color: var(--vs-text);
+          font-size: 18px;
+          line-height: 1.25;
+          overflow-wrap: anywhere;
+        }
 
-      .pig-pro-relation-card h4 {
-        margin: 0 0 7px;
-        color: var(--vs-text);
-        font-size: 15px;
-        line-height: 1.35;
-        overflow-wrap: anywhere;
-      }
+        .pig-canvas-root-node small {
+          display: block;
+          margin-top: 6px;
+          color: var(--vs-text-muted);
+        }
 
-      .pig-pro-relation-card p {
-        margin: 0 0 14px;
-        color: var(--vs-text-muted);
-        font-size: 12px;
-        line-height: 1.5;
-      }
+        .pig-canvas-lanes {
+          position: relative;
+          z-index: 2;
+          display: grid;
+          gap: 18px;
+        }
 
-      .pig-pro-card-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 6px;
-      }
+        .pig-canvas-lane {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 24px;
+          padding: 16px;
+          background: rgba(15, 23, 42, 0.52);
+          backdrop-filter: blur(16px);
+        }
 
-      .pig-pro-card-grid span {
-        color: var(--vs-text-muted);
-        font-size: 10px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 0.09em;
-      }
+        .pig-canvas-lane-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
 
-      .pig-pro-card-grid strong {
-        color: var(--vs-text);
-        font-size: 13px;
-        line-height: 1.35;
-        overflow-wrap: anywhere;
-      }
+        .pig-canvas-lane-title > span {
+          width: 12px;
+          height: 12px;
+          border-radius: 999px;
+          box-shadow: 0 0 18px rgba(255, 255, 255, 0.18);
+          flex: 0 0 auto;
+        }
 
-      @media (max-width: 900px) {
-        .pig-pro-relationships {
+        .pig-canvas-lane-title strong {
+          display: block;
+          color: var(--vs-text);
+          font-size: 14px;
+        }
+
+        .pig-canvas-lane-title small {
+          display: block;
+          margin-top: 3px;
+          color: var(--vs-text-muted);
+          font-size: 11px;
+          line-height: 1.35;
+        }
+
+        .pig-canvas-node-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .pig-canvas-node-card {
+          position: relative;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 20px;
+          padding: 16px;
+          text-align: left;
+          color: inherit;
+          cursor: pointer;
+          min-width: 0;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.76), rgba(2, 6, 23, 0.56));
+          animation: pigCanvasIn 0.28s ease both;
+          animation-delay: var(--delay, 0ms);
+        }
+
+        .pig-canvas-node-card:hover {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.08);
+          transform: translateY(-1px);
+        }
+
+        .pig-canvas-node-line {
+          position: absolute;
+          top: -14px;
+          left: 26px;
+          width: 2px;
+          height: 14px;
+          background: rgba(251, 146, 60, 0.35);
+        }
+
+        .pig-canvas-node-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .pig-canvas-node-card h4 {
+          margin: 0 0 7px;
+          color: var(--vs-text);
+          font-size: 15px;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
+        }
+
+        .pig-canvas-node-card p {
+          margin: 0 0 14px;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .pig-canvas-node-meta {
+          display: grid;
           grid-template-columns: 1fr;
-      }
-    }
+          gap: 6px;
+        }
+
+        .pig-canvas-node-meta span {
+          color: var(--vs-text-muted);
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.09em;
+        }
+
+        .pig-canvas-node-meta strong {
+          color: var(--vs-text);
+          font-size: 13px;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
+        }
+
+        .pig-pro-kicker {
+          color: var(--vs-brand-orange, #fb923c);
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+        }
+
+        .pig-pro-dot,
+        .pig-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          flex: 0 0 auto;
+          box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+        }
 
         .pig-node-list-row,
-        .pig-row,
-        .pig-node-summary-card {
+        .pig-row {
           border-radius: 20px;
           border: 1px solid rgba(148, 163, 184, .16);
           background:
@@ -730,13 +834,6 @@ export default function PoliticalIntelligenceGraph() {
           white-space: normal;
         }
 
-        .pig-dot {
-          width: 9px;
-          height: 9px;
-          border-radius: 999px;
-          flex: 0 0 auto;
-        }
-
         .pig-selected-panel {
           border: 1px solid rgba(251, 146, 60, 0.30);
           border-radius: 24px;
@@ -769,6 +866,18 @@ export default function PoliticalIntelligenceGraph() {
           margin-top: 14px;
         }
 
+        @keyframes pigCanvasIn {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         @media (max-width: 1500px) {
           .pig-enterprise-grid {
             grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr);
@@ -784,170 +893,20 @@ export default function PoliticalIntelligenceGraph() {
           .pig-controls {
             grid-template-columns: 1fr;
           }
+
+          .pig-canvas-header {
+            flex-direction: column;
+          }
+
+          .pig-canvas-node-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .pig-canvas-centerline {
+            display: none;
+          }
         }
-
-        .pig-explorer {
-          display: grid;
-          gap: 22px;
-          min-height: 560px;
-       }
-
-       .pig-explorer-root {
-         justify-content: center;
-       }
-
-       .pig-explorer-root-card {
-         width: min(100%, 680px);
-         border: 1px solid rgba(251, 146, 60, 0.36);
-         border-radius: 28px;
-         padding: 24px;
-         background:
-           radial-gradient(circle at top right, rgba(251, 146, 60, 0.18), transparent 36%),
-           linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.64));
-         box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
-      }
-
-      .pig-explorer-root-card h3 {
-        margin: 8px 0 8px;
-        color: var(--vs-text);
-        font-size: 28px;
-        line-height: 1.18;
-        letter-spacing: -0.05em;
-        overflow-wrap: anywhere;
-      }
-
-      .pig-explorer-root-card p {
-        margin: 0;
-        color: var(--vs-text-muted);
-        line-height: 1.55;
-      }
-
-      .pig-explorer-lanes {
-        display: grid;
-        gap: 18px;
-      }
-
-      .pig-explorer-lane {
-        position: relative;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        border-radius: 24px;
-        padding: 16px;
-        background:
-          radial-gradient(circle at top left, rgba(59, 130, 246, 0.10), transparent 30%),
-          linear-gradient(135deg, rgba(15, 23, 42, 0.70), rgba(2, 6, 23, 0.48));
-     }
-
-     .pig-explorer-lane-head {
-       display: flex;
-       align-items: center;
-       gap: 12px;
-       margin-bottom: 14px;
-    }
-
-    .pig-explorer-lane-head strong {
-      display: block;
-      color: var(--vs-text);
-      font-size: 14px;
-      line-height: 1.3;
-    }
-
-    .pig-explorer-lane-head small {
-      display: block;
-       margin-top: 3px;
-       color: var(--vs-text-muted);
-       font-size: 11px;
-    }
-
-    .pig-explorer-branch-list {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .pig-explorer-branch {
-      position: relative;
-      display: grid;
-      grid-template-columns: 24px minmax(0, 1fr);
-      gap: 10px;
-      width: 100%;
-      padding: 0;
-      color: inherit;
-      text-align: left;
-      cursor: pointer;
-      border: 0;
-      background: transparent;
-    }
-
-    .pig-explorer-connector {
-      position: relative;
-      min-height: 100%;
-    }
-
-    .pig-explorer-connector::before {
-      content: "";
-      position: absolute;
-      top: 22px;
-      left: 11px;
-      width: 2px;
-      height: calc(100% - 22px);
-      background: linear-gradient(
-        180deg,
-        rgba(251, 146, 60, 0.65),
-        rgba(148, 163, 184, 0.10)
-     );
-     border-radius: 999px;
-   }
-
-   .pig-explorer-connector::after {
-     content: "";
-     position: absolute;
-     top: 18px;
-     left: 6px;
-     width: 12px;
-     height: 12px;
-     border-radius: 999px;
-     background: var(--vs-brand-orange, #fb923c);
-     box-shadow: 0 0 16px rgba(251, 146, 60, 0.7);
-  }
-
-  .pig-explorer-branch-card {
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 20px;
-    padding: 16px;
-    min-width: 0;
-    background:
-      radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 34%),
-      linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(2, 6, 23, 0.54));
-      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-  }
-
-  .pig-explorer-branch:hover .pig-explorer-branch-card {
-    border-color: rgba(251, 146, 60, 0.48);
-    background: rgba(251, 146, 60, 0.08);
-    transform: translateY(-1px);
-  }
-
-  .pig-explorer-branch-card h4 {
-    margin: 0 0 7px;
-    color: var(--vs-text);
-    font-size: 15px;
-    line-height: 1.35;
-    overflow-wrap: anywhere;
-  }
-
-  .pig-explorer-branch-card p {
-    margin: 0 0 14px;
-    color: var(--vs-text-muted);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  @media (max-width: 1100px) {
-    .pig-explorer-branch-list {
-      grid-template-columns: 1fr;
-     }
-   }
- `}</style>
+      `}</style>
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
@@ -1008,7 +967,7 @@ export default function PoliticalIntelligenceGraph() {
           <div className="pig-stack">
             <SectionCard
               title="Entity Navigator"
-              subtitle="Select one entity to focus the graph on its immediate relationships."
+              subtitle="Select one entity to focus the canvas on its immediate intelligence relationships."
               right={<Badge tone="info">{filteredNodes.length} Entities</Badge>}
             >
               {!filteredNodes.length ? (
@@ -1031,23 +990,22 @@ export default function PoliticalIntelligenceGraph() {
 
           <div className="pig-stack">
             <SectionCard
-              title={viewMode === "focus" ? "Focused Relationship Graph" : "Full Political Intelligence Network"}
+              title={viewMode === "focus" ? "Executive Intelligence Canvas" : "Full Political Intelligence Canvas"}
               subtitle={
                 viewMode === "focus"
-                  ? "Default clean view showing the selected entity and first-degree relationships."
-                  : "Expanded network view. Labels are reduced to prevent visual clutter."
+                  ? "Clean executive canvas showing the selected entity and first-degree intelligence relationships."
+                  : "Expanded canvas using filtered network entities."
               }
-              right={<Badge tone="accent">{graphData.visibleNodes.length} Visible Nodes</Badge>}
+              right={<Badge tone="accent">{graphData.visibleNodes.length} Visible Entities</Badge>}
             >
               {!graphData.visibleNodes.length ? (
-                <EmptyState text="No visible graph nodes available." />
+                <EmptyState text="No visible graph entities available." />
               ) : (
-                <GraphCanvas
+                <ExecutiveIntelligenceCanvas
                   nodes={graphData.visibleNodes}
                   edges={graphData.visibleEdges}
                   selectedId={selected?.id}
                   onSelect={setSelected}
-                  mode={viewMode}
                 />
               )}
             </SectionCard>
@@ -1131,3 +1089,4 @@ export default function PoliticalIntelligenceGraph() {
     </PageShell>
   );
 }
+
