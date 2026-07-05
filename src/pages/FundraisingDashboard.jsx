@@ -134,12 +134,16 @@ function SelectField({ label, value, onChange, options, allLabel }) {
   );
 }
 
-function LeaderRow({ row }) {
+function LeaderRow({ row, selected, onSelect }) {
   const sources = getFundingSources(row);
-  const topSource = sources.sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+  const topSource = [...sources].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
 
   return (
-    <div className="fund-leader-row">
+    <button
+      type="button"
+      className={selected ? "fund-leader-row is-selected" : "fund-leader-row"}
+      onClick={() => onSelect(row)}
+    >
       <div className="fund-rank">#{row.rank}</div>
 
       <div className="fund-main">
@@ -164,7 +168,7 @@ function LeaderRow({ row }) {
         <strong>{topSource?.source || "Unclassified Funding Source"}</strong>
         <small>{formatMoney(topSource?.amount || 0)}</small>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -185,19 +189,25 @@ function SourceRow({ source, total, max }) {
   );
 }
 
-function CandidateSourceCard({ row }) {
+function CandidateSourceDetail({ row }) {
+  if (!row) {
+    return <EmptyState text="Select a candidate to view funding source detail." />;
+  }
+
   const sources = getFundingSources(row);
   const max = Math.max(...sources.map((source) => Number(source.amount || 0)), 0);
 
   return (
-    <div className="fund-candidate-source-card">
-      <div className="fund-card-head">
+    <div className="fund-detail-card">
+      <div className="fund-detail-head">
         <div>
+          <span>Selected Candidate Funding Source Detail</span>
           <strong>{row.name}</strong>
-          <span>
-            {row.state || "N/A"} · {row.office || "Race"}
-          </span>
+          <p>
+            {row.state || "N/A"} · {row.office || "Race"} · {row.party || "N/A"}
+          </p>
         </div>
+
         <Badge tone="accent">{formatMoney(row.receipts || 0)}</Badge>
       </div>
 
@@ -314,6 +324,7 @@ export default function FundraisingDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState(fallbackData);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [filters, setFilters] = useState({
     candidate: "",
     state: "",
@@ -387,6 +398,34 @@ export default function FundraisingDashboard() {
       rank: index + 1,
     }));
   }, [leaderboard, filters]);
+
+  useEffect(() => {
+    if (!filteredLeaderboard.length) {
+      setSelectedCandidateId(null);
+      return;
+    }
+
+    setSelectedCandidateId((current) => {
+      if (
+        current &&
+        filteredLeaderboard.some((row) => String(row.candidate_id || row.name) === String(current))
+      ) {
+        return current;
+      }
+
+      return filteredLeaderboard[0]?.candidate_id || filteredLeaderboard[0]?.name || null;
+    });
+  }, [filteredLeaderboard]);
+
+  const selectedCandidate = useMemo(() => {
+    return (
+      filteredLeaderboard.find(
+        (row) => String(row.candidate_id || row.name) === String(selectedCandidateId)
+      ) ||
+      filteredLeaderboard[0] ||
+      null
+    );
+  }, [filteredLeaderboard, selectedCandidateId]);
 
   const sourceBreakdown = useMemo(() => {
     const rows = allSources.map((source) => ({
@@ -479,6 +518,10 @@ export default function FundraisingDashboard() {
     });
   }
 
+  function selectCandidate(row) {
+    setSelectedCandidateId(row.candidate_id || row.name);
+  }
+
   const maxSourceTotal = Math.max(...sourceBreakdown.map((row) => row.total), 0);
 
   return (
@@ -537,12 +580,15 @@ export default function FundraisingDashboard() {
           width: 100%;
           border-radius: 14px;
           border: 1px solid rgba(148, 163, 184, 0.22);
-          background: rgba(15, 23, 42, 0.92);
+          background: #0f172a;
           color: #f8fafc;
           padding: 11px 12px;
           outline: none;
           min-width: 0;
           font-weight: 750;
+          box-shadow: none;
+          filter: none;
+          backdrop-filter: none;
         }
 
         .fund-filter-field select option {
@@ -558,21 +604,32 @@ export default function FundraisingDashboard() {
 
         .fund-leader-row,
         .fund-summary-card,
-        .fund-candidate-source-card {
+        .fund-detail-card {
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 20px;
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.76), rgba(2, 6, 23, 0.56));
+          background: var(--vs-panel-bg, #111827);
+          box-shadow: none;
+          filter: none;
+          backdrop-filter: none;
           min-width: 0;
         }
 
         .fund-leader-row {
+          width: 100%;
           display: grid;
           grid-template-columns: 64px minmax(220px, 1.6fr) repeat(3, minmax(150px, 1fr));
           gap: 16px;
           align-items: start;
           padding: 16px;
+          text-align: left;
+          color: inherit;
+          cursor: pointer;
+        }
+
+        .fund-leader-row:hover,
+        .fund-leader-row.is-selected {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(15, 23, 42, 0.96);
         }
 
         .fund-rank {
@@ -590,7 +647,7 @@ export default function FundraisingDashboard() {
 
         .fund-main strong,
         .fund-metric strong,
-        .fund-card-head strong {
+        .fund-detail-head strong {
           color: var(--vs-text);
           overflow-wrap: anywhere;
         }
@@ -598,7 +655,8 @@ export default function FundraisingDashboard() {
         .fund-main span,
         .fund-metric span,
         .fund-metric small,
-        .fund-card-head span {
+        .fund-detail-head span,
+        .fund-detail-head p {
           color: var(--vs-text-muted);
           font-size: 12px;
           line-height: 1.45;
@@ -630,7 +688,11 @@ export default function FundraisingDashboard() {
           line-height: 1.5;
         }
 
-        .fund-card-head {
+        .fund-detail-card {
+          padding: 16px;
+        }
+
+        .fund-detail-head {
           display: flex;
           justify-content: space-between;
           gap: 12px;
@@ -638,8 +700,23 @@ export default function FundraisingDashboard() {
           margin-bottom: 14px;
         }
 
-        .fund-candidate-source-card {
-          padding: 16px;
+        .fund-detail-head span {
+          display: block;
+          margin-bottom: 5px;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .fund-detail-head strong {
+          display: block;
+          font-size: 18px;
+          line-height: 1.22;
+        }
+
+        .fund-detail-head p {
+          margin: 6px 0 0;
         }
 
         .fund-source-stack {
@@ -650,6 +727,22 @@ export default function FundraisingDashboard() {
         .fund-source-row {
           display: grid;
           gap: 7px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 16px;
+          padding: 11px;
+          background: var(--vs-panel-bg, #111827);
+          box-shadow: none;
+          filter: none;
+          backdrop-filter: none;
+        }
+
+        .fund-source-row.is-individual {
+          border-left: 4px solid #38bdf8;
+          border-color: rgba(56, 189, 248, 0.34);
+          background: var(--vs-panel-bg, #111827);
+          box-shadow: none;
+          filter: none;
+          backdrop-filter: none;
         }
 
         .fund-source-top {
@@ -686,25 +779,6 @@ export default function FundraisingDashboard() {
           min-width: 7px;
         }
 
-        .fund-source-row {
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          border-radius: 16px;
-          padding: 11px;
-          background: rgba(2, 6, 23, 0.36);
-        }
-
-        .fund-source-row.is-individual {
-          border-color: rgba(56, 189, 248, 0.34);
-          background:
-            radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 34%),
-            rgba(2, 6, 23, 0.46);
-        }
-
-        .fund-source-row.is-individual .fund-source-top strong,
-        .fund-source-row.is-individual .fund-source-top span {
-          color: #ffffff;
-        }
-
         .fund-source-breakdown {
           display: grid;
           gap: 13px;
@@ -723,7 +797,7 @@ export default function FundraisingDashboard() {
             grid-template-columns: 1fr;
           }
 
-          .fund-card-head {
+          .fund-detail-head {
             flex-direction: column;
           }
         }
@@ -799,7 +873,7 @@ export default function FundraisingDashboard() {
       <div className="vs-grid-2">
         <SectionCard
           title="Fundraising Leaderboard"
-          subtitle="Top candidates by receipts, reserve position, and leading fundraising source."
+          subtitle="Top candidates by receipts, reserve position, and leading fundraising source. Select a candidate to view source detail."
           right={<Badge tone="accent">{filteredLeaderboard.length} Candidates</Badge>}
         >
           <div className="vs-stack">
@@ -812,6 +886,8 @@ export default function FundraisingDashboard() {
                 <LeaderRow
                   key={`${row.rank}-${row.candidate_id || row.name}`}
                   row={row}
+                  selected={String(row.candidate_id || row.name) === String(selectedCandidateId)}
+                  onSelect={selectCandidate}
                 />
               ))
             )}
@@ -875,24 +951,11 @@ export default function FundraisingDashboard() {
         </SectionCard>
 
         <SectionCard
-          title="Candidate Funding Source Detail"
-          subtitle="Candidate-by-candidate detail showing the source of fundraising."
-          right={<Badge tone="accent">{filteredLeaderboard.length} Candidate Profiles</Badge>}
+          title="Selected Candidate Funding Source Detail"
+          subtitle="Expandable-style detail view for one selected candidate at a time."
+          right={selectedCandidate ? <Badge tone="accent">{selectedCandidate.name}</Badge> : null}
         >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading candidate source detail..." />
-            ) : !filteredLeaderboard.length ? (
-              <EmptyState text="No candidate source details match the selected filters." />
-            ) : (
-              filteredLeaderboard.map((row) => (
-                <CandidateSourceCard
-                  key={`${row.candidate_id || row.name}-sources`}
-                  row={row}
-                />
-              ))
-            )}
-          </div>
+          <CandidateSourceDetail row={selectedCandidate} />
         </SectionCard>
       </div>
     </PageShell>
