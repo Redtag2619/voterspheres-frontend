@@ -7,70 +7,27 @@ import EmptyState from "../components/ui/EmptyState";
 import Badge from "../components/ui/Badge";
 
 function formatMoney(value) {
-  return `$${Number(value || 0).toLocaleString()}`;
-}
-
-function normalizeText(value) {
-  return String(value || "").trim();
-}
-
-function optionKey(value) {
-  return normalizeText(value).toLowerCase();
-}
-
-function uniqueOptions(rows, key, fallbackLabel = "Unknown") {
-  return Array.from(
-    new Set(
-      rows
-        .map((row) => normalizeText(row?.[key]) || fallbackLabel)
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  return `$${Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 0,
+  })}`;
 }
 
 function getFundingSources(row) {
-  const sources =
-    row?.funding_sources ||
-    row?.fundingSources ||
-    row?.sources ||
-    row?.source_breakdown ||
-    [];
+  const receipts = Number(row?.receipts || 0);
 
-  if (Array.isArray(sources) && sources.length) {
-    return sources.map((source) => ({
-      source:
-        source.source ||
-        source.label ||
-        source.name ||
-        source.type ||
-        "Unclassified Funding Source",
-      amount: Number(source.amount || source.value || source.total || 0),
+  if (Array.isArray(row?.funding_sources) && row.funding_sources.length) {
+    return row.funding_sources.map((source) => ({
+      source: source.source || "Unclassified Funding Source",
+      amount: Number(source.amount || 0),
     }));
   }
 
-  const receipts = Number(row?.receipts || 0);
-
   return [
-    {
-      source: "Individual Contributions",
-      amount: Math.round(receipts * 0.52),
-    },
-    {
-      source: "Small-Dollar Contributions",
-      amount: Math.round(receipts * 0.21),
-    },
-    {
-      source: "PAC Contributions",
-      amount: Math.round(receipts * 0.16),
-    },
-    {
-      source: "Candidate Committee Transfers",
-      amount: Math.round(receipts * 0.07),
-    },
-    {
-      source: "Other Receipts",
-      amount: Math.round(receipts * 0.04),
-    },
+    { source: "Individual Contributions", amount: Math.round(receipts * 0.52) },
+    { source: "Small-Dollar Contributions", amount: Math.round(receipts * 0.21) },
+    { source: "PAC Contributions", amount: Math.round(receipts * 0.16) },
+    { source: "Candidate Committee Transfers", amount: Math.round(receipts * 0.07) },
+    { source: "Other Receipts", amount: Math.round(receipts * 0.04) },
   ];
 }
 
@@ -85,40 +42,7 @@ function sourceTotal(rows, sourceName) {
   }, 0);
 }
 
-function sumRows(rows, key) {
-  return rows.reduce((sum, row) => sum + Number(row?.[key] || 0), 0);
-}
-
-function filterRows(rows, filters) {
-  return rows.filter((row) => {
-    const rowSources = getFundingSources(row).map((source) => source.source);
-
-    const matchesCandidate =
-      !filters.candidate || optionKey(row.name) === optionKey(filters.candidate);
-
-    const matchesState =
-      !filters.state || optionKey(row.state || "N/A") === optionKey(filters.state);
-
-    const matchesOffice =
-      !filters.office || optionKey(row.office || "Race") === optionKey(filters.office);
-
-    const matchesParty =
-      !filters.party || optionKey(row.party || "N/A") === optionKey(filters.party);
-
-    const matchesSource =
-      !filters.source || rowSources.some((source) => optionKey(source) === optionKey(filters.source));
-
-    return (
-      matchesCandidate &&
-      matchesState &&
-      matchesOffice &&
-      matchesParty &&
-      matchesSource
-    );
-  });
-}
-
-function SelectField({ label, value, onChange, options, allLabel }) {
+function SelectField({ label, value, options, allLabel, onChange }) {
   return (
     <label className="fund-filter-field">
       <span>{label}</span>
@@ -134,9 +58,25 @@ function SelectField({ label, value, onChange, options, allLabel }) {
   );
 }
 
+function SourceRow({ source, total, max }) {
+  const width = max > 0 ? Math.max(4, Math.round((total / max) * 100)) : 0;
+  const individual = source.toLowerCase() === "individual contributions";
+
+  return (
+    <div className={individual ? "fund-source-row is-individual" : "fund-source-row"}>
+      <div className="fund-source-top">
+        <strong>{source}</strong>
+        <span>{formatMoney(total)}</span>
+      </div>
+      <div className="fund-source-bar">
+        <i style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function LeaderRow({ row, selected, onSelect }) {
-  const sources = getFundingSources(row);
-  const topSource = [...sources].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+  const topSource = [...getFundingSources(row)].sort((a, b) => b.amount - a.amount)[0];
 
   return (
     <button
@@ -154,17 +94,17 @@ function LeaderRow({ row, selected, onSelect }) {
       </div>
 
       <div className="fund-metric">
-        <span>Receipts</span>
-        <strong>{formatMoney(row.receipts || 0)}</strong>
+        <span>Total Receipts</span>
+        <strong>{formatMoney(row.receipts)}</strong>
       </div>
 
       <div className="fund-metric">
         <span>Cash On Hand</span>
-        <strong>{formatMoney(row.cash_on_hand || 0)}</strong>
+        <strong>{formatMoney(row.cash_on_hand)}</strong>
       </div>
 
       <div className="fund-metric">
-        <span>Leading Funding Source</span>
+        <span>Leading Source</span>
         <strong>{topSource?.source || "Unclassified Funding Source"}</strong>
         <small>{formatMoney(topSource?.amount || 0)}</small>
       </div>
@@ -172,18 +112,34 @@ function LeaderRow({ row, selected, onSelect }) {
   );
 }
 
-function SourceRow({ source, total, max }) {
-  const width = max > 0 ? Math.max(3, Math.round((total / max) * 100)) : 0;
-  const isIndividual = optionKey(source) === "individual contributions";
+function ExecutiveSummary({ summary, sourceBreakdown }) {
+  const topSource = sourceBreakdown[0];
 
   return (
-    <div className={isIndividual ? "fund-source-row is-individual" : "fund-source-row"}>
-      <div className="fund-source-top">
-        <strong>{source}</strong>
-        <span>{formatMoney(total)}</span>
+    <div className="fund-exec-summary">
+      <div className="fund-exec-summary-main">
+        <span>Executive Finance Summary</span>
+        <strong>{formatMoney(summary.total_receipts)}</strong>
+        <p>Total receipts across the currently filtered candidate finance universe.</p>
       </div>
-      <div className="fund-source-bar">
-        <i style={{ width: `${width}%` }} />
+
+      <div className="fund-exec-summary-grid">
+        <div>
+          <span>Candidate Count</span>
+          <strong>{summary.tracked_candidates}</strong>
+        </div>
+        <div>
+          <span>Cash On Hand</span>
+          <strong>{formatMoney(summary.total_cash_on_hand)}</strong>
+        </div>
+        <div>
+          <span>Average Raise</span>
+          <strong>{formatMoney(summary.average_receipts)}</strong>
+        </div>
+        <div>
+          <span>Top Funding Source</span>
+          <strong>{topSource?.source || "No Source Available"}</strong>
+        </div>
       </div>
     </div>
   );
@@ -201,14 +157,13 @@ function CandidateSourceDetail({ row }) {
     <div className="fund-detail-card">
       <div className="fund-detail-head">
         <div>
-          <span>Selected Candidate Funding Source Detail</span>
+          <span>Selected Candidate</span>
           <strong>{row.name}</strong>
           <p>
             {row.state || "N/A"} · {row.office || "Race"} · {row.party || "N/A"}
           </p>
         </div>
-
-        <Badge tone="accent">{formatMoney(row.receipts || 0)}</Badge>
+        <Badge tone="accent">{formatMoney(row.receipts)}</Badge>
       </div>
 
       <div className="fund-source-stack">
@@ -225,98 +180,13 @@ function CandidateSourceDetail({ row }) {
   );
 }
 
-function SummaryCard({ title, value, subtitle }) {
-  return (
-    <div className="fund-summary-card">
-      <span>{title}</span>
-      <strong>{value}</strong>
-      <p>{subtitle}</p>
-    </div>
-  );
-}
-
 const fallbackData = {
-  metrics: [
-    { label: "Tracked Finance Leaders", value: "4", delta: "Demo finance layer", tone: "up" },
-    { label: "Modeled Receipts", value: "$41.2M", delta: "Leaderboard total", tone: "up" },
-    { label: "Average Raise", value: "$10.3M", delta: "Across leaders", tone: "up" },
-    { label: "Cash On Hand", value: "$18.9M", delta: "Competitive reserves", tone: "up" },
-  ],
-  leaderboard: [
-    {
-      rank: 1,
-      candidate_id: 1,
-      name: "Mark Stephens",
-      state: "Georgia",
-      office: "Senate",
-      party: "Democratic",
-      receipts: 12850000,
-      cash_on_hand: 6100000,
-      funding_sources: [
-        { source: "Individual Contributions", amount: 6100000 },
-        { source: "Small-Dollar Contributions", amount: 2850000 },
-        { source: "PAC Contributions", amount: 2250000 },
-        { source: "Candidate Committee Transfers", amount: 950000 },
-        { source: "Other Receipts", amount: 700000 },
-      ],
-    },
-    {
-      rank: 2,
-      candidate_id: 2,
-      name: "Jane Thompson",
-      state: "Pennsylvania",
-      office: "Senate",
-      party: "Democratic",
-      receipts: 11120000,
-      cash_on_hand: 5400000,
-      funding_sources: [
-        { source: "Individual Contributions", amount: 5600000 },
-        { source: "Small-Dollar Contributions", amount: 2120000 },
-        { source: "PAC Contributions", amount: 2400000 },
-        { source: "Candidate Committee Transfers", amount: 650000 },
-        { source: "Other Receipts", amount: 350000 },
-      ],
-    },
-    {
-      rank: 3,
-      candidate_id: 3,
-      name: "Maria Ellis",
-      state: "Arizona",
-      office: "Senate",
-      party: "Democratic",
-      receipts: 9875000,
-      cash_on_hand: 4200000,
-      funding_sources: [
-        { source: "Individual Contributions", amount: 4900000 },
-        { source: "Small-Dollar Contributions", amount: 1850000 },
-        { source: "PAC Contributions", amount: 1925000 },
-        { source: "Candidate Committee Transfers", amount: 700000 },
-        { source: "Other Receipts", amount: 500000 },
-      ],
-    },
-    {
-      rank: 4,
-      candidate_id: 4,
-      name: "Daniel Brooks",
-      state: "Michigan",
-      office: "House",
-      party: "Republican",
-      receipts: 8420000,
-      cash_on_hand: 3150000,
-      funding_sources: [
-        { source: "Individual Contributions", amount: 4020000 },
-        { source: "Small-Dollar Contributions", amount: 1100000 },
-        { source: "PAC Contributions", amount: 2300000 },
-        { source: "Candidate Committee Transfers", amount: 650000 },
-        { source: "Other Receipts", amount: 350000 },
-      ],
-    },
-  ],
+  leaderboard: [],
   summary: {
-    tracked_candidates: 4,
-    total_receipts: 41165000,
-    total_cash_on_hand: 18850000,
-    average_receipts: 10291250,
+    tracked_candidates: 0,
+    total_receipts: 0,
+    total_cash_on_hand: 0,
+    average_receipts: 0,
   },
 };
 
@@ -346,7 +216,8 @@ export default function FundraisingDashboard() {
         setError("");
 
         const response = await api.get("/intelligence/fundraising/leaderboard", {
-          timeout: 6000,
+          params: { limit: 500 },
+          timeout: 8000,
         });
 
         if (!active) return;
@@ -354,10 +225,7 @@ export default function FundraisingDashboard() {
         const payload = response?.data || fallbackData;
 
         setData({
-          metrics: payload.metrics?.length ? payload.metrics : fallbackData.metrics,
-          leaderboard: payload.leaderboard?.length
-            ? payload.leaderboard
-            : fallbackData.leaderboard,
+          leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
           summary: payload.summary || fallbackData.summary,
         });
       } catch (err) {
@@ -366,7 +234,7 @@ export default function FundraisingDashboard() {
         setError(
           err?.response?.data?.error ||
             err?.message ||
-            "Failed to load fundraising dashboard. Fallback finance intelligence is active."
+            "Failed to load fundraising dashboard."
         );
 
         setData(fallbackData);
@@ -389,14 +257,36 @@ export default function FundraisingDashboard() {
       new Set(
         leaderboard.flatMap((row) => getFundingSources(row).map((source) => source.source))
       )
-    ).sort((a, b) => a.localeCompare(b));
+    ).sort();
   }, [leaderboard]);
 
+  const options = useMemo(() => {
+    const unique = (key) =>
+      Array.from(new Set(leaderboard.map((row) => row[key]).filter(Boolean))).sort();
+
+    return {
+      candidates: unique("name"),
+      states: unique("state"),
+      offices: unique("office"),
+      parties: unique("party"),
+      sources: allSources,
+    };
+  }, [leaderboard, allSources]);
+
   const filteredLeaderboard = useMemo(() => {
-    return filterRows(leaderboard, filters).map((row, index) => ({
-      ...row,
-      rank: index + 1,
-    }));
+    return leaderboard
+      .filter((row) => {
+        const sources = getFundingSources(row).map((source) => source.source);
+
+        return (
+          (!filters.candidate || row.name === filters.candidate) &&
+          (!filters.state || row.state === filters.state) &&
+          (!filters.office || row.office === filters.office) &&
+          (!filters.party || row.party === filters.party) &&
+          (!filters.source || sources.includes(filters.source))
+        );
+      })
+      .map((row, index) => ({ ...row, rank: index + 1 }));
   }, [leaderboard, filters]);
 
   useEffect(() => {
@@ -427,85 +317,40 @@ export default function FundraisingDashboard() {
     );
   }, [filteredLeaderboard, selectedCandidateId]);
 
-  const sourceBreakdown = useMemo(() => {
-    const rows = allSources.map((source) => ({
-      source,
-      total: sourceTotal(filteredLeaderboard, source),
-    }));
-
-    return rows
-      .filter((row) => row.total > 0)
-      .sort((a, b) => b.total - a.total);
-  }, [allSources, filteredLeaderboard]);
-
-  const filteredSummary = useMemo(() => {
-    const receipts = sumRows(filteredLeaderboard, "receipts");
-    const cash = sumRows(filteredLeaderboard, "cash_on_hand");
+  const summary = useMemo(() => {
+    const totalReceipts = filteredLeaderboard.reduce(
+      (sum, row) => sum + Number(row.receipts || 0),
+      0
+    );
+    const totalCash = filteredLeaderboard.reduce(
+      (sum, row) => sum + Number(row.cash_on_hand || 0),
+      0
+    );
 
     return {
       tracked_candidates: filteredLeaderboard.length,
-      total_receipts: receipts,
-      total_cash_on_hand: cash,
+      total_receipts: totalReceipts,
+      total_cash_on_hand: totalCash,
       average_receipts: filteredLeaderboard.length
-        ? Math.round(receipts / filteredLeaderboard.length)
+        ? Math.round(totalReceipts / filteredLeaderboard.length)
         : 0,
     };
   }, [filteredLeaderboard]);
 
-  const candidateOptions = useMemo(
-    () => uniqueOptions(leaderboard, "name", "Unknown Candidate"),
-    [leaderboard]
-  );
+  const sourceBreakdown = useMemo(() => {
+    return allSources
+      .map((source) => ({
+        source,
+        total: sourceTotal(filteredLeaderboard, source),
+      }))
+      .filter((row) => row.total > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [allSources, filteredLeaderboard]);
 
-  const stateOptions = useMemo(
-    () => uniqueOptions(leaderboard, "state", "N/A"),
-    [leaderboard]
-  );
-
-  const officeOptions = useMemo(
-    () => uniqueOptions(leaderboard, "office", "Race"),
-    [leaderboard]
-  );
-
-  const partyOptions = useMemo(
-    () => uniqueOptions(leaderboard, "party", "N/A"),
-    [leaderboard]
-  );
-
-  const metrics = useMemo(() => {
-    return [
-      {
-        label: "Filtered Candidates",
-        value: `${filteredSummary.tracked_candidates}`,
-        delta: "Candidates matching selected filters",
-        tone: "up",
-      },
-      {
-        label: "Filtered Receipts",
-        value: formatMoney(filteredSummary.total_receipts),
-        delta: "Receipts from selected candidates",
-        tone: "up",
-      },
-      {
-        label: "Filtered Cash On Hand",
-        value: formatMoney(filteredSummary.total_cash_on_hand),
-        delta: "Reserve strength after filters",
-        tone: "up",
-      },
-      {
-        label: "Filtered Average Raise",
-        value: formatMoney(filteredSummary.average_receipts),
-        delta: "Average receipts after filters",
-        tone: "up",
-      },
-    ];
-  }, [filteredSummary]);
+  const maxSourceTotal = Math.max(...sourceBreakdown.map((row) => row.total), 0);
 
   function setFilter(key, value) {
-    setFilters((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setFilters((current) => ({ ...current, [key]: value }));
   }
 
   function clearFilters() {
@@ -518,28 +363,22 @@ export default function FundraisingDashboard() {
     });
   }
 
-  function selectCandidate(row) {
-    setSelectedCandidateId(row.candidate_id || row.name);
-  }
-
-  const maxSourceTotal = Math.max(...sourceBreakdown.map((row) => row.total), 0);
-
   return (
     <PageShell
       eyebrow="Fundraising Intelligence"
       title="Finance strength across the field."
-      description="Track fundraising leaders, reserve strength, candidate-level finance posture, and where campaign fundraising is coming from."
+      description="Track candidate fundraising, reserve strength, finance source composition, and where campaign money is coming from."
       demo={demoMode}
-      demoText="Demo fundraising mode is active. Leaderboard totals and finance posture are preloaded for presentation."
+      demoText="Demo fundraising mode is active."
       tickerItems={[
         {
           label: "Candidates",
-          value: `${filteredSummary.tracked_candidates} visible`,
+          value: `${summary.tracked_candidates} visible`,
           dotClass: "vs-live-dot-success",
         },
         {
           label: "Receipts",
-          value: formatMoney(filteredSummary.total_receipts),
+          value: formatMoney(summary.total_receipts),
           dotClass: "vs-live-dot-success",
         },
         {
@@ -550,11 +389,6 @@ export default function FundraisingDashboard() {
       ]}
     >
       <style>{`
-        .fund-toolbar {
-          display: grid;
-          gap: 14px;
-        }
-
         .fund-filter-grid {
           display: grid;
           grid-template-columns: repeat(5, minmax(160px, 1fr)) auto;
@@ -565,7 +399,6 @@ export default function FundraisingDashboard() {
         .fund-filter-field {
           display: grid;
           gap: 7px;
-          min-width: 0;
         }
 
         .fund-filter-field span {
@@ -584,7 +417,6 @@ export default function FundraisingDashboard() {
           color: #f8fafc;
           padding: 11px 12px;
           outline: none;
-          min-width: 0;
           font-weight: 750;
           box-shadow: none;
           filter: none;
@@ -594,24 +426,76 @@ export default function FundraisingDashboard() {
         .fund-filter-field select option {
           background: #0f172a;
           color: #f8fafc;
-          font-weight: 700;
         }
 
-        .fund-filter-field select option:checked {
-          background: #1e293b;
-          color: #ffffff;
-        }
-
+        .fund-exec-summary,
         .fund-leader-row,
-        .fund-summary-card,
-        .fund-detail-card {
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 20px;
+        .fund-detail-card,
+        .fund-source-row {
           background: var(--vs-panel-bg, #111827);
+          border: 1px solid rgba(148, 163, 184, 0.16);
           box-shadow: none;
           filter: none;
           backdrop-filter: none;
-          min-width: 0;
+        }
+
+        .fund-exec-summary {
+          border-radius: 24px;
+          padding: 18px;
+          display: grid;
+          grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.3fr);
+          gap: 18px;
+        }
+
+        .fund-exec-summary-main {
+          border-right: 1px solid rgba(148, 163, 184, 0.14);
+          padding-right: 18px;
+        }
+
+        .fund-exec-summary-main span,
+        .fund-exec-summary-grid span {
+          display: block;
+          color: var(--vs-text-muted);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .fund-exec-summary-main strong {
+          display: block;
+          margin-top: 9px;
+          color: var(--vs-text);
+          font-size: 34px;
+          line-height: 1;
+        }
+
+        .fund-exec-summary-main p {
+          margin: 10px 0 0;
+          color: var(--vs-text-muted);
+          line-height: 1.55;
+        }
+
+        .fund-exec-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .fund-exec-summary-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          border-radius: 16px;
+          padding: 14px;
+          background: rgba(15, 23, 42, 0.72);
+        }
+
+        .fund-exec-summary-grid strong {
+          display: block;
+          margin-top: 8px;
+          color: var(--vs-text);
+          font-size: 18px;
+          line-height: 1.22;
+          overflow-wrap: anywhere;
         }
 
         .fund-leader-row {
@@ -621,6 +505,7 @@ export default function FundraisingDashboard() {
           gap: 16px;
           align-items: start;
           padding: 16px;
+          border-radius: 20px;
           text-align: left;
           color: inherit;
           cursor: pointer;
@@ -662,33 +547,8 @@ export default function FundraisingDashboard() {
           line-height: 1.45;
         }
 
-        .fund-summary-card {
-          padding: 16px;
-          display: grid;
-          gap: 8px;
-        }
-
-        .fund-summary-card span {
-          color: var(--vs-text-muted);
-          font-size: 10px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-        }
-
-        .fund-summary-card strong {
-          color: var(--vs-text);
-          font-size: 24px;
-          line-height: 1.1;
-        }
-
-        .fund-summary-card p {
-          margin: 0;
-          color: var(--vs-text-muted);
-          line-height: 1.5;
-        }
-
         .fund-detail-card {
+          border-radius: 20px;
           padding: 16px;
         }
 
@@ -719,30 +579,22 @@ export default function FundraisingDashboard() {
           margin: 6px 0 0;
         }
 
-        .fund-source-stack {
+        .fund-source-stack,
+        .fund-source-breakdown {
           display: grid;
-          gap: 11px;
+          gap: 12px;
         }
 
         .fund-source-row {
           display: grid;
           gap: 7px;
-          border: 1px solid rgba(148, 163, 184, 0.14);
           border-radius: 16px;
           padding: 11px;
-          background: var(--vs-panel-bg, #111827);
-          box-shadow: none;
-          filter: none;
-          backdrop-filter: none;
         }
 
         .fund-source-row.is-individual {
           border-left: 4px solid #38bdf8;
           border-color: rgba(56, 189, 248, 0.34);
-          background: var(--vs-panel-bg, #111827);
-          box-shadow: none;
-          filter: none;
-          backdrop-filter: none;
         }
 
         .fund-source-top {
@@ -779,21 +631,24 @@ export default function FundraisingDashboard() {
           min-width: 7px;
         }
 
-        .fund-source-breakdown {
-          display: grid;
-          gap: 13px;
-        }
-
         @media (max-width: 1320px) {
           .fund-filter-grid,
-          .fund-leader-row {
+          .fund-leader-row,
+          .fund-exec-summary {
             grid-template-columns: 1fr 1fr;
+          }
+
+          .fund-exec-summary-main {
+            border-right: 0;
+            padding-right: 0;
           }
         }
 
         @media (max-width: 760px) {
           .fund-filter-grid,
-          .fund-leader-row {
+          .fund-leader-row,
+          .fund-exec-summary,
+          .fund-exec-summary-grid {
             grid-template-columns: 1fr;
           }
 
@@ -809,71 +664,36 @@ export default function FundraisingDashboard() {
         title="Fundraising Filters"
         subtitle="Filter by candidate, state, race, party, and where the fundraising is coming from."
       >
-        <div className="fund-toolbar">
-          <div className="fund-filter-grid">
-            <SelectField
-              label="Candidate"
-              value={filters.candidate}
-              onChange={(value) => setFilter("candidate", value)}
-              options={candidateOptions}
-              allLabel="All Candidates"
-            />
-
-            <SelectField
-              label="State"
-              value={filters.state}
-              onChange={(value) => setFilter("state", value)}
-              options={stateOptions}
-              allLabel="All States"
-            />
-
-            <SelectField
-              label="Race / Office"
-              value={filters.office}
-              onChange={(value) => setFilter("office", value)}
-              options={officeOptions}
-              allLabel="All Races / Offices"
-            />
-
-            <SelectField
-              label="Party"
-              value={filters.party}
-              onChange={(value) => setFilter("party", value)}
-              options={partyOptions}
-              allLabel="All Parties"
-            />
-
-            <SelectField
-              label="Fundraising Source"
-              value={filters.source}
-              onChange={(value) => setFilter("source", value)}
-              options={allSources}
-              allLabel="All Funding Sources"
-            />
-
-            <button type="button" className="vs-button vs-button-secondary" onClick={clearFilters}>
-              Clear Filters
-            </button>
-          </div>
+        <div className="fund-filter-grid">
+          <SelectField label="Candidate" value={filters.candidate} options={options.candidates} allLabel="All Candidates" onChange={(value) => setFilter("candidate", value)} />
+          <SelectField label="State" value={filters.state} options={options.states} allLabel="All States" onChange={(value) => setFilter("state", value)} />
+          <SelectField label="Race / Office" value={filters.office} options={options.offices} allLabel="All Races / Offices" onChange={(value) => setFilter("office", value)} />
+          <SelectField label="Party" value={filters.party} options={options.parties} allLabel="All Parties" onChange={(value) => setFilter("party", value)} />
+          <SelectField label="Fundraising Source" value={filters.source} options={options.sources} allLabel="All Funding Sources" onChange={(value) => setFilter("source", value)} />
+          <button type="button" className="vs-button vs-button-secondary" onClick={clearFilters}>
+            Clear Filters
+          </button>
         </div>
       </SectionCard>
 
       <div className="vs-grid-4">
-        {metrics.map((metric, index) => (
-          <StatCard
-            key={`${metric.label}-${index}`}
-            label={metric.label}
-            value={metric.value}
-            delta={metric.delta}
-            tone={metric.tone}
-          />
-        ))}
+        <StatCard label="Filtered Candidates" value={summary.tracked_candidates} delta="Candidates matching filters" tone="up" />
+        <StatCard label="Filtered Receipts" value={formatMoney(summary.total_receipts)} delta="Receipts from selected candidates" tone="up" />
+        <StatCard label="Filtered Cash On Hand" value={formatMoney(summary.total_cash_on_hand)} delta="Reserve strength after filters" tone="up" />
+        <StatCard label="Filtered Average Raise" value={formatMoney(summary.average_receipts)} delta="Average receipts after filters" tone="up" />
       </div>
+
+      <SectionCard
+        title="Executive Finance Summary"
+        subtitle="Clean executive readout of candidate count, receipts, reserves, average raise, and leading funding source."
+      >
+        <ExecutiveSummary summary={summary} sourceBreakdown={sourceBreakdown} />
+      </SectionCard>
 
       <div className="vs-grid-2">
         <SectionCard
           title="Fundraising Leaderboard"
-          subtitle="Top candidates by receipts, reserve position, and leading fundraising source. Select a candidate to view source detail."
+          subtitle="Candidate finance leaderboard. Select a candidate to inspect source detail."
           right={<Badge tone="accent">{filteredLeaderboard.length} Candidates</Badge>}
         >
           <div className="vs-stack">
@@ -887,7 +707,9 @@ export default function FundraisingDashboard() {
                   key={`${row.rank}-${row.candidate_id || row.name}`}
                   row={row}
                   selected={String(row.candidate_id || row.name) === String(selectedCandidateId)}
-                  onSelect={selectCandidate}
+                  onSelect={(candidate) =>
+                    setSelectedCandidateId(candidate.candidate_id || candidate.name)
+                  }
                 />
               ))
             )}
@@ -895,47 +717,12 @@ export default function FundraisingDashboard() {
         </SectionCard>
 
         <SectionCard
-          title="Finance Summary"
-          subtitle="Quick read on receipts, reserves, and fundraising depth after filters."
-        >
-          <div className="vs-stack">
-            <SummaryCard
-              title="Filtered Candidates"
-              value={filteredSummary.tracked_candidates || 0}
-              subtitle="Candidates included after the current filters"
-            />
-
-            <SummaryCard
-              title="Filtered Total Receipts"
-              value={formatMoney(filteredSummary.total_receipts || 0)}
-              subtitle="Combined receipts across filtered campaigns"
-            />
-
-            <SummaryCard
-              title="Filtered Cash On Hand"
-              value={formatMoney(filteredSummary.total_cash_on_hand || 0)}
-              subtitle="Current reserve strength across filtered campaigns"
-            />
-
-            <SummaryCard
-              title="Filtered Average Raise"
-              value={formatMoney(filteredSummary.average_receipts || 0)}
-              subtitle="Average total receipts per filtered campaign"
-            />
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="vs-grid-2">
-        <SectionCard
           title="Where Fundraising Is Coming From"
-          subtitle="Funding source breakdown across the selected candidates."
+          subtitle="Funding source breakdown across selected candidates."
           right={<Badge tone="info">{sourceBreakdown.length} Funding Sources</Badge>}
         >
           <div className="fund-source-breakdown">
-            {loading ? (
-              <EmptyState text="Loading funding source breakdown..." />
-            ) : !sourceBreakdown.length ? (
+            {!sourceBreakdown.length ? (
               <EmptyState text="No funding source data matches the selected filters." />
             ) : (
               sourceBreakdown.map((row) => (
@@ -949,16 +736,15 @@ export default function FundraisingDashboard() {
             )}
           </div>
         </SectionCard>
-
-        <SectionCard
-          title="Selected Candidate Funding Source Detail"
-          subtitle="Expandable-style detail view for one selected candidate at a time."
-          right={selectedCandidate ? <Badge tone="accent">{selectedCandidate.name}</Badge> : null}
-        >
-          <CandidateSourceDetail row={selectedCandidate} />
-        </SectionCard>
       </div>
+
+      <SectionCard
+        title="Selected Candidate Funding Source Detail"
+        subtitle="One selected candidate at a time for a cleaner enterprise workflow."
+        right={selectedCandidate ? <Badge tone="accent">{selectedCandidate.name}</Badge> : null}
+      >
+        <CandidateSourceDetail row={selectedCandidate} />
+      </SectionCard>
     </PageShell>
   );
 }
-
