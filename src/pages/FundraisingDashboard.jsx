@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -112,7 +112,7 @@ function LeaderRow({ row, selected, onSelect }) {
   );
 }
 
-function ExecutiveSummary({ summary, sourceBreakdown }) {
+function ExecutiveSummary({ summary, sourceBreakdown, sourceLabel, lastUpdated }) {
   const topSource = sourceBreakdown[0];
 
   return (
@@ -120,7 +120,14 @@ function ExecutiveSummary({ summary, sourceBreakdown }) {
       <div className="fund-exec-summary-main">
         <span>Executive Finance Summary</span>
         <strong>{formatMoney(summary.total_receipts)}</strong>
-        <p>Total receipts across the currently filtered candidate finance universe.</p>
+        <p>
+          Total receipts across the currently filtered candidate finance universe.
+          {sourceLabel ? ` Source: ${sourceLabel}.` : ""}
+        </p>
+        <div className="fund-summary-badges">
+          <Badge tone="active">{sourceLabel || "Finance Feed"}</Badge>
+          <Badge tone="accent">{lastUpdated || "Latest available data"}</Badge>
+        </div>
       </div>
 
       <div className="fund-exec-summary-grid">
@@ -192,7 +199,9 @@ const fallbackData = {
 
 export default function FundraisingDashboard() {
   const [loading, setLoading] = useState(true);
+  const [refreshingFec, setRefreshingFec] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [data, setData] = useState(fallbackData);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [filters, setFilters] = useState({
@@ -207,48 +216,51 @@ export default function FundraisingDashboard() {
     typeof window !== "undefined" &&
     localStorage.getItem("vs_demo_mode") === "1";
 
+  const loadFundraising = useCallback(async ({ silent = false } = {}) => {
+    try {
+      if (!silent) setLoading(true);
+      setError("");
+
+      const response = await api.get("/intelligence/fundraising/leaderboard", {
+        params: { limit: 1000 },
+        timeout: 10000,
+      });
+
+      const payload = response?.data || fallbackData;
+
+      setData({
+        ...fallbackData,
+        ...payload,
+        leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
+        summary: payload.summary || fallbackData.summary,
+      });
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load fundraising dashboard."
+      );
+
+      setData(fallbackData);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
 
-    async function loadFundraising() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await api.get("/intelligence/fundraising/leaderboard", {
-          params: { limit: 500 },
-          timeout: 8000,
-        });
-
-        if (!active) return;
-
-        const payload = response?.data || fallbackData;
-
-        setData({
-          leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
-          summary: payload.summary || fallbackData.summary,
-        });
-      } catch (err) {
-        if (!active) return;
-
-        setError(
-          err?.response?.data?.error ||
-            err?.message ||
-            "Failed to load fundraising dashboard."
-        );
-
-        setData(fallbackData);
-      } finally {
-        if (active) setLoading(false);
-      }
+    async function run() {
+      if (!active) return;
+      await loadFundraising();
     }
 
-    loadFundraising();
+    run();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadFundraising]);
 
   const leaderboard = useMemo(() => data.leaderboard || [], [data.leaderboard]);
 
@@ -349,6 +361,31 @@ export default function FundraisingDashboard() {
 
   const maxSourceTotal = Math.max(...sourceBreakdown.map((row) => row.total), 0);
 
+  const sourceLabel = useMemo(() => {
+    const raw = String(data?.source || "").trim();
+    if (!raw) return "FEC Finance Feed";
+    if (raw.toLowerCase().includes("fec")) return "FEC Finance Feed";
+    if (raw.toLowerCase().includes("database")) return "Database Finance Feed";
+    return raw;
+  }, [data?.source]);
+
+  const lastUpdated = useMemo(() => {
+    const updated =
+      data?.updated_at ||
+      data?.generated_at ||
+      data?.last_updated ||
+      data?.last_synced_at ||
+      data?.sync_result?.updated_at;
+
+    if (!updated) return "Latest available data";
+
+    try {
+      return `Updated ${new Date(updated).toLocaleString()}`;
+    } catch {
+      return "Latest available data";
+    }
+  }, [data]);
+
   function setFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value }));
   }
@@ -363,11 +400,55 @@ export default function FundraisingDashboard() {
     });
   }
 
+  async function refreshFecData() {
+    setRefreshingFec(true);
+    setNotice("");
+    setError("");
+
+    try {
+      let refreshed = false;
+
+      try {
+        await api.post("/live-data-refresh/run", {}, { timeout: 45000 });
+        refreshed = true;
+      } catch (_firstError) {
+        try {
+          await api.post("/intelligence/refresh", {}, { timeout: 45000 });
+          refreshed = true;
+        } catch (_secondError) {
+          try {
+            await api.post("/fec/sync/candidate-financials", {}, { timeout: 45000 });
+            refreshed = true;
+          } catch (thirdError) {
+            throw thirdError;
+          }
+        }
+      }
+
+      await loadFundraising({ silent: true });
+
+      setNotice(
+        refreshed
+          ? "FEC fundraising feed refresh requested successfully. Dashboard data has been reloaded."
+          : "Dashboard data reloaded."
+      );
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "FEC fundraising refresh endpoint is unavailable."
+      );
+    } finally {
+      setRefreshingFec(false);
+    }
+  }
+
   return (
     <PageShell
       eyebrow="Fundraising Intelligence"
       title="Finance strength across the field."
-      description="Track candidate fundraising, reserve strength, finance source composition, and where campaign money is coming from."
+      description="Track candidate fundraising, reserve strength, finance source composition, and where campaign money is coming from through the FEC finance feed."
       demo={demoMode}
       demoText="Demo fundraising mode is active."
       tickerItems={[
@@ -386,9 +467,38 @@ export default function FundraisingDashboard() {
           value: `${sourceBreakdown.length} active`,
           dotClass: "vs-live-dot-warning",
         },
+        {
+          label: "Feed",
+          value: sourceLabel,
+          dotClass: String(data?.source || "").toLowerCase().includes("fec")
+            ? "vs-live-dot-success"
+            : "vs-live-dot-warning",
+        },
       ]}
     >
       <style>{`
+        .fund-toolbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .fund-toolbar-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .fund-chip-row {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
         .fund-filter-grid {
           display: grid;
           grid-template-columns: repeat(5, minmax(160px, 1fr)) auto;
@@ -474,6 +584,13 @@ export default function FundraisingDashboard() {
           margin: 10px 0 0;
           color: var(--vs-text-muted);
           line-height: 1.55;
+        }
+
+        .fund-summary-badges {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-top: 14px;
         }
 
         .fund-exec-summary-grid {
@@ -652,12 +769,45 @@ export default function FundraisingDashboard() {
             grid-template-columns: 1fr;
           }
 
-          .fund-detail-head {
+          .fund-detail-head,
+          .fund-toolbar {
             flex-direction: column;
+            align-items: stretch;
           }
         }
       `}</style>
 
+      <div className="fund-toolbar">
+        <div className="fund-chip-row">
+          <Badge tone={String(data?.source || "").toLowerCase().includes("fec") ? "active" : "warning"}>
+            {sourceLabel}
+          </Badge>
+          <Badge tone="accent">Candidate Finance Layer</Badge>
+          <Badge tone="info">FEC Import Ready</Badge>
+        </div>
+
+        <div className="fund-toolbar-actions">
+          <button
+            type="button"
+            className="vs-button vs-button-secondary"
+            onClick={() => loadFundraising({ silent: false })}
+            disabled={loading}
+          >
+            {loading ? "Refreshing Dashboard..." : "Refresh Dashboard"}
+          </button>
+
+          <button
+            type="button"
+            className="vs-button vs-button-primary"
+            onClick={refreshFecData}
+            disabled={refreshingFec}
+          >
+            {refreshingFec ? "Importing FEC Data..." : "Import FEC Data"}
+          </button>
+        </div>
+      </div>
+
+      {notice ? <div className="vs-banner">{notice}</div> : null}
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <SectionCard
@@ -687,7 +837,12 @@ export default function FundraisingDashboard() {
         title="Executive Finance Summary"
         subtitle="Clean executive readout of candidate count, receipts, reserves, average raise, and leading funding source."
       >
-        <ExecutiveSummary summary={summary} sourceBreakdown={sourceBreakdown} />
+        <ExecutiveSummary
+          summary={summary}
+          sourceBreakdown={sourceBreakdown}
+          sourceLabel={sourceLabel}
+          lastUpdated={lastUpdated}
+        />
       </SectionCard>
 
       <div className="vs-grid-2">
@@ -700,7 +855,7 @@ export default function FundraisingDashboard() {
             {loading ? (
               <EmptyState text="Loading fundraising leaderboard..." />
             ) : !filteredLeaderboard.length ? (
-              <EmptyState text="No fundraising leaders match the selected filters." />
+              <EmptyState text="No fundraising leaders match the selected filters. Import FEC data or refresh the finance feed." />
             ) : (
               filteredLeaderboard.map((row) => (
                 <LeaderRow
