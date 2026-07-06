@@ -459,11 +459,28 @@ export default function CampaignFinanceIntelligencePlatform() {
           color: #f8fafc;
         }
 
-        .cfi-grid-main {
+        .cfi-analysis-layout {
           display: grid;
-          grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
+          grid-template-columns: minmax(0, 1.28fr) minmax(360px, 0.72fr);
           gap: 22px;
           align-items: start;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .cfi-analysis-primary,
+        .cfi-analysis-secondary,
+        .cfi-command-board {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+          width: 100%;
+        }
+
+        .cfi-analysis-primary > *,
+        .cfi-analysis-secondary > * {
+          min-width: 0;
+          max-width: 100%;
         }
 
         .cfi-stack {
@@ -649,14 +666,59 @@ export default function CampaignFinanceIntelligencePlatform() {
           gap: 8px;
         }
 
+        .cfi-command-board .cfi-candidate-row {
+          grid-template-columns:
+            64px
+            minmax(360px, 2fr)
+            minmax(180px, 0.75fr)
+            minmax(180px, 0.75fr)
+            minmax(240px, 0.95fr);
+          max-width: 100%;
+          overflow: hidden;
+        }
+
+        .cfi-analysis-primary .cfi-pac-row {
+          grid-template-columns:
+            56px
+            minmax(320px, 1.6fr)
+            minmax(180px, 0.85fr)
+            minmax(160px, 0.7fr)
+            minmax(150px, 0.7fr);
+          max-width: 100%;
+          overflow: hidden;
+        }
+
+        .cfi-selected,
+        .cfi-detail-block,
+        .cfi-source-item,
+        .cfi-entity-row {
+          max-width: 100%;
+          overflow: hidden;
+          box-sizing: border-box;
+        }
+
+        .cfi-selected-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .cfi-analysis-secondary .cfi-entity-row {
+          grid-template-columns: 1fr;
+        }
+
+        .cfi-analysis-secondary .cfi-entity-row .cfi-bar {
+          grid-column: auto;
+        }
+
         @media (max-width: 1320px) {
-          .cfi-grid-main,
+          .cfi-analysis-layout,
           .cfi-insight-grid,
           .cfi-selected-grid,
           .cfi-filters {
             grid-template-columns: 1fr;
           }
 
+          .cfi-command-board .cfi-candidate-row,
+          .cfi-analysis-primary .cfi-pac-row,
           .cfi-candidate-row,
           .cfi-pac-row,
           .cfi-entity-row {
@@ -665,6 +727,8 @@ export default function CampaignFinanceIntelligencePlatform() {
         }
 
         @media (max-width: 760px) {
+          .cfi-command-board .cfi-candidate-row,
+          .cfi-analysis-primary .cfi-pac-row,
           .cfi-candidate-row,
           .cfi-pac-row,
           .cfi-entity-row {
@@ -771,30 +835,37 @@ export default function CampaignFinanceIntelligencePlatform() {
         </div>
       </SectionCard>
 
-      <div className="cfi-grid-main">
-        <div className="cfi-stack">
+      <SectionCard
+        title="Candidate Finance Command Board"
+        subtitle="Full-width ranked candidate finance strength with PAC dependency and reserve posture."
+        right={<Badge tone="accent">{candidates.length} Candidates</Badge>}
+      >
+        <div className="cfi-stack cfi-command-board">
+          {loading ? (
+            <EmptyState text="Loading candidate finance board..." />
+          ) : candidates.length ? (
+            candidates.map((candidate) => (
+              <CandidateRow
+                key={candidate.candidate_id}
+                candidate={candidate}
+                active={String(candidate.candidate_id) === String(activeCandidateId)}
+                onClick={(item) => setActiveCandidateId(item.candidate_id)}
+                maxReceipts={maxCandidateReceipts}
+              />
+            ))
+          ) : (
+            <EmptyState text="No candidate finance records match the selected filters." />
+          )}
+        </div>
+      </SectionCard>
+
+      <div className="cfi-analysis-layout">
+        <div className="cfi-analysis-primary">
           <SectionCard
-            title="Candidate Finance Command Board"
-            subtitle="Ranked candidate finance strength with PAC dependency and reserve posture."
-            right={<Badge tone="accent">{candidates.length} Candidates</Badge>}
+            title="Selected Candidate Finance Profile"
+            subtitle="Detailed source mix and named PAC contribution records."
           >
-            <div className="cfi-stack">
-              {loading ? (
-                <EmptyState text="Loading candidate finance board..." />
-              ) : candidates.length ? (
-                candidates.map((candidate) => (
-                  <CandidateRow
-                    key={candidate.candidate_id}
-                    candidate={candidate}
-                    active={String(candidate.candidate_id) === String(activeCandidateId)}
-                    onClick={(item) => setActiveCandidateId(item.candidate_id)}
-                    maxReceipts={maxCandidateReceipts}
-                  />
-                ))
-              ) : (
-                <EmptyState text="No candidate finance records match the selected filters." />
-              )}
-            </div>
+            <SelectedCandidatePanel candidate={activeCandidate} />
           </SectionCard>
 
           <SectionCard
@@ -814,14 +885,7 @@ export default function CampaignFinanceIntelligencePlatform() {
           </SectionCard>
         </div>
 
-        <div className="cfi-stack">
-          <SectionCard
-            title="Selected Candidate Finance Profile"
-            subtitle="Detailed source mix and named PAC contribution records."
-          >
-            <SelectedCandidatePanel candidate={activeCandidate} />
-          </SectionCard>
-
+        <div className="cfi-analysis-secondary">
           <SectionCard
             title="State Finance Heat"
             subtitle="Receipts and candidate count by state."
