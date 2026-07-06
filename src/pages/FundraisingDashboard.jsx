@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
@@ -15,13 +16,36 @@ const fallbackData = {
     total_receipts: 0,
     total_cash_on_hand: 0,
     average_receipts: 0,
+    pac_committees: 0,
   },
 };
 
+const defaultOpenSections = {
+  summary: true,
+  sources: true,
+  leaderboard: true,
+  selected: true,
+  pacs: false,
+  states: false,
+};
+
+function arr(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function number(value) {
+  const next = Number(value || 0);
+  return Number.isFinite(next) ? next : 0;
+}
+
 function formatMoney(value) {
-  return `$${Number(value || 0).toLocaleString(undefined, {
+  return `$${number(value).toLocaleString(undefined, {
     maximumFractionDigits: 0,
   })}`;
+}
+
+function pct(value) {
+  return `${Math.round(number(value))}%`;
 }
 
 function normalizeText(value) {
@@ -32,40 +56,6 @@ function normalizeKey(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function getPacContributions(row = {}) {
-  const payload = row.source_payload && typeof row.source_payload === "object" ? row.source_payload : {};
-
-  const pacs =
-    row.pac_contributions ||
-    row.pacContributions ||
-    payload.pac_contributions ||
-    payload.pacContributions ||
-    [];
-
-  if (!Array.isArray(pacs)) return [];
-
-  return pacs
-    .map((pac, index) => ({
-      id: pac.committee_id || pac.committeeId || pac.id || `pac-${index}`,
-      committee_id: pac.committee_id || pac.committeeId || pac.id || "N/A",
-      committee_name:
-        pac.committee_name ||
-        pac.committeeName ||
-        pac.name ||
-        pac.contributor_name ||
-        pac.contributorName ||
-        "Unknown PAC / Committee",
-      committee_type: pac.committee_type || pac.committeeType || pac.type || "Committee",
-      committee_party: pac.committee_party || pac.committeeParty || pac.party || "N/A",
-      amount: Number(pac.amount || pac.total || pac.contribution_amount || pac.contributionAmount || 0),
-      city: pac.city || pac.contributor_city || "",
-      state: pac.state || pac.contributor_state || "",
-      fec_url: pac.fec_url || pac.fecUrl || pac.url || "",
-    }))
-    .filter((pac) => pac.committee_name && pac.committee_name !== "Unknown PAC / Committee")
-    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
-}
-
 function normalizeRow(row = {}, index = 0) {
   const name =
     row.name ||
@@ -73,6 +63,8 @@ function normalizeRow(row = {}, index = 0) {
     row.full_name ||
     row.display_name ||
     "Unknown Candidate";
+
+  const pacs = arr(row.pac_contributions);
 
   return {
     ...row,
@@ -86,22 +78,20 @@ function normalizeRow(row = {}, index = 0) {
     state: row.state || row.state_code || row.candidate_state || "N/A",
     office: row.office || row.race || row.office_sought || row.candidate_office || "Race",
     party: row.party || row.party_full || row.party_name || row.party_code || "N/A",
-    receipts: Number(
+    receipts: number(
       row.receipts ||
         row.total_receipts ||
         row.ttl_receipts ||
         row.raised_total ||
-        row.total_raised ||
-        0
+        row.total_raised
     ),
-    cash_on_hand: Number(
+    cash_on_hand: number(
       row.cash_on_hand ||
         row.cash_on_hand_total ||
         row.cash_on_hand_end_period ||
-        row.cash_on_hand_end ||
-        0
+        row.cash_on_hand_end
     ),
-    pac_contributions: getPacContributions(row),
+    pac_contributions: pacs,
   };
 }
 
@@ -123,6 +113,10 @@ function normalizePayload(payload) {
   const totalReceipts = leaderboard.reduce((sum, row) => sum + Number(row.receipts || 0), 0);
   const totalCash = leaderboard.reduce((sum, row) => sum + Number(row.cash_on_hand || 0), 0);
 
+  const pacCommitteeNames = new Set(
+    leaderboard.flatMap((row) => arr(row.pac_contributions).map((pac) => pac.committee_name || pac.name).filter(Boolean))
+  );
+
   return {
     ...fallbackData,
     ...(payload || {}),
@@ -132,6 +126,7 @@ function normalizePayload(payload) {
       total_receipts: totalReceipts,
       total_cash_on_hand: totalCash,
       average_receipts: leaderboard.length ? Math.round(totalReceipts / leaderboard.length) : 0,
+      pac_committees: pacCommitteeNames.size,
       ...(payload?.summary || {}),
     },
   };
@@ -148,31 +143,36 @@ function getFundingSources(row) {
     [];
 
   if (Array.isArray(sources) && sources.length) {
-    const pacs = getPacContributions(row);
-
-    return sources.map((source) => {
-      const label =
+    return sources.map((source) => ({
+      source:
         source.source ||
         source.label ||
         source.name ||
         source.type ||
-        "Unclassified Funding Source";
-
-      return {
-        source: label,
-        amount: Number(source.amount || source.value || source.total || 0),
-        committees: normalizeKey(label).includes("pac") ? pacs : [],
-      };
-    });
+        "Unclassified Funding Source",
+      amount: Number(source.amount || source.value || source.total || 0),
+      committees: arr(source.committees),
+    }));
   }
+
+  const pacTotal = arr(row?.pac_contributions).reduce((sum, pac) => sum + number(pac.amount), 0);
 
   return [
     { source: "Individual Contributions", amount: Math.round(receipts * 0.52) },
     { source: "Small-Dollar Contributions", amount: Math.round(receipts * 0.21) },
-    { source: "PAC Contributions", amount: Math.round(receipts * 0.16), committees: getPacContributions(row) },
+    { source: "PAC Contributions", amount: pacTotal || Math.round(receipts * 0.16), committees: arr(row?.pac_contributions) },
     { source: "Candidate Committee Transfers", amount: Math.round(receipts * 0.07) },
     { source: "Other Receipts", amount: Math.round(receipts * 0.04) },
   ];
+}
+
+function getPacs(row = {}) {
+  const direct = arr(row.pac_contributions);
+  if (direct.length) return direct;
+
+  return getFundingSources(row)
+    .flatMap((source) => arr(source.committees))
+    .filter(Boolean);
 }
 
 function sourceTotal(rows, sourceName) {
@@ -192,6 +192,77 @@ function uniqueOptions(rows, key) {
   ).sort((a, b) => a.localeCompare(b));
 }
 
+function aggregatePacs(rows = []) {
+  const map = new Map();
+
+  for (const candidate of rows) {
+    for (const pac of getPacs(candidate)) {
+      const name = pac.committee_name || pac.name || pac.contributor_name || "Unknown PAC / Committee";
+      const id = pac.committee_id || pac.id || name;
+      const key = id || name;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          committee_id: id,
+          committee_name: name,
+          committee_type: pac.committee_type || pac.type || "Committee",
+          committee_party: pac.committee_party || pac.party || "N/A",
+          total_amount: 0,
+          candidate_count: 0,
+          states: new Set(),
+          candidates: [],
+        });
+      }
+
+      const item = map.get(key);
+      item.total_amount += number(pac.amount);
+      item.candidate_count += 1;
+      item.states.add(candidate.state || "N/A");
+      item.candidates.push({
+        candidate_id: candidate.candidate_id,
+        name: candidate.name,
+        state: candidate.state,
+        office: candidate.office,
+        party: candidate.party,
+        amount: number(pac.amount),
+      });
+    }
+  }
+
+  return Array.from(map.values())
+    .map((item) => ({
+      ...item,
+      states: Array.from(item.states).sort(),
+      state_count: item.states.size,
+      candidates: item.candidates.sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.total_amount - a.total_amount);
+}
+
+function aggregateBy(rows, key) {
+  const map = new Map();
+
+  for (const row of rows) {
+    const value = row[key] || "N/A";
+    if (!map.has(value)) {
+      map.set(value, {
+        name: value,
+        [key]: value,
+        total_receipts: 0,
+        total_cash_on_hand: 0,
+        candidate_count: 0,
+      });
+    }
+
+    const item = map.get(value);
+    item.total_receipts += number(row.receipts);
+    item.total_cash_on_hand += number(row.cash_on_hand);
+    item.candidate_count += 1;
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.total_receipts - a.total_receipts);
+}
+
 function SelectField({ label, value, options, allLabel, onChange }) {
   return (
     <label className="fund-filter-field">
@@ -205,6 +276,38 @@ function SelectField({ label, value, options, allLabel, onChange }) {
         ))}
       </select>
     </label>
+  );
+}
+
+function JumpButton({ target, children }) {
+  return (
+    <button
+      type="button"
+      className="fund-jump-button"
+      onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SectionShell({ id, title, subtitle, open, onToggle, right, children }) {
+  return (
+    <div id={id} className="fund-section-shell">
+      <div className="fund-section-head">
+        <div>
+          <h3>{title}</h3>
+          <p>{subtitle}</p>
+        </div>
+        <div className="fund-section-actions">
+          {right}
+          <button type="button" className="vs-button vs-button-secondary" onClick={onToggle}>
+            {open ? "Collapse Section" : "Open Section"}
+          </button>
+        </div>
+      </div>
+      {open ? <div className="fund-section-body">{children}</div> : null}
+    </div>
   );
 }
 
@@ -227,6 +330,9 @@ function SourceRow({ source, total, max }) {
 
 function LeaderRow({ row, selected, onSelect }) {
   const topSource = [...getFundingSources(row)].sort((a, b) => b.amount - a.amount)[0];
+  const pacs = getPacs(row);
+  const pacTotal = pacs.reduce((sum, pac) => sum + number(pac.amount), 0);
+  const pacDependency = row.receipts > 0 ? Math.round((pacTotal / row.receipts) * 100) : 0;
 
   return (
     <button
@@ -254,15 +360,73 @@ function LeaderRow({ row, selected, onSelect }) {
       </div>
 
       <div className="fund-metric">
-        <span>Leading Funding Source</span>
+        <span>Leading Source</span>
         <strong>{topSource?.source || "Unclassified Funding Source"}</strong>
         <small>{formatMoney(topSource?.amount || 0)}</small>
+      </div>
+
+      <div className="fund-metric">
+        <span>PAC Dependency</span>
+        <strong>{pct(pacDependency)}</strong>
+        <small>{pacs.length} PAC / Committee Records</small>
       </div>
     </button>
   );
 }
 
-function ExecutiveSummary({ summary, sourceBreakdown, sourceLabel, lastUpdated }) {
+function PacRow({ pac, index, max }) {
+  return (
+    <div className="fund-pac-row">
+      <div className="fund-rank">#{index + 1}</div>
+      <div className="fund-main">
+        <strong>{pac.committee_name || "Unknown PAC / Committee"}</strong>
+        <span>{pac.committee_id || "N/A"} · {pac.committee_type || "Committee"} · {pac.committee_party || "N/A"}</span>
+        <div className="fund-source-bar">
+          <i style={{ width: `${max ? Math.max(4, Math.round((number(pac.total_amount) / max) * 100)) : 0}%` }} />
+        </div>
+      </div>
+      <div className="fund-metric">
+        <span>Total Contributions</span>
+        <strong>{formatMoney(pac.total_amount)}</strong>
+      </div>
+      <div className="fund-metric">
+        <span>Candidates Supported</span>
+        <strong>{pac.candidate_count}</strong>
+      </div>
+      <div className="fund-metric">
+        <span>States</span>
+        <strong>{pac.state_count}</strong>
+      </div>
+    </div>
+  );
+}
+
+function EntityRow({ row, index, label, max }) {
+  const amount = number(row.total_receipts);
+  const width = max > 0 ? Math.max(4, Math.round((amount / max) * 100)) : 0;
+
+  return (
+    <div className="fund-entity-row">
+      <div>
+        <span>{label} #{index + 1}</span>
+        <strong>{row.name || row.state || row.party || row.office || "N/A"}</strong>
+      </div>
+      <div>
+        <span>Total Receipts</span>
+        <strong>{formatMoney(amount)}</strong>
+      </div>
+      <div>
+        <span>Candidates</span>
+        <strong>{row.candidate_count}</strong>
+      </div>
+      <div className="fund-source-bar">
+        <i style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveSummary({ summary, sourceBreakdown, sourceLabel, lastUpdated, pacCount }) {
   const topSource = sourceBreakdown[0];
 
   return (
@@ -297,32 +461,10 @@ function ExecutiveSummary({ summary, sourceBreakdown, sourceLabel, lastUpdated }
           <span>Top Funding Source</span>
           <strong>{topSource?.source || "No Source Available"}</strong>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PacContributionRow({ pac }) {
-  return (
-    <div className="fund-pac-row">
-      <div className="fund-pac-main">
-        <strong>{pac.committee_name}</strong>
-        <span>
-          Committee ID: {pac.committee_id || "N/A"} · Type: {pac.committee_type || "Committee"} · Party: {pac.committee_party || "N/A"}
-        </span>
-        {(pac.city || pac.state) ? (
-          <small>{[pac.city, pac.state].filter(Boolean).join(", ")}</small>
-        ) : null}
-      </div>
-
-      <div className="fund-pac-amount">
-        <span>PAC Contribution</span>
-        <strong>{formatMoney(pac.amount)}</strong>
-        {pac.fec_url ? (
-          <a href={pac.fec_url} target="_blank" rel="noreferrer">
-            Open FEC Committee
-          </a>
-        ) : null}
+        <div>
+          <span>Named PAC Committees</span>
+          <strong>{pacCount}</strong>
+        </div>
       </div>
     </div>
   );
@@ -334,8 +476,9 @@ function CandidateSourceDetail({ row }) {
   }
 
   const sources = getFundingSources(row);
-  const pacs = getPacContributions(row);
   const max = Math.max(...sources.map((source) => Number(source.amount || 0)), 0);
+  const pacs = getPacs(row);
+  const maxPac = Math.max(...pacs.map((pac) => number(pac.amount)), 0);
 
   return (
     <div className="fund-detail-card">
@@ -347,40 +490,50 @@ function CandidateSourceDetail({ row }) {
             {row.state || "N/A"} · {row.office || "Race"} · {row.party || "N/A"}
           </p>
         </div>
-        <Badge tone="accent">{formatMoney(row.receipts)}</Badge>
-      </div>
-
-      <div className="fund-source-stack">
-        {sources.map((source) => (
-          <SourceRow
-            key={`${row.candidate_id || row.name}-${source.source}`}
-            source={source.source}
-            total={source.amount}
-            max={max}
-          />
-        ))}
-      </div>
-
-      <div className="fund-pac-detail">
-        <div className="fund-pac-head">
-          <div>
-            <span>PAC / Committee Contributions</span>
-            <strong>{pacs.length ? `${pacs.length} PAC Records` : "No PAC Records Available"}</strong>
-          </div>
-          <Badge tone={pacs.length ? "active" : "info"}>
-            {formatMoney(pacs.reduce((sum, pac) => sum + Number(pac.amount || 0), 0))}
-          </Badge>
+        <div className="fund-detail-badges">
+          <Badge tone="accent">{formatMoney(row.receipts)}</Badge>
+          <Badge tone="info">{pacs.length} PACs</Badge>
         </div>
+      </div>
 
-        {pacs.length ? (
-          <div className="fund-pac-stack">
-            {pacs.map((pac) => (
-              <PacContributionRow key={`${row.candidate_id}-${pac.committee_id}-${pac.committee_name}`} pac={pac} />
+      <div className="fund-detail-grid">
+        <div className="fund-detail-section">
+          <div className="fund-detail-title">Funding Source Mix</div>
+          <div className="fund-source-stack">
+            {sources.map((source) => (
+              <SourceRow
+                key={`${row.candidate_id || row.name}-${source.source}`}
+                source={source.source}
+                total={source.amount}
+                max={max}
+              />
             ))}
           </div>
-        ) : (
-          <EmptyState text="No named PAC / committee contribution records are attached to this candidate yet." />
-        )}
+        </div>
+
+        <div className="fund-detail-section">
+          <div className="fund-detail-title">Named PAC / Committee Records</div>
+          <div className="fund-source-stack">
+            {pacs.length ? (
+              pacs.slice(0, 12).map((pac) => (
+                <div key={`${pac.committee_id}-${pac.committee_name}`} className="fund-source-row">
+                  <div className="fund-source-top">
+                    <strong>{pac.committee_name || "Unknown PAC / Committee"}</strong>
+                    <span>{formatMoney(pac.amount)}</span>
+                  </div>
+                  <div className="fund-source-meta">
+                    {pac.committee_id || "N/A"} · {pac.committee_type || "Committee"} · {pac.state || "National"}
+                  </div>
+                  <div className="fund-source-bar">
+                    <i style={{ width: `${maxPac ? Math.max(4, Math.round((number(pac.amount) / maxPac) * 100)) : 0}%` }} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <EmptyState text="No named PAC records are available for this candidate yet." />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -394,6 +547,13 @@ export default function FundraisingDashboard() {
   const [data, setData] = useState(fallbackData);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const selectedCandidateDetailRef = useRef(null);
+  const [openSections, setOpenSections] = useState(defaultOpenSections);
+  const [showAll, setShowAll] = useState({
+    sources: false,
+    leaderboard: false,
+    pacs: false,
+    states: false,
+  });
   const [filters, setFilters] = useState({
     candidate: "",
     state: "",
@@ -467,6 +627,8 @@ export default function FundraisingDashboard() {
     ).sort();
   }, [leaderboard]);
 
+  const allPacs = useMemo(() => aggregatePacs(leaderboard), [leaderboard]);
+
   const options = useMemo(() => {
     return {
       candidates: uniqueOptions(leaderboard, "name"),
@@ -474,21 +636,15 @@ export default function FundraisingDashboard() {
       offices: uniqueOptions(leaderboard, "office"),
       parties: uniqueOptions(leaderboard, "party"),
       sources: allSources,
-      pacs: Array.from(
-        new Set(
-          leaderboard
-            .flatMap((row) => getPacContributions(row).map((pac) => pac.committee_name))
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b)),
+      pacs: allPacs.map((pac) => pac.committee_name).filter(Boolean).sort(),
     };
-  }, [leaderboard, allSources]);
+  }, [leaderboard, allSources, allPacs]);
 
   const filteredLeaderboard = useMemo(() => {
     return leaderboard
       .filter((row) => {
         const sources = getFundingSources(row).map((source) => source.source);
-        const pacs = getPacContributions(row).map((pac) => pac.committee_name);
+        const pacNames = getPacs(row).map((pac) => pac.committee_name || pac.name);
 
         return (
           (!filters.candidate || row.name === filters.candidate) &&
@@ -496,7 +652,7 @@ export default function FundraisingDashboard() {
           (!filters.office || row.office === filters.office) &&
           (!filters.party || row.party === filters.party) &&
           (!filters.source || sources.includes(filters.source)) &&
-          (!filters.pac || pacs.includes(filters.pac))
+          (!filters.pac || pacNames.includes(filters.pac))
         );
       })
       .map((row, index) => ({ ...row, rank: index + 1 }));
@@ -560,7 +716,14 @@ export default function FundraisingDashboard() {
       .sort((a, b) => b.total - a.total);
   }, [allSources, filteredLeaderboard]);
 
+  const filteredPacs = useMemo(() => aggregatePacs(filteredLeaderboard), [filteredLeaderboard]);
+  const stateRows = useMemo(() => aggregateBy(filteredLeaderboard, "state"), [filteredLeaderboard]);
+  const partyRows = useMemo(() => aggregateBy(filteredLeaderboard, "party"), [filteredLeaderboard]);
+  const officeRows = useMemo(() => aggregateBy(filteredLeaderboard, "office"), [filteredLeaderboard]);
+
   const maxSourceTotal = Math.max(...sourceBreakdown.map((row) => row.total), 0);
+  const maxPacTotal = Math.max(...filteredPacs.map((row) => row.total_amount), 0);
+  const maxStateTotal = Math.max(...stateRows.map((row) => row.total_receipts), 0);
 
   const sourceLabel = useMemo(() => {
     const raw = String(data?.source || "").trim();
@@ -613,6 +776,14 @@ export default function FundraisingDashboard() {
     });
   }
 
+  function toggleSection(section) {
+    setOpenSections((current) => ({ ...current, [section]: !current[section] }));
+  }
+
+  function scrollTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function refreshFecData() {
     setRefreshingFec(true);
     setNotice("");
@@ -635,11 +806,16 @@ export default function FundraisingDashboard() {
     }
   }
 
+  const sourceRows = showAll.sources ? sourceBreakdown : sourceBreakdown.slice(0, 8);
+  const leaderboardRows = showAll.leaderboard ? filteredLeaderboard : filteredLeaderboard.slice(0, 12);
+  const pacRows = showAll.pacs ? filteredPacs : filteredPacs.slice(0, 12);
+  const heatRows = showAll.states ? stateRows : stateRows.slice(0, 12);
+
   return (
     <PageShell
       eyebrow="Fundraising Intelligence"
       title="Finance strength across the field."
-      description="Track candidate fundraising, reserve strength, finance source composition, and where campaign money is coming from through the FEC finance feed."
+      description="Track candidate fundraising, reserve strength, finance source composition, PAC support, and where campaign money is coming from through the FEC finance feed."
       demo={demoMode}
       demoText="Demo fundraising mode is active."
       tickerItems={[
@@ -659,11 +835,9 @@ export default function FundraisingDashboard() {
           dotClass: "vs-live-dot-warning",
         },
         {
-          label: "Feed",
-          value: sourceLabel,
-          dotClass: String(data?.source || "").toLowerCase().includes("fec")
-            ? "vs-live-dot-success"
-            : "vs-live-dot-warning",
+          label: "PACs",
+          value: `${filteredPacs.length} named`,
+          dotClass: "vs-live-dot-warning",
         },
       ]}
     >
@@ -678,7 +852,10 @@ export default function FundraisingDashboard() {
 
         .fund-toolbar-actions,
         .fund-chip-row,
-        .fund-summary-badges {
+        .fund-summary-badges,
+        .fund-section-actions,
+        .fund-detail-badges,
+        .fund-jump-nav {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
@@ -687,6 +864,35 @@ export default function FundraisingDashboard() {
 
         .fund-toolbar-actions {
           justify-content: flex-end;
+        }
+
+        .fund-jump-nav {
+          position: sticky;
+          top: 76px;
+          z-index: 12;
+          padding: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 18px;
+          background: rgba(15, 23, 42, 0.92);
+          backdrop-filter: blur(16px);
+        }
+
+        .fund-jump-button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.86);
+          color: var(--vs-text);
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          padding: 9px 12px;
+          text-transform: uppercase;
+        }
+
+        .fund-jump-button:hover {
+          border-color: rgba(251, 146, 60, 0.5);
+          color: #fed7aa;
         }
 
         .fund-filter-grid {
@@ -728,22 +934,62 @@ export default function FundraisingDashboard() {
           color: #f8fafc;
         }
 
+        .fund-section-shell,
         .fund-exec-summary,
         .fund-leader-row,
         .fund-detail-card,
-        .fund-source-row {
+        .fund-source-row,
+        .fund-pac-row,
+        .fund-entity-row,
+        .fund-detail-section {
           background: var(--vs-panel-bg, #111827);
           border: 1px solid rgba(148, 163, 184, 0.16);
           box-shadow: none;
           filter: none;
           backdrop-filter: none;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .fund-section-shell {
+          border-radius: 22px;
+          padding: 16px;
+          scroll-margin-top: 132px;
+        }
+
+        .fund-section-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .fund-section-head h3 {
+          margin: 0;
+          color: var(--vs-text);
+          font-size: 18px;
+          line-height: 1.25;
+        }
+
+        .fund-section-head p {
+          margin: 6px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .fund-section-body {
+          margin-top: 16px;
         }
 
         .fund-exec-summary {
           border-radius: 24px;
           padding: 18px;
           display: grid;
-          grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1.3fr);
+          grid-template-columns: minmax(260px, 0.92fr) minmax(0, 1.3fr);
           gap: 18px;
         }
 
@@ -753,7 +999,11 @@ export default function FundraisingDashboard() {
         }
 
         .fund-exec-summary-main span,
-        .fund-exec-summary-grid span {
+        .fund-exec-summary-grid span,
+        .fund-detail-title,
+        .fund-metric span,
+        .fund-detail-head span,
+        .fund-entity-row span {
           display: block;
           color: var(--vs-text-muted);
           font-size: 10px;
@@ -802,7 +1052,13 @@ export default function FundraisingDashboard() {
         .fund-leader-row {
           width: 100%;
           display: grid;
-          grid-template-columns: 64px minmax(220px, 1.6fr) repeat(3, minmax(150px, 1fr));
+          grid-template-columns:
+            64px
+            minmax(280px, 1.7fr)
+            minmax(150px, 0.75fr)
+            minmax(150px, 0.75fr)
+            minmax(220px, 1fr)
+            minmax(160px, 0.75fr);
           gap: 16px;
           align-items: start;
           padding: 16px;
@@ -816,6 +1072,33 @@ export default function FundraisingDashboard() {
         .fund-leader-row.is-selected {
           border-color: rgba(251, 146, 60, 0.48);
           background: rgba(15, 23, 42, 0.96);
+        }
+
+        .fund-pac-row {
+          width: 100%;
+          display: grid;
+          grid-template-columns:
+            56px
+            minmax(280px, 1.5fr)
+            minmax(150px, 0.8fr)
+            minmax(140px, 0.65fr)
+            minmax(120px, 0.55fr);
+          gap: 16px;
+          align-items: start;
+          padding: 16px;
+          border-radius: 20px;
+        }
+
+        .fund-entity-row {
+          display: grid;
+          grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.7fr) minmax(120px, 0.5fr);
+          gap: 14px;
+          border-radius: 18px;
+          padding: 14px;
+        }
+
+        .fund-entity-row .fund-source-bar {
+          grid-column: 1 / -1;
         }
 
         .fund-rank {
@@ -833,55 +1116,32 @@ export default function FundraisingDashboard() {
 
         .fund-main strong,
         .fund-metric strong,
-        .fund-detail-head strong {
+        .fund-detail-head strong,
+        .fund-source-top strong,
+        .fund-entity-row strong {
           color: var(--vs-text);
           overflow-wrap: anywhere;
+          line-height: 1.25;
         }
 
         .fund-main span,
-        .fund-metric span,
         .fund-metric small,
-        .fund-detail-head span,
-        .fund-detail-head p {
+        .fund-detail-head p,
+        .fund-source-meta {
           color: var(--vs-text-muted);
           font-size: 12px;
           line-height: 1.45;
         }
 
-        .fund-detail-card {
-          border-radius: 20px;
-          padding: 16px;
-        }
-
-        .fund-detail-head {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          align-items: flex-start;
-          margin-bottom: 14px;
-        }
-
-        .fund-detail-head span {
-          display: block;
-          margin-bottom: 5px;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          font-size: 10px;
-          font-weight: 900;
-        }
-
-        .fund-detail-head strong {
-          display: block;
-          font-size: 18px;
-          line-height: 1.22;
-        }
-
-        .fund-detail-head p {
-          margin: 6px 0 0;
+        .fund-source-breakdown-wide {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
         }
 
         .fund-source-stack,
-        .fund-source-breakdown {
+        .fund-source-breakdown,
+        .fund-stack {
           display: grid;
           gap: 12px;
         }
@@ -905,12 +1165,6 @@ export default function FundraisingDashboard() {
           align-items: center;
         }
 
-        .fund-source-top strong {
-          color: #f8fafc;
-          font-size: 13px;
-          font-weight: 950;
-        }
-
         .fund-source-top span {
           color: #e2e8f0;
           font-size: 12px;
@@ -932,177 +1186,73 @@ export default function FundraisingDashboard() {
           min-width: 7px;
         }
 
-        .fund-source-breakdown-wide {
+        .fund-detail-card {
+          border-radius: 20px;
+          padding: 16px;
+        }
+
+        .fund-detail-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+          margin-bottom: 14px;
+        }
+
+        .fund-detail-head strong {
+          display: block;
+          font-size: 18px;
+          line-height: 1.22;
+        }
+
+        .fund-detail-head p {
+          margin: 6px 0 0;
+        }
+
+        .fund-detail-grid {
+          display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
         }
 
-        .fund-leaderboard-full {
-          width: 100%;
-          min-width: 0;
+        .fund-detail-section {
+          border-radius: 18px;
+          padding: 14px;
+        }
+
+        .fund-detail-title {
+          margin-bottom: 12px;
+        }
+
+        .fund-show-more {
+          justify-self: center;
+          margin-top: 10px;
         }
 
         .fund-selected-detail-anchor {
-          scroll-margin-top: 96px;
+          scroll-margin-top: 132px;
         }
 
-        .fund-main-layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.95fr);
-          gap: 22px;
-          align-items: start;
-          width: 100%;
-          min-width: 0;
-        }
-
-        .fund-leaderboard-panel,
-        .fund-source-panel {
-          min-width: 0;
-          width: 100%;
-          overflow: hidden;
-        }
-
-        .fund-leaderboard-panel > *,
-        .fund-source-panel > * {
-          min-width: 0;
-          max-width: 100%;
-        }
-
-        .fund-leader-row {
-          min-width: 0;
-          max-width: 100%;
-          overflow: hidden;
-        }
-
-        .fund-main,
-        .fund-metric,
-        .fund-source-row,
-        .fund-source-top {
-          min-width: 0;
-        }
-
-        .fund-main strong,
-        .fund-main span,
-        .fund-metric strong,
-        .fund-metric span,
-        .fund-metric small,
-        .fund-source-top strong,
-        .fund-source-top span {
-          max-width: 100%;
-          overflow-wrap: anywhere;
-          word-break: normal;
-        }
-
-        .fund-source-panel .fund-source-row {
-          width: 100%;
-          box-sizing: border-box;
-        }
-
-        .fund-leaderboard-full .fund-leader-row {
-          grid-template-columns:
-            64px
-            minmax(280px, 2fr)
-            minmax(180px, 0.85fr)
-            minmax(180px, 0.85fr)
-            minmax(260px, 1.2fr);
-        }
-
-        .fund-leaderboard-full .fund-main strong {
-          font-size: 15px;
-          line-height: 1.35;
-        }
-
-        .fund-pac-detail {
-          margin-top: 18px;
-          padding-top: 16px;
-          border-top: 1px solid rgba(148, 163, 184, 0.16);
-        }
-
-        .fund-pac-head,
-        .fund-pac-row {
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          align-items: flex-start;
-        }
-
-        .fund-pac-head span,
-        .fund-pac-amount span {
-          display: block;
-          color: var(--vs-text-muted);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-
-        .fund-pac-head strong,
-        .fund-pac-main strong,
-        .fund-pac-amount strong {
-          display: block;
-          margin-top: 6px;
-          color: var(--vs-text);
-          overflow-wrap: anywhere;
-        }
-
-        .fund-pac-stack {
-          display: grid;
-          gap: 10px;
-          margin-top: 14px;
-        }
-
-        .fund-pac-row {
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          border-radius: 16px;
-          padding: 13px;
-          background: rgba(15, 23, 42, 0.62);
-        }
-
-        .fund-pac-main span,
-        .fund-pac-main small,
-        .fund-pac-amount a {
-          display: block;
-          margin-top: 5px;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.45;
-          overflow-wrap: anywhere;
-        }
-
-        .fund-pac-amount {
-          min-width: 170px;
-          text-align: right;
-        }
-
-        .fund-pac-amount a {
-          color: #38bdf8;
-          text-decoration: none;
-          font-weight: 900;
+        .fund-back-top {
+          position: fixed;
+          right: 24px;
+          bottom: 24px;
+          z-index: 20;
+          box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
         }
 
         @media (max-width: 1320px) {
-          .fund-source-breakdown-wide {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px;
-        }
-
-        .fund-leaderboard-full {
-          width: 100%;
-          min-width: 0;
-        }
-
-        .fund-selected-detail-anchor {
-          scroll-margin-top: 96px;
-        }
-
-        .fund-main-layout {
-            grid-template-columns: 1fr;
+          .fund-jump-nav {
+            position: static;
           }
 
           .fund-filter-grid,
           .fund-leader-row,
-          .fund-exec-summary {
-            grid-template-columns: 1fr 1fr;
+          .fund-pac-row,
+          .fund-exec-summary,
+          .fund-source-breakdown-wide,
+          .fund-detail-grid {
+            grid-template-columns: 1fr;
           }
 
           .fund-exec-summary-main {
@@ -1112,29 +1262,26 @@ export default function FundraisingDashboard() {
         }
 
         @media (max-width: 760px) {
-          .fund-source-breakdown-wide,
-          .fund-main-layout,
-          .fund-filter-grid,
-          .fund-leader-row,
-          .fund-exec-summary,
-          .fund-exec-summary-grid {
+          .fund-exec-summary-grid,
+          .fund-entity-row {
             grid-template-columns: 1fr;
           }
 
           .fund-detail-head,
-          .fund-pac-head,
-          .fund-pac-row,
-          .fund-toolbar {
+          .fund-toolbar,
+          .fund-section-head {
             flex-direction: column;
             align-items: stretch;
           }
 
-          .fund-pac-amount {
-            min-width: 0;
-            text-align: left;
+          .fund-back-top {
+            right: 14px;
+            bottom: 14px;
           }
         }
       `}</style>
+
+      <div id="fund-top" />
 
       <div className="fund-toolbar">
         <div className="fund-chip-row">
@@ -1142,7 +1289,7 @@ export default function FundraisingDashboard() {
             {sourceLabel}
           </Badge>
           <Badge tone="accent">Candidate Finance Layer</Badge>
-          <Badge tone="info">FEC Import Required</Badge>
+          <Badge tone="info">PAC Intelligence Ready</Badge>
         </div>
 
         <div className="fund-toolbar-actions">
@@ -1163,7 +1310,20 @@ export default function FundraisingDashboard() {
           >
             {refreshingFec ? "Importing FEC Data..." : "Import FEC Data"}
           </button>
+
+          <Link className="vs-button vs-button-secondary" to="/campaign-finance-intelligence">
+            Open Finance Intelligence
+          </Link>
         </div>
+      </div>
+
+      <div className="fund-jump-nav">
+        <JumpButton target="fund-summary">Summary</JumpButton>
+        <JumpButton target="fund-sources">Sources</JumpButton>
+        <JumpButton target="fund-leaderboard">Leaderboard</JumpButton>
+        <JumpButton target="fund-selected">Selected Candidate</JumpButton>
+        <JumpButton target="fund-pacs">PACs</JumpButton>
+        <JumpButton target="fund-heat">Finance Heat</JumpButton>
       </div>
 
       {notice ? <div className="vs-banner">{notice}</div> : null}
@@ -1190,31 +1350,39 @@ export default function FundraisingDashboard() {
         <StatCard label="Filtered Candidates" value={summary.tracked_candidates} delta="Candidates matching filters" tone="up" />
         <StatCard label="Filtered Receipts" value={formatMoney(summary.total_receipts)} delta="Receipts from selected candidates" tone="up" />
         <StatCard label="Filtered Cash On Hand" value={formatMoney(summary.total_cash_on_hand)} delta="Reserve strength after filters" tone="up" />
-        <StatCard label="Filtered Average Raise" value={formatMoney(summary.average_receipts)} delta="Average receipts after filters" tone="up" />
+        <StatCard label="Named PAC Committees" value={filteredPacs.length} delta="PACs tied to filtered candidates" tone="up" />
       </div>
 
-      <SectionCard
+      <SectionShell
+        id="fund-summary"
         title="Executive Finance Summary"
-        subtitle="Clean executive readout of candidate count, receipts, reserves, average raise, and leading funding source."
+        subtitle="Clean executive readout of candidate count, receipts, reserves, average raise, leading funding source, and named PAC coverage."
+        open={openSections.summary}
+        onToggle={() => toggleSection("summary")}
+        right={<Badge tone="active">{summary.tracked_candidates} Candidates</Badge>}
       >
         <ExecutiveSummary
           summary={summary}
           sourceBreakdown={sourceBreakdown}
           sourceLabel={sourceLabel}
           lastUpdated={lastUpdated}
+          pacCount={filteredPacs.length}
         />
-      </SectionCard>
+      </SectionShell>
 
-      <SectionCard
+      <SectionShell
+        id="fund-sources"
         title="Where Fundraising Is Coming From"
         subtitle="Funding source breakdown across selected candidates before reviewing the full leaderboard."
+        open={openSections.sources}
+        onToggle={() => toggleSection("sources")}
         right={<Badge tone="info">{sourceBreakdown.length} Funding Sources</Badge>}
       >
-        <div className="fund-source-breakdown fund-source-breakdown-wide">
-          {!sourceBreakdown.length ? (
+        <div className="fund-source-breakdown-wide">
+          {!sourceRows.length ? (
             <EmptyState text="No funding source data is available yet." />
           ) : (
-            sourceBreakdown.map((row) => (
+            sourceRows.map((row) => (
               <SourceRow
                 key={row.source}
                 source={row.source}
@@ -1224,20 +1392,28 @@ export default function FundraisingDashboard() {
             ))
           )}
         </div>
-      </SectionCard>
+        {sourceBreakdown.length > 8 ? (
+          <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, sources: !current.sources }))}>
+            {showAll.sources ? "Show Top 8" : `Show All ${sourceBreakdown.length} Sources`}
+          </button>
+        ) : null}
+      </SectionShell>
 
-      <SectionCard
+      <SectionShell
+        id="fund-leaderboard"
         title="Fundraising Leaderboard"
         subtitle="Full-width candidate finance leaderboard. Select a candidate to jump to detailed funding-source intelligence."
+        open={openSections.leaderboard}
+        onToggle={() => toggleSection("leaderboard")}
         right={<Badge tone="accent">{filteredLeaderboard.length} Candidates</Badge>}
       >
-        <div className="vs-stack fund-leaderboard-full">
+        <div className="fund-stack">
           {loading ? (
             <EmptyState text="Loading fundraising leaderboard..." />
-          ) : !filteredLeaderboard.length ? (
+          ) : !leaderboardRows.length ? (
             <EmptyState text="No fundraising data is available yet. Click Import FEC Data, then refresh the dashboard." />
           ) : (
-            filteredLeaderboard.map((row) => (
+            leaderboardRows.map((row) => (
               <LeaderRow
                 key={`${row.rank}-${row.candidate_id || row.name}`}
                 row={row}
@@ -1246,18 +1422,86 @@ export default function FundraisingDashboard() {
               />
             ))
           )}
+          {filteredLeaderboard.length > 12 ? (
+            <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, leaderboard: !current.leaderboard }))}>
+              {showAll.leaderboard ? "Show Top 12" : `Show All ${filteredLeaderboard.length} Candidates`}
+            </button>
+          ) : null}
         </div>
-      </SectionCard>
+      </SectionShell>
 
       <div ref={selectedCandidateDetailRef} className="fund-selected-detail-anchor">
-        <SectionCard
+        <SectionShell
+          id="fund-selected"
           title="Selected Candidate Funding Source Detail"
           subtitle="One selected candidate at a time for a cleaner enterprise workflow."
+          open={openSections.selected}
+          onToggle={() => toggleSection("selected")}
           right={selectedCandidate ? <Badge tone="accent">{selectedCandidate.name}</Badge> : null}
         >
           <CandidateSourceDetail row={selectedCandidate} />
-        </SectionCard>
+        </SectionShell>
       </div>
+
+      <SectionShell
+        id="fund-pacs"
+        title="PAC / Committee Intelligence"
+        subtitle="Named PACs and committees ranked by contribution amount across the filtered candidate universe."
+        open={openSections.pacs}
+        onToggle={() => toggleSection("pacs")}
+        right={<Badge tone="info">{filteredPacs.length} PACs</Badge>}
+      >
+        <div className="fund-stack">
+          {pacRows.length ? (
+            pacRows.map((pac, index) => (
+              <PacRow key={`${pac.committee_id || pac.committee_name}-${index}`} pac={pac} index={index} max={maxPacTotal} />
+            ))
+          ) : (
+            <EmptyState text="No named PAC records match the selected filters." />
+          )}
+          {filteredPacs.length > 12 ? (
+            <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, pacs: !current.pacs }))}>
+              {showAll.pacs ? "Show Top 12" : `Show All ${filteredPacs.length} PACs`}
+            </button>
+          ) : null}
+        </div>
+      </SectionShell>
+
+      <SectionShell
+        id="fund-heat"
+        title="State, Party, and Office Finance Heat"
+        subtitle="Receipts and candidate count by state, party, and office."
+        open={openSections.states}
+        onToggle={() => toggleSection("states")}
+        right={<Badge tone="accent">{stateRows.length} States</Badge>}
+      >
+        <div className="fund-stack">
+          {heatRows.length ? (
+            heatRows.map((row, index) => (
+              <EntityRow key={row.state || row.name} row={row} index={index} label="State" max={maxStateTotal} />
+            ))
+          ) : (
+            <EmptyState text="No state finance heat data is available." />
+          )}
+          {stateRows.length > 12 ? (
+            <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, states: !current.states }))}>
+              {showAll.states ? "Show Top 12" : `Show All ${stateRows.length} States`}
+            </button>
+          ) : null}
+
+          {partyRows.map((row, index) => (
+            <EntityRow key={row.party || row.name} row={row} index={index} label="Party" max={Math.max(...partyRows.map((item) => item.total_receipts), 0)} />
+          ))}
+
+          {officeRows.map((row, index) => (
+            <EntityRow key={row.office || row.name} row={row} index={index} label="Office" max={Math.max(...officeRows.map((item) => item.total_receipts), 0)} />
+          ))}
+        </div>
+      </SectionShell>
+
+      <button type="button" className="vs-button vs-button-primary fund-back-top" onClick={scrollTop}>
+        Back To Top
+      </button>
     </PageShell>
   );
 }
