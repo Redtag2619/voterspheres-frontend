@@ -36,6 +36,7 @@ export const navigationSections = [
     label: "Campaigns",
     items: [
       { label: "Candidates", to: "/candidates" },
+      { label: "Fundraising Intelligence", to: "/fundraising" },
       { label: "Donor Network", to: "/donors" },
       { label: "Endorsement Intelligence", to: "/endorsements" },
       { label: "Campaign CRM", to: "/campaign-crm" },
