@@ -96,6 +96,7 @@ const InfluenceDashboard = lazy(() => import("./pages/InfluenceDashboard.jsx"));
 const ExecutiveForecastDashboard = lazy(() => import("./pages/ExecutiveForecastDashboard.jsx"));
 const CoalitionIntelligenceDashboard = lazy(() => import("./pages/CoalitionIntelligenceDashboard.jsx"));
 const StrategyRecommendationDashboard = lazy(() => import("./pages/StrategyRecommendationDashboard.jsx"));
+const CampaignFinanceIntelligencePlatform = lazy(() => import("./pages/CampaignFinanceIntelligencePlatform.jsx"));
 const CrossWorkspaceExecutiveDashboard = lazy(() => import("./pages/CrossWorkspaceExecutiveDashboard.jsx")
 );
 
@@ -229,6 +230,7 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_FUNDRAISING]} />}>
               <Route path="/fundraising" element={<FundraisingDashboard />} />
+              <Route path="/campaign-finance-intelligence" element={<CampaignFinanceIntelligencePlatform />} />
             </Route>
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_VENDORS]} />}>
