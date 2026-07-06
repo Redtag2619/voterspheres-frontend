@@ -17,6 +17,7 @@ import ExecutiveDecisionIntelligence from "./pages/ExecutiveDecisionIntelligence
 import PredictiveCampaignSimulation from "./pages/PredictiveCampaignSimulation";
 import NationalPoliticalDigitalTwin from "./pages/NationalPoliticalDigitalTwin";
 import AutonomousCampaignOperations from "./pages/AutonomousCampaignOperations";
+import FundraisingDashboard from "./pages/FundraisingDashboard";
 import ExecutiveAICommandPlatform from "./pages/ExecutiveAICommandPlatform";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
