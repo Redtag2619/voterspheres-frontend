@@ -32,6 +32,40 @@ function normalizeKey(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function getPacContributions(row = {}) {
+  const payload = row.source_payload && typeof row.source_payload === "object" ? row.source_payload : {};
+
+  const pacs =
+    row.pac_contributions ||
+    row.pacContributions ||
+    payload.pac_contributions ||
+    payload.pacContributions ||
+    [];
+
+  if (!Array.isArray(pacs)) return [];
+
+  return pacs
+    .map((pac, index) => ({
+      id: pac.committee_id || pac.committeeId || pac.id || `pac-${index}`,
+      committee_id: pac.committee_id || pac.committeeId || pac.id || "N/A",
+      committee_name:
+        pac.committee_name ||
+        pac.committeeName ||
+        pac.name ||
+        pac.contributor_name ||
+        pac.contributorName ||
+        "Unknown PAC / Committee",
+      committee_type: pac.committee_type || pac.committeeType || pac.type || "Committee",
+      committee_party: pac.committee_party || pac.committeeParty || pac.party || "N/A",
+      amount: Number(pac.amount || pac.total || pac.contribution_amount || pac.contributionAmount || 0),
+      city: pac.city || pac.contributor_city || "",
+      state: pac.state || pac.contributor_state || "",
+      fec_url: pac.fec_url || pac.fecUrl || pac.url || "",
+    }))
+    .filter((pac) => pac.committee_name && pac.committee_name !== "Unknown PAC / Committee")
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+}
+
 function normalizeRow(row = {}, index = 0) {
   const name =
     row.name ||
@@ -67,6 +101,7 @@ function normalizeRow(row = {}, index = 0) {
         row.cash_on_hand_end ||
         0
     ),
+    pac_contributions: getPacContributions(row),
   };
 }
 
@@ -113,21 +148,28 @@ function getFundingSources(row) {
     [];
 
   if (Array.isArray(sources) && sources.length) {
-    return sources.map((source) => ({
-      source:
+    const pacs = getPacContributions(row);
+
+    return sources.map((source) => {
+      const label =
         source.source ||
         source.label ||
         source.name ||
         source.type ||
-        "Unclassified Funding Source",
-      amount: Number(source.amount || source.value || source.total || 0),
-    }));
+        "Unclassified Funding Source";
+
+      return {
+        source: label,
+        amount: Number(source.amount || source.value || source.total || 0),
+        committees: normalizeKey(label).includes("pac") ? pacs : [],
+      };
+    });
   }
 
   return [
     { source: "Individual Contributions", amount: Math.round(receipts * 0.52) },
     { source: "Small-Dollar Contributions", amount: Math.round(receipts * 0.21) },
-    { source: "PAC Contributions", amount: Math.round(receipts * 0.16) },
+    { source: "PAC Contributions", amount: Math.round(receipts * 0.16), committees: getPacContributions(row) },
     { source: "Candidate Committee Transfers", amount: Math.round(receipts * 0.07) },
     { source: "Other Receipts", amount: Math.round(receipts * 0.04) },
   ];
@@ -260,12 +302,39 @@ function ExecutiveSummary({ summary, sourceBreakdown, sourceLabel, lastUpdated }
   );
 }
 
+function PacContributionRow({ pac }) {
+  return (
+    <div className="fund-pac-row">
+      <div className="fund-pac-main">
+        <strong>{pac.committee_name}</strong>
+        <span>
+          Committee ID: {pac.committee_id || "N/A"} · Type: {pac.committee_type || "Committee"} · Party: {pac.committee_party || "N/A"}
+        </span>
+        {(pac.city || pac.state) ? (
+          <small>{[pac.city, pac.state].filter(Boolean).join(", ")}</small>
+        ) : null}
+      </div>
+
+      <div className="fund-pac-amount">
+        <span>PAC Contribution</span>
+        <strong>{formatMoney(pac.amount)}</strong>
+        {pac.fec_url ? (
+          <a href={pac.fec_url} target="_blank" rel="noreferrer">
+            Open FEC Committee
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function CandidateSourceDetail({ row }) {
   if (!row) {
     return <EmptyState text="Select a candidate to view funding source detail." />;
   }
 
   const sources = getFundingSources(row);
+  const pacs = getPacContributions(row);
   const max = Math.max(...sources.map((source) => Number(source.amount || 0)), 0);
 
   return (
@@ -291,6 +360,28 @@ function CandidateSourceDetail({ row }) {
           />
         ))}
       </div>
+
+      <div className="fund-pac-detail">
+        <div className="fund-pac-head">
+          <div>
+            <span>PAC / Committee Contributions</span>
+            <strong>{pacs.length ? `${pacs.length} PAC Records` : "No PAC Records Available"}</strong>
+          </div>
+          <Badge tone={pacs.length ? "active" : "info"}>
+            {formatMoney(pacs.reduce((sum, pac) => sum + Number(pac.amount || 0), 0))}
+          </Badge>
+        </div>
+
+        {pacs.length ? (
+          <div className="fund-pac-stack">
+            {pacs.map((pac) => (
+              <PacContributionRow key={`${row.candidate_id}-${pac.committee_id}-${pac.committee_name}`} pac={pac} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState text="No named PAC / committee contribution records are attached to this candidate yet." />
+        )}
+      </div>
     </div>
   );
 }
@@ -309,6 +400,7 @@ export default function FundraisingDashboard() {
     office: "",
     party: "",
     source: "",
+    pac: "",
   });
 
   const demoMode =
@@ -382,6 +474,13 @@ export default function FundraisingDashboard() {
       offices: uniqueOptions(leaderboard, "office"),
       parties: uniqueOptions(leaderboard, "party"),
       sources: allSources,
+      pacs: Array.from(
+        new Set(
+          leaderboard
+            .flatMap((row) => getPacContributions(row).map((pac) => pac.committee_name))
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
     };
   }, [leaderboard, allSources]);
 
@@ -389,13 +488,15 @@ export default function FundraisingDashboard() {
     return leaderboard
       .filter((row) => {
         const sources = getFundingSources(row).map((source) => source.source);
+        const pacs = getPacContributions(row).map((pac) => pac.committee_name);
 
         return (
           (!filters.candidate || row.name === filters.candidate) &&
           (!filters.state || row.state === filters.state) &&
           (!filters.office || row.office === filters.office) &&
           (!filters.party || row.party === filters.party) &&
-          (!filters.source || sources.includes(filters.source))
+          (!filters.source || sources.includes(filters.source)) &&
+          (!filters.pac || pacs.includes(filters.pac))
         );
       })
       .map((row, index) => ({ ...row, rank: index + 1 }));
@@ -497,6 +598,7 @@ export default function FundraisingDashboard() {
       office: "",
       party: "",
       source: "",
+      pac: "",
     });
   }
 
@@ -589,7 +691,7 @@ export default function FundraisingDashboard() {
 
         .fund-filter-grid {
           display: grid;
-          grid-template-columns: repeat(5, minmax(160px, 1fr)) auto;
+          grid-template-columns: repeat(6, minmax(150px, 1fr)) auto;
           gap: 12px;
           align-items: end;
         }
@@ -910,6 +1012,74 @@ export default function FundraisingDashboard() {
           line-height: 1.35;
         }
 
+        .fund-pac-detail {
+          margin-top: 18px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(148, 163, 184, 0.16);
+        }
+
+        .fund-pac-head,
+        .fund-pac-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: flex-start;
+        }
+
+        .fund-pac-head span,
+        .fund-pac-amount span {
+          display: block;
+          color: var(--vs-text-muted);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .fund-pac-head strong,
+        .fund-pac-main strong,
+        .fund-pac-amount strong {
+          display: block;
+          margin-top: 6px;
+          color: var(--vs-text);
+          overflow-wrap: anywhere;
+        }
+
+        .fund-pac-stack {
+          display: grid;
+          gap: 10px;
+          margin-top: 14px;
+        }
+
+        .fund-pac-row {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 16px;
+          padding: 13px;
+          background: rgba(15, 23, 42, 0.62);
+        }
+
+        .fund-pac-main span,
+        .fund-pac-main small,
+        .fund-pac-amount a {
+          display: block;
+          margin-top: 5px;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+        }
+
+        .fund-pac-amount {
+          min-width: 170px;
+          text-align: right;
+        }
+
+        .fund-pac-amount a {
+          color: #38bdf8;
+          text-decoration: none;
+          font-weight: 900;
+        }
+
         @media (max-width: 1320px) {
           .fund-source-breakdown-wide {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -952,9 +1122,16 @@ export default function FundraisingDashboard() {
           }
 
           .fund-detail-head,
+          .fund-pac-head,
+          .fund-pac-row,
           .fund-toolbar {
             flex-direction: column;
             align-items: stretch;
+          }
+
+          .fund-pac-amount {
+            min-width: 0;
+            text-align: left;
           }
         }
       `}</style>
@@ -994,7 +1171,7 @@ export default function FundraisingDashboard() {
 
       <SectionCard
         title="Fundraising Filters"
-        subtitle="Filter by candidate, state, race, party, and where the fundraising is coming from."
+        subtitle="Filter by candidate, state, race, party, funding source, and PAC / committee."
       >
         <div className="fund-filter-grid">
           <SelectField label="Candidate" value={filters.candidate} options={options.candidates} allLabel="All Candidates" onChange={(value) => setFilter("candidate", value)} />
@@ -1002,6 +1179,7 @@ export default function FundraisingDashboard() {
           <SelectField label="Race / Office" value={filters.office} options={options.offices} allLabel="All Races / Offices" onChange={(value) => setFilter("office", value)} />
           <SelectField label="Party" value={filters.party} options={options.parties} allLabel="All Parties" onChange={(value) => setFilter("party", value)} />
           <SelectField label="Fundraising Source" value={filters.source} options={options.sources} allLabel="All Funding Sources" onChange={(value) => setFilter("source", value)} />
+          <SelectField label="PAC / Committee" value={filters.pac} options={options.pacs} allLabel="All PACs / Committees" onChange={(value) => setFilter("pac", value)} />
           <button type="button" className="vs-button vs-button-secondary" onClick={clearFilters}>
             Clear Filters
           </button>
