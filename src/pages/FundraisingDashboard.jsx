@@ -818,7 +818,63 @@ export default function FundraisingDashboard() {
           min-width: 7px;
         }
 
+        .fund-main-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.95fr);
+          gap: 22px;
+          align-items: start;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .fund-leaderboard-panel,
+        .fund-source-panel {
+          min-width: 0;
+          width: 100%;
+          overflow: hidden;
+        }
+
+        .fund-leaderboard-panel > *,
+        .fund-source-panel > * {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .fund-leader-row {
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+        }
+
+        .fund-main,
+        .fund-metric,
+        .fund-source-row,
+        .fund-source-top {
+          min-width: 0;
+        }
+
+        .fund-main strong,
+        .fund-main span,
+        .fund-metric strong,
+        .fund-metric span,
+        .fund-metric small,
+        .fund-source-top strong,
+        .fund-source-top span {
+          max-width: 100%;
+          overflow-wrap: anywhere;
+          word-break: normal;
+        }
+
+        .fund-source-panel .fund-source-row {
+          width: 100%;
+          box-sizing: border-box;
+        }
+
         @media (max-width: 1320px) {
+          .fund-main-layout {
+            grid-template-columns: 1fr;
+          }
+
           .fund-filter-grid,
           .fund-leader-row,
           .fund-exec-summary {
@@ -832,6 +888,7 @@ export default function FundraisingDashboard() {
         }
 
         @media (max-width: 760px) {
+          .fund-main-layout,
           .fund-filter-grid,
           .fund-leader-row,
           .fund-exec-summary,
@@ -915,52 +972,56 @@ export default function FundraisingDashboard() {
         />
       </SectionCard>
 
-      <div className="vs-grid-2">
-        <SectionCard
-          title="Fundraising Leaderboard"
-          subtitle="Candidate finance leaderboard. Select a candidate to inspect source detail."
-          right={<Badge tone="accent">{filteredLeaderboard.length} Candidates</Badge>}
-        >
-          <div className="vs-stack">
-            {loading ? (
-              <EmptyState text="Loading fundraising leaderboard..." />
-            ) : !filteredLeaderboard.length ? (
-              <EmptyState text="No fundraising data is available yet. Click Import FEC Data, then refresh the dashboard." />
-            ) : (
-              filteredLeaderboard.map((row) => (
-                <LeaderRow
-                  key={`${row.rank}-${row.candidate_id || row.name}`}
-                  row={row}
-                  selected={String(row.candidate_id || row.name) === String(selectedCandidateId)}
-                  onSelect={(candidate) =>
-                    setSelectedCandidateId(candidate.candidate_id || candidate.name)
-                  }
-                />
-              ))
-            )}
-          </div>
-        </SectionCard>
+      <div className="fund-main-layout">
+        <div className="fund-leaderboard-panel">
+          <SectionCard
+            title="Fundraising Leaderboard"
+            subtitle="Candidate finance leaderboard. Select a candidate to inspect source detail."
+            right={<Badge tone="accent">{filteredLeaderboard.length} Candidates</Badge>}
+          >
+            <div className="vs-stack">
+              {loading ? (
+                <EmptyState text="Loading fundraising leaderboard..." />
+              ) : !filteredLeaderboard.length ? (
+                <EmptyState text="No fundraising data is available yet. Click Import FEC Data, then refresh the dashboard." />
+              ) : (
+                filteredLeaderboard.map((row) => (
+                  <LeaderRow
+                    key={`${row.rank}-${row.candidate_id || row.name}`}
+                    row={row}
+                    selected={String(row.candidate_id || row.name) === String(selectedCandidateId)}
+                    onSelect={(candidate) =>
+                      setSelectedCandidateId(candidate.candidate_id || candidate.name)
+                    }
+                  />
+                ))
+              )}
+            </div>
+          </SectionCard>
+        </div>
 
-        <SectionCard
-          title="Where Fundraising Is Coming From"
-          subtitle="Funding source breakdown across selected candidates."
-          right={<Badge tone="info">{sourceBreakdown.length} Funding Sources</Badge>}
-        >
-          <div className="fund-source-breakdown">
-            {!sourceBreakdown.length ? (
-              <EmptyState text="No funding source data is available yet." />
-            ) : (
-              sourceBreakdown.map((row) => (
-                <SourceRow
-                  key={row.source}
-                  source={row.source}
-                  total={row.total}
-                  max={maxSourceTotal}
-                />
-              ))
-            )}
-          </div>
-        </SectionCard>
+        <div className="fund-source-panel">
+          <SectionCard
+            title="Where Fundraising Is Coming From"
+            subtitle="Funding source breakdown across selected candidates."
+            right={<Badge tone="info">{sourceBreakdown.length} Funding Sources</Badge>}
+          >
+            <div className="fund-source-breakdown">
+              {!sourceBreakdown.length ? (
+                <EmptyState text="No funding source data is available yet." />
+              ) : (
+                sourceBreakdown.map((row) => (
+                  <SourceRow
+                    key={row.source}
+                    source={row.source}
+                    total={row.total}
+                    max={maxSourceTotal}
+                  />
+                ))
+              )}
+            </div>
+          </SectionCard>
+        </div>
       </div>
 
       <SectionCard
