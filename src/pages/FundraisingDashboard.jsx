@@ -6,19 +6,121 @@ import StatCard from "../components/ui/StatCard";
 import EmptyState from "../components/ui/EmptyState";
 import Badge from "../components/ui/Badge";
 
+const fallbackData = {
+  ok: false,
+  source: "empty",
+  leaderboard: [],
+  summary: {
+    tracked_candidates: 0,
+    total_receipts: 0,
+    total_cash_on_hand: 0,
+    average_receipts: 0,
+  },
+};
+
 function formatMoney(value) {
   return `$${Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits: 0,
   })}`;
 }
 
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeKey(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+function normalizeRow(row = {}, index = 0) {
+  const name =
+    row.name ||
+    row.candidate_name ||
+    row.full_name ||
+    row.display_name ||
+    "Unknown Candidate";
+
+  return {
+    ...row,
+    rank: Number(row.rank || index + 1),
+    candidate_id:
+      row.candidate_id ||
+      row.fec_candidate_id ||
+      row.id ||
+      `${name}-${index}`,
+    name,
+    state: row.state || row.state_code || row.candidate_state || "N/A",
+    office: row.office || row.race || row.office_sought || row.candidate_office || "Race",
+    party: row.party || row.party_full || row.party_name || row.party_code || "N/A",
+    receipts: Number(
+      row.receipts ||
+        row.total_receipts ||
+        row.ttl_receipts ||
+        row.raised_total ||
+        row.total_raised ||
+        0
+    ),
+    cash_on_hand: Number(
+      row.cash_on_hand ||
+        row.cash_on_hand_total ||
+        row.cash_on_hand_end_period ||
+        row.cash_on_hand_end ||
+        0
+    ),
+  };
+}
+
+function normalizePayload(payload) {
+  const rawRows = Array.isArray(payload?.leaderboard)
+    ? payload.leaderboard
+    : Array.isArray(payload?.results)
+      ? payload.results
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+  const leaderboard = rawRows
+    .map(normalizeRow)
+    .filter((row) => row.name && row.name !== "Unknown Candidate")
+    .sort((a, b) => Number(b.receipts || 0) - Number(a.receipts || 0))
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+
+  const totalReceipts = leaderboard.reduce((sum, row) => sum + Number(row.receipts || 0), 0);
+  const totalCash = leaderboard.reduce((sum, row) => sum + Number(row.cash_on_hand || 0), 0);
+
+  return {
+    ...fallbackData,
+    ...(payload || {}),
+    leaderboard,
+    summary: {
+      tracked_candidates: leaderboard.length,
+      total_receipts: totalReceipts,
+      total_cash_on_hand: totalCash,
+      average_receipts: leaderboard.length ? Math.round(totalReceipts / leaderboard.length) : 0,
+      ...(payload?.summary || {}),
+    },
+  };
+}
+
 function getFundingSources(row) {
   const receipts = Number(row?.receipts || 0);
 
-  if (Array.isArray(row?.funding_sources) && row.funding_sources.length) {
-    return row.funding_sources.map((source) => ({
-      source: source.source || "Unclassified Funding Source",
-      amount: Number(source.amount || 0),
+  const sources =
+    row?.funding_sources ||
+    row?.fundingSources ||
+    row?.sources ||
+    row?.source_breakdown ||
+    [];
+
+  if (Array.isArray(sources) && sources.length) {
+    return sources.map((source) => ({
+      source:
+        source.source ||
+        source.label ||
+        source.name ||
+        source.type ||
+        "Unclassified Funding Source",
+      amount: Number(source.amount || source.value || source.total || 0),
     }));
   }
 
@@ -42,6 +144,12 @@ function sourceTotal(rows, sourceName) {
   }, 0);
 }
 
+function uniqueOptions(rows, key) {
+  return Array.from(
+    new Set(rows.map((row) => normalizeText(row?.[key])).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+}
+
 function SelectField({ label, value, options, allLabel, onChange }) {
   return (
     <label className="fund-filter-field">
@@ -60,7 +168,7 @@ function SelectField({ label, value, options, allLabel, onChange }) {
 
 function SourceRow({ source, total, max }) {
   const width = max > 0 ? Math.max(4, Math.round((total / max) * 100)) : 0;
-  const individual = source.toLowerCase() === "individual contributions";
+  const individual = normalizeKey(source) === "individual contributions";
 
   return (
     <div className={individual ? "fund-source-row is-individual" : "fund-source-row"}>
@@ -104,7 +212,7 @@ function LeaderRow({ row, selected, onSelect }) {
       </div>
 
       <div className="fund-metric">
-        <span>Leading Source</span>
+        <span>Leading Funding Source</span>
         <strong>{topSource?.source || "Unclassified Funding Source"}</strong>
         <small>{formatMoney(topSource?.amount || 0)}</small>
       </div>
@@ -125,7 +233,7 @@ function ExecutiveSummary({ summary, sourceBreakdown, sourceLabel, lastUpdated }
           {sourceLabel ? ` Source: ${sourceLabel}.` : ""}
         </p>
         <div className="fund-summary-badges">
-          <Badge tone="active">{sourceLabel || "Finance Feed"}</Badge>
+          <Badge tone="active">{sourceLabel || "FEC Finance Feed"}</Badge>
           <Badge tone="accent">{lastUpdated || "Latest available data"}</Badge>
         </div>
       </div>
@@ -187,16 +295,6 @@ function CandidateSourceDetail({ row }) {
   );
 }
 
-const fallbackData = {
-  leaderboard: [],
-  summary: {
-    tracked_candidates: 0,
-    total_receipts: 0,
-    total_cash_on_hand: 0,
-    average_receipts: 0,
-  },
-};
-
 export default function FundraisingDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshingFec, setRefreshingFec] = useState(false);
@@ -221,19 +319,23 @@ export default function FundraisingDashboard() {
       if (!silent) setLoading(true);
       setError("");
 
-      const response = await api.get("/intelligence/fundraising/leaderboard", {
-        params: { limit: 1000 },
-        timeout: 10000,
-      });
+      let payload = null;
 
-      const payload = response?.data || fallbackData;
+      try {
+        const fecResponse = await api.get("/fec/fundraising/leaderboard", {
+          params: { limit: 1000 },
+          timeout: 12000,
+        });
+        payload = fecResponse?.data;
+      } catch (_fecError) {
+        const intelligenceResponse = await api.get("/intelligence/fundraising/leaderboard", {
+          params: { limit: 1000 },
+          timeout: 12000,
+        });
+        payload = intelligenceResponse?.data;
+      }
 
-      setData({
-        ...fallbackData,
-        ...payload,
-        leaderboard: Array.isArray(payload.leaderboard) ? payload.leaderboard : [],
-        summary: payload.summary || fallbackData.summary,
-      });
+      setData(normalizePayload(payload || fallbackData));
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -273,14 +375,11 @@ export default function FundraisingDashboard() {
   }, [leaderboard]);
 
   const options = useMemo(() => {
-    const unique = (key) =>
-      Array.from(new Set(leaderboard.map((row) => row[key]).filter(Boolean))).sort();
-
     return {
-      candidates: unique("name"),
-      states: unique("state"),
-      offices: unique("office"),
-      parties: unique("party"),
+      candidates: uniqueOptions(leaderboard, "name"),
+      states: uniqueOptions(leaderboard, "state"),
+      offices: uniqueOptions(leaderboard, "office"),
+      parties: uniqueOptions(leaderboard, "party"),
       sources: allSources,
     };
   }, [leaderboard, allSources]);
@@ -363,7 +462,7 @@ export default function FundraisingDashboard() {
 
   const sourceLabel = useMemo(() => {
     const raw = String(data?.source || "").trim();
-    if (!raw) return "FEC Finance Feed";
+    if (!raw || raw === "empty") return "FEC Finance Feed";
     if (raw.toLowerCase().includes("fec")) return "FEC Finance Feed";
     if (raw.toLowerCase().includes("database")) return "Database Finance Feed";
     return raw;
@@ -406,32 +505,10 @@ export default function FundraisingDashboard() {
     setError("");
 
     try {
-      let refreshed = false;
-
-      try {
-        await api.post("/live-data-refresh/run", {}, { timeout: 45000 });
-        refreshed = true;
-      } catch (_firstError) {
-        try {
-          await api.post("/intelligence/refresh", {}, { timeout: 45000 });
-          refreshed = true;
-        } catch (_secondError) {
-          try {
-            await api.post("/fec/sync/candidate-financials", {}, { timeout: 45000 });
-            refreshed = true;
-          } catch (thirdError) {
-            throw thirdError;
-          }
-        }
-      }
-
+      await api.post("/fec/sync/candidate-financials", {}, { timeout: 60000 });
       await loadFundraising({ silent: true });
 
-      setNotice(
-        refreshed
-          ? "FEC fundraising feed refresh requested successfully. Dashboard data has been reloaded."
-          : "Dashboard data reloaded."
-      );
+      setNotice("FEC fundraising feed imported successfully. Dashboard data has been reloaded.");
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -485,18 +562,17 @@ export default function FundraisingDashboard() {
           flex-wrap: wrap;
         }
 
-        .fund-toolbar-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-        }
-
-        .fund-chip-row {
+        .fund-toolbar-actions,
+        .fund-chip-row,
+        .fund-summary-badges {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
           align-items: center;
+        }
+
+        .fund-toolbar-actions {
+          justify-content: flex-end;
         }
 
         .fund-filter-grid {
@@ -553,7 +629,7 @@ export default function FundraisingDashboard() {
           border-radius: 24px;
           padding: 18px;
           display: grid;
-          grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.3fr);
+          grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1.3fr);
           gap: 18px;
         }
 
@@ -576,21 +652,15 @@ export default function FundraisingDashboard() {
           display: block;
           margin-top: 9px;
           color: var(--vs-text);
-          font-size: 34px;
+          font-size: clamp(26px, 3.4vw, 40px);
           line-height: 1;
+          overflow-wrap: anywhere;
         }
 
         .fund-exec-summary-main p {
           margin: 10px 0 0;
           color: var(--vs-text-muted);
           line-height: 1.55;
-        }
-
-        .fund-summary-badges {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-top: 14px;
         }
 
         .fund-exec-summary-grid {
@@ -783,7 +853,7 @@ export default function FundraisingDashboard() {
             {sourceLabel}
           </Badge>
           <Badge tone="accent">Candidate Finance Layer</Badge>
-          <Badge tone="info">FEC Import Ready</Badge>
+          <Badge tone="info">FEC Import Required</Badge>
         </div>
 
         <div className="fund-toolbar-actions">
@@ -855,7 +925,7 @@ export default function FundraisingDashboard() {
             {loading ? (
               <EmptyState text="Loading fundraising leaderboard..." />
             ) : !filteredLeaderboard.length ? (
-              <EmptyState text="No fundraising leaders match the selected filters. Import FEC data or refresh the finance feed." />
+              <EmptyState text="No fundraising data is available yet. Click Import FEC Data, then refresh the dashboard." />
             ) : (
               filteredLeaderboard.map((row) => (
                 <LeaderRow
@@ -878,7 +948,7 @@ export default function FundraisingDashboard() {
         >
           <div className="fund-source-breakdown">
             {!sourceBreakdown.length ? (
-              <EmptyState text="No funding source data matches the selected filters." />
+              <EmptyState text="No funding source data is available yet." />
             ) : (
               sourceBreakdown.map((row) => (
                 <SourceRow
@@ -903,3 +973,4 @@ export default function FundraisingDashboard() {
     </PageShell>
   );
 }
+
