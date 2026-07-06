@@ -7,6 +7,15 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 
+const sectionDefaults = {
+  command: true,
+  profile: true,
+  insights: true,
+  pacs: false,
+  states: false,
+  partyOffice: false,
+};
+
 const fallbackData = {
   ok: false,
   source: "empty",
@@ -283,6 +292,39 @@ function SelectedCandidatePanel({ candidate }) {
   );
 }
 
+
+function JumpButton({ to, children }) {
+  return (
+    <button
+      type="button"
+      className="cfi-jump-button"
+      onClick={() => document.getElementById(to)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CollapseShell({ id, title, subtitle, open, onToggle, right, children }) {
+  return (
+    <div id={id} className="cfi-collapse-shell">
+      <div className="cfi-collapse-head">
+        <div>
+          <h3>{title}</h3>
+          <p>{subtitle}</p>
+        </div>
+        <div className="cfi-collapse-actions">
+          {right}
+          <button type="button" className="vs-button vs-button-secondary" onClick={onToggle}>
+            {open ? "Collapse Section" : "Open Section"}
+          </button>
+        </div>
+      </div>
+      {open ? <div className="cfi-collapse-body">{children}</div> : null}
+    </div>
+  );
+}
+
 export default function CampaignFinanceIntelligencePlatform() {
   const [data, setData] = useState(fallbackData);
   const [loading, setLoading] = useState(true);
@@ -290,6 +332,12 @@ export default function CampaignFinanceIntelligencePlatform() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [activeCandidateId, setActiveCandidateId] = useState(null);
+  const [openSections, setOpenSections] = useState(sectionDefaults);
+  const [showAll, setShowAll] = useState({
+    command: false,
+    pacs: false,
+    states: false,
+  });
   const [filters, setFilters] = useState({
     state: "",
     party: "",
@@ -358,6 +406,14 @@ export default function CampaignFinanceIntelligencePlatform() {
     }
   }
 
+  function toggleSection(section) {
+    setOpenSections((current) => ({ ...current, [section]: !current[section] }));
+  }
+
+  function scrollTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   const candidates = arr(data.leaderboards.candidates);
   const pacs = arr(data.leaderboards.pacs);
   const states = arr(data.leaderboards.states);
@@ -387,6 +443,10 @@ export default function CampaignFinanceIntelligencePlatform() {
   const maxPartyAmount = Math.max(...parties.map((item) => num(item.total_receipts || item.receipts)), 0);
   const maxOfficeAmount = Math.max(...offices.map((item) => num(item.total_receipts || item.receipts)), 0);
 
+  const commandRows = showAll.command ? candidates : candidates.slice(0, 10);
+  const pacRows = showAll.pacs ? pacs : pacs.slice(0, 12);
+  const stateRows = showAll.states ? states : states.slice(0, 12);
+
   return (
     <PageShell
       eyebrow="Campaign Finance Intelligence Platform"
@@ -412,11 +472,102 @@ export default function CampaignFinanceIntelligencePlatform() {
 
         .cfi-toolbar-actions,
         .cfi-chip-row,
-        .cfi-selected-kpis {
+        .cfi-selected-kpis,
+        .cfi-section-nav {
           display: flex;
           align-items: center;
           flex-wrap: wrap;
           gap: 8px;
+        }
+
+
+
+        .cfi-section-nav {
+          position: sticky;
+          top: 76px;
+          z-index: 12;
+          padding: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 18px;
+          background: rgba(15, 23, 42, 0.92);
+          backdrop-filter: blur(16px);
+        }
+
+        .cfi-jump-button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.86);
+          color: var(--vs-text);
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          padding: 9px 12px;
+          text-transform: uppercase;
+        }
+
+        .cfi-jump-button:hover {
+          border-color: rgba(251, 146, 60, 0.5);
+          color: #fed7aa;
+        }
+
+        .cfi-collapse-shell {
+          background: var(--vs-panel-bg, #111827);
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 22px;
+          box-shadow: none;
+          box-sizing: border-box;
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+          padding: 16px;
+          scroll-margin-top: 132px;
+        }
+
+        .cfi-collapse-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .cfi-collapse-head h3 {
+          margin: 0;
+          color: var(--vs-text);
+          font-size: 18px;
+          line-height: 1.2;
+        }
+
+        .cfi-collapse-head p {
+          margin: 6px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        .cfi-collapse-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .cfi-collapse-body {
+          margin-top: 16px;
+        }
+
+        .cfi-show-more {
+          justify-self: center;
+          margin-top: 8px;
+        }
+
+        .cfi-back-top {
+          position: fixed;
+          right: 24px;
+          bottom: 24px;
+          z-index: 20;
+          box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
         }
 
         .cfi-filters {
@@ -710,10 +861,104 @@ export default function CampaignFinanceIntelligencePlatform() {
         }
 
         @media (max-width: 1320px) {
+          .cfi-section-nav {
+            position: static;
+          }
+
           .cfi-analysis-layout,
           .cfi-insight-grid,
           .cfi-selected-grid,
-          .cfi-filters {
+  
+
+        .cfi-section-nav {
+          position: sticky;
+          top: 76px;
+          z-index: 12;
+          padding: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 18px;
+          background: rgba(15, 23, 42, 0.92);
+          backdrop-filter: blur(16px);
+        }
+
+        .cfi-jump-button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.86);
+          color: var(--vs-text);
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          padding: 9px 12px;
+          text-transform: uppercase;
+        }
+
+        .cfi-jump-button:hover {
+          border-color: rgba(251, 146, 60, 0.5);
+          color: #fed7aa;
+        }
+
+        .cfi-collapse-shell {
+          background: var(--vs-panel-bg, #111827);
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 22px;
+          box-shadow: none;
+          box-sizing: border-box;
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+          padding: 16px;
+          scroll-margin-top: 132px;
+        }
+
+        .cfi-collapse-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .cfi-collapse-head h3 {
+          margin: 0;
+          color: var(--vs-text);
+          font-size: 18px;
+          line-height: 1.2;
+        }
+
+        .cfi-collapse-head p {
+          margin: 6px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        .cfi-collapse-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .cfi-collapse-body {
+          margin-top: 16px;
+        }
+
+        .cfi-show-more {
+          justify-self: center;
+          margin-top: 8px;
+        }
+
+        .cfi-back-top {
+          position: fixed;
+          right: 24px;
+          bottom: 24px;
+          z-index: 20;
+          box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+        }
+
+        .cfi-filters {
             grid-template-columns: 1fr;
           }
 
@@ -736,9 +981,15 @@ export default function CampaignFinanceIntelligencePlatform() {
           }
 
           .cfi-toolbar,
-          .cfi-selected-head {
+          .cfi-selected-head,
+          .cfi-collapse-head {
             flex-direction: column;
             align-items: stretch;
+          }
+
+          .cfi-back-top {
+            right: 14px;
+            bottom: 14px;
           }
         }
       `}</style>
@@ -761,6 +1012,15 @@ export default function CampaignFinanceIntelligencePlatform() {
             Open Fundraising Dashboard
           </Link>
         </div>
+      </div>
+
+      <div className="cfi-section-nav">
+        <JumpButton to="cfi-command">Command Board</JumpButton>
+        <JumpButton to="cfi-profile">Candidate Profile</JumpButton>
+        <JumpButton to="cfi-insights">AI Insights</JumpButton>
+        <JumpButton to="cfi-pacs">PACs</JumpButton>
+        <JumpButton to="cfi-states">States</JumpButton>
+        <JumpButton to="cfi-party-office">Party / Office</JumpButton>
       </div>
 
       {notice ? <div className="vs-banner">{notice}</div> : null}
@@ -820,9 +1080,13 @@ export default function CampaignFinanceIntelligencePlatform() {
         <StatCard label="PAC Dependency Percentage" value={pct(summary.pac_dependency_percentage)} delta="Share of receipts tied to named PAC totals" tone="up" />
       </div>
 
-      <SectionCard
+      <CollapseShell
+        id="cfi-insights"
         title="Executive Finance Intelligence"
         subtitle="AI-style interpretation of campaign finance concentration, PAC exposure, and finance opportunities."
+        open={openSections.insights}
+        onToggle={() => toggleSection("insights")}
+        right={<Badge tone="accent">{arr(data.insights).length} Insights</Badge>}
       >
         <div className="cfi-insight-grid">
           {loading ? (
@@ -833,18 +1097,21 @@ export default function CampaignFinanceIntelligencePlatform() {
             <EmptyState text="No campaign finance insights are currently available." />
           )}
         </div>
-      </SectionCard>
+      </CollapseShell>
 
-      <SectionCard
+      <CollapseShell
+        id="cfi-command"
         title="Candidate Finance Command Board"
-        subtitle="Full-width ranked candidate finance strength with PAC dependency and reserve posture."
+        subtitle="Top candidate finance strength with PAC dependency and reserve posture. Expand only when you need the full board."
+        open={openSections.command}
+        onToggle={() => toggleSection("command")}
         right={<Badge tone="accent">{candidates.length} Candidates</Badge>}
       >
         <div className="cfi-stack cfi-command-board">
           {loading ? (
             <EmptyState text="Loading candidate finance board..." />
-          ) : candidates.length ? (
-            candidates.map((candidate) => (
+          ) : commandRows.length ? (
+            commandRows.map((candidate) => (
               <CandidateRow
                 key={candidate.candidate_id}
                 candidate={candidate}
@@ -856,70 +1123,96 @@ export default function CampaignFinanceIntelligencePlatform() {
           ) : (
             <EmptyState text="No candidate finance records match the selected filters." />
           )}
+          {candidates.length > 10 ? (
+            <button type="button" className="vs-button vs-button-secondary cfi-show-more" onClick={() => setShowAll((current) => ({ ...current, command: !current.command }))}>
+              {showAll.command ? "Show Top 10" : `Show All ${candidates.length} Candidates`}
+            </button>
+          ) : null}
         </div>
-      </SectionCard>
+      </CollapseShell>
 
       <div className="cfi-analysis-layout">
         <div className="cfi-analysis-primary">
-          <SectionCard
+          <CollapseShell
+            id="cfi-profile"
             title="Selected Candidate Finance Profile"
             subtitle="Detailed source mix and named PAC contribution records."
+            open={openSections.profile}
+            onToggle={() => toggleSection("profile")}
+            right={activeCandidate ? <Badge tone="active">{activeCandidate.name}</Badge> : null}
           >
             <SelectedCandidatePanel candidate={activeCandidate} />
-          </SectionCard>
+          </CollapseShell>
 
-          <SectionCard
+          <CollapseShell
+            id="cfi-pacs"
             title="Top PAC / Committee Influence"
             subtitle="Named PACs and committees ranked by total support across the filtered candidate universe."
+            open={openSections.pacs}
+            onToggle={() => toggleSection("pacs")}
             right={<Badge tone="info">{pacs.length} PACs</Badge>}
           >
             <div className="cfi-stack">
-              {pacs.length ? (
-                pacs.slice(0, 25).map((pac, index) => (
+              {pacRows.length ? (
+                pacRows.map((pac, index) => (
                   <PacRow key={`${pac.committee_id || pac.committee_name}-${index}`} pac={pac} index={index} maxAmount={maxPacAmount} />
                 ))
               ) : (
                 <EmptyState text="No named PAC records are available for the selected filters." />
               )}
+              {pacs.length > 12 ? (
+                <button type="button" className="vs-button vs-button-secondary cfi-show-more" onClick={() => setShowAll((current) => ({ ...current, pacs: !current.pacs }))}>
+                  {showAll.pacs ? "Show Top 12" : `Show All ${pacs.length} PACs`}
+                </button>
+              ) : null}
             </div>
-          </SectionCard>
+          </CollapseShell>
         </div>
 
         <div className="cfi-analysis-secondary">
-          <SectionCard
+          <CollapseShell
+            id="cfi-states"
             title="State Finance Heat"
             subtitle="Receipts and candidate count by state."
+            open={openSections.states}
+            onToggle={() => toggleSection("states")}
+            right={<Badge tone="accent">{states.length} States</Badge>}
           >
             <div className="cfi-stack">
-              {states.length ? states.slice(0, 12).map((row, index) => (
+              {stateRows.length ? stateRows.map((row, index) => (
                 <EntityRow key={row.state || row.name} row={row} index={index} label="State" maxAmount={maxStateAmount} />
               )) : <EmptyState text="No state finance data is available." />}
+              {states.length > 12 ? (
+                <button type="button" className="vs-button vs-button-secondary cfi-show-more" onClick={() => setShowAll((current) => ({ ...current, states: !current.states }))}>
+                  {showAll.states ? "Show Top 12" : `Show All ${states.length} States`}
+                </button>
+              ) : null}
             </div>
-          </SectionCard>
+          </CollapseShell>
 
-          <SectionCard
-            title="Party Finance Distribution"
-            subtitle="Receipts and candidate count by party."
+          <CollapseShell
+            id="cfi-party-office"
+            title="Party And Office Finance Distribution"
+            subtitle="Receipts and candidate count by party and office type."
+            open={openSections.partyOffice}
+            onToggle={() => toggleSection("partyOffice")}
+            right={<Badge tone="info">{parties.length + offices.length} Groups</Badge>}
           >
             <div className="cfi-stack">
               {parties.length ? parties.map((row, index) => (
                 <EntityRow key={row.party || row.name} row={row} index={index} label="Party" maxAmount={maxPartyAmount} />
               )) : <EmptyState text="No party finance data is available." />}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Office Finance Distribution"
-            subtitle="Receipts and candidate count by office type."
-          >
-            <div className="cfi-stack">
               {offices.length ? offices.map((row, index) => (
                 <EntityRow key={row.office || row.name} row={row} index={index} label="Office" maxAmount={maxOfficeAmount} />
               )) : <EmptyState text="No office finance data is available." />}
             </div>
-          </SectionCard>
+          </CollapseShell>
         </div>
       </div>
+
+      <button type="button" className="vs-button vs-button-primary cfi-back-top" onClick={scrollTop}>
+        Back To Top
+      </button>
     </PageShell>
   );
 }
