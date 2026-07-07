@@ -8,6 +8,11 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
+
 const ENTITY_TYPE_LABELS = {
   firm: "Firm Organization",
   workspace: "Campaign Workspace",
@@ -664,6 +669,16 @@ export default function PoliticalIntelligenceGraph() {
     ["critical", "high", "at risk", "overdue"].includes(String(node.risk || "").toLowerCase())
   ).length;
 
+  const navSections = [
+    { id: "pig-summary", label: "Summary" },
+    { id: "pig-controls", label: "Controls" },
+    { id: "pig-navigator", label: "Navigator", badge: filteredNodes.length },
+    { id: "pig-canvas", label: "Canvas" },
+    { id: "pig-selected", label: "Selected" },
+    { id: "pig-connected", label: "Connected", badge: connectedNodes.length },
+    { id: "pig-legend", label: "Legend" },
+  ];
+
   return (
     <PageShell
       eyebrow="Political Intelligence Graph"
@@ -1060,6 +1075,10 @@ export default function PoliticalIntelligenceGraph() {
           }
         }
 
+        .pig-stack .vs-collapsible-section {
+          min-width: 0;
+        }
+
         @media (max-width: 1500px) {
           .pig-enterprise-grid {
             grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr);
@@ -1092,14 +1111,30 @@ export default function PoliticalIntelligenceGraph() {
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
-      <div className="vs-grid-4">
+      <ExecutivePageNav sections={navSections} />
+
+      <CollapsibleSection
+        id="pig-summary"
+        title="Executive Political Intelligence Summary"
+        subtitle="High-level readout of visible entities, national coverage, connected assets, and high-risk political intelligence."
+        defaultOpen
+        right={<Badge tone="active">{viewMode === "focus" ? "Focus View" : "Full Network View"}</Badge>}
+      >
+        <div className="vs-grid-4">
         <StatCard label="Visible Political Intelligence Entities" value={fmt(filteredNodes.length)} delta={`${fmt(summary.nodes || allNodes.length)} total entities`} tone="up" />
         <StatCard label="National State Coverage" value={fmt(STATES.length)} delta="All states and District of Columbia" tone="up" />
         <StatCard label="Connected Intelligence Assets" value={fmt(connectedNodes.length)} delta="First-degree relationships" tone="up" />
         <StatCard label="High Risk Political Entities" value={fmt(highRiskCount)} delta="Entities requiring attention" tone={highRiskCount ? "down" : "up"} />
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      <SectionCard title="Graph Controls" subtitle="Search, filter, and switch between focused relationship view and full network view.">
+      <CollapsibleSection
+        id="pig-controls"
+        title="Graph Controls"
+        subtitle="Search, filter, and switch between focused relationship view and full network view."
+        defaultOpen
+        right={<Badge tone="info">{filteredNodes.length} Visible Entities</Badge>}
+      >
         <div className="pig-controls">
           <input
             placeholder="Search entities, metadata, states, risks, or labels..."
@@ -1140,44 +1175,50 @@ export default function PoliticalIntelligenceGraph() {
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
       {loading ? (
         <EmptyState text="Loading Political Intelligence Graph..." />
       ) : (
         <div className="pig-enterprise-grid">
           <div className="pig-stack">
-            <SectionCard
+            <CollapsibleSection
+              id="pig-navigator"
               title="Entity Navigator"
               subtitle="Select any state or entity to focus the canvas on its connected intelligence."
+              defaultOpen
               right={<Badge tone="info">{filteredNodes.length} Entities</Badge>}
             >
               {!filteredNodes.length ? (
                 <EmptyState text="No graph entities match the current filters." />
               ) : (
-                <div className="pig-stack">
-                  {filteredNodes.slice(0, 72).map((node) => (
+                <ShowMoreList
+                  items={filteredNodes}
+                  initialCount={18}
+                  showAllLabel={(count) => `Show All ${count} Entities`}
+                  renderItem={(node) => (
                     <NodeListRow
-                      key={nodeId(node)}
                       node={node}
                       active={nodeId(selected) === nodeId(node)}
                       onSelect={setSelected}
                       connectionCount={allEdges.filter((edge) => edgeConnects(edge, nodeId(node))).length}
                     />
-                  ))}
-                </div>
+                  )}
+                />
               )}
-            </SectionCard>
+            </CollapsibleSection>
           </div>
 
           <div className="pig-stack">
-            <SectionCard
+            <CollapsibleSection
+              id="pig-canvas"
               title={viewMode === "focus" ? "Executive Intelligence Canvas" : "Full Political Intelligence Network"}
               subtitle={
                 viewMode === "focus"
                   ? "Focused canvas showing the selected entity and connected intelligence assets."
                   : "Expanded network mode using the current filters."
               }
+              defaultOpen
               right={<Badge tone="accent">{connectedNodes.length} Connected Assets</Badge>}
             >
               {!canvasNodes.length ? (
@@ -1190,9 +1231,9 @@ export default function PoliticalIntelligenceGraph() {
                   onSelect={setSelected}
                 />
               )}
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard title="Graph Legend" subtitle="Full entity type names used in the political intelligence graph.">
+            <CollapsibleSection id="pig-legend" title="Graph Legend" subtitle="Full entity type names used in the political intelligence graph." defaultOpen={false}>
               <div className="pig-legend">
                 {types.length ? types.map((type) => (
                   <span key={type}>
@@ -1206,13 +1247,15 @@ export default function PoliticalIntelligenceGraph() {
                   </span>
                 ))}
               </div>
-            </SectionCard>
+            </CollapsibleSection>
           </div>
 
           <div className="pig-stack pig-right-column">
-            <SectionCard
+            <CollapsibleSection
+              id="pig-selected"
               title="Selected Entity Intelligence"
               subtitle="Entity details, risk status, relationship score, and produced information."
+              defaultOpen
               right={selected ? <Badge tone={tone(selected.risk)}>{fullRisk(selected.risk)}</Badge> : null}
             >
               {!selected ? (
@@ -1236,11 +1279,13 @@ export default function PoliticalIntelligenceGraph() {
                   ))}
                 </div>
               )}
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard
+            <CollapsibleSection
+              id="pig-connected"
               title="Connected Political Intelligence"
               subtitle="Immediate neighbors connected to the selected entity."
+              defaultOpen
               right={<Badge tone="accent">{connectedNodes.length} Connected Entities</Badge>}
             >
               <div className="pig-stack">
@@ -1264,10 +1309,12 @@ export default function PoliticalIntelligenceGraph() {
                   ))
                 )}
               </div>
-            </SectionCard>
+            </CollapsibleSection>
           </div>
         </div>
       )}
+
+      <BackToTopButton />
     </PageShell>
   );
 }
