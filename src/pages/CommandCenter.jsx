@@ -10,6 +10,11 @@ import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
+
 const fallbackData = {
   metrics: [
     { label: "National Win Index", value: "61.8", delta: "+3.1", tone: "up" },
@@ -912,6 +917,103 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
   );
 }
 
+function CommandExecutiveHeader({
+  metrics,
+  highSeverityCount,
+  taskCounts,
+  relationshipCounts,
+  darkMoneySummary,
+  crossSignal,
+  consultantIntel,
+  executiveDecision,
+  loading,
+  consultantLoading,
+  onRefresh,
+  onUpdateConsultants,
+}) {
+  const readinessScore = Math.max(
+    0,
+    Math.min(
+      100,
+      100 -
+        number(highSeverityCount * 8) -
+        number(taskCounts.county * 2) -
+        number(darkMoneySummary.critical_exposure * 10)
+    )
+  );
+
+  return (
+    <div className="command-exec-header" id="command-overview">
+      <div className="command-exec-copy">
+        <span>Executive Command Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Unified executive operations layer for tasks, county escalations, relationship intelligence,
+          consultant risk, dark-money exposure, cross-signal pressure, alerts, and campaign execution.
+        </p>
+
+        <div className="command-exec-badges">
+          <Badge tone={highSeverityCount ? "danger" : "active"}>
+            {highSeverityCount ? `${highSeverityCount} High-Priority Alerts` : "No Urgent Alerts"}
+          </Badge>
+          <Badge tone={taskCounts.county ? "danger" : "active"}>
+            {taskCounts.county} County Escalations
+          </Badge>
+          <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>
+            {relationshipCounts.links || 0} Network Connections
+          </Badge>
+          <Badge tone={number(darkMoneySummary.critical_exposure) ? "danger" : "active"}>
+            {darkMoneySummary.critical_exposure || 0} Dark-Money Critical
+          </Badge>
+        </div>
+      </div>
+
+      <div className="command-exec-grid">
+        <div>
+          <span>Open Tasks</span>
+          <strong>{taskCounts.open || 0}</strong>
+        </div>
+        <div>
+          <span>Completed Work</span>
+          <strong>{taskCounts.completed || 0}</strong>
+        </div>
+        <div>
+          <span>Critical States</span>
+          <strong>{crossSignal?.summary?.critical_states || 0}</strong>
+        </div>
+        <div>
+          <span>Consultants To Review</span>
+          <strong>
+            {number(consultantIntel?.summary?.high_exposure) + number(consultantIntel?.summary?.watch_closely)}
+          </strong>
+        </div>
+      </div>
+
+      <div className="command-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading}>
+          {loading ? "Refreshing Dashboard..." : "Refresh All Intelligence"}
+        </button>
+        <button type="button" onClick={onUpdateConsultants} disabled={consultantLoading}>
+          {consultantLoading ? "Updating Consultants..." : "Update Consultant Scores"}
+        </button>
+        <Link to="/executive-decision-intelligence">Decision Center</Link>
+        <Link to="/political-graph">Political Graph</Link>
+        <Link to={executiveDecision?.link || "/command-center"}>Open Suggested Page</Link>
+      </div>
+
+      <div className="command-exec-metrics">
+        {arr(metrics).slice(0, 4).map((metric) => (
+          <div key={metric.label}>
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+            <small>{metric.delta || metric.subtext || "Command metric"}</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CommandCenter() {
   const [searchParams] = useSearchParams();
   const [commandData, setCommandData] = useState(fallbackData);
@@ -1229,6 +1331,21 @@ export default function CommandCenter() {
   const highSeverityCount = arr(stateScopedFeed).filter((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())).length;
   const relationshipCounts = relationshipGraph?.counts || {};
   const darkMoneySummary = darkMoneyIntel?.summary || {};
+
+  const navSections = [
+    { id: "command-overview", label: "Overview" },
+    { id: "command-map-bridge-section", label: "Map Handoff", badge: isExecutiveMapBridge ? mapBridgeTasks.length : undefined },
+    { id: "command-decision-section", label: "Decision" },
+    { id: "command-execution-section", label: "Execution Board", badge: filteredTasks.length },
+    { id: "command-county-section", label: "County Heat", badge: countyEscalationTasks.length },
+    { id: "command-consultants-section", label: "Consultants" },
+    { id: "command-relationships-section", label: "Relationships", badge: relationshipCounts.links || 0 },
+    { id: "command-cross-signal-section", label: "Cross Signal", badge: crossSignal?.summary?.critical_states || 0 },
+    { id: "command-dark-money-section", label: "Dark Money", badge: darkMoneySummary.critical_exposure || 0 },
+    { id: "command-alerts-section", label: "Alerts", badge: executiveAlerts.length },
+    { id: "command-battlegrounds-section", label: "Battlegrounds", badge: stateScopedBattlegrounds.length },
+    { id: "command-feed-section", label: "Feed", badge: stateScopedFeed.length },
+  ];
 
   return (
     <PageShell
@@ -1634,11 +1751,161 @@ export default function CommandCenter() {
           min-width: 220px;
         }
 
+
+        .command-exec-header {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .command-exec-copy {
+          min-width: 0;
+        }
+
+        .command-exec-copy span,
+        .command-exec-grid span,
+        .command-exec-metrics span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .command-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .command-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .command-exec-badges,
+        .command-exec-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .command-exec-badges {
+          margin-top: 14px;
+        }
+
+        .command-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .command-exec-grid div,
+        .command-exec-metrics div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .command-exec-grid strong,
+        .command-exec-metrics strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .command-exec-metrics small {
+          display: block;
+          margin-top: 6px;
+          color: rgba(226, 232, 240, 0.66);
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
+        .command-exec-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .command-exec-actions button,
+        .command-exec-actions a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .command-exec-actions button:hover,
+        .command-exec-actions a:hover {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.14);
+          color: white;
+        }
+
+        .command-exec-actions button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .command-exec-metrics {
+          grid-column: 1 / -1;
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .command-section-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .command-executive-actions-row {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: flex-end;
+        }
+
         @media (max-width: 1100px) {
           .county-task-grid-wrap,
           .command-bottom-grid,
           .command-two-col,
-          .decision-intelligence-command-card {
+          .decision-intelligence-command-card,
+          .command-exec-header,
+          .command-exec-metrics {
             grid-template-columns: 1fr;
           }
 
@@ -1651,7 +1918,8 @@ export default function CommandCenter() {
         }
 
         @media (max-width: 760px) {
-          .county-task-grid {
+          .county-task-grid,
+          .command-exec-grid {
             grid-template-columns: 1fr;
           }
 
@@ -1710,62 +1978,105 @@ export default function CommandCenter() {
         </div>
       ) : null}
 
-      {selectedTask ? (
-        <PoliticalGraphContextPanel
-          entityType="task"
-          entityId={getTaskId(selectedTask)}
-          entityName={getTaskTitle(selectedTask)}
-          state={getTaskStateCode(selectedTask)}
-          title="Task Relationship Graph"
-          subtitle="Click any Command Center task to load its candidates, donors, vendors, endorsements, states, and related actions."
-          compact
-        />
-      ) : null}
+      <CollapsibleSection
+        id="command-task-graph-section"
+        title="Task Relationship Graph"
+        subtitle="Selected task context connected to candidates, donors, vendors, endorsements, states, and related actions."
+        defaultOpen={false}
+        right={selectedTask ? <Badge tone="accent">{getTaskTitle(selectedTask)}</Badge> : <Badge tone="default">No Task Selected</Badge>}
+      >
+        {selectedTask ? (
+          <PoliticalGraphContextPanel
+            entityType="task"
+            entityId={getTaskId(selectedTask)}
+            entityName={getTaskTitle(selectedTask)}
+            state={getTaskStateCode(selectedTask)}
+            title="Task Relationship Graph"
+            subtitle="Click any Command Center task to load its candidates, donors, vendors, endorsements, states, and related actions."
+            compact
+          />
+        ) : (
+          <EmptyState text="Select a task from the execution board to view relationship graph context." />
+        )}
 
-      <div className="vs-inline-actions command-panel-actions">
-        <Link
-          className="vs-button vs-button-secondary"
-          to={
-            selectedTask
-              ? `/political-graph?search=${encodeURIComponent(getTaskTitle(selectedTask))}`
-              : "/political-graph"
-          }
-        >
-          Open Political Graph
-        </Link>
-      </div>
+        <div className="vs-inline-actions command-panel-actions" style={{ marginTop: 12 }}>
+          <Link
+            className="vs-button vs-button-secondary"
+            to={
+              selectedTask
+                ? `/political-graph?search=${encodeURIComponent(getTaskTitle(selectedTask))}`
+                : "/political-graph"
+            }
+          >
+            Open Political Graph
+          </Link>
+        </div>
+      </CollapsibleSection>
 
       {isExecutiveMapBridge ? (
-        <div className="vs-grid-4" data-tour="command-map-filter-summary">
-          <StatCard label="State Filter" value={mapBridgeState} subtext={mapBridgeRegion || "Executive map handoff"} tone="up" />
-          <StatCard label="Matching Tasks" value={mapBridgeTasks.length} subtext={`${taskCounts.open || 0} open • ${taskCounts.completed || 0} completed`} tone={mapBridgeTasks.length ? "up" : "neutral"} />
-          <StatCard label="Auto Filter" value={TASK_FILTERS.find((item) => item.id === taskFilter)?.label || taskFilter} subtext="Selected from map layer/action" tone="up" />
-          <StatCard label="Priority" value={mapBridgeRisk || "Review"} subtext={mapBridgeLayer ? `Layer: ${mapBridgeLayer}` : "Executive review"} tone={mapBridgeRisk ? "down" : "neutral"} />
-        </div>
+        <CollapsibleSection
+          id="command-map-bridge-section"
+          title={`${mapBridgeState} Executive Map Handoff Summary`}
+          subtitle="Task and priority summary from the Executive Operations Map handoff."
+          defaultOpen
+          right={<Badge tone={mapBridgeTasks.length ? "active" : "default"}>{mapBridgeTasks.length} Matching Tasks</Badge>}
+        >
+          <div className="vs-grid-4" data-tour="command-map-filter-summary">
+            <StatCard label="State Filter" value={mapBridgeState} subtext={mapBridgeRegion || "Executive map handoff"} tone="up" />
+            <StatCard label="Matching Tasks" value={mapBridgeTasks.length} subtext={`${taskCounts.open || 0} open • ${taskCounts.completed || 0} completed`} tone={mapBridgeTasks.length ? "up" : "neutral"} />
+            <StatCard label="Auto Filter" value={TASK_FILTERS.find((item) => item.id === taskFilter)?.label || taskFilter} subtext="Selected from map layer/action" tone="up" />
+            <StatCard label="Priority" value={mapBridgeRisk || "Review"} subtext={mapBridgeLayer ? `Layer: ${mapBridgeLayer}` : "Executive review"} tone={mapBridgeRisk ? "down" : "neutral"} />
+          </div>
+        </CollapsibleSection>
       ) : null}
 
-      <div className="command-toolbar">
-        <div className="vs-chip-row">
-          <Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} high-priority alerts` : "No urgent alerts"}</Badge>
-          <Badge tone={taskCounts.county ? "danger" : "active"}>{taskCounts.county} county escalations</Badge>
-          <Badge tone={taskCounts.completed ? "active" : "default"}>{taskCounts.completed} completed</Badge>
-          <Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>{relationshipCounts.links || 0} network connections</Badge>
-          <Badge tone={number(darkMoneySummary.critical_exposure) ? "danger" : "active"}>{darkMoneySummary.critical_exposure || 0} dark-money critical</Badge>
-        </div>
+      <div className="command-section-stack">
+        <CommandExecutiveHeader
+          metrics={metrics}
+          highSeverityCount={highSeverityCount}
+          taskCounts={taskCounts}
+          relationshipCounts={relationshipCounts}
+          darkMoneySummary={darkMoneySummary}
+          crossSignal={crossSignal}
+          consultantIntel={consultantIntel}
+          executiveDecision={executiveDecision}
+          loading={commandLoading || crossLoading || relationshipLoading || consultantLoading || darkMoneyLoading || executiveAlertsLoading || tasksLoading}
+          consultantLoading={consultantLoading}
+          onRefresh={refreshAll}
+          onUpdateConsultants={runConsultantRiskScore}
+        />
 
-        <div className="vs-inline-actions command-panel-actions">
-          <button type="button" className="vs-button vs-button-secondary" onClick={refreshAll}>Refresh Dashboard</button>
-          <button type="button" className="vs-button" onClick={runConsultantRiskScore} disabled={consultantLoading}>
-            {consultantLoading ? "Updating..." : "Update Consultant Scores"}
-          </button>
-        </div>
+        <ExecutivePageNav sections={navSections} />
       </div>
 
-      <MetricGrid metrics={metrics} />
+      <CollapsibleSection
+        id="command-overview-metrics"
+        title="Executive Command Metrics"
+        subtitle="Primary campaign command metrics from the live intelligence command layer."
+        defaultOpen
+        right={<Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} Urgent Alerts` : "Stable"}</Badge>}
+      >
+        <MetricGrid metrics={metrics} />
+      </CollapsibleSection>
 
-      <DecisionIntelligenceCommandCard />
+      <CollapsibleSection
+        id="command-decision-section"
+        title="Executive Decision Intelligence"
+        subtitle="AI decision layer, ranked options, confidence scoring, risk review, and executive action paths."
+        defaultOpen
+        right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "Stable"}</Badge>}
+      >
+        <DecisionIntelligenceCommandCard />
+      </CollapsibleSection>
 
-      <div data-tour="command-recommended-action">
+      <CollapsibleSection
+        id="command-recommended-action-section"
+        title="Recommended Executive Action"
+        subtitle="Top action based on alerts, consultant activity, relationship data, and dark-money exposure."
+        defaultOpen
+        right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
+      >
+        <div data-tour="command-recommended-action">
         <SectionCard
           title="Recommended Executive Action"
           subtitle="The top action to review based on alerts, consultant activity, relationship data, and dark-money exposure."
@@ -1792,7 +2103,15 @@ export default function CommandCenter() {
           </div>
         </SectionCard>
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="command-execution-section"
+        title="Executive Execution Board"
+        subtitle={isExecutiveMapBridge ? `Tasks filtered from Executive Operations Map for ${mapBridgeState}.` : "Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."}
+        defaultOpen
+        right={<Badge tone={filteredTasks.length ? "info" : "default"}>{isExecutiveMapBridge ? `${filteredTasks.length} ${mapBridgeState} shown` : `${filteredTasks.length} shown`}</Badge>}
+      >
       <div data-tour="command-execution-board">
         <SectionCard
           title="Executive Execution Board"
@@ -1808,31 +2127,39 @@ export default function CommandCenter() {
               {taskSyncMessage ? <div className="task-sync-message">{taskSyncMessage}</div> : null}
 
               {countyEscalationTasks.length ? (
-                <div className="county-task-grid-wrap">
-                  {countyEscalationTasks.slice(0, 12).map((task) => (
-                    <CountyEscalationTaskCard
-                      key={getTaskId(task) || getTaskTitle(task)}
-                      task={task}
-                      selected={sameTask(task, selectedTask)}
-                      onSelectTask={setSelectedTask}
-                      onStatusChange={handleCountyTaskStatus}
-                      changing={changingTaskId === getTaskId(task)}
-                    />
-                  ))}
+                <div id="command-county-section">
+                  <ShowMoreList
+                    items={countyEscalationTasks}
+                    initialCount={8}
+                    showAllLabel={(count) => `Show All ${count} County Escalations`}
+                    className="county-task-grid-wrap"
+                    renderItem={(task) => (
+                      <CountyEscalationTaskCard
+                        task={task}
+                        selected={sameTask(task, selectedTask)}
+                        onSelectTask={setSelectedTask}
+                        onStatusChange={handleCountyTaskStatus}
+                        changing={changingTaskId === getTaskId(task)}
+                      />
+                    )}
+                  />
                 </div>
               ) : null}
 
               {standardTasks.length ? (
-                <div className="vs-stack">
-                  {standardTasks.slice(0, 24).map((task) => (
+                <ShowMoreList
+                  items={standardTasks}
+                  initialCount={12}
+                  showAllLabel={(count) => `Show All ${count} Standard Tasks`}
+                  className="vs-stack"
+                  renderItem={(task) => (
                     <StandardTaskCard
-                      key={getTaskId(task) || getTaskTitle(task)}
                       task={task}
                       selected={sameTask(task, selectedTask)}
                       onSelectTask={setSelectedTask}
                     />
-                  ))}
-                </div>
+                  )}
+                />
               ) : countyEscalationTasks.length ? null : (
                 <EmptyState text={isExecutiveMapBridge ? `No ${mapBridgeState} tasks match the selected filter yet.` : "No tasks match the selected filter."} />
               )}
@@ -1840,19 +2167,84 @@ export default function CommandCenter() {
           )}
         </SectionCard>
       </div>
+      </CollapsibleSection>
 
-      <ConsultantIntelligencePanel data={consultantIntel} loading={consultantLoading} onRefresh={loadConsultantIntel} />
-      <RelationshipIntelligencePanel graph={relationshipGraph} loading={relationshipLoading} />
-      <CrossSignalPanel data={crossSignal} loading={crossLoading} />
-      <DarkMoneyExposurePanel data={darkMoneyIntel} loading={darkMoneyLoading} />
-      <ExecutiveAlertEnginePanel alerts={executiveAlerts} loading={executiveAlertsLoading} />
+      <CollapsibleSection
+        id="command-consultants-section"
+        title="Consultant Intelligence"
+        subtitle="Track consultants, candidate relationships, and review signals."
+        defaultOpen={false}
+        right={<Badge tone={(number(consultantIntel?.summary?.high_exposure) + number(consultantIntel?.summary?.watch_closely)) ? "danger" : "active"}>{(number(consultantIntel?.summary?.high_exposure) + number(consultantIntel?.summary?.watch_closely)) || 0} Risk Watch</Badge>}
+      >
+        <ConsultantIntelligencePanel data={consultantIntel} loading={consultantLoading} onRefresh={loadConsultantIntel} />
+      </CollapsibleSection>
 
-      <div className="command-bottom-grid">
-        <BattlegroundPanel rows={stateScopedBattlegrounds} />
-        <ActionPanel actions={stateScopedActions} />
-      </div>
+      <CollapsibleSection
+        id="command-relationships-section"
+        title="Relationship Intelligence"
+        subtitle="Candidates, consultants, donors, and strongest graph relationships."
+        defaultOpen={false}
+        right={<Badge tone={number(relationshipCounts.links) ? "accent" : "default"}>{relationshipCounts.links || 0} Links</Badge>}
+      >
+        <RelationshipIntelligencePanel graph={relationshipGraph} loading={relationshipLoading} />
+      </CollapsibleSection>
 
-      <ExecutiveFeedPanel feed={stateScopedFeed} loading={commandLoading} />
+      <CollapsibleSection
+        id="command-cross-signal-section"
+        title="Cross-Signal Priority Layer"
+        subtitle="Fundraising, vendors, mail, relationships, and race pressure in one priority view."
+        defaultOpen={false}
+        right={<Badge tone={number(crossSignal?.summary?.critical_states) ? "danger" : "active"}>{crossSignal?.summary?.critical_states || 0} Critical</Badge>}
+      >
+        <CrossSignalPanel data={crossSignal} loading={crossLoading} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="command-dark-money-section"
+        title="Dark Money Exposure Layer"
+        subtitle="Committee influence chains, consultant overlap, and cross-state exposure tracking."
+        defaultOpen={false}
+        right={<Badge tone={number(darkMoneySummary.critical_exposure) ? "danger" : "active"}>{darkMoneySummary.critical_exposure || 0} Critical</Badge>}
+      >
+        <DarkMoneyExposurePanel data={darkMoneyIntel} loading={darkMoneyLoading} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="command-alerts-section"
+        title="Executive Alert Engine"
+        subtitle="Cross-signal operational alerts from consultant exposure, dark money, relationships, and campaign intelligence."
+        defaultOpen={false}
+        right={<Badge tone={executiveAlerts.length ? "info" : "default"}>{executiveAlerts.length} Alerts</Badge>}
+      >
+        <ExecutiveAlertEnginePanel alerts={executiveAlerts} loading={executiveAlertsLoading} />
+      </CollapsibleSection>
+
+
+
+      <CollapsibleSection
+        id="command-battlegrounds-section"
+        title="Battlegrounds and Execution Priorities"
+        subtitle="Priority races and recommended campaign actions."
+        defaultOpen={false}
+        right={<Badge tone="accent">{stateScopedBattlegrounds.length} Battlegrounds</Badge>}
+      >
+        <div className="command-bottom-grid">
+          <BattlegroundPanel rows={stateScopedBattlegrounds} />
+          <ActionPanel actions={stateScopedActions} />
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="command-feed-section"
+        title="Executive Feed"
+        subtitle="Recent alerts and updates from across the platform."
+        defaultOpen={false}
+        right={<Badge tone="info">{stateScopedFeed.length} Updates</Badge>}
+      >
+        <ExecutiveFeedPanel feed={stateScopedFeed} loading={commandLoading} />
+      </CollapsibleSection>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
