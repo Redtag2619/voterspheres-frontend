@@ -6,6 +6,10 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 import ConsultantCommandPanel from "../components/consultants/ConsultantCommandPanel";
 import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
@@ -757,6 +761,86 @@ function CandidateInfluencePanel({
 }
 
 
+function CandidateExecutiveHeader({
+  summary,
+  candidateIntel,
+  candidates,
+  selectedName,
+  selectedIntel,
+  health,
+  loadingList,
+  loadingIntel,
+  refreshingAll,
+  onRefreshAll,
+  onOpenGraph,
+  onOpenInfluence,
+}) {
+  const verified = number(candidateIntel?.summary?.verified || 0);
+  const elevated = number(candidateIntel?.summary?.elevated || 0);
+  const tier1 = number(candidateIntel?.summary?.tier1 || 0);
+  const total = number(summary.total_candidates || candidates.length || 0);
+  const readinessScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(58 + Math.min(20, tier1 * 2) + Math.min(18, verified) - Math.min(24, elevated * 2))
+    )
+  );
+
+  return (
+    <div className="candidate-exec-ribbon" id="candidate-overview">
+      <div className="candidate-exec-copy">
+        <span>Candidate Intelligence Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive command layer for candidate search, enrichment, verification, contact readiness,
+          consultant fit, relationship graph intelligence, influence scoring, and profile protection.
+        </p>
+
+        <div className="candidate-exec-badges">
+          <Badge tone="active">{total} Visible Candidates</Badge>
+          <Badge tone={tier1 ? "accent" : "default"}>{tier1} Tier 1 Intel</Badge>
+          <Badge tone={elevated ? "danger" : "active"}>{elevated} Elevated Risk</Badge>
+          <Badge tone={verified ? "active" : "default"}>{verified} Verified</Badge>
+          {selectedName ? <Badge tone={getTierTone(selectedIntel?.priority_tier)}>{selectedName}</Badge> : null}
+        </div>
+      </div>
+
+      <div className="candidate-exec-grid">
+        <div>
+          <span>Candidate Coverage</span>
+          <strong>{total}</strong>
+        </div>
+        <div>
+          <span>Selected Intel Score</span>
+          <strong>{selectedIntel?.intelligence_score || 0}</strong>
+        </div>
+        <div>
+          <span>Profile Health</span>
+          <strong>{health.completed}/{health.total}</strong>
+        </div>
+        <div>
+          <span>Live Feed Status</span>
+          <strong>{loadingList || loadingIntel ? "Loading" : "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="candidate-exec-actions">
+        <button type="button" onClick={onRefreshAll} disabled={refreshingAll}>
+          {refreshingAll ? "Refreshing Live Feed..." : "Refresh Live Feed"}
+        </button>
+        <button type="button" onClick={onOpenGraph}>
+          Open Relationship Graph
+        </button>
+        <button type="button" onClick={onOpenInfluence}>
+          Open Influence Engine
+        </button>
+        <Link to="/command-center">Open Command Center</Link>
+      </div>
+    </div>
+  );
+}
+
 export default function Candidates() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1353,6 +1437,23 @@ export default function Candidates() {
     setSearchParams(next, { replace: true });
   }
 
+  const navSections = [
+    { id: "candidate-overview", label: "Overview" },
+    { id: "candidate-metrics", label: "Metrics" },
+    { id: "candidate-filters", label: "Filters" },
+    { id: "candidate-queue", label: "Queue", badge: candidates.length },
+    { id: "candidate-command-card", label: "Command Card" },
+    { id: "candidate-health-section", label: "Health" },
+    { id: "candidate-relationships-section", label: "Relationships", badge: selectedRelationshipConnections.length },
+    { id: "candidate-influence-section", label: "Influence" },
+    { id: "candidate-overview-section", label: "Profile" },
+    { id: "candidate-contact-section", label: "Contact" },
+    { id: "candidate-verification-section", label: "Verification" },
+    { id: "candidate-team-section", label: "Team" },
+    { id: "candidate-protection-section", label: "Protection" },
+    { id: "candidate-metadata-section", label: "Metadata" },
+  ];
+
   return (
     <PageShell
       eyebrow="Candidate Intelligence"
@@ -1361,6 +1462,175 @@ export default function Candidates() {
       demo={demoMode}
       demoText="Demo candidate data is active."
     >
+      <style>{`
+        .candidate-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .candidate-exec-copy { min-width: 0; }
+
+        .candidate-exec-copy span,
+        .candidate-exec-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .candidate-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .candidate-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .candidate-exec-badges,
+        .candidate-exec-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .candidate-exec-badges { margin-top: 14px; }
+
+        .candidate-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .candidate-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .candidate-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .candidate-exec-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .candidate-exec-actions button,
+        .candidate-exec-actions a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .candidate-exec-actions button:hover,
+        .candidate-exec-actions a:hover {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.14);
+          color: white;
+        }
+
+        .candidate-exec-actions button:disabled { opacity: 0.62; cursor: not-allowed; }
+
+        .candidate-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .candidate-command-layout {
+          display: grid;
+          grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.25fr);
+          gap: 16px;
+          align-items: start;
+        }
+
+        .candidate-section-anchor {
+          scroll-margin-top: 132px;
+        }
+
+        @media (max-width: 1200px) {
+          .candidate-exec-ribbon,
+          .candidate-command-layout {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .candidate-exec-grid { grid-template-columns: 1fr; }
+          .candidate-exec-actions { align-items: stretch; }
+          .candidate-exec-actions button,
+          .candidate-exec-actions a {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      `}</style>
+
+      <div className="candidate-exec-stack">
+        <CandidateExecutiveHeader
+          summary={summary}
+          candidateIntel={candidateIntel}
+          candidates={candidates}
+          selectedName={selectedName}
+          selectedIntel={selectedIntel}
+          health={health}
+          loadingList={loadingList}
+          loadingIntel={loadingIntel}
+          refreshingAll={refreshingAll}
+          onRefreshAll={handleRefreshAllProfiles}
+          onOpenGraph={() => navigate(selectedName ? `/relationship-graph?candidate=${encodeURIComponent(selectedName)}` : "/relationship-graph")}
+          onOpenInfluence={() => {
+            const params = new URLSearchParams();
+            if (detailCandidate?.state) params.set("state", detailCandidate.state);
+            params.set("type", "candidate");
+            if (selectedName) params.set("search", selectedName);
+            navigate(`/influence?${params.toString()}`);
+          }}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {battlegroundContext ? (
         <div className="vs-banner" style={{ borderColor: "#c7d2fe", background: "linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%)", color: "#3730a3", display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
           <div><strong>Top Battlegrounds context active.</strong> {targetCandidateName ? `Focused on ${targetCandidateName}. ` : ""}Filters were preloaded from the dashboard.</div>
@@ -1370,13 +1640,22 @@ export default function Candidates() {
 
       {listError ? <div className="vs-banner" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#b91c1c" }}>{listError}</div> : null}
 
-      <div className="vs-grid-4">
-        <StatCard label="Visible Candidates" value={summary.total_candidates || 0} subtext="Current filtered records" />
-        <StatCard label="Tier 1 Intel" value={candidateIntel?.summary?.tier1 || 0} subtext="Highest intelligence readiness" />
-        <StatCard label="Elevated Risk" value={candidateIntel?.summary?.elevated || 0} subtext="Missing or incomplete records" />
-        <StatCard label="Verified" value={candidateIntel?.summary?.verified || 0} subtext="Analyst-reviewed profiles" />
-      </div>
+      <CollapsibleSection
+        id="candidate-metrics"
+        title="Candidate Intelligence Metrics"
+        subtitle="Top-line readiness, risk, verification, and filtered candidate coverage."
+        defaultOpen
+        right={<Badge tone="active">{summary.total_candidates || 0} Candidates</Badge>}
+      >
+        <div className="vs-grid-4">
+          <StatCard label="Visible Candidates" value={summary.total_candidates || 0} subtext="Current filtered records" />
+          <StatCard label="Tier 1 Intel" value={candidateIntel?.summary?.tier1 || 0} subtext="Highest intelligence readiness" />
+          <StatCard label="Elevated Risk" value={candidateIntel?.summary?.elevated || 0} subtext="Missing or incomplete records" />
+          <StatCard label="Verified" value={candidateIntel?.summary?.verified || 0} subtext="Analyst-reviewed profiles" />
+        </div>
+      </CollapsibleSection>
 
+      <div id="candidate-filters" className="candidate-section-anchor">
       <SectionCard title="Command Filters" subtitle="Drive candidate intelligence by state, office, party, or direct search.">
         <div className="vs-grid-4">
           <input className="vs-input" value={filters.q} onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))} placeholder="Search candidates, race names, or offices..." />
@@ -1407,22 +1686,32 @@ export default function Candidates() {
           </button>
         </div>
       </SectionCard>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.95fr) minmax(0, 1.25fr)", gap: "16px", alignItems: "start" }}>
-        <SectionCard title="Candidate Queue" subtitle="Select a record to inspect and operate candidate intelligence." right={<Badge tone="accent">{candidates.length} loaded</Badge>}>
-          <div className="vs-stack">
-            {loadingList || loadingIntel ? (
-              <EmptyState text="Loading candidates and intelligence scores..." />
-            ) : !candidates.length ? (
-              <EmptyState text="No candidates found for the current filters." />
-            ) : (
-              candidates.map((candidate) => {
+      <div className="candidate-command-layout">
+        <CollapsibleSection
+          id="candidate-queue"
+          title="Candidate Queue"
+          subtitle="Select a record to inspect and operate candidate intelligence."
+          defaultOpen
+          right={<Badge tone="accent">{candidates.length} loaded</Badge>}
+        >
+          {loadingList || loadingIntel ? (
+            <EmptyState text="Loading candidates and intelligence scores..." />
+          ) : !candidates.length ? (
+            <EmptyState text="No candidates found for the current filters." />
+          ) : (
+            <ShowMoreList
+              items={candidates}
+              initialCount={8}
+              showAllLabel={(count) => `Show All ${count} Candidates`}
+              className="vs-stack"
+              renderItem={(candidate) => {
                 const intel = intelById.get(String(candidate.id));
                 const rowVerified = String(candidate.id) === String(selectedCandidateId) ? Boolean(profile?.is_verified) : Boolean(intel?.is_verified);
 
                 return (
                   <CandidateListRow
-                    key={candidate.id || normalizeCandidateName(candidate)}
                     candidate={candidate}
                     intel={intel}
                     verified={rowVerified}
@@ -1431,12 +1720,13 @@ export default function Candidates() {
                     onSelect={(item) => setSelectedCandidateId(item.id)}
                   />
                 );
-              })
-            )}
-          </div>
-        </SectionCard>
+              }}
+            />
+          )}
+        </CollapsibleSection>
 
         <div className="vs-stack">
+          <div id="candidate-command-card" className="candidate-section-anchor">
           <SectionCard
             title={detailCandidate ? selectedName : "Candidate Command Card"}
             subtitle={detailCandidate ? commandSummary : "Select a candidate to view command-level profile details."}
@@ -1481,6 +1771,7 @@ export default function Candidates() {
                   <StatCard label="Contact Ready" value={selectedIntel?.has_contact ? "Yes" : "No"} subtext={selectedIntel?.risk || "Monitor"} />
                 </div>
 
+                <div id="candidate-health-section" className="candidate-section-anchor">
                 <SectionCard title="Intelligence Health" subtitle="Operational readiness for campaign contact intelligence." right={<Badge tone={health.completed >= 4 ? "active" : "warning"}>{health.completed}/{health.total} signals</Badge>}>
                   <ConsultantCommandPanel candidateId={detailCandidate?.id} />
                   <div className="vs-grid-3">
@@ -1502,7 +1793,9 @@ export default function Candidates() {
                     </div>
                   ) : null}
                 </SectionCard>
+                </div>
                 
+                <div id="candidate-relationships-section" className="candidate-section-anchor">
                 <RelationshipIntelligenceCard
                   graph={relationshipGraph}
                   loading={loadingRelationshipGraph}
@@ -1514,7 +1807,9 @@ export default function Candidates() {
                   onOpenGraph={() => navigate(`/relationship-graph?candidate=${encodeURIComponent(selectedName || "")}`)}
                   onOpenConsultants={() => navigate(`/consultants?state=${encodeURIComponent(detailCandidate?.state || "")}`)}
                 />
+                </div>
 
+                <div id="candidate-influence-section" className="candidate-section-anchor">
                 <CandidateInfluencePanel
                   candidate={detailCandidate}
                   selectedName={selectedName}
@@ -1529,7 +1824,9 @@ export default function Candidates() {
                     navigate(`/influence?${params.toString()}`);
                   }}
                 />
+                </div>
 
+                <div id="candidate-overview-section" className="candidate-section-anchor">
                 <SectionCard
                   title="Overview"
                   subtitle="Command fields for direct campaign communication."
@@ -1589,7 +1886,9 @@ export default function Candidates() {
                     )}
                   </div>
                 </SectionCard>
+                </div>
 
+                <div id="candidate-contact-section" className="candidate-section-anchor">
                 <SectionCard
                   title="Contact"
                   subtitle="Press and location intelligence for direct outreach."
@@ -1662,7 +1961,9 @@ export default function Candidates() {
                     </div>
                   ) : null}
                 </SectionCard>
+                </div>
 
+                <div id="candidate-verification-section" className="candidate-section-anchor">
                 <SectionCard title="Verified Intelligence" subtitle="Mark records as analyst-reviewed and capture internal notes." right={<button type="button" className="vs-button" onClick={handleSaveVerification} disabled={savingVerification}>{savingVerification ? "Saving..." : "Save Verification"}</button>}>
                   <div className="vs-grid-2">
                     <div className="vs-card-muted" style={{ padding: "12px 14px", display: "grid", gap: "8px", minHeight: "84px" }}>
@@ -1678,7 +1979,9 @@ export default function Candidates() {
                     <DetailField label="Verified At" value={formatDateTime(profile?.verified_at)} />
                   </div>
                 </SectionCard>
+                </div>
 
+                <div id="candidate-team-section" className="candidate-section-anchor">
                 <SectionCard title="Campaign Team" subtitle="Enriched staff and leadership signals.">
                   <div className="vs-grid-2">
                     <DetailField label="Chief of Staff" value={profile?.chief_of_staff_name || "N/A"} />
@@ -1687,7 +1990,9 @@ export default function Candidates() {
                     <DetailField label="Political Director" value={profile?.political_director_name || "N/A"} />
                   </div>
                 </SectionCard>
+                </div>
 
+                <div id="candidate-protection-section" className="candidate-section-anchor">
                 <SectionCard title="Protection Controls" subtitle="Protect manually curated fields from future live refreshes." right={<button type="button" className="vs-button" onClick={handleSaveLocks} disabled={savingLocks || !detailCandidate}>{savingLocks ? "Saving Locks..." : "Save Lock Settings"}</button>}>
                   <div className="vs-stack">
                     <LockToggle label="Lock Entire Profile" checked={Boolean(lockDraft.admin_locked)} onChange={() => setLockDraft((prev) => ({ ...prev, admin_locked: !prev.admin_locked }))} disabled={!detailCandidate} />
@@ -1698,7 +2003,9 @@ export default function Candidates() {
                     </div>
                   </div>
                 </SectionCard>
+                </div>
 
+                <div id="candidate-metadata-section" className="candidate-section-anchor">
                 <SectionCard title="Profile Metadata" subtitle="Source, confidence, lock state, and crawl footprint.">
                   <div className="vs-grid-2">
                     <DetailField label="Source Label" value={profile?.source_label || "live_candidate_feed"} />
@@ -1710,11 +2017,15 @@ export default function Candidates() {
                     <DetailField label="Locked Fields" value={profile?.locked_fields ? JSON.stringify(profile.locked_fields) : "{}"} monospace />
                   </div>
                 </SectionCard>
+                </div>
               </div>
             )}
           </SectionCard>
+          </div>
         </div>
       </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
