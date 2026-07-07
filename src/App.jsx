@@ -311,6 +311,7 @@ function AppRoutes() {
               <Route path="/national-political-digital-twin" element={<NationalPoliticalDigitalTwin />} />
               <Route path="/predictive-campaign-simulation" element={<PredictiveCampaignSimulation />} />
               <Route path="/autonomous-campaign-operations" element={<AutonomousCampaignOperations />} />
+              <Route path="/strategy-recommendation-dashboard" element={<StrategyRecommendationDashboard />} />
               <Route path="/executive-ai-command-platform" element={<ExecutiveAICommandPlatform />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
