@@ -16,6 +16,11 @@ import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
 
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
+
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const STATE_FIPS_TO_ABBR = {
@@ -1192,6 +1197,103 @@ function SignalOverlayPanel({ summary = {}, states = [], onSelectState }) {
   );
 }
 
+function ExecutiveOperationsHeader({
+  nationalPressure,
+  criticalStates,
+  urgentStates,
+  activeEscalationStates,
+  mailFailures,
+  liveStatesCount,
+  modeledStates,
+  overlaySummary,
+  lastUpdated,
+  refreshing,
+  selected,
+  onRefresh,
+}) {
+  return (
+    <div className="ops-exec-header">
+      <div className="ops-exec-header-copy">
+        <span>National Operational Status</span>
+        <strong>{nationalPressure || 0}% pressure</strong>
+        <p>
+          Executive command view across live and modeled state operations, county pressure,
+          tactical alerts, political graph density, and signal overlays.
+        </p>
+        <div className="ops-exec-header-badges">
+          <Badge tone={criticalStates.length ? "danger" : "active"}>{criticalStates.length} Critical</Badge>
+          <Badge tone={urgentStates.length ? "demo" : "active"}>{urgentStates.length} Urgent</Badge>
+          <Badge tone="accent">{liveStatesCount} Live States</Badge>
+          <Badge tone="info">{modeledStates.length} Modeled States</Badge>
+          {selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.state} Selected</Badge> : null}
+        </div>
+      </div>
+
+      <div className="ops-exec-header-grid">
+        <div>
+          <span>Active Tasks</span>
+          <strong>{activeEscalationStates.length}</strong>
+        </div>
+        <div>
+          <span>Political Signals</span>
+          <strong>{fmtNumber(overlaySummary.total_signals || 0)}</strong>
+        </div>
+        <div>
+          <span>MailOps Signals</span>
+          <strong>{fmtNumber(mailFailures)}</strong>
+        </div>
+        <div>
+          <span>Refresh Status</span>
+          <strong>{refreshing ? "Refreshing" : lastUpdated || "Live"}</strong>
+        </div>
+      </div>
+
+      <div className="ops-exec-header-actions">
+        <button type="button" onClick={onRefresh}>Refresh Intelligence</button>
+        <button type="button" onClick={() => selected ? openCommandCenterFromState(selected, { action: "executive-header" }) : openPath("/command-center")}>
+          Open Command Center
+        </button>
+        <button type="button" onClick={() => selected ? openPoliticalGraphForState(selected) : openPath("/political-graph")}>
+          Political Graph
+        </button>
+        <button type="button" onClick={() => selected ? openPath(`/state-operations/${selected.state}`) : openPath("/state-operations")}>
+          State Operations
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OperationsQuickFilters({ layer, setLayer, states, setSelectedState }) {
+  function selectFirst(predicate) {
+    const match = states.find(predicate);
+    if (match) setSelectedState(match);
+  }
+
+  return (
+    <div className="ops-quick-filters">
+      <button type="button" onClick={() => selectFirst((item) => String(item.risk_label).toLowerCase() === "critical")}>
+        First Critical
+      </button>
+      <button type="button" onClick={() => selectFirst((item) => item.battleground)}>
+        First Battleground
+      </button>
+      <button type="button" onClick={() => selectFirst((item) => !item.is_baseline)}>
+        First Live State
+      </button>
+      <button type="button" onClick={() => setLayer("signals")} className={layer === "signals" ? "is-active" : ""}>
+        Signals Layer
+      </button>
+      <button type="button" onClick={() => setLayer("graph")} className={layer === "graph" ? "is-active" : ""}>
+        Graph Layer
+      </button>
+      <button type="button" onClick={() => setLayer("countyHeat")} className={layer === "countyHeat" ? "is-active" : ""}>
+        County Heat
+      </button>
+    </div>
+  );
+}
+
 export default function ExecutiveOperationsMap() {
   const [searchParams] = useSearchParams();
   const requestedState = String(searchParams.get("state") || "").toUpperCase();
@@ -1449,6 +1551,19 @@ export default function ExecutiveOperationsMap() {
     )
   );
 
+  const navSections = [
+    { id: "ops-overview", label: "Overview" },
+    { id: "ops-map-section", label: "Map" },
+    { id: "ops-graph-section", label: "Graph", badge: politicalGraph?.nodes?.length || 0 },
+    { id: "ops-state-section", label: "State" },
+    { id: "ops-command-section", label: "Command" },
+    { id: "ops-county-section", label: "Counties", badge: counties.length },
+    { id: "ops-pressure-section", label: "Pressure" },
+    { id: "ops-battleground-section", label: "Battlegrounds", badge: battlegroundStates.length },
+    { id: "ops-signals-section", label: "Signals", badge: overlaySummary.total_signals || 0 },
+    { id: "ops-alerts-section", label: "Alerts", badge: alerts.length },
+  ];
+
   return (
     <PageShell
       eyebrow="Executive Command"
@@ -1464,6 +1579,162 @@ export default function ExecutiveOperationsMap() {
       ]}
     >
       <style>{`
+        .ops-exec-header {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .ops-exec-header-copy {
+          min-width: 0;
+        }
+
+        .ops-exec-header-copy span,
+        .ops-exec-header-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .ops-exec-header-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .ops-exec-header-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 760px;
+        }
+
+        .ops-exec-header-badges,
+        .ops-exec-header-actions,
+        .ops-quick-filters {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .ops-exec-header-badges {
+          margin-top: 14px;
+        }
+
+        .ops-exec-header-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .ops-exec-header-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .ops-exec-header-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .ops-exec-header-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .ops-exec-header-actions button,
+        .ops-quick-filters button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .ops-exec-header-actions button:hover,
+        .ops-quick-filters button:hover,
+        .ops-quick-filters button.is-active {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+        .ops-quick-filters {
+          margin-top: 12px;
+        }
+
+        .ops-section-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .ops-collapsible-grid-2 {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px;
+        }
+
+        .ops-floating-toolbar {
+          position: fixed;
+          right: 24px;
+          bottom: 74px;
+          z-index: 28;
+          display: grid;
+          gap: 8px;
+        }
+
+        .ops-floating-toolbar button {
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.92);
+          color: var(--vs-text, #f8fafc);
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          padding: 10px 13px;
+          text-transform: uppercase;
+          box-shadow: 0 18px 36px rgba(0,0,0,0.22);
+        }
+
+        .ops-floating-toolbar button:hover {
+          border-color: rgba(251,146,60,0.5);
+          color: #fed7aa;
+        }
+
+
         .ops-threat-matrix {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2628,6 +2899,15 @@ export default function ExecutiveOperationsMap() {
 
 
         @media (max-width: 1150px) {
+          .ops-exec-header,
+          .ops-collapsible-grid-2 {
+            grid-template-columns: 1fr;
+          }
+
+          .ops-floating-toolbar {
+            display: none;
+          }
+
           .ops-command-layout,
           .ops-threat-matrix {
             grid-template-columns: 1fr;
@@ -2667,6 +2947,43 @@ export default function ExecutiveOperationsMap() {
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {signalOverlayError ? <div className="vs-banner vs-banner-warning">{signalOverlayError}</div> : null}
 
+      <div id="ops-overview" className="ops-section-stack">
+        <ExecutiveOperationsHeader
+          nationalPressure={nationalPressure}
+          criticalStates={criticalStates}
+          urgentStates={urgentStates}
+          activeEscalationStates={activeEscalationStates}
+          mailFailures={mailFailures}
+          liveStatesCount={liveStatesCount}
+          modeledStates={modeledStates}
+          overlaySummary={overlaySummary}
+          lastUpdated={lastUpdated}
+          refreshing={refreshing}
+          selected={selected}
+          onRefresh={() => {
+            load({ quiet: true });
+            loadSignalOverlay();
+            loadPoliticalGraph({ quiet: true });
+          }}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+
+        <OperationsQuickFilters
+          layer={layer}
+          setLayer={setLayer}
+          states={states}
+          setSelectedState={setSelectedState}
+        />
+      </div>
+
+      <CollapsibleSection
+        id="ops-overview-metrics"
+        title="Executive Operations Overview Metrics"
+        subtitle="National pressure, critical states, tasking, MailOps, and current state coverage."
+        defaultOpen
+        right={<Badge tone={nationalPressure >= 65 ? "danger" : "active"}>{nationalPressure || 0}% Pressure</Badge>}
+      >
       <div className="ops-threat-matrix" data-tour="operations-map-summaries">
         <ThreatMetric
           label="National Pressure"
@@ -2706,26 +3023,28 @@ export default function ExecutiveOperationsMap() {
         <StatCard label="Counties Tracked" value={fmtNumber(summary.counties_tracked || 0)} delta="County/parish heat layer" tone="up" />
         <StatCard label="Executive Signals" value={summary.total_signals || alerts.length || 0} delta="Live tactical feed" tone="up" />
       </div>
+      </CollapsibleSection>
 
-      <div data-tour="operations-map">
-        <SectionCard
+      <div id="ops-map-section" data-tour="operations-map">
+        <CollapsibleSection
           title="Live Tactical Operations Layer"
-        subtitle="Animated national command surface with county heat, active escalations, resolved task relief, and tactical signal overlays."
-        right={
-          <div className="ops-layer-controls">
-            {LAYERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`ops-layer-btn ${layer === item.id ? "is-active" : ""}`}
-                onClick={() => setLayer(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        }
-      >
+          subtitle="Animated national command surface with county heat, active escalations, resolved task relief, and tactical signal overlays."
+          defaultOpen
+          right={
+            <div className="ops-layer-controls">
+              {LAYERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`ops-layer-btn ${layer === item.id ? "is-active" : ""}`}
+                  onClick={() => setLayer(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          }
+        >
         {loading ? (
           <EmptyState text="Loading live operations map..." />
         ) : (
@@ -2811,11 +3130,18 @@ export default function ExecutiveOperationsMap() {
             />
           </div>
         )}
-        </SectionCard>
+        </CollapsibleSection>
       </div>
 
       {politicalGraphError ? <div className="vs-banner vs-banner-warning">{politicalGraphError}</div> : null}
 
+      <CollapsibleSection
+        id="ops-graph-section"
+        title="Political Graph Executive Overlay"
+        subtitle="Relationship density and graph context tied to the selected state."
+        defaultOpen={false}
+        right={<Badge tone="accent">{politicalGraph?.nodes?.length || 0} Nodes</Badge>}
+      >
       <div data-tour="operations-graph-overlay">
         <GraphExecutiveSummaryPanel
           graphData={politicalGraph}
@@ -2844,7 +3170,15 @@ export default function ExecutiveOperationsMap() {
           onRefresh={() => load({ quiet: true })}
         />
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="ops-command-section"
+        title="Command Center Handoff"
+        subtitle="Move the selected state from map intelligence into tasking, escalation review, and execution ownership."
+        defaultOpen={false}
+        right={selected ? <Badge tone={riskTone(selected.risk_label)}>{selected.state} Handoff</Badge> : null}
+      >
       <div data-tour="operations-command-handoff">
         <SectionCard
           title="Command Center Handoff"
@@ -2885,7 +3219,15 @@ export default function ExecutiveOperationsMap() {
           )}
         </SectionCard>
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="ops-county-section"
+        title="County Intelligence Drawer"
+        subtitle="County heat, active escalations, resolved pressure, and driver intelligence."
+        defaultOpen={false}
+        right={<Badge tone="info">{counties.length} Counties</Badge>}
+      >
       <div data-tour="operations-county-drawer">
         <CountyIntelligenceDrawer
         selected={selected}
@@ -2897,8 +3239,16 @@ export default function ExecutiveOperationsMap() {
         taskMessage={taskMessage}
         />
       </div>
+      </CollapsibleSection>
 
-      <div className="vs-grid-2">
+      <CollapsibleSection
+        id="ops-pressure-section"
+        title="Command Detail and Highest Pressure States"
+        subtitle="Selected state breakdown and ranked operating pressure across the national map."
+        defaultOpen={false}
+        right={<Badge tone="danger">{urgentStates.length} Urgent</Badge>}
+      >
+      <div className="ops-collapsible-grid-2">
         <div data-tour="operations-command-detail">
           <SectionCard
             title={selected ? `${selected.state} Command Detail` : "Command Detail"}
@@ -2971,23 +3321,35 @@ export default function ExecutiveOperationsMap() {
             {!rankedStates.length ? (
               <EmptyState text="No state pressure detected yet." />
             ) : (
-              rankedStates.slice(0, 8).map((item) => (
-                <StateRiskRow
-                  key={item.state}
-                  item={{
-                    ...item,
-                    signal_count: overlayLookup[item.state]?.total_signals || 0,
-                    signal_risk: overlayLookup[item.state]?.overlay_risk || "Stable",
-                  }}
-                  onSelect={setSelectedState}
-                />
-              ))
+              <ShowMoreList
+                items={rankedStates}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} States`}
+                renderItem={(item) => (
+                  <StateRiskRow
+                    item={{
+                      ...item,
+                      signal_count: overlayLookup[item.state]?.total_signals || 0,
+                      signal_risk: overlayLookup[item.state]?.overlay_risk || "Stable",
+                    }}
+                    onSelect={setSelectedState}
+                  />
+                )}
+              />
             )}
           </div>
           </SectionCard>
         </div>
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="ops-battleground-section"
+        title="Battleground Pulse Layer"
+        subtitle="High-impact states ranked by operating pressure, opportunity, live signals, and electoral importance."
+        defaultOpen={false}
+        right={<Badge tone="danger">{battlegroundStates.length} Pulse States</Badge>}
+      >
       <div data-tour="operations-battleground-pulse">
         <SectionCard
           title="Battleground Pulse Layer"
@@ -2998,34 +3360,47 @@ export default function ExecutiveOperationsMap() {
             {!battlegroundStates.length ? (
               <EmptyState text="No battleground pulse states available." />
             ) : (
-              battlegroundStates.slice(0, 10).map((item) => (
-                <div key={item.state} className={`ops-row ${riskClass(item.risk_label)}`}>
-                  <ResponsiveRow
-                    title={`${item.state} Battleground Pulse`}
-                    subtitle={`${item.region || "National"} • ${item.electoral_votes || 0} electoral votes • ${getStateDataSourceLabel(item)}`}
-                    meta={[
-                      { label: "Pulse", value: item.battleground_intensity || 0 },
-                      { label: "Opportunity", value: item.opportunity_score || 0 },
-                      { label: "Risk", value: item.risk_label },
-                      { label: "Signals", value: item.signal_count || 0 },
-                      { label: "County Heat", value: fmtDecimal(item.max_county_heat_score || 0) },
-                    ]}
-                    right={
-                      <div className="ops-state-actions">
-                        <Badge tone={riskTone(item.risk_label)}>{item.risk_label}</Badge>
-                        <button type="button" className="vs-decision-btn deploy" onClick={() => setSelectedState(item)}>
-                          Drilldown
-                        </button>
-                      </div>
-                    }
-                  />
-                </div>
-              ))
+              <ShowMoreList
+                items={battlegroundStates}
+                initialCount={10}
+                showAllLabel={(count) => `Show All ${count} Battlegrounds`}
+                renderItem={(item) => (
+                  <div className={`ops-row ${riskClass(item.risk_label)}`}>
+                    <ResponsiveRow
+                      title={`${item.state} Battleground Pulse`}
+                      subtitle={`${item.region || "National"} • ${item.electoral_votes || 0} electoral votes • ${getStateDataSourceLabel(item)}`}
+                      meta={[
+                        { label: "Pulse", value: item.battleground_intensity || 0 },
+                        { label: "Opportunity", value: item.opportunity_score || 0 },
+                        { label: "Risk", value: item.risk_label },
+                        { label: "Signals", value: item.signal_count || 0 },
+                        { label: "County Heat", value: fmtDecimal(item.max_county_heat_score || 0) },
+                      ]}
+                      right={
+                        <div className="ops-state-actions">
+                          <Badge tone={riskTone(item.risk_label)}>{item.risk_label}</Badge>
+                          <button type="button" className="vs-decision-btn deploy" onClick={() => setSelectedState(item)}>
+                            Drilldown
+                          </button>
+                        </div>
+                      }
+                    />
+                  </div>
+                )}
+              />
             )}
           </div>
         </SectionCard>
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="ops-signals-section"
+        title="Political Signal Overlay"
+        subtitle="Live state-level narrative, FEC, fundraising, news, and political signal pressure."
+        defaultOpen={false}
+        right={<Badge tone="accent">{overlaySummary.total_signals || 0} Signals</Badge>}
+      >
       <div data-tour="operations-signal-overlay">
         <SignalOverlayPanel
         summary={overlaySummary}
@@ -3033,7 +3408,15 @@ export default function ExecutiveOperationsMap() {
         onSelectState={selectStateFromOverlay}
         />
       </div>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="ops-alerts-section"
+        title="Executive Signal Layer"
+        subtitle="Most recent tactical alerts contributing to the operations map."
+        defaultOpen={false}
+        right={<Badge tone="accent">{alerts.length || 0} Alerts</Badge>}
+      >
       <div data-tour="operations-executive-signals">
         <SectionCard
           title="Executive Signal Layer"
@@ -3044,13 +3427,27 @@ export default function ExecutiveOperationsMap() {
           {!alerts.length ? (
             <EmptyState text="No executive signals available." />
           ) : (
-            alerts.slice(0, 10).map((item) => (
-              <AlertRow key={item.id || `${item.title}-${item.state}`} item={item} />
-            ))
+            <ShowMoreList
+              items={alerts}
+              initialCount={10}
+              showAllLabel={(count) => `Show All ${count} Alerts`}
+              renderItem={(item) => (
+                <AlertRow item={item} />
+              )}
+            />
           )}
         </div>
         </SectionCard>
       </div>
+      </CollapsibleSection>
+
+      <div className="ops-floating-toolbar">
+        <button type="button" onClick={() => load({ quiet: true })}>Refresh</button>
+        <button type="button" onClick={() => selected ? openCommandCenterFromState(selected, { action: "floating-toolbar" }) : openPath("/command-center")}>Command</button>
+        <button type="button" onClick={() => selected ? openPoliticalGraphForState(selected) : openPath("/political-graph")}>Graph</button>
+      </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
