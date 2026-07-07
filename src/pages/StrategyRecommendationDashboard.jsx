@@ -1214,7 +1214,7 @@ export default function StrategyRecommendationDashboard() {
         )}
       </CollapsibleSection>
 
-      <BackToTopButton />      </div>
+      <BackToTopButton />
     </PageShell>
   );
 }
