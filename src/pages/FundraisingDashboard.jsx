@@ -6,6 +6,10 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import EmptyState from "../components/ui/EmptyState";
 import Badge from "../components/ui/Badge";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 const fallbackData = {
   ok: false,
@@ -18,15 +22,6 @@ const fallbackData = {
     average_receipts: 0,
     pac_committees: 0,
   },
-};
-
-const defaultOpenSections = {
-  summary: true,
-  sources: true,
-  leaderboard: true,
-  selected: true,
-  pacs: false,
-  states: false,
 };
 
 function arr(value) {
@@ -539,6 +534,82 @@ function CandidateSourceDetail({ row }) {
   );
 }
 
+function FinanceExecutiveHeader({
+  summary,
+  sourceBreakdown,
+  filteredPacs,
+  stateRows,
+  sourceLabel,
+  lastUpdated,
+  loading,
+  refreshingFec,
+  onRefresh,
+  onImport,
+}) {
+  const pacTotal = filteredPacs.reduce((sum, pac) => sum + number(pac.total_amount), 0);
+  const pacDependency = summary.total_receipts > 0 ? Math.round((pacTotal / summary.total_receipts) * 100) : 0;
+  const topSource = sourceBreakdown[0]?.source || "No Source Available";
+  const readinessScore = Math.max(
+    0,
+    Math.min(
+      100,
+      72 +
+        Math.min(18, summary.tracked_candidates) +
+        Math.min(10, stateRows.length) -
+        Math.min(25, pacDependency)
+    )
+  );
+
+  return (
+    <div className="fund-exec-ribbon" id="fund-overview">
+      <div className="fund-exec-ribbon-copy">
+        <span>Executive Finance Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Live finance command layer for candidate fundraising, PAC influence, funding-source concentration,
+          state heat, party distribution, office distribution, and selected candidate finance intelligence.
+        </p>
+
+        <div className="fund-exec-ribbon-badges">
+          <Badge tone="active">{sourceLabel || "FEC Finance Feed"}</Badge>
+          <Badge tone="accent">{lastUpdated || "Latest available data"}</Badge>
+          <Badge tone={pacDependency >= 35 ? "warning" : "active"}>{pacDependency}% PAC Dependency</Badge>
+          <Badge tone="info">{stateRows.length} States Covered</Badge>
+        </div>
+      </div>
+
+      <div className="fund-exec-ribbon-grid">
+        <div>
+          <span>Filtered Candidates</span>
+          <strong>{summary.tracked_candidates}</strong>
+        </div>
+        <div>
+          <span>Total Receipts</span>
+          <strong>{formatMoney(summary.total_receipts)}</strong>
+        </div>
+        <div>
+          <span>Named PAC Committees</span>
+          <strong>{filteredPacs.length}</strong>
+        </div>
+        <div>
+          <span>Top Funding Source</span>
+          <strong>{topSource}</strong>
+        </div>
+      </div>
+
+      <div className="fund-exec-ribbon-actions">
+        <button type="button" onClick={onRefresh} disabled={loading}>
+          {loading ? "Refreshing Dashboard..." : "Refresh Dashboard"}
+        </button>
+        <button type="button" onClick={onImport} disabled={refreshingFec}>
+          {refreshingFec ? "Importing FEC Data..." : "Import FEC Data"}
+        </button>
+        <Link to="/campaign-finance-intelligence">Open Campaign Finance Intelligence</Link>
+      </div>
+    </div>
+  );
+}
+
 export default function FundraisingDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshingFec, setRefreshingFec] = useState(false);
@@ -547,13 +618,6 @@ export default function FundraisingDashboard() {
   const [data, setData] = useState(fallbackData);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const selectedCandidateDetailRef = useRef(null);
-  const [openSections, setOpenSections] = useState(defaultOpenSections);
-  const [showAll, setShowAll] = useState({
-    sources: false,
-    leaderboard: false,
-    pacs: false,
-    states: false,
-  });
   const [filters, setFilters] = useState({
     candidate: "",
     state: "",
@@ -776,14 +840,6 @@ export default function FundraisingDashboard() {
     });
   }
 
-  function toggleSection(section) {
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }));
-  }
-
-  function scrollTop() {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   async function refreshFecData() {
     setRefreshingFec(true);
     setNotice("");
@@ -806,10 +862,16 @@ export default function FundraisingDashboard() {
     }
   }
 
-  const sourceRows = showAll.sources ? sourceBreakdown : sourceBreakdown.slice(0, 8);
-  const leaderboardRows = showAll.leaderboard ? filteredLeaderboard : filteredLeaderboard.slice(0, 12);
-  const pacRows = showAll.pacs ? filteredPacs : filteredPacs.slice(0, 12);
-  const heatRows = showAll.states ? stateRows : stateRows.slice(0, 12);
+  const navSections = [
+    { id: "fund-overview", label: "Overview" },
+    { id: "fund-filters", label: "Filters" },
+    { id: "fund-summary", label: "Summary" },
+    { id: "fund-sources", label: "Sources", badge: sourceBreakdown.length },
+    { id: "fund-leaderboard", label: "Leaderboard", badge: filteredLeaderboard.length },
+    { id: "fund-selected", label: "Selected Candidate" },
+    { id: "fund-pacs", label: "PACs", badge: filteredPacs.length },
+    { id: "fund-heat", label: "Finance Heat", badge: stateRows.length },
+  ];
 
   return (
     <PageShell
@@ -842,6 +904,128 @@ export default function FundraisingDashboard() {
       ]}
     >
       <style>{`
+
+        .fund-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .fund-exec-ribbon-copy {
+          min-width: 0;
+        }
+
+        .fund-exec-ribbon-copy span,
+        .fund-exec-ribbon-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .fund-exec-ribbon-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .fund-exec-ribbon-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .fund-exec-ribbon-badges,
+        .fund-exec-ribbon-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .fund-exec-ribbon-badges {
+          margin-top: 14px;
+        }
+
+        .fund-exec-ribbon-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .fund-exec-ribbon-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .fund-exec-ribbon-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .fund-exec-ribbon-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .fund-exec-ribbon-actions button,
+        .fund-exec-ribbon-actions a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .fund-exec-ribbon-actions button:hover,
+        .fund-exec-ribbon-actions a:hover {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.14);
+          color: white;
+        }
+
+        .fund-exec-ribbon-actions button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .fund-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
         .fund-toolbar {
           display: flex;
           justify-content: space-between;
@@ -1250,6 +1434,8 @@ export default function FundraisingDashboard() {
           .fund-leader-row,
           .fund-pac-row,
           .fund-exec-summary,
+          .fund-exec-ribbon,
+          .fund-exec-ribbon-grid,
           .fund-source-breakdown-wide,
           .fund-detail-grid {
             grid-template-columns: 1fr;
@@ -1281,54 +1467,27 @@ export default function FundraisingDashboard() {
         }
       `}</style>
 
-      <div id="fund-top" />
+      <div className="fund-exec-stack">
+        <FinanceExecutiveHeader
+          summary={summary}
+          sourceBreakdown={sourceBreakdown}
+          filteredPacs={filteredPacs}
+          stateRows={stateRows}
+          sourceLabel={sourceLabel}
+          lastUpdated={lastUpdated}
+          loading={loading}
+          refreshingFec={refreshingFec}
+          onRefresh={() => loadFundraising({ silent: false })}
+          onImport={refreshFecData}
+        />
 
-      <div className="fund-toolbar">
-        <div className="fund-chip-row">
-          <Badge tone={String(data?.source || "").toLowerCase().includes("fec") ? "active" : "warning"}>
-            {sourceLabel}
-          </Badge>
-          <Badge tone="accent">Candidate Finance Layer</Badge>
-          <Badge tone="info">PAC Intelligence Ready</Badge>
-        </div>
-
-        <div className="fund-toolbar-actions">
-          <button
-            type="button"
-            className="vs-button vs-button-secondary"
-            onClick={() => loadFundraising({ silent: false })}
-            disabled={loading}
-          >
-            {loading ? "Refreshing Dashboard..." : "Refresh Dashboard"}
-          </button>
-
-          <button
-            type="button"
-            className="vs-button vs-button-primary"
-            onClick={refreshFecData}
-            disabled={refreshingFec}
-          >
-            {refreshingFec ? "Importing FEC Data..." : "Import FEC Data"}
-          </button>
-
-          <Link className="vs-button vs-button-secondary" to="/campaign-finance-intelligence">
-            Open Finance Intelligence
-          </Link>
-        </div>
-      </div>
-
-      <div className="fund-jump-nav">
-        <JumpButton target="fund-summary">Summary</JumpButton>
-        <JumpButton target="fund-sources">Sources</JumpButton>
-        <JumpButton target="fund-leaderboard">Leaderboard</JumpButton>
-        <JumpButton target="fund-selected">Selected Candidate</JumpButton>
-        <JumpButton target="fund-pacs">PACs</JumpButton>
-        <JumpButton target="fund-heat">Finance Heat</JumpButton>
+        <ExecutivePageNav sections={navSections} />
       </div>
 
       {notice ? <div className="vs-banner">{notice}</div> : null}
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
+      <div id="fund-filters">
       <SectionCard
         title="Fundraising Filters"
         subtitle="Filter by candidate, state, race, party, funding source, and PAC / committee."
@@ -1345,20 +1504,28 @@ export default function FundraisingDashboard() {
           </button>
         </div>
       </SectionCard>
+      </div>
 
+      <CollapsibleSection
+        id="fund-summary-metrics"
+        title="Filtered Finance Metrics"
+        subtitle="Top-line metrics for the active candidate, state, race, party, funding-source, and PAC filters."
+        defaultOpen
+        right={<Badge tone="active">{summary.tracked_candidates} Candidates</Badge>}
+      >
       <div className="vs-grid-4">
         <StatCard label="Filtered Candidates" value={summary.tracked_candidates} delta="Candidates matching filters" tone="up" />
         <StatCard label="Filtered Receipts" value={formatMoney(summary.total_receipts)} delta="Receipts from selected candidates" tone="up" />
         <StatCard label="Filtered Cash On Hand" value={formatMoney(summary.total_cash_on_hand)} delta="Reserve strength after filters" tone="up" />
         <StatCard label="Named PAC Committees" value={filteredPacs.length} delta="PACs tied to filtered candidates" tone="up" />
       </div>
+      </CollapsibleSection>
 
-      <SectionShell
+      <CollapsibleSection
         id="fund-summary"
         title="Executive Finance Summary"
         subtitle="Clean executive readout of candidate count, receipts, reserves, average raise, leading funding source, and named PAC coverage."
-        open={openSections.summary}
-        onToggle={() => toggleSection("summary")}
+        defaultOpen
         right={<Badge tone="active">{summary.tracked_candidates} Candidates</Badge>}
       >
         <ExecutiveSummary
@@ -1368,126 +1535,121 @@ export default function FundraisingDashboard() {
           lastUpdated={lastUpdated}
           pacCount={filteredPacs.length}
         />
-      </SectionShell>
+      </CollapsibleSection>
 
-      <SectionShell
+      <CollapsibleSection
         id="fund-sources"
         title="Where Fundraising Is Coming From"
         subtitle="Funding source breakdown across selected candidates before reviewing the full leaderboard."
-        open={openSections.sources}
-        onToggle={() => toggleSection("sources")}
+        defaultOpen
         right={<Badge tone="info">{sourceBreakdown.length} Funding Sources</Badge>}
       >
-        <div className="fund-source-breakdown-wide">
-          {!sourceRows.length ? (
-            <EmptyState text="No funding source data is available yet." />
-          ) : (
-            sourceRows.map((row) => (
+        {!sourceBreakdown.length ? (
+          <EmptyState text="No funding source data is available yet." />
+        ) : (
+          <ShowMoreList
+            items={sourceBreakdown}
+            initialCount={8}
+            showAllLabel={(count) => `Show All ${count} Sources`}
+            className="fund-source-breakdown-wide"
+            renderItem={(row) => (
               <SourceRow
-                key={row.source}
                 source={row.source}
                 total={row.total}
                 max={maxSourceTotal}
               />
-            ))
-          )}
-        </div>
-        {sourceBreakdown.length > 8 ? (
-          <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, sources: !current.sources }))}>
-            {showAll.sources ? "Show Top 8" : `Show All ${sourceBreakdown.length} Sources`}
-          </button>
-        ) : null}
-      </SectionShell>
+            )}
+          />
+        )}
+      </CollapsibleSection>
 
-      <SectionShell
+      <CollapsibleSection
         id="fund-leaderboard"
         title="Fundraising Leaderboard"
         subtitle="Full-width candidate finance leaderboard. Select a candidate to jump to detailed funding-source intelligence."
-        open={openSections.leaderboard}
-        onToggle={() => toggleSection("leaderboard")}
+        defaultOpen
         right={<Badge tone="accent">{filteredLeaderboard.length} Candidates</Badge>}
       >
         <div className="fund-stack">
           {loading ? (
             <EmptyState text="Loading fundraising leaderboard..." />
-          ) : !leaderboardRows.length ? (
+          ) : !filteredLeaderboard.length ? (
             <EmptyState text="No fundraising data is available yet. Click Import FEC Data, then refresh the dashboard." />
           ) : (
-            leaderboardRows.map((row) => (
-              <LeaderRow
-                key={`${row.rank}-${row.candidate_id || row.name}`}
-                row={row}
-                selected={String(row.candidate_id || row.name) === String(selectedCandidateId)}
-                onSelect={handleCandidateSelect}
-              />
-            ))
+            <ShowMoreList
+              items={filteredLeaderboard}
+              initialCount={12}
+              showAllLabel={(count) => `Show All ${count} Candidates`}
+              className="fund-stack"
+              renderItem={(row) => (
+                <LeaderRow
+                  row={row}
+                  selected={String(row.candidate_id || row.name) === String(selectedCandidateId)}
+                  onSelect={handleCandidateSelect}
+                />
+              )}
+            />
           )}
-          {filteredLeaderboard.length > 12 ? (
-            <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, leaderboard: !current.leaderboard }))}>
-              {showAll.leaderboard ? "Show Top 12" : `Show All ${filteredLeaderboard.length} Candidates`}
-            </button>
-          ) : null}
         </div>
-      </SectionShell>
+      </CollapsibleSection>
 
       <div ref={selectedCandidateDetailRef} className="fund-selected-detail-anchor">
-        <SectionShell
+        <CollapsibleSection
           id="fund-selected"
           title="Selected Candidate Funding Source Detail"
           subtitle="One selected candidate at a time for a cleaner enterprise workflow."
-          open={openSections.selected}
-          onToggle={() => toggleSection("selected")}
+          defaultOpen
           right={selectedCandidate ? <Badge tone="accent">{selectedCandidate.name}</Badge> : null}
         >
           <CandidateSourceDetail row={selectedCandidate} />
-        </SectionShell>
+        </CollapsibleSection>
       </div>
 
-      <SectionShell
+      <CollapsibleSection
         id="fund-pacs"
         title="PAC / Committee Intelligence"
         subtitle="Named PACs and committees ranked by contribution amount across the filtered candidate universe."
-        open={openSections.pacs}
-        onToggle={() => toggleSection("pacs")}
+        defaultOpen={false}
         right={<Badge tone="info">{filteredPacs.length} PACs</Badge>}
       >
         <div className="fund-stack">
-          {pacRows.length ? (
-            pacRows.map((pac, index) => (
-              <PacRow key={`${pac.committee_id || pac.committee_name}-${index}`} pac={pac} index={index} max={maxPacTotal} />
-            ))
+          {filteredPacs.length ? (
+            <ShowMoreList
+              items={filteredPacs}
+              initialCount={12}
+              showAllLabel={(count) => `Show All ${count} PACs`}
+              className="fund-stack"
+              renderItem={(pac, index) => (
+                <PacRow pac={pac} index={index} max={maxPacTotal} />
+              )}
+            />
           ) : (
             <EmptyState text="No named PAC records match the selected filters." />
           )}
-          {filteredPacs.length > 12 ? (
-            <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, pacs: !current.pacs }))}>
-              {showAll.pacs ? "Show Top 12" : `Show All ${filteredPacs.length} PACs`}
-            </button>
-          ) : null}
         </div>
-      </SectionShell>
+      </CollapsibleSection>
 
-      <SectionShell
+      <CollapsibleSection
         id="fund-heat"
         title="State, Party, and Office Finance Heat"
         subtitle="Receipts and candidate count by state, party, and office."
-        open={openSections.states}
-        onToggle={() => toggleSection("states")}
+        defaultOpen={false}
         right={<Badge tone="accent">{stateRows.length} States</Badge>}
       >
         <div className="fund-stack">
-          {heatRows.length ? (
-            heatRows.map((row, index) => (
-              <EntityRow key={row.state || row.name} row={row} index={index} label="State" max={maxStateTotal} />
-            ))
+          {stateRows.length ? (
+            <ShowMoreList
+              items={stateRows}
+              initialCount={12}
+              showAllLabel={(count) => `Show All ${count} States`}
+              className="fund-stack"
+              renderItem={(row, index) => (
+                <EntityRow row={row} index={index} label="State" max={maxStateTotal} />
+              )}
+            />
           ) : (
             <EmptyState text="No state finance heat data is available." />
           )}
-          {stateRows.length > 12 ? (
-            <button type="button" className="vs-button vs-button-secondary fund-show-more" onClick={() => setShowAll((current) => ({ ...current, states: !current.states }))}>
-              {showAll.states ? "Show Top 12" : `Show All ${stateRows.length} States`}
-            </button>
-          ) : null}
 
           {partyRows.map((row, index) => (
             <EntityRow key={row.party || row.name} row={row} index={index} label="Party" max={Math.max(...partyRows.map((item) => item.total_receipts), 0)} />
@@ -1497,11 +1659,9 @@ export default function FundraisingDashboard() {
             <EntityRow key={row.office || row.name} row={row} index={index} label="Office" max={Math.max(...officeRows.map((item) => item.total_receipts), 0)} />
           ))}
         </div>
-      </SectionShell>
+      </CollapsibleSection>
 
-      <button type="button" className="vs-button vs-button-primary fund-back-top" onClick={scrollTop}>
-        Back To Top
-      </button>
+      <BackToTopButton />
     </PageShell>
   );
 }
