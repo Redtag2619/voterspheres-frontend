@@ -8,6 +8,11 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
+
 const STATE_NAMES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
 };
@@ -375,6 +380,17 @@ export default function ExecutiveDecisionIntelligence() {
   const signals = arr(data.signals);
   const activeDecision = useMemo(() => decisions.find((item) => String(item.id) === String(activeDecisionId)) || decisions[0] || null, [decisions, activeDecisionId]);
   const summary = data.summary || fallbackDecisionData.summary;
+
+  const executiveNavSections = [
+    { id: "edi-overview", label: "Overview" },
+    { id: "edi-decision-queue", label: "Decision Queue", badge: decisions.length },
+    { id: "edi-ai-recommendation", label: "AI Recommendation" },
+    { id: "edi-workflow", label: "Workflow" },
+    { id: "edi-options", label: "Options", badge: arr(activeDecision?.options).length },
+    { id: "edi-modules", label: "Intelligence" },
+    { id: "edi-actions", label: "Actions", badge: arr(activeDecision?.actions).length },
+    { id: "edi-signals", label: "Signals", badge: signals.length },
+  ];
 
   return (
     <PageShell
@@ -745,6 +761,23 @@ export default function ExecutiveDecisionIntelligence() {
           line-height: 1.55;
         }
 
+        .edi-section-stack {
+          display: grid;
+          gap: 18px;
+        }
+
+        .edi-recommendation-shell {
+          display: grid;
+          gap: 16px;
+        }
+
+        .edi-section-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+          gap: 18px;
+          align-items: start;
+        }
+
         @media (max-width: 1500px) {
           .edi-score-grid,
           .edi-timeline-grid {
@@ -754,7 +787,8 @@ export default function ExecutiveDecisionIntelligence() {
 
         @media (max-width: 1280px) {
           .edi-primary-grid,
-          .edi-secondary-grid {
+          .edi-secondary-grid,
+          .edi-section-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -798,113 +832,182 @@ export default function ExecutiveDecisionIntelligence() {
 
         {apiWarning ? <div className="vs-banner vs-banner-danger">{apiWarning}</div> : null}
 
-        <div className="vs-grid-4" data-tour="decision-intelligence-kpis">
-          <StatCard label="Open Executive Decisions" value={summary.openDecisions || decisions.length || 0} subtext="Executive decisions requiring leadership review" />
-          <StatCard label="High Priority Executive Alerts" value={summary.highPriority || 0} subtext="Decisions requiring elevated executive attention" />
-          <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full confidence percentage across active recommendations" />
-          <StatCard label="Average Operational Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage across ${summary.liveSignals || signals.length || 0} live decision signals`} />
-        </div>
+        <ExecutivePageNav sections={executiveNavSections} />
 
-        <div className="edi-command-layout">
-          <div className="edi-primary-grid">
-            <SectionCard
-              title="Executive Decision Queue"
-              subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, vendor, political graph, and operations intelligence."
-              right={<Badge tone="info">{decisions.length} Active Executive Decisions</Badge>}
-            >
-              {loading ? (
-                <EmptyState text="Loading Executive Decision Intelligence..." />
-              ) : decisions.length ? (
-                <div className="vs-stack">
-                  {decisions.map((decision) => (
-                    <DecisionRow key={decision.id || decision.title} decision={decision} active={String(activeDecision?.id) === String(decision.id)} onClick={() => setActiveDecisionId(decision.id)} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState text="No executive decisions are currently available." />
-              )}
-            </SectionCard>
-
-            <div className="vs-stack">
-              <SectionCard
-                title="AI Executive Recommendation"
-                subtitle="Primary recommended action with rationale, full percentage scoring, and source-module traceability."
-                right={<Badge tone={toneFromPriority(activeDecision?.status || activeDecision?.priority)}>{fullPriorityLabel(activeDecision?.status || activeDecision?.priority || "open")}</Badge>}
-              >
-                {activeDecision ? (
-                  <div className="vs-stack">
-                    <div className="edi-recommendation-panel">
-                      <div className="vs-page-eyebrow">Recommended Executive Decision Path</div>
-                      <h3>{activeDecision.recommendation || activeDecision.title}</h3>
-                      <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale || "No executive rationale available."}</p>
-                      <div className="edi-module-row">
-                        {arr(activeDecision.source_modules).map((source) => <Badge key={source} tone="accent">{fullModuleName(source)}</Badge>)}
-                      </div>
-                    </div>
-
-                    <div className="edi-score-grid">
-                      <ExecutivePercentCard title="Recommendation Confidence Percentage" value={activeDecision.confidence_score} subtitle="Reliability level for this executive recommendation." />
-                      <ExecutivePercentCard title="Strategic Impact Percentage" value={activeDecision.impact_score} subtitle="Projected strategic value if this decision path is executed." />
-                      <ExecutivePercentCard title="Executive Urgency Percentage" value={activeDecision.urgency_score} subtitle="How quickly leadership should act on this decision path." />
-                      <ExecutivePercentCard title="Operational Risk Percentage" value={activeDecision.risk_score} subtitle="Downside exposure or operational execution risk." inverse />
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyState text="No executive decision is currently selected." />
-                )}
-              </SectionCard>
-
-              <SectionCard title="Executive Decision Workflow Timeline" subtitle="Where the selected decision sits inside the VoterSpheres executive operating model.">
-                <div className="edi-timeline-panel">
-                  <div className="edi-timeline-grid">
-                    <TimelineStep label="Intelligence Signals Received" active />
-                    <TimelineStep label="Artificial Intelligence Analysis Complete" active />
-                    <TimelineStep label="Executive Review Active" active={Boolean(activeDecision)} />
-                    <TimelineStep label="Command Center Action Routing" active={arr(activeDecision?.actions).length > 0} />
-                    <TimelineStep label="Operational Execution Monitoring" active={String(activeDecision?.status || "").toLowerCase() === "active"} />
-                  </div>
-                </div>
-              </SectionCard>
-            </div>
+        <CollapsibleSection
+          id="edi-overview"
+          title="Executive Decision Overview"
+          subtitle="Always-visible executive readout for open decisions, priority alerts, confidence, and operational risk."
+          defaultOpen
+          right={<Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Mode" : "Live Mode"}</Badge>}
+        >
+          <div className="vs-grid-4" data-tour="decision-intelligence-kpis">
+            <StatCard label="Open Executive Decisions" value={summary.openDecisions || decisions.length || 0} subtext="Executive decisions requiring leadership review" />
+            <StatCard label="High Priority Executive Alerts" value={summary.highPriority || 0} subtext="Decisions requiring elevated executive attention" />
+            <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full confidence percentage across active recommendations" />
+            <StatCard label="Average Operational Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage across ${summary.liveSignals || signals.length || 0} live decision signals`} />
           </div>
+        </CollapsibleSection>
 
-          <div className="edi-secondary-grid">
-            <div className="vs-stack">
-              <SectionCard title="Executive Decision Options" subtitle="Alternative decision paths with full projected impact, risk, confidence, timeline, and cost labels." right={<Badge tone="accent">{arr(activeDecision?.options).length} Executive Options</Badge>}>
+        <div className="edi-section-stack">
+          <CollapsibleSection
+            id="edi-decision-queue"
+            title="Executive Decision Queue"
+            subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, vendor, political graph, and operations intelligence."
+            defaultOpen
+            right={<Badge tone="info">{decisions.length} Active Executive Decisions</Badge>}
+          >
+            {loading ? (
+              <EmptyState text="Loading Executive Decision Intelligence..." />
+            ) : decisions.length ? (
+              <ShowMoreList
+                items={decisions}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Executive Decisions`}
+                renderItem={(decision) => (
+                  <DecisionRow
+                    decision={decision}
+                    active={String(activeDecision?.id) === String(decision.id)}
+                    onClick={() => setActiveDecisionId(decision.id)}
+                  />
+                )}
+              />
+            ) : (
+              <EmptyState text="No executive decisions are currently available." />
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="edi-ai-recommendation"
+            title="AI Executive Recommendation"
+            subtitle="Primary recommended action with rationale, full percentage scoring, and source-module traceability."
+            defaultOpen
+            right={<Badge tone={toneFromPriority(activeDecision?.status || activeDecision?.priority)}>{fullPriorityLabel(activeDecision?.status || activeDecision?.priority || "open")}</Badge>}
+          >
+            {activeDecision ? (
+              <div className="edi-recommendation-shell">
+                <div className="edi-recommendation-panel">
+                  <div className="vs-page-eyebrow">Recommended Executive Decision Path</div>
+                  <h3>{activeDecision.recommendation || activeDecision.title}</h3>
+                  <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale || "No executive rationale available."}</p>
+                  <div className="edi-module-row">
+                    {arr(activeDecision.source_modules).map((source) => <Badge key={source} tone="accent">{fullModuleName(source)}</Badge>)}
+                  </div>
+                </div>
+
+                <div className="edi-score-grid">
+                  <ExecutivePercentCard title="Recommendation Confidence Percentage" value={activeDecision.confidence_score} subtitle="Reliability level for this executive recommendation." />
+                  <ExecutivePercentCard title="Strategic Impact Percentage" value={activeDecision.impact_score} subtitle="Projected strategic value if this decision path is executed." />
+                  <ExecutivePercentCard title="Executive Urgency Percentage" value={activeDecision.urgency_score} subtitle="How quickly leadership should act on this decision path." />
+                  <ExecutivePercentCard title="Operational Risk Percentage" value={activeDecision.risk_score} subtitle="Downside exposure or operational execution risk." inverse />
+                </div>
+              </div>
+            ) : (
+              <EmptyState text="No executive decision is currently selected." />
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="edi-workflow"
+            title="Executive Decision Workflow Timeline"
+            subtitle="Where the selected decision sits inside the VoterSpheres executive operating model."
+            defaultOpen={false}
+            right={<Badge tone="accent">Workflow</Badge>}
+          >
+            <div className="edi-timeline-panel">
+              <div className="edi-timeline-grid">
+                <TimelineStep label="Intelligence Signals Received" active />
+                <TimelineStep label="Artificial Intelligence Analysis Complete" active />
+                <TimelineStep label="Executive Review Active" active={Boolean(activeDecision)} />
+                <TimelineStep label="Command Center Action Routing" active={arr(activeDecision?.actions).length > 0} />
+                <TimelineStep label="Operational Execution Monitoring" active={String(activeDecision?.status || "").toLowerCase() === "active"} />
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <div className="edi-section-grid">
+            <div className="edi-section-stack">
+              <CollapsibleSection
+                id="edi-options"
+                title="Executive Decision Options"
+                subtitle="Alternative decision paths with full projected impact, risk, confidence, timeline, and cost labels."
+                defaultOpen={false}
+                right={<Badge tone="accent">{arr(activeDecision?.options).length} Executive Options</Badge>}
+              >
                 {arr(activeDecision?.options).length ? (
-                  <div className="vs-stack">{arr(activeDecision.options).map((option) => <DecisionOption key={option.id || option.label} option={option} />)}</div>
+                  <ShowMoreList
+                    items={arr(activeDecision.options)}
+                    initialCount={4}
+                    showAllLabel={(count) => `Show All ${count} Executive Options`}
+                    renderItem={(option) => <DecisionOption option={option} />}
+                  />
                 ) : (
                   <EmptyState text="No executive decision options have been generated for this decision yet." />
                 )}
-              </SectionCard>
+              </CollapsibleSection>
 
-              <SectionCard title="Cross-Module Intelligence Contribution" subtitle="How each VoterSpheres intelligence system contributed to the selected executive decision.">
+              <CollapsibleSection
+                id="edi-modules"
+                title="Cross-Module Intelligence Contribution"
+                subtitle="How each VoterSpheres intelligence system contributed to the selected executive decision."
+                defaultOpen={false}
+                right={<Badge tone="info">{arr(activeDecision?.source_modules).length} Modules</Badge>}
+              >
                 {arr(activeDecision?.source_modules).length ? (
-                  <div className="edi-module-grid">{arr(activeDecision.source_modules).map((source) => <ModuleContribution key={source} source={source} />)}</div>
+                  <ShowMoreList
+                    items={arr(activeDecision.source_modules)}
+                    initialCount={6}
+                    showAllLabel={(count) => `Show All ${count} Intelligence Modules`}
+                    className="edi-module-grid"
+                    renderItem={(source) => <ModuleContribution source={source} />}
+                  />
                 ) : (
                   <EmptyState text="No cross-module intelligence contribution is available for this decision." />
                 )}
-              </SectionCard>
+              </CollapsibleSection>
 
-              <SectionCard title="Executive Action Path" subtitle="Operational follow-through connected to the selected executive decision." right={<Badge tone="info">{arr(activeDecision?.actions).length} Executive Actions</Badge>}>
+              <CollapsibleSection
+                id="edi-actions"
+                title="Executive Action Path"
+                subtitle="Operational follow-through connected to the selected executive decision."
+                defaultOpen={false}
+                right={<Badge tone="info">{arr(activeDecision?.actions).length} Executive Actions</Badge>}
+              >
                 {arr(activeDecision?.actions).length ? (
-                  <div className="vs-stack">{arr(activeDecision.actions).map((action) => <ExecutiveAction key={action.id || action.action_label} action={action} />)}</div>
+                  <ShowMoreList
+                    items={arr(activeDecision.actions)}
+                    initialCount={5}
+                    showAllLabel={(count) => `Show All ${count} Executive Actions`}
+                    renderItem={(action) => <ExecutiveAction action={action} />}
+                  />
                 ) : (
                   <EmptyState text="No executive action path has been generated for this decision yet." />
                 )}
-              </SectionCard>
+              </CollapsibleSection>
             </div>
 
-            <SectionCard title="Live Executive Decision Signals" subtitle="Fully labeled intelligence signals driving executive recommendations across the VoterSpheres platform." right={<Badge tone="accent">{signals.length} Live Executive Signals</Badge>}>
+            <CollapsibleSection
+              id="edi-signals"
+              title="Live Executive Decision Signals"
+              subtitle="Fully labeled intelligence signals driving executive recommendations across the VoterSpheres platform."
+              defaultOpen={false}
+              right={<Badge tone="accent">{signals.length} Live Executive Signals</Badge>}
+            >
               {signals.length ? (
-                <div className="vs-stack">{signals.map((signal) => <SignalRow key={signal.id || signal.title} signal={signal} />)}</div>
+                <ShowMoreList
+                  items={signals}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Executive Signals`}
+                  renderItem={(signal) => <SignalRow signal={signal} />}
+                />
               ) : (
                 <EmptyState text="No live executive decision signals are currently available." />
               )}
-            </SectionCard>
+            </CollapsibleSection>
           </div>
-        </div>
-      </div>
+        </div>      </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
