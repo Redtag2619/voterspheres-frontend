@@ -333,7 +333,7 @@ function DecisionIntelligenceCommandCard() {
             <Link className="vs-button" to="/executive-decision-intelligence">
               Open Decision Intelligence
             </Link>
-            <Link className="vs-button vs-button-secondary" to="/strategy-recommendations">
+            <Link className="vs-button vs-button-secondary" to="/strategy-recommendation-dashboard">
               Open AI Strategy Recommendation Engine
             </Link>
           </div>
