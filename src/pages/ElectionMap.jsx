@@ -11,6 +11,10 @@ import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 const US_TOPO_JSON =
   "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
@@ -503,6 +507,87 @@ function MapTooltip({ tooltip, onSelectOffice }) {
   );
 }
 
+function ElectionMapExecutiveHeader({
+  mapData,
+  filteredOverlays,
+  overlaysByState,
+  selectedOverlay,
+  selectedCandidate,
+  donorIntel,
+  donorLoading,
+  loading,
+}) {
+  const critical = filteredOverlays.filter((item) => String(item.overlayTier || "").toLowerCase() === "critical").length;
+  const elevated = filteredOverlays.filter((item) => String(item.overlayTier || "").toLowerCase() === "elevated").length;
+  const readinessScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        62 +
+          Math.min(18, overlaysByState.length) +
+          Math.min(12, filteredOverlays.length / 2) -
+          Math.min(22, critical * 3)
+      )
+    )
+  );
+
+  return (
+    <div className="election-exec-ribbon" id="election-overview">
+      <div className="election-exec-copy">
+        <span>Election Finance Overlay Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive election map layer for live fundraising overlays, office-level pressure,
+          candidate finance posture, donor intelligence, and state-by-state campaign intensity.
+        </p>
+
+        <div className="election-exec-badges">
+          <Badge tone="active">{mapData.summary?.trackedStates || overlaysByState.length || 0} Tracked States</Badge>
+          <Badge tone="accent">{filteredOverlays.length} Office Overlays</Badge>
+          <Badge tone={critical ? "danger" : "active"}>{critical} Critical</Badge>
+          <Badge tone={elevated ? "demo" : "active"}>{elevated} Elevated</Badge>
+          <Badge tone={donorIntel.locked ? "demo" : "active"}>{donorIntel.source || "FEC Schedule A"}</Badge>
+        </div>
+      </div>
+
+      <div className="election-exec-grid">
+        <div>
+          <span>Selected State</span>
+          <strong>{selectedOverlay?.state || "None"}</strong>
+        </div>
+        <div>
+          <span>Selected Office</span>
+          <strong>{selectedOverlay?.office || "None"}</strong>
+        </div>
+        <div>
+          <span>Selected Candidate</span>
+          <strong>{selectedCandidate?.name || "None"}</strong>
+        </div>
+        <div>
+          <span>Donor Intelligence</span>
+          <strong>{donorLoading ? "Loading" : `${donorIntel.donors?.length || 0} Donors`}</strong>
+        </div>
+      </div>
+
+      <div className="election-exec-actions">
+        <button type="button" onClick={() => document.getElementById("election-map-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Open Map
+        </button>
+        <button type="button" onClick={() => document.getElementById("election-overlay-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Overlay Detail
+        </button>
+        <button type="button" onClick={() => document.getElementById("election-donors-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Donor Intelligence
+        </button>
+        <button type="button" disabled={loading} onClick={() => window.location.reload()}>
+          {loading ? "Loading Map..." : "Refresh Map"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ElectionMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -821,6 +906,17 @@ export default function ElectionMap() {
     setTooltip((prev) => ({ ...prev, visible: false }));
   };
 
+  const navSections = [
+    { id: "election-overview", label: "Overview" },
+    { id: "election-filters", label: "Filters" },
+    { id: "election-metrics", label: "Metrics" },
+    { id: "election-map-section", label: "Map", badge: overlaysByState.length },
+    { id: "election-candidates-section", label: "Candidates", badge: selectedOverlay?.candidates?.length || 0 },
+    { id: "election-donors-section", label: "Donors", badge: donorIntel.donors?.length || 0 },
+    { id: "election-overlay-detail", label: "Overlay Detail" },
+    { id: "election-overlay-stack", label: "Overlay Stack", badge: filteredOverlays.length },
+  ];
+
   return (
     <PageShell
       eyebrow="Election Map"
@@ -833,11 +929,180 @@ export default function ElectionMap() {
         { label: "Last Sync", value: formatDateTime(mapData.summary?.last_synced_at), dotClass: "vs-live-dot-success" },
       ]}
     >
+      <style>{`
+        .election-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .election-exec-copy {
+          min-width: 0;
+        }
+
+        .election-exec-copy span,
+        .election-exec-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .election-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .election-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .election-exec-badges,
+        .election-exec-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .election-exec-badges {
+          margin-top: 14px;
+        }
+
+        .election-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .election-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .election-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .election-exec-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .election-exec-actions button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .election-exec-actions button:hover {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.14);
+          color: white;
+        }
+
+        .election-exec-actions button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .election-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .election-map-layout {
+          display: grid;
+          gap: 16px;
+          grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+          align-items: start;
+        }
+
+        .election-left-stack {
+          display: grid;
+          gap: 16px;
+          min-width: 0;
+        }
+
+        @media (max-width: 1200px) {
+          .election-exec-ribbon,
+          .election-map-layout {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .election-exec-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .election-exec-actions {
+            align-items: stretch;
+          }
+
+          .election-exec-actions button {
+            width: 100%;
+          }
+        }
+      `}</style>
+
+      <div className="election-exec-stack">
+        <ElectionMapExecutiveHeader
+          mapData={mapData}
+          filteredOverlays={filteredOverlays}
+          overlaysByState={overlaysByState}
+          selectedOverlay={selectedOverlay}
+          selectedCandidate={selectedCandidate}
+          donorIntel={donorIntel}
+          donorLoading={donorLoading}
+          loading={loading}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       <MapTooltip tooltip={tooltip} onSelectOffice={selectOfficeOverlay} />
 
-      <div data-tour="map-filters">
+      <div id="election-filters" data-tour="map-filters">
         <SectionCard
           title="Map Filters"
           subtitle="Filter by state and office to narrow the live overlay stack."
@@ -871,23 +1136,24 @@ export default function ElectionMap() {
         </SectionCard>
       </div>
 
-      <div className="vs-grid-4">
-        <StatCard label="Tracked States" value={String(mapData.summary?.trackedStates || 0)} delta="States with live finance overlays" tone="up" />
-        <StatCard label="Overlay Count" value={String(filteredOverlays.length || 0)} delta="State-office combinations" tone="up" />
-        <StatCard label="State Donors" value={String(donorIntel.donors?.length || 0)} delta={donorIntel.locked ? "Enterprise donor access required" : "Loaded from donor intelligence"} tone="up" />
-        <StatCard label="Last Sync" value={formatDateTime(mapData.summary?.last_synced_at)} delta="Latest FEC finance ingestion" tone="up" />
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gap: "16px",
-          gridTemplateColumns: "minmax(0, 1.2fr) minmax(360px, 0.8fr)",
-          alignItems: "start",
-        }}
+      <CollapsibleSection
+        id="election-metrics"
+        title="Election Finance Overlay Metrics"
+        subtitle="Current state, overlay, donor, and FEC sync status."
+        defaultOpen
+        right={<Badge tone="active">{filteredOverlays.length || 0} Overlays</Badge>}
       >
-        <div style={{ display: "grid", gap: 0 }}>
-          <div data-tour="election-map-us">
+        <div className="vs-grid-4">
+          <StatCard label="Tracked States" value={String(mapData.summary?.trackedStates || 0)} delta="States with live finance overlays" tone="up" />
+          <StatCard label="Overlay Count" value={String(filteredOverlays.length || 0)} delta="State-office combinations" tone="up" />
+          <StatCard label="State Donors" value={String(donorIntel.donors?.length || 0)} delta={donorIntel.locked ? "Enterprise donor access required" : "Loaded from donor intelligence"} tone="up" />
+          <StatCard label="Last Sync" value={formatDateTime(mapData.summary?.last_synced_at)} delta="Latest FEC finance ingestion" tone="up" />
+        </div>
+      </CollapsibleSection>
+
+      <div className="election-map-layout">
+        <div className="election-left-stack">
+          <div id="election-map-section" data-tour="election-map-us">
             <SectionCard
               title="U.S. Finance Overlay Map"
               subtitle="Hover any highlighted state to preview its top 3 office overlays. Click to lock the state on the right."
@@ -1012,7 +1278,7 @@ export default function ElectionMap() {
             </SectionCard>
           </div>
 
-          <div data-tour="election-map-candidates">
+          <div id="election-candidates-section" data-tour="election-map-candidates">
             <SectionCard
               title="Candidates"
               subtitle={
@@ -1033,21 +1299,24 @@ export default function ElectionMap() {
               ) : !(selectedOverlay.candidates || []).length ? (
                 <EmptyState text="No candidates available for this overlay." />
               ) : (
-                <div className="vs-stack">
-                  {(selectedOverlay.candidates || []).map((candidate) => (
+                <ShowMoreList
+                  items={selectedOverlay.candidates || []}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Candidates`}
+                  className="vs-stack"
+                  renderItem={(candidate) => (
                     <CandidateCard
-                      key={candidate.candidate_id}
                       candidate={candidate}
                       isSelected={selectedCandidate?.candidate_id === candidate.candidate_id}
                       onSelect={setSelectedCandidate}
                     />
-                  ))}
-                </div>
+                  )}
+                />
               )}
             </SectionCard>
           </div>
 
-          <div data-tour="election-map-donors">
+          <div id="election-donors-section" data-tour="election-map-donors">
             <SectionCard
               title={
                 selectedCandidate
@@ -1072,21 +1341,20 @@ export default function ElectionMap() {
               ) : !donorIntel.donors.length ? (
                 <EmptyState text="No donor intelligence available for this state/candidate yet." />
               ) : (
-                <div className="vs-stack">
-                  {donorIntel.donors.map((donor, index) => (
-                    <DonorCard
-                      key={donor.id || `${donor.donor_name}-${donor.state}-${index}`}
-                      donor={donor}
-                    />
-                  ))}
-                </div>
+                <ShowMoreList
+                  items={donorIntel.donors}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Donors`}
+                  className="vs-stack"
+                  renderItem={(donor) => <DonorCard donor={donor} />}
+                />
               )}
             </SectionCard>
           </div>
         </div>
 
         <div className="vs-stack">
-          <div data-tour="election-map-overlay-detail">
+          <div id="election-overlay-detail" data-tour="election-map-overlay-detail">
             <SectionCard
               title={
                 selectedStateGroup
@@ -1155,6 +1423,7 @@ export default function ElectionMap() {
             </SectionCard>
           </div>
 
+          <div id="election-overlay-stack">
           <SectionCard
             title="Overlay Stack"
             subtitle="A ranked list of the current live state-office overlays."
@@ -1166,22 +1435,30 @@ export default function ElectionMap() {
               ) : !filteredOverlays.length ? (
                 <EmptyState text="No overlays match the selected filters." />
               ) : (
-                filteredOverlays.map((item) => (
-                  <OverlayCard
-                    key={item.state + "-" + item.office}
-                    item={item}
-                    isActive={
-                      selectedOverlay?.state === item.state &&
-                      selectedOverlay?.office === item.office
-                    }
-                    onSelect={selectOfficeOverlay}
-                  />
-                ))
+                <ShowMoreList
+                  items={filteredOverlays}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Overlays`}
+                  className="vs-stack"
+                  renderItem={(item) => (
+                    <OverlayCard
+                      item={item}
+                      isActive={
+                        selectedOverlay?.state === item.state &&
+                        selectedOverlay?.office === item.office
+                      }
+                      onSelect={selectOfficeOverlay}
+                    />
+                  )}
+                />
               )}
             </div>
           </SectionCard>
+          </div>
         </div>
       </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
