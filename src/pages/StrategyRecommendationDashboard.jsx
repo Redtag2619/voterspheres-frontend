@@ -9,6 +9,11 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
+
 const STATE_NAMES = {
   AL: "Alabama",
   AK: "Alaska",
@@ -517,6 +522,75 @@ function PriorityCard({ item }) {
   );
 }
 
+function StrategyExecutiveHeader({
+  data,
+  summary,
+  recommendations,
+  byState,
+  byType,
+  byPriority,
+  loading,
+  seedLoading,
+  onRefresh,
+  onSeed,
+}) {
+  const isFallback = String(data?.source || "").includes("fallback");
+
+  return (
+    <div className="strategy-exec-header">
+      <div className="strategy-exec-copy">
+        <span>AI Strategy Command Status</span>
+        <strong>{summary.total_recommendations || recommendations.length || 0} Strategies</strong>
+        <p>
+          Executive strategy command layer for recommendation scoring, state strategy heat,
+          priority distribution, selected strategy interpretation, and command conversion guidance.
+        </p>
+
+        <div className="strategy-exec-badges">
+          <Badge tone={isFallback ? "warning" : "active"}>
+            {isFallback ? "Fallback Strategy Intelligence" : "Live Strategy Recommendation API"}
+          </Badge>
+          <Badge tone="accent">{byType.length} Strategy Types</Badge>
+          <Badge tone="info">{byState.length} States Covered</Badge>
+          <Badge tone="active">{byPriority.length} Priority Levels</Badge>
+        </div>
+      </div>
+
+      <div className="strategy-exec-grid">
+        <div>
+          <span>High Priority Strategies</span>
+          <strong>{(summary.critical_recommendations || 0) + (summary.high_recommendations || 0)}</strong>
+        </div>
+        <div>
+          <span>Average Strategy Score</span>
+          <strong>{pct(summary.avg_strategy_score)}</strong>
+        </div>
+        <div>
+          <span>Highest Strategy Score</span>
+          <strong>{pct(summary.top_strategy_score)}</strong>
+        </div>
+        <div>
+          <span>States With Coverage</span>
+          <strong>{summary.states_covered || byState.length || 0}</strong>
+        </div>
+      </div>
+
+      <div className="strategy-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading}>
+          {loading ? "Refreshing Strategy Intelligence..." : "Refresh Strategy Intelligence"}
+        </button>
+
+        <button type="button" onClick={onSeed} disabled={seedLoading}>
+          {seedLoading ? "Seeding Strategy Intelligence..." : "Seed Strategy Intelligence"}
+        </button>
+
+        <Link to="/command-center">Open Command Center</Link>
+        <Link to="/executive-decision-intelligence">Open Decision Intelligence</Link>
+      </div>
+    </div>
+  );
+}
+
 export default function StrategyRecommendationDashboard() {
   const [data, setData] = useState(fallbackStrategyData);
   const [activeRecommendationKey, setActiveRecommendationKey] = useState(
@@ -582,9 +656,19 @@ export default function StrategyRecommendationDashboard() {
     );
   }, [recommendations, activeRecommendationKey]);
 
+  const navSections = [
+    { id: "strategy-overview", label: "Overview" },
+    { id: "strategy-queue", label: "Strategy Queue", badge: recommendations.length },
+    { id: "strategy-selected", label: "Selected Strategy" },
+    { id: "strategy-types", label: "Strategy Types", badge: byType.length },
+    { id: "strategy-state-heat", label: "State Heat", badge: byState.length },
+    { id: "strategy-priority", label: "Priorities", badge: byPriority.length },
+    { id: "strategy-command", label: "Command Guidance" },
+  ];
+
   return (
     <PageShell
-      eyebrow="Build 2C · AI Strategy Recommendation Engine"
+      eyebrow="Build 2C Â· AI Strategy Recommendation Engine"
       title="AI Strategy Recommendation Engine"
       description="Enterprise strategy command layer for fully explained strategy types, state strategy heat, recommendation confidence, strategic impact, feasibility, urgency, and execution risk."
       demo={String(data?.source || "").includes("fallback")}
@@ -797,8 +881,146 @@ export default function StrategyRecommendationDashboard() {
           max-width: 100%;
         }
 
+
+        .strategy-exec-header {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .strategy-exec-copy {
+          min-width: 0;
+        }
+
+        .strategy-exec-copy span,
+        .strategy-exec-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .strategy-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .strategy-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 780px;
+        }
+
+        .strategy-exec-badges,
+        .strategy-exec-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .strategy-exec-badges {
+          margin-top: 14px;
+        }
+
+        .strategy-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .strategy-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .strategy-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .strategy-exec-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .strategy-exec-actions button,
+        .strategy-exec-actions a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .strategy-exec-actions button:hover,
+        .strategy-exec-actions a:hover {
+          border-color: rgba(251, 146, 60, 0.48);
+          background: rgba(251, 146, 60, 0.14);
+          color: white;
+        }
+
+        .strategy-exec-actions button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .strategy-section-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .strategy-selected-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+          gap: 18px;
+          align-items: start;
+        }
+
+        .strategy-command-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 14px;
+        }
+
         @media (max-width: 1280px) {
-          .strategy-layout {
+          .strategy-layout,
+          .strategy-exec-header,
+          .strategy-selected-layout {
             grid-template-columns: 1fr;
           }
         }
@@ -808,6 +1030,7 @@ export default function StrategyRecommendationDashboard() {
           .strategy-state-grid,
           .strategy-priority-grid,
           .strategy-score-grid,
+          .strategy-exec-grid,
           .strategy-rec-row .vs-responsive-meta,
           .strategy-type-card .vs-responsive-meta,
           .strategy-state-card .vs-responsive-meta,
@@ -817,74 +1040,73 @@ export default function StrategyRecommendationDashboard() {
         }
       `}</style>
 
-      <div className="strategy-toolbar">
-        <div className="vs-chip-row">
-          <Badge tone={String(data?.source || "").includes("fallback") ? "warning" : "active"}>
-            {String(data?.source || "").includes("fallback")
-              ? "Fallback Strategy Intelligence"
-              : "Live Strategy Recommendation API"}
-          </Badge>
-          <Badge tone="accent">Executive Strategy Layer</Badge>
-          <Badge tone="info">No Abbreviations</Badge>
-        </div>
+      <div id="strategy-overview" className="strategy-section-stack">
+        <StrategyExecutiveHeader
+          data={data}
+          summary={summary}
+          recommendations={recommendations}
+          byState={byState}
+          byType={byType}
+          byPriority={byPriority}
+          loading={loading}
+          seedLoading={seedLoading}
+          onRefresh={loadData}
+          onSeed={handleSeed}
+        />
 
-        <div className="strategy-toolbar-actions">
-          <button type="button" className="vs-button vs-button-secondary" onClick={loadData} disabled={loading}>
-            {loading ? "Refreshing Strategy Intelligence..." : "Refresh Strategy Intelligence"}
-          </button>
-
-          <button type="button" className="vs-button vs-button-primary" onClick={handleSeed} disabled={seedLoading}>
-            {seedLoading ? "Seeding Strategy Intelligence..." : "Seed Strategy Intelligence"}
-          </button>
-
-          <Link className="vs-button vs-button-secondary" to="/command-center">
-            Open Command Center
-          </Link>
-
-          <Link className="vs-button vs-button-secondary" to="/executive-decision-intelligence">
-            Open Decision Intelligence
-          </Link>
-        </div>
+        <ExecutivePageNav sections={navSections} />
       </div>
 
       {message ? <div className="vs-banner">{message}</div> : null}
 
-      <div className="vs-grid-4">
-        <StatCard
-          label="Total Strategy Recommendations"
-          value={summary.total_recommendations || recommendations.length || 0}
-          subtext="Active AI-generated strategy recommendations"
-        />
-        <StatCard
-          label="High Priority Strategy Recommendations"
-          value={(summary.critical_recommendations || 0) + (summary.high_recommendations || 0)}
-          subtext="Critical and high executive priority strategies"
-        />
-        <StatCard
-          label="Average Strategy Score Percentage"
-          value={pct(summary.avg_strategy_score)}
-          subtext="Average score across all active strategy recommendations"
-        />
-        <StatCard
-          label="Highest Strategy Score Percentage"
-          value={pct(summary.top_strategy_score)}
-          subtext={`${summary.states_covered || byState.length || 0} states with strategy coverage`}
-        />
-      </div>
+      <CollapsibleSection
+        id="strategy-overview-metrics"
+        title="Executive Strategy Overview Metrics"
+        subtitle="Top-line scorecard for strategy count, priority count, average score, and highest score."
+        defaultOpen
+        right={<Badge tone="active">{summary.states_covered || byState.length || 0} States Covered</Badge>}
+      >
+        <div className="vs-grid-4">
+          <StatCard
+            label="Total Strategy Recommendations"
+            value={summary.total_recommendations || recommendations.length || 0}
+            subtext="Active AI-generated strategy recommendations"
+          />
+          <StatCard
+            label="High Priority Strategy Recommendations"
+            value={(summary.critical_recommendations || 0) + (summary.high_recommendations || 0)}
+            subtext="Critical and high executive priority strategies"
+          />
+          <StatCard
+            label="Average Strategy Score Percentage"
+            value={pct(summary.avg_strategy_score)}
+            subtext="Average score across all active strategy recommendations"
+          />
+          <StatCard
+            label="Highest Strategy Score Percentage"
+            value={pct(summary.top_strategy_score)}
+            subtext={`${summary.states_covered || byState.length || 0} states with strategy coverage`}
+          />
+        </div>
+      </CollapsibleSection>
 
-      <div className="strategy-layout">
-        <SectionCard
+      <div className="strategy-selected-layout">
+        <CollapsibleSection
+          id="strategy-queue"
           title="AI Strategy Recommendation Queue"
           subtitle="Fully explained AI strategy recommendations with no internal strategy abbreviations."
+          defaultOpen
           right={<Badge tone="info">{recommendations.length} Active Recommendations</Badge>}
         >
           {loading ? (
             <EmptyState text="Loading AI Strategy Recommendations..." />
           ) : recommendations.length ? (
-            <div className="vs-stack">
-              {recommendations.map((recommendation) => (
+            <ShowMoreList
+              items={recommendations}
+              initialCount={10}
+              showAllLabel={(count) => `Show All ${count} Recommendations`}
+              renderItem={(recommendation) => (
                 <RecommendationRow
-                  key={recommendation.recommendation_key || recommendation.id || recommendation.title}
                   recommendation={recommendation}
                   active={
                     String(activeRecommendation?.recommendation_key || activeRecommendation?.id) ===
@@ -894,158 +1116,105 @@ export default function StrategyRecommendationDashboard() {
                     setActiveRecommendationKey(recommendation.recommendation_key || recommendation.id)
                   }
                 />
-              ))}
-            </div>
+              )}
+            />
           ) : (
             <EmptyState text="No AI strategy recommendations are currently available." />
           )}
-        </SectionCard>
+        </CollapsibleSection>
 
-        <div className="vs-stack">
-          <SectionCard
-            title="Executive Strategy Recommendation"
-            subtitle="Selected strategy recommendation with full labels, full state names, and full percentage scoring."
-            right={<Badge tone={tone(activeRecommendation?.priority)}>{fullPriority(activeRecommendation?.priority)}</Badge>}
-          >
-            {activeRecommendation ? (
-              <div className="vs-stack">
-                <div className="strategy-main-panel">
-                  <div className="vs-page-eyebrow">Recommended Executive Strategy</div>
-                  <h3>{activeRecommendation.recommended_action || activeRecommendation.title}</h3>
-                  <p className="vs-page-subtitle" style={{ margin: 0 }}>
-                    {activeRecommendation.rationale ||
-                      activeRecommendation.summary ||
-                      "No executive rationale is currently available for this strategy."}
-                  </p>
-
-                  <div className="strategy-main-meta">
-                    <Badge tone="accent">{fullStrategyType(activeRecommendation.strategy_type)}</Badge>
-                    <Badge tone="info">{fullStateName(activeRecommendation.state)}</Badge>
-                    <Badge tone={tone(activeRecommendation.priority)}>
-                      {fullPriority(activeRecommendation.priority)}
-                    </Badge>
-                    <Badge tone="active">Owner: {activeRecommendation.owner_role || "Strategy Lead"}</Badge>
-                    <Badge tone="info">Time Horizon: {activeRecommendation.time_horizon || "7 Days"}</Badge>
-                  </div>
-                </div>
-
-                <div className="strategy-score-grid">
-                  <PercentCard
-                    title="Strategy Score Percentage"
-                    value={activeRecommendation.strategy_score}
-                    subtitle="Overall ranking score for this AI strategy recommendation."
-                  />
-                  <PercentCard
-                    title="Recommendation Confidence Percentage"
-                    value={activeRecommendation.confidence_score}
-                    subtitle="Reliability level of the AI recommendation."
-                  />
-                  <PercentCard
-                    title="Estimated Strategic Impact Percentage"
-                    value={activeRecommendation.impact_score}
-                    subtitle="Projected strategic value if this recommendation is executed."
-                  />
-                  <PercentCard
-                    title="Executive Urgency Percentage"
-                    value={activeRecommendation.urgency_score}
-                    subtitle="How quickly leadership should act on this strategy."
-                  />
-                  <PercentCard
-                    title="Execution Feasibility Percentage"
-                    value={activeRecommendation.feasibility_score}
-                    subtitle="Operational feasibility of executing this strategy."
-                  />
-                  <PercentCard
-                    title="Strategic Risk Percentage"
-                    value={activeRecommendation.risk_score}
-                    subtitle="Downside exposure associated with this strategy."
-                    inverse
-                  />
-                </div>
-              </div>
-            ) : (
-              <EmptyState text="No AI strategy recommendation is currently selected." />
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="National Strategy Types"
-            subtitle="Every strategy type is fully spelled out as an executive strategy category."
-            right={<Badge tone="accent">{byType.length} Strategy Types</Badge>}
-          >
-            {byType.length ? (
-              <div className="strategy-type-grid">
-                {byType.map((item) => (
-                  <StrategyTypeCard key={item.strategy_type} item={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState text="No national strategy type distribution is currently available." />
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="State Strategy Heat"
-            subtitle="State strategy heat with full state names and fully labeled strategy heat percentages."
-            right={<Badge tone="info">{byState.length} States Covered</Badge>}
-          >
-            {byState.length ? (
-              <div className="strategy-state-grid">
-                {byState.map((item) => (
-                  <StateHeatCard key={item.state} item={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState text="No state strategy heat data is currently available." />
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="Executive Priority Distribution"
-            subtitle="Priority distribution with complete executive labels."
-            right={<Badge tone="accent">{byPriority.length} Priority Levels</Badge>}
-          >
-            {byPriority.length ? (
-              <div className="strategy-priority-grid">
-                {byPriority.map((item) => (
-                  <PriorityCard key={item.priority} item={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState text="No executive priority distribution is currently available." />
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="Command Center Conversion Guidance"
-            subtitle="Execution guidance for converting the selected strategy recommendation into operational work."
-          >
-            {activeRecommendation ? (
-              <div className="strategy-action-panel">
-                <strong>
-                  Convert {fullStrategyType(activeRecommendation.strategy_type)} for{" "}
-                  {fullStateName(activeRecommendation.state)}
-                </strong>
-                <p>
-                  Recommended owner: {activeRecommendation.owner_role || "Strategy Lead"}. Recommended execution window:{" "}
-                  {activeRecommendation.time_horizon || "7 Days"}. This recommendation should be reviewed against
-                  Command Center capacity before operational conversion.
+        <CollapsibleSection
+          id="strategy-selected"
+          title="Executive Strategy Recommendation"
+          subtitle="Selected strategy recommendation with full labels, full state names, and full percentage scoring."
+          defaultOpen
+          right={<Badge tone={tone(activeRecommendation?.priority)}>{fullPriority(activeRecommendation?.priority)}</Badge>}
+        >
+          {activeRecommendation ? (
+            <div className="vs-stack">
+              <div className="strategy-main-panel">
+                <div className="vs-page-eyebrow">Recommended Executive Strategy</div>
+                <h3>{activeRecommendation.recommended_action || activeRecommendation.title}</h3>
+                <p className="vs-page-subtitle" style={{ margin: 0 }}>
+                  {activeRecommendation.rationale ||
+                    activeRecommendation.summary ||
+                    "No executive rationale is currently available for this strategy."}
                 </p>
+
                 <div className="strategy-main-meta">
-                  <Link className="vs-button vs-button-secondary" to="/command-center">
-                    Open Command Center
-                  </Link>
-                  <Link className="vs-button vs-button-secondary" to="/autonomous-campaign-operations">
-                    Open Autonomous Campaign Operations
-                  </Link>
+                  <Badge tone="accent">{fullStrategyType(activeRecommendation.strategy_type)}</Badge>
+                  <Badge tone="info">{fullStateName(activeRecommendation.state)}</Badge>
+                  <Badge tone={tone(activeRecommendation.priority)}>
+                    {fullPriority(activeRecommendation.priority)}
+                  </Badge>
+                  <Badge tone="active">Owner: {activeRecommendation.owner_role || "Strategy Lead"}</Badge>
+                  <Badge tone="info">Time Horizon: {activeRecommendation.time_horizon || "7 Days"}</Badge>
                 </div>
               </div>
-            ) : (
-              <EmptyState text="Select a strategy recommendation to view conversion guidance." />
-            )}
-          </SectionCard>
-        </div>
+
+              <div className="strategy-score-grid">
+                <PercentCard title="Strategy Score Percentage" value={activeRecommendation.strategy_score} subtitle="Overall ranking score for this AI strategy recommendation." />
+                <PercentCard title="Recommendation Confidence Percentage" value={activeRecommendation.confidence_score} subtitle="Reliability level of the AI recommendation." />
+                <PercentCard title="Estimated Strategic Impact Percentage" value={activeRecommendation.impact_score} subtitle="Projected strategic value if this recommendation is executed." />
+                <PercentCard title="Executive Urgency Percentage" value={activeRecommendation.urgency_score} subtitle="How quickly leadership should act on this strategy." />
+                <PercentCard title="Execution Feasibility Percentage" value={activeRecommendation.feasibility_score} subtitle="Operational feasibility of executing this strategy." />
+                <PercentCard title="Strategic Risk Percentage" value={activeRecommendation.risk_score} subtitle="Downside exposure associated with this strategy." inverse />
+              </div>
+            </div>
+          ) : (
+            <EmptyState text="No AI strategy recommendation is currently selected." />
+          )}
+        </CollapsibleSection>
       </div>
+
+      <CollapsibleSection id="strategy-types" title="National Strategy Types" subtitle="Every strategy type is fully spelled out as an executive strategy category." defaultOpen={false} right={<Badge tone="accent">{byType.length} Strategy Types</Badge>}>
+        {byType.length ? (
+          <ShowMoreList items={byType} initialCount={8} showAllLabel={(count) => `Show All ${count} Strategy Types`} className="strategy-type-grid" renderItem={(item) => <StrategyTypeCard item={item} />} />
+        ) : (
+          <EmptyState text="No national strategy type distribution is currently available." />
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection id="strategy-state-heat" title="State Strategy Heat" subtitle="State strategy heat with full state names and fully labeled strategy heat percentages." defaultOpen={false} right={<Badge tone="info">{byState.length} States Covered</Badge>}>
+        {byState.length ? (
+          <ShowMoreList items={byState} initialCount={10} showAllLabel={(count) => `Show All ${count} States`} className="strategy-state-grid" renderItem={(item) => <StateHeatCard item={item} />} />
+        ) : (
+          <EmptyState text="No state strategy heat data is currently available." />
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection id="strategy-priority" title="Executive Priority Distribution" subtitle="Priority distribution with complete executive labels." defaultOpen={false} right={<Badge tone="accent">{byPriority.length} Priority Levels</Badge>}>
+        {byPriority.length ? (
+          <ShowMoreList items={byPriority} initialCount={8} showAllLabel={(count) => `Show All ${count} Priority Levels`} className="strategy-priority-grid" renderItem={(item) => <PriorityCard item={item} />} />
+        ) : (
+          <EmptyState text="No executive priority distribution is currently available." />
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection id="strategy-command" title="Command Center Conversion Guidance" subtitle="Execution guidance for converting the selected strategy recommendation into operational work." defaultOpen={false} right={<Badge tone="active">Execution Guidance</Badge>}>
+        {activeRecommendation ? (
+          <div className="strategy-action-panel">
+            <strong>
+              Convert {fullStrategyType(activeRecommendation.strategy_type)} for{" "}
+              {fullStateName(activeRecommendation.state)}
+            </strong>
+            <p>
+              Recommended owner: {activeRecommendation.owner_role || "Strategy Lead"}. Recommended execution window:{" "}
+              {activeRecommendation.time_horizon || "7 Days"}. This recommendation should be reviewed against
+              Command Center capacity before operational conversion.
+            </p>
+            <div className="strategy-command-actions">
+              <Link className="vs-button vs-button-secondary" to="/command-center">Open Command Center</Link>
+              <Link className="vs-button vs-button-secondary" to="/autonomous-campaign-operations">Open Autonomous Campaign Operations</Link>
+              <Link className="vs-button vs-button-secondary" to="/executive-decision-intelligence">Open Decision Intelligence</Link>
+            </div>
+          </div>
+        ) : (
+          <EmptyState text="Select a strategy recommendation to view conversion guidance." />
+        )}
+      </CollapsibleSection>
+
+      <BackToTopButton />      </div>
     </PageShell>
   );
 }
