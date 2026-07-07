@@ -3470,14 +3470,7 @@ export default function ExecutiveOperationsMap() {
       </CollapsibleSection>
 
       <div className="ops-floating-toolbar">
-        <button type="button" onClick={() => setLayer("countyHeat")}>County Heat</button>
-        <button type="button" onClick={() => selected ? openCommandCenterFromState(selected, { action: "floating-toolbar" }) : openPath("/command-center")}>Command</button>
-        <button type="button" onClick={() => selected ? openPoliticalGraphForState(selected) : openPath("/political-graph")}>Graph</button>
-        <button type="button" onClick={() => {
-          load({ quiet: true });
-          loadSignalOverlay();
-          loadPoliticalGraph({ quiet: true });
-        }}>Refresh</button>
+        <BackToTopButton />
       </div>
 
       <BackToTopButton />
