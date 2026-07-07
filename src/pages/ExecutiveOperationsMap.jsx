@@ -1264,7 +1264,7 @@ function ExecutiveOperationsHeader({
   );
 }
 
-function OperationsQuickFilters({ layer, setLayer, states, setSelectedState }) {
+function OperationsQuickFilters({ layer, setLayer, states, setSelectedState, selected, onRefresh }) {
   function selectFirst(predicate) {
     const match = states.find(predicate);
     if (match) setSelectedState(match);
@@ -1284,11 +1284,23 @@ function OperationsQuickFilters({ layer, setLayer, states, setSelectedState }) {
       <button type="button" onClick={() => setLayer("signals")} className={layer === "signals" ? "is-active" : ""}>
         Signals Layer
       </button>
-      <button type="button" onClick={() => setLayer("graph")} className={layer === "graph" ? "is-active" : ""}>
-        Graph Layer
-      </button>
       <button type="button" onClick={() => setLayer("countyHeat")} className={layer === "countyHeat" ? "is-active" : ""}>
         County Heat
+      </button>
+      <button
+        type="button"
+        onClick={() => selected ? openCommandCenterFromState(selected, { action: "quick-filter-row" }) : openPath("/command-center")}
+      >
+        Command
+      </button>
+      <button
+        type="button"
+        onClick={() => selected ? openPoliticalGraphForState(selected) : openPath("/political-graph")}
+      >
+        Graph
+      </button>
+      <button type="button" onClick={onRefresh}>
+        Refresh
       </button>
     </div>
   );
@@ -1688,6 +1700,16 @@ export default function ExecutiveOperationsMap() {
           border-color: rgba(96, 165, 250, 0.48);
           background: rgba(37, 99, 235, 0.24);
           color: white;
+        }
+
+        .ops-quick-filters button:nth-last-child(-n + 3) {
+          border-color: rgba(251, 146, 60, 0.24);
+          background: rgba(251, 146, 60, 0.08);
+        }
+
+        .ops-quick-filters button:nth-last-child(-n + 3):hover {
+          border-color: rgba(251, 146, 60, 0.54);
+          background: rgba(251, 146, 60, 0.16);
         }
 
         .ops-quick-filters {
@@ -2974,6 +2996,12 @@ export default function ExecutiveOperationsMap() {
           setLayer={setLayer}
           states={states}
           setSelectedState={setSelectedState}
+          selected={selected}
+          onRefresh={() => {
+            load({ quiet: true });
+            loadSignalOverlay();
+            loadPoliticalGraph({ quiet: true });
+          }}
         />
       </div>
 
@@ -3442,9 +3470,14 @@ export default function ExecutiveOperationsMap() {
       </CollapsibleSection>
 
       <div className="ops-floating-toolbar">
-        <button type="button" onClick={() => load({ quiet: true })}>Refresh</button>
+        <button type="button" onClick={() => setLayer("countyHeat")}>County Heat</button>
         <button type="button" onClick={() => selected ? openCommandCenterFromState(selected, { action: "floating-toolbar" }) : openPath("/command-center")}>Command</button>
         <button type="button" onClick={() => selected ? openPoliticalGraphForState(selected) : openPath("/political-graph")}>Graph</button>
+        <button type="button" onClick={() => {
+          load({ quiet: true });
+          loadSignalOverlay();
+          loadPoliticalGraph({ quiet: true });
+        }}>Refresh</button>
       </div>
 
       <BackToTopButton />
