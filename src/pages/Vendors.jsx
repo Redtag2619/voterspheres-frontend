@@ -14,6 +14,10 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 const US_TOPO_JSON =
   "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
@@ -861,6 +865,186 @@ function MapTooltip({ tooltip }) {
   );
 }
 
+function VendorExecutiveHeader({
+  summary,
+  displayRows,
+  fecRows,
+  coveredStates,
+  gapCount,
+  resolvedGapCount,
+  totalFecSpend,
+  strongPerformanceCount,
+  riskPerformanceCount,
+  selectedGroup,
+  selectedStateCoverage,
+  loading,
+  fecLoading,
+  intelLoading,
+  performanceLoading,
+  dispatchVendorAlerts,
+}) {
+  const totalVendors = Number(summary.total_vendors || displayRows.length || 0);
+  const covered = Number(coveredStates.length || 0);
+  const gaps = Number(gapCount || 0);
+  const risk = Number(riskPerformanceCount || 0);
+  const strong = Number(strongPerformanceCount || 0);
+
+  const readinessScore = Math.max(
+    5,
+    Math.min(
+      100,
+      Math.round(
+        58 +
+          Math.min(24, covered * 0.85) +
+          Math.min(12, strong * 1.4) +
+          Math.min(8, resolvedGapCount * 1.6) -
+          Math.min(24, gaps * 2.5) -
+          Math.min(16, risk * 1.8)
+      )
+    )
+  );
+
+  const loadingAny = loading || fecLoading || intelLoading || performanceLoading;
+
+  return (
+    <div className="vendors-exec-ribbon" id="vendors-overview">
+      <div className="vendors-exec-copy">
+        <span>Vendor Network Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive vendor command layer for national coverage, FEC Schedule B spend,
+          performance risk, coverage gaps, modeled baseline, relationship graph context,
+          and Command Center task conversion.
+        </p>
+
+        <div className="vendors-exec-badges">
+          <Badge tone="active">{totalVendors} Vendors</Badge>
+          <Badge tone="info">{covered} Covered States</Badge>
+          <Badge tone={gaps ? "danger" : "active"}>{gaps} Active Gaps</Badge>
+          <Badge tone={risk ? "danger" : "active"}>{risk} Risk Vendors</Badge>
+          <Badge tone="accent">{selectedGroup || "All"} Group</Badge>
+          {selectedStateCoverage ? (
+            <Badge tone={selectedStateCoverage.status?.tone || "info"}>
+              {selectedStateCoverage.state} {selectedStateCoverage.coverage_score}/100
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="vendors-exec-grid">
+        <div>
+          <span>Live FEC Vendors</span>
+          <strong>{fecRows.length}</strong>
+        </div>
+        <div>
+          <span>FEC Spend</span>
+          <strong>{fmtMoneyShort(totalFecSpend)}</strong>
+        </div>
+        <div>
+          <span>Strong Performance</span>
+          <strong>{strong}</strong>
+        </div>
+        <div>
+          <span>Data Status</span>
+          <strong>{loadingAny ? "Loading" : "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="vendors-exec-actions">
+        <button type="button" onClick={dispatchVendorAlerts}>
+          Dispatch Vendor Alerts
+        </button>
+        <button type="button" onClick={() => document.getElementById("vendors-map")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Coverage Map
+        </button>
+        <button type="button" onClick={() => document.getElementById("vendors-directory")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Vendor Directory
+        </button>
+        <button type="button" onClick={() => goToCommandCenter({ source: "vendor-network" })}>
+          Command Center
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VendorExecutiveActionCenter({
+  selectedStateCoverage,
+  selectedGroup,
+  activeVendor,
+  createCoverageTask,
+  createVendorTask,
+}) {
+  const vendorName = activeVendor?.vendor_name || activeVendor?.name || "";
+
+  return (
+    <div className="vendors-action-center">
+      <button
+        type="button"
+        onClick={() =>
+          selectedStateCoverage
+            ? goToCommandCenter({
+                state: selectedStateCoverage.state,
+                coverage: selectedStateCoverage.status?.label,
+                score: String(selectedStateCoverage.coverage_score),
+                group: selectedGroup,
+                source: "vendor-network",
+              })
+            : goToCommandCenter({ source: "vendor-network" })
+        }
+      >
+        Open Command Center
+      </button>
+
+      <button
+        type="button"
+        disabled={!selectedStateCoverage}
+        onClick={() => selectedStateCoverage && goToStateOperations(selectedStateCoverage.state, selectedGroup)}
+      >
+        State Operations
+      </button>
+
+      <button
+        type="button"
+        disabled={!selectedStateCoverage}
+        onClick={() => selectedStateCoverage && goToExecutiveMap(selectedStateCoverage.state, selectedGroup)}
+      >
+        Executive Map
+      </button>
+
+      <button
+        type="button"
+        disabled={!selectedStateCoverage}
+        onClick={() => selectedStateCoverage && createCoverageTask(selectedStateCoverage)}
+      >
+        Create Coverage Task
+      </button>
+
+      <button
+        type="button"
+        disabled={!activeVendor}
+        onClick={() =>
+          activeVendor &&
+          createVendorTask({
+            title: `Review ${vendorName}`,
+            detail:
+              activeVendor.services ||
+              activeVendor.capabilities ||
+              activeVendor.description ||
+              "Campaign operations and political services",
+            state: activeVendor.state || activeVendor.primary_state || "National",
+            owner: "Operations",
+            priority: activeVendor.source === "modeled_baseline" ? "High" : "Medium",
+            vendor_name: vendorName,
+          })
+        }
+      >
+        Create Vendor Task
+      </button>
+    </div>
+  );
+}
+
 export default function Vendors() {
   const initialUrl = getInitialUrlParams();
   const vendorDirectoryRef = useRef(null);
@@ -1406,6 +1590,20 @@ export default function Vendors() {
     setTooltip((prev) => ({ ...prev, visible: false }));
   }
 
+  const navSections = [
+    { id: "vendors-overview", label: "Overview" },
+    { id: "vendors-metrics", label: "Metrics" },
+    { id: "vendors-controls", label: "Controls" },
+    { id: "vendors-map", label: "Coverage Map" },
+    { id: "vendors-groups", label: "Groups", badge: VENDOR_GROUPS.length },
+    { id: "vendors-fec", label: "FEC Spend", badge: fecRows.length },
+    { id: "vendors-coverage", label: "Coverage" },
+    { id: "vendors-performance", label: "Performance", badge: effectivePerformance.length },
+    { id: "vendors-directory", label: "Directory", badge: visibleRows.length },
+    { id: "vendors-gaps", label: "Gaps", badge: gapCount },
+    { id: "vendors-actions", label: "Actions", badge: effectiveIntel?.recommended_actions?.length || 0 },
+  ];
+
   return (
     <PageShell
       eyebrow="Vendor Intelligence"
@@ -1435,6 +1633,129 @@ export default function Vendors() {
       ]}
     >
       <style>{`
+        .vendors-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .vendors-exec-copy {
+          min-width: 0;
+        }
+
+        .vendors-exec-copy span,
+        .vendors-exec-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .vendors-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .vendors-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .vendors-exec-badges,
+        .vendors-exec-actions,
+        .vendors-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .vendors-exec-badges {
+          margin-top: 14px;
+        }
+
+        .vendors-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .vendors-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .vendors-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .vendors-exec-actions {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .vendors-exec-actions button,
+        .vendors-action-center button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .vendors-exec-actions button:hover,
+        .vendors-action-center button:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+        .vendors-action-center button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .vendors-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+
         .vs-premium-row-card {
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 18px;
@@ -1694,7 +2015,8 @@ export default function Vendors() {
         }
 
         @media (max-width: 1100px) {
-          .vs-vendor-balanced-grid {
+          .vs-vendor-balanced-grid,
+          .vendors-exec-ribbon {
             grid-template-columns: 1fr;
           }
         }
@@ -1747,6 +2069,29 @@ export default function Vendors() {
         }
       `}</style>
 
+      <div className="vendors-exec-stack">
+        <VendorExecutiveHeader
+          summary={summary}
+          displayRows={displayRows}
+          fecRows={fecRows}
+          coveredStates={coveredStates}
+          gapCount={gapCount}
+          resolvedGapCount={resolvedGapCount}
+          totalFecSpend={totalFecSpend}
+          strongPerformanceCount={strongPerformanceCount}
+          riskPerformanceCount={riskPerformanceCount}
+          selectedGroup={selectedGroup}
+          selectedStateCoverage={selectedStateCoverage}
+          loading={loading}
+          fecLoading={fecLoading}
+          intelLoading={intelLoading}
+          performanceLoading={performanceLoading}
+          dispatchVendorAlerts={dispatchVendorAlerts}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {isFromExecutionBoard ? (
         <div className="vs-banner vs-live-banner-pulse vs-execution-filter-banner">
           <div className="vs-execution-filter-banner-copy">
@@ -1785,33 +2130,42 @@ export default function Vendors() {
 
       <MapTooltip tooltip={tooltip} />
 
-      <div className="vs-grid-4">
-        <StatCard
-          label="Total Vendors"
-          value={summary.total_vendors || displayRows.length || 0}
-          delta="Live database records"
-          tone="up"
-        />
-        <StatCard
-          label="All States Covered"
-          value="51"
-          delta="Live plus modeled baseline"
-          tone="up"
-        />
-        <StatCard
-          label="Live FEC Vendors"
-          value={fecRows.length}
-          delta="Schedule B payee intelligence"
-          tone="up"
-        />
-        <StatCard
-          label="FEC Spend"
-          value={fmtMoneyShort(totalFecSpend)}
-          delta="Imported live spending"
-          tone="up"
-        />
-      </div>
+      <CollapsibleSection
+        id="vendors-metrics"
+        title="Vendor Network Metrics"
+        subtitle="Vendor count, national coverage, FEC Schedule B vendors, and imported spend."
+        defaultOpen
+        right={<Badge tone={gapCount ? "danger" : "active"}>{gapCount} Active Gaps</Badge>}
+      >
+        <div className="vs-grid-4">
+          <StatCard
+            label="Total Vendors"
+            value={summary.total_vendors || displayRows.length || 0}
+            delta="Live database records"
+            tone="up"
+          />
+          <StatCard
+            label="All States Covered"
+            value="51"
+            delta="Live plus modeled baseline"
+            tone="up"
+          />
+          <StatCard
+            label="Live FEC Vendors"
+            value={fecRows.length}
+            delta="Schedule B payee intelligence"
+            tone="up"
+          />
+          <StatCard
+            label="FEC Spend"
+            value={fmtMoneyShort(totalFecSpend)}
+            delta="Imported live spending"
+            tone="up"
+          />
+        </div>
+      </CollapsibleSection>
 
+      <div id="vendors-controls">
       <SectionCard
         title="Vendor Controls"
         subtitle="Filter the live vendor network and modeled national coverage baseline."
@@ -1892,8 +2246,10 @@ export default function Vendors() {
           </select>
         </div>
       </SectionCard>
+      </div>
 
-      <SectionCard
+      <CollapsibleSection
+        id="vendors-map"
         title="U.S. Vendor Coverage Map"
         subtitle={`${selectedGroup} vendor coverage by state. Every state is visible using VoterSpheres modeled baseline, with live FEC data layered on top where available.`}
         right={
@@ -2190,9 +2546,10 @@ export default function Vendors() {
             />
           ))}
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
+        id="vendors-fec"
         title="FEC Vendor Spend Intelligence"
         subtitle="Campaign operating expenditure payees grouped into vendor, service, state, committee, and spend signals."
         right={<Badge tone={fecRows.length ? "active" : "demo"}>{fecLoading ? "Loading" : `${fecRows.length} FEC vendors`}</Badge>}
@@ -2203,24 +2560,25 @@ export default function Vendors() {
           ) : !fecRows.length ? (
             <EmptyState text="No FEC vendor spending found for the selected filters." />
           ) : (
-            fecRows.slice(0, 8).map((vendor, index) => (
-              <VendorRow
-                key={
-                  vendor.id ??
-                  vendor.vendor_id ??
-                  `${vendor.name || vendor.vendor_name}-${index}`
-                }
-                vendor={vendor}
-                highlighted={false}
-                onCreateCommandTask={createVendorTask}
-                onInspectVendor={setSelectedVendor}
-              />
-            ))
+            <ShowMoreList
+              items={fecRows}
+              initialCount={8}
+              showAllLabel={(count) => `Show All ${count} FEC Vendors`}
+              className="vs-stack"
+              renderItem={(vendor) => (
+                <VendorRow
+                  vendor={vendor}
+                  highlighted={false}
+                  onCreateCommandTask={createVendorTask}
+                  onInspectVendor={setSelectedVendor}
+                />
+              )}
+            />
           )}
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <div className="vs-vendor-balanced-grid">
+      <div id="vendors-coverage" className="vs-vendor-balanced-grid">
         <SectionCard
           title="Coverage Gaps"
           subtitle="States with vendor coverage detected but not enough depth for operational readiness."
@@ -2230,14 +2588,19 @@ export default function Vendors() {
             {!gapStates.length ? (
               <EmptyState text="No coverage gaps detected for this group." />
             ) : (
-              gapStates.map((state) => (
-                <StateCoverageRow
-                  key={state.state}
-                  item={state}
-                  selectedGroup={selectedGroup}
-                  onCreateTask={createCoverageTask}
-                />
-              ))
+              <ShowMoreList
+                items={gapStates}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Coverage Gaps`}
+                className="vs-stack"
+                renderItem={(state) => (
+                  <StateCoverageRow
+                    item={state}
+                    selectedGroup={selectedGroup}
+                    onCreateTask={createCoverageTask}
+                  />
+                )}
+              />
             )}
           </div>
         </SectionCard>
@@ -2251,20 +2614,25 @@ export default function Vendors() {
             {!thinStates.length ? (
               <EmptyState text="No thin coverage states detected for this group." />
             ) : (
-              thinStates.map((state) => (
-                <StateCoverageRow
-                  key={state.state}
-                  item={state}
-                  selectedGroup={selectedGroup}
-                  onCreateTask={createCoverageTask}
-                />
-              ))
+              <ShowMoreList
+                items={thinStates}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Thin Coverage States`}
+                className="vs-stack"
+                renderItem={(state) => (
+                  <StateCoverageRow
+                    item={state}
+                    selectedGroup={selectedGroup}
+                    onCreateTask={createCoverageTask}
+                  />
+                )}
+              />
             )}
           </div>
         </SectionCard>
       </div>
 
-      <div className="vs-vendor-balanced-grid">
+      <div id="vendors-performance" className="vs-vendor-balanced-grid">
         <SectionCard
           title="FEC Spend Categories"
           subtitle="Vendor services inferred from reported operating expenditure purposes."
@@ -2274,9 +2642,13 @@ export default function Vendors() {
             {!fecCategories.length ? (
               <EmptyState text="No FEC spend categories available." />
             ) : (
-              fecCategories.slice(0, 8).map((item) => (
-                <SpendCategoryRow key={item.category} item={item} />
-              ))
+              <ShowMoreList
+                items={fecCategories}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Spend Categories`}
+                className="vs-stack"
+                renderItem={(item) => <SpendCategoryRow item={item} />}
+              />
             )}
           </div>
         </SectionCard>
@@ -2292,19 +2664,20 @@ export default function Vendors() {
             ) : !effectivePerformance.length ? (
               <EmptyState text="No vendor performance history yet." />
             ) : (
-              effectivePerformance.slice(0, 8).map((item) => (
-                <PerformanceRow
-                  key={item.id || item.vendor_id || item.vendor_name}
-                  item={item}
-                />
-              ))
+              <ShowMoreList
+                items={effectivePerformance}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Performance Rows`}
+                className="vs-stack"
+                renderItem={(item) => <PerformanceRow item={item} />}
+              />
             )}
           </div>
         </SectionCard>
       </div>
 
       <div className="vs-vendor-balanced-grid">
-        <div ref={vendorDirectoryRef}>
+        <div id="vendors-directory" ref={vendorDirectoryRef}>
           {activeVendor ? (
             <PoliticalGraphContextPanel
               entityType="vendor"
@@ -2336,32 +2709,34 @@ export default function Vendors() {
               ) : visibleRows.length === 0 ? (
                 <EmptyState text="No live vendors found; select a state on the map to inspect modeled coverage." />
               ) : (
-                visibleRows.map((vendor, index) => {
-                  const highlighted =
-                    isFromExecutionBoard &&
-                    filters.state &&
-                    statesMatch(vendor.state || vendor.primary_state, filters.state);
+                <ShowMoreList
+                  items={visibleRows}
+                  initialCount={12}
+                  showAllLabel={(count) => `Show All ${count} Vendors`}
+                  className="vs-stack"
+                  renderItem={(vendor) => {
+                    const highlighted =
+                      isFromExecutionBoard &&
+                      filters.state &&
+                      statesMatch(vendor.state || vendor.primary_state, filters.state);
 
-                  return (
-                    <VendorRow
-                      key={
-                        vendor.id ??
-                        vendor.vendor_id ??
-                        `${vendor.name || vendor.vendor_name}-${index}`
-                      }
-                      vendor={vendor}
-                      highlighted={highlighted}
-                      onCreateCommandTask={createVendorTask}
-                      onInspectVendor={setSelectedVendor}
-                    />
-                  );
-                })
+                    return (
+                      <VendorRow
+                        vendor={vendor}
+                        highlighted={highlighted}
+                        onCreateCommandTask={createVendorTask}
+                        onInspectVendor={setSelectedVendor}
+                      />
+                    );
+                  }}
+                />
               )}
             </div>
           </SectionCard>
         </div>
 
         <div className="vs-stack">
+          <div id="vendors-gaps">
           <SectionCard
             title="Active Coverage Gaps"
             subtitle="Open vendor coverage gaps that still require operational action."
@@ -2377,14 +2752,17 @@ export default function Vendors() {
               ) : !effectiveIntel?.gaps?.length ? (
                 <EmptyState text="No active vendor coverage gaps." />
               ) : (
-                effectiveIntel.gaps
-                  .slice(0, 6)
-                  .map((gap, index) => (
-                    <RiskRow key={`${gap.state}-${index}`} item={gap} />
-                  ))
+                <ShowMoreList
+                  items={effectiveIntel.gaps}
+                  initialCount={6}
+                  showAllLabel={(count) => `Show All ${count} Active Gaps`}
+                  className="vs-stack"
+                  renderItem={(gap) => <RiskRow item={gap} />}
+                />
               )}
             </div>
           </SectionCard>
+          </div>
 
           <SectionCard
             title="Resolved Gap History"
@@ -2397,15 +2775,18 @@ export default function Vendors() {
               ) : !effectiveIntel?.resolved_gaps?.length ? (
                 <EmptyState text="No resolved vendor gaps yet." />
               ) : (
-                effectiveIntel.resolved_gaps
-                  .slice(0, 6)
-                  .map((gap, index) => (
-                    <ResolvedGapRow key={`${gap.state}-${index}`} item={gap} />
-                  ))
+                <ShowMoreList
+                  items={effectiveIntel.resolved_gaps}
+                  initialCount={6}
+                  showAllLabel={(count) => `Show All ${count} Resolved Gaps`}
+                  className="vs-stack"
+                  renderItem={(gap) => <ResolvedGapRow item={gap} />}
+                />
               )}
             </div>
           </SectionCard>
 
+          <div id="vendors-actions">
           <SectionCard
             title="Recommended Actions"
             subtitle="Create execution tasks directly from active vendor intelligence."
@@ -2419,24 +2800,48 @@ export default function Vendors() {
               {!effectiveIntel?.recommended_actions?.length ? (
                 <EmptyState text="No recommended vendor actions." />
               ) : (
-                effectiveIntel.recommended_actions.slice(0, 6).map((action, index) => {
-                  const taskKey = getActionKey(action, index);
+                <ShowMoreList
+                  items={effectiveIntel.recommended_actions}
+                  initialCount={6}
+                  showAllLabel={(count) => `Show All ${count} Recommended Actions`}
+                  className="vs-stack"
+                  renderItem={(action, index) => {
+                    const taskKey = getActionKey(action, index);
 
-                  return (
-                    <ActionTaskRow
-                      key={taskKey}
-                      action={action}
-                      creating={creatingTaskId === taskKey}
-                      taskExists={existingTaskIds.has(taskKey)}
-                      onCreateTask={createVendorTask}
-                    />
-                  );
-                })
+                    return (
+                      <ActionTaskRow
+                        action={action}
+                        creating={creatingTaskId === taskKey}
+                        taskExists={existingTaskIds.has(taskKey)}
+                        onCreateTask={createVendorTask}
+                      />
+                    );
+                  }}
+                />
               )}
             </div>
           </SectionCard>
+          </div>
+
+          <CollapsibleSection
+            id="vendors-executive-action-center"
+            title="Executive Action Center"
+            subtitle="Move vendor intelligence into execution workflows."
+            defaultOpen={false}
+            right={<Badge tone="active">Execution Handoff</Badge>}
+          >
+            <VendorExecutiveActionCenter
+              selectedStateCoverage={selectedStateCoverage}
+              selectedGroup={selectedGroup}
+              activeVendor={activeVendor}
+              createCoverageTask={createCoverageTask}
+              createVendorTask={createVendorTask}
+            />
+          </CollapsibleSection>
         </div>
       </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
