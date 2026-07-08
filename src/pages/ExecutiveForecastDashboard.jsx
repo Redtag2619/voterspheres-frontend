@@ -9,6 +9,10 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 const STATES = [
   ["", "All States"], ["AL", "Alabama"], ["AK", "Alaska"], ["AZ", "Arizona"], ["AR", "Arkansas"],
@@ -350,6 +354,125 @@ function buildBrief({ predictions, opportunities, risks, momentum, coalitions })
   return lines.length ? lines.join(" ") : "No forecast brief is available yet. Run Recalculate Forecasts after Influence Engine data has been synced.";
 }
 
+function ForecastExecutiveHeader({
+  predictions,
+  relationships,
+  coalitions,
+  opportunities,
+  risks,
+  momentum,
+  summary,
+  topOpportunityScore,
+  topRiskScore,
+  topMomentumScore,
+  selectedForecast,
+  loading,
+  recalculating,
+  lastUpdated,
+  onRefresh,
+  onRecalculate,
+}) {
+  const readinessScore = Math.max(
+    5,
+    Math.min(
+      100,
+      Math.round(
+        62 +
+          Math.min(16, summary.avgConfidence * 0.16) +
+          Math.min(10, opportunities.length * 1.1) +
+          Math.min(8, relationships.length * 0.45) +
+          Math.min(8, coalitions.length * 0.75) -
+          Math.min(20, summary.critical * 3.5) -
+          Math.min(12, topRiskScore * 0.12)
+      )
+    )
+  );
+
+  return (
+    <div className="forecast-exec-ribbon" id="forecast-overview">
+      <div className="forecast-exec-copy">
+        <span>Executive Forecast Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive Forecast Intelligence Center for opportunity, risk, momentum,
+          relationship movement, coalition formation, and graph-driven political prediction.
+        </p>
+
+        <div className="forecast-exec-badges">
+          <Badge tone="info">{fmtNum(predictions.length)} Forecasts</Badge>
+          <Badge tone={summary.critical ? "danger" : "active"}>{summary.critical} Critical</Badge>
+          <Badge tone="active">{fmtFullPercent(summary.avgConfidence)} Avg Confidence</Badge>
+          <Badge tone={topRiskScore >= 70 ? "danger" : "active"}>{fmtFullPercent(topRiskScore)} Risk</Badge>
+          <Badge tone="accent">{coalitions.length} Coalitions</Badge>
+          {selectedForecast ? (
+            <Badge tone={toneByScore(selectedForecast.probability)}>
+              {fmtPct(selectedForecast.probability)} Selected
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="forecast-exec-grid">
+        <div>
+          <span>Opportunity</span>
+          <strong>{fmtFullPercent(topOpportunityScore)}</strong>
+        </div>
+        <div>
+          <span>Momentum</span>
+          <strong>{fmtFullPercent(topMomentumScore)}</strong>
+        </div>
+        <div>
+          <span>Relationships</span>
+          <strong>{fmtNum(relationships.length)}</strong>
+        </div>
+        <div>
+          <span>Live Status</span>
+          <strong>{loading || recalculating ? "Updating" : "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="forecast-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading || recalculating}>
+          {loading ? "Refreshing..." : "Refresh Forecasts"}
+        </button>
+        <button type="button" onClick={onRecalculate} disabled={recalculating}>
+          {recalculating ? "Recalculating..." : "Recalculate Forecasts"}
+        </button>
+        <Link to="/political-intelligence">Political Intelligence</Link>
+        <Link to="/political-graph">Political Graph</Link>
+        <Link to="/command-center">Command Center</Link>
+        <Link to="/ai-war-room">AI War Room</Link>
+      </div>
+
+      <div className="forecast-exec-footer">
+        <span>Updated: {lastUpdated || "Live"}</span>
+        <span>Forecast Engine: Influence Graph</span>
+      </div>
+    </div>
+  );
+}
+
+function ForecastActionCenter({ selectedForecast, onRefresh, onRecalculate }) {
+  const selectedName = selectedForecast ? itemEntityName(selectedForecast) : "";
+  const selectedType = selectedForecast ? itemEntityType(selectedForecast) : "organization";
+  const selectedState = selectedForecast?.state || "";
+
+  return (
+    <div className="forecast-action-center">
+      <button type="button" onClick={onRefresh}>Refresh Forecasts</button>
+      <button type="button" onClick={onRecalculate}>Recalculate Forecasts</button>
+      <Link to="/influence">Open Influence Dashboard</Link>
+      <Link to={`/political-graph?entityType=${encodeURIComponent(selectedType)}&entityName=${encodeURIComponent(selectedName)}&state=${encodeURIComponent(selectedState)}`}>
+        Open Political Graph
+      </Link>
+      <Link to="/command-center">Open Command Center</Link>
+      <Link to="/ai-war-room">Open AI War Room</Link>
+      <Link to="/executive-decision-intelligence">Executive Intelligence</Link>
+      <Link to="/state-operations">State Operations</Link>
+    </div>
+  );
+}
+
 export default function ExecutiveForecastDashboard() {
   const [filters, setFilters] = useState({ state: "", type: "", search: "", limit: 75 });
   const [forecastData, setForecastData] = useState({ predictions: [], relationships: [], coalitions: [], count: 0 });
@@ -471,6 +594,21 @@ export default function ExecutiveForecastDashboard() {
   const topMomentumScore = n(momentum?.[0]?.momentum_score || 0);
   const brief = buildBrief({ predictions, opportunities, risks, momentum, coalitions });
 
+  const navSections = [
+    { id: "forecast-overview", label: "Overview" },
+    { id: "forecast-brief-metrics", label: "Metrics" },
+    { id: "forecast-controls", label: "Controls" },
+    { id: "forecast-ai-brief", label: "AI Brief" },
+    { id: "forecast-rankings", label: "Rankings", badge: visiblePredictions.length },
+    { id: "forecast-opportunities", label: "Opportunities", badge: opportunities.length },
+    { id: "forecast-risks", label: "Risks", badge: risks.length },
+    { id: "forecast-selected", label: "Selected" },
+    { id: "forecast-momentum", label: "Momentum", badge: momentum.length },
+    { id: "forecast-relationships", label: "Relationships", badge: relationships.length },
+    { id: "forecast-coalitions", label: "Coalitions", badge: coalitions.length },
+    { id: "forecast-actions", label: "Actions" },
+  ];
+
   return (
     <PageShell
       eyebrow="Build 2A.5"
@@ -486,6 +624,132 @@ export default function ExecutiveForecastDashboard() {
       ]}
     >
       <style>{`
+        .forecast-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(168, 85, 247, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.16), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .forecast-exec-copy { min-width: 0; }
+
+        .forecast-exec-copy span,
+        .forecast-exec-grid span,
+        .forecast-exec-footer span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .forecast-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .forecast-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .forecast-exec-badges,
+        .forecast-exec-actions,
+        .forecast-exec-footer,
+        .forecast-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .forecast-exec-badges { margin-top: 14px; }
+
+        .forecast-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .forecast-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .forecast-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .forecast-exec-actions,
+        .forecast-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .forecast-exec-actions button,
+        .forecast-exec-actions a,
+        .forecast-action-center button,
+        .forecast-action-center a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .forecast-exec-actions button:hover,
+        .forecast-exec-actions a:hover,
+        .forecast-action-center button:hover,
+        .forecast-action-center a:hover {
+          border-color: rgba(168, 85, 247, 0.48);
+          background: rgba(168, 85, 247, 0.16);
+          color: white;
+        }
+
+        .forecast-exec-actions button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .forecast-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+
 
         .forecast-brief-grid {
           position: relative;
@@ -836,23 +1100,56 @@ export default function ExecutiveForecastDashboard() {
         @media (max-width: 1100px) {
           .forecast-layout,
           .forecast-toolbar,
-          .forecast-brief-grid {
+          .forecast-brief-grid,
+          .forecast-exec-ribbon {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
 
+      <div className="forecast-exec-stack">
+        <ForecastExecutiveHeader
+          predictions={predictions}
+          relationships={relationships}
+          coalitions={coalitions}
+          opportunities={opportunities}
+          risks={risks}
+          momentum={momentum}
+          summary={summary}
+          topOpportunityScore={topOpportunityScore}
+          topRiskScore={topRiskScore}
+          topMomentumScore={topMomentumScore}
+          selectedForecast={selectedForecast}
+          loading={loading}
+          recalculating={recalculating}
+          lastUpdated={lastUpdated}
+          onRefresh={() => loadDashboard()}
+          onRecalculate={handleRecalculate}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {message ? <div className="vs-banner vs-live-banner-pulse">{message}</div> : null}
 
+      <CollapsibleSection
+        id="forecast-brief-metrics"
+        title="Forecast Intelligence Metrics"
+        subtitle="Prediction volume, high-probability forecasts, critical signals, and average confidence."
+        defaultOpen
+        right={<Badge tone={summary.critical ? "danger" : "active"}>{summary.critical} Critical</Badge>}
+      >
       <div className="forecast-brief-grid">
         <BriefCard title="Forecasts" value={fmtNum(predictions.length)} detail="Active predictions generated by the Influence Forecast Engine." tone="info" />
         <BriefCard title="High Probability" value={summary.high} detail="Forecasts with 75% or greater likelihood." tone={summary.high ? "demo" : "active"} />
         <BriefCard title="Critical Forecasts" value={summary.critical} detail="Forecasts at or above 85% probability." tone={summary.critical ? "danger" : "active"} />
         <BriefCard title="Avg Confidence" value={fmtFullPercent(summary.avgConfidence)} detail="Average confidence across visible forecast predictions." tone="accent" />
       </div>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
+        id="forecast-controls"
         title="Executive Forecast Controls"
         subtitle="Filter forecasts by state and forecast type, then recalculate when Influence Engine data changes."
         right={
@@ -885,73 +1182,115 @@ export default function ExecutiveForecastDashboard() {
             <option value={100}>Top 100</option>
           </select>
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard title="AI Executive Forecast Brief" subtitle="Natural-language summary of the most important forecast signals." right={<Badge tone="active">Executive Brief</Badge>}>
+      <CollapsibleSection id="forecast-ai-brief" title="AI Executive Forecast Brief" subtitle="Natural-language summary of the most important forecast signals." defaultOpen right={<Badge tone="active">Executive Brief</Badge>}>
         <div className="executive-brief"><strong>Forecast Summary</strong>{brief}</div>
-      </SectionCard>
+      </CollapsibleSection>
 
       <div className="forecast-layout">
         <div className="vs-stack">
-          <SectionCard title="National Forecast Rankings" subtitle="Highest-probability influence forecasts across growth, decline, donors, endorsements, vendors, and organizations." right={<Badge tone="danger">{visiblePredictions.length} forecasts</Badge>}>
-            <div className="vs-stack">
-              {loading ? <EmptyState text="Loading executive forecasts..." /> : !visiblePredictions.length ? <EmptyState text="No forecasts found. Run Recalculate Forecasts after Influence Engine data is synced." /> : visiblePredictions.map((item) => (
-                <ForecastRow key={item.prediction_key || item.id} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
-              ))}
-            </div>
-          </SectionCard>
+          <CollapsibleSection id="forecast-rankings" title="National Forecast Rankings" subtitle="Highest-probability influence forecasts across growth, decline, donors, endorsements, vendors, and organizations." defaultOpen right={<Badge tone="danger">{visiblePredictions.length} forecasts</Badge>}>
+            {loading ? <EmptyState text="Loading executive forecasts..." /> : !visiblePredictions.length ? <EmptyState text="No forecasts found. Run Recalculate Forecasts after Influence Engine data is synced." /> : (
+              <ShowMoreList
+                items={visiblePredictions}
+                initialCount={10}
+                showAllLabel={(count) => `Show All ${count} Forecasts`}
+                className="vs-stack"
+                renderItem={(item) => (
+                  <ForecastRow item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
+                )}
+              />
+            )}
+          </CollapsibleSection>
 
           <div className="vs-grid-2">
-            <SectionCard title="Top Opportunities" subtitle="Forecasts with the strongest campaign opportunity score." right={<Badge tone="active">{fmtFullPercent(topOpportunityScore)}</Badge>}>
-              <div className="vs-stack">
-                {!opportunities.length ? <EmptyState text="No forecast opportunities available." /> : opportunities.slice(0, 8).map((item) => (
-                  <ForecastRow key={`opp-${item.prediction_key || item.id}`} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
-                ))}
-              </div>
-            </SectionCard>
+            <CollapsibleSection id="forecast-opportunities" title="Top Opportunities" subtitle="Forecasts with the strongest campaign opportunity score." defaultOpen={false} right={<Badge tone="active">{fmtFullPercent(topOpportunityScore)}</Badge>}>
+              {!opportunities.length ? <EmptyState text="No forecast opportunities available." /> : (
+                <ShowMoreList
+                  items={opportunities}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Opportunities`}
+                  className="vs-stack"
+                  renderItem={(item) => <ForecastRow item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />}
+                />
+              )}
+            </CollapsibleSection>
 
-            <SectionCard title="Political Risk Center" subtitle="Forecasted decline, instability, and downside exposure." right={<Badge tone="danger">{fmtFullPercent(topRiskScore)}</Badge>}>
-              <div className="vs-stack">
-                {!risks.length ? <EmptyState text="No forecast risks available." /> : risks.slice(0, 8).map((item) => (
-                  <ForecastRow key={`risk-${item.prediction_key || item.id}`} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
-                ))}
-              </div>
-            </SectionCard>
+            <CollapsibleSection id="forecast-risks" title="Political Risk Center" subtitle="Forecasted decline, instability, and downside exposure." defaultOpen={false} right={<Badge tone="danger">{fmtFullPercent(topRiskScore)}</Badge>}>
+              {!risks.length ? <EmptyState text="No forecast risks available." /> : (
+                <ShowMoreList
+                  items={risks}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Risks`}
+                  className="vs-stack"
+                  renderItem={(item) => <ForecastRow item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />}
+                />
+              )}
+            </CollapsibleSection>
           </div>
         </div>
 
         <div className="vs-stack">
-          <SectionCard title="Selected Forecast" subtitle="Inspect the selected forecast and move into related intelligence surfaces." right={selectedForecast ? <Badge tone={toneByScore(selectedForecast.probability)}>{fmtPct(selectedForecast.probability)}</Badge> : null}>
+          <CollapsibleSection id="forecast-selected" title="Selected Forecast" subtitle="Inspect the selected forecast and move into related intelligence surfaces." defaultOpen right={selectedForecast ? <Badge tone={toneByScore(selectedForecast.probability)}>{fmtPct(selectedForecast.probability)}</Badge> : null}>
             <SelectedForecastPanel item={selectedForecast} />
-          </SectionCard>
+          </CollapsibleSection>
 
-          <SectionCard title="Momentum Engine" subtitle="Fastest-rising entities by forecasted momentum." right={<Badge tone="demo">{fmtFullPercent(topMomentumScore)}</Badge>}>
-            <div className="vs-stack">
-              {!momentum.length ? <EmptyState text="No momentum forecasts available." /> : momentum.slice(0, 8).map((item) => (
-                <ForecastRow key={`momentum-${item.prediction_key || item.id}`} item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />
-              ))}
-            </div>
-          </SectionCard>
+          <CollapsibleSection id="forecast-momentum" title="Momentum Engine" subtitle="Fastest-rising entities by forecasted momentum." defaultOpen={false} right={<Badge tone="demo">{fmtFullPercent(topMomentumScore)}</Badge>}>
+            {!momentum.length ? <EmptyState text="No momentum forecasts available." /> : (
+              <ShowMoreList
+                items={momentum}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Momentum Forecasts`}
+                className="vs-stack"
+                renderItem={(item) => <ForecastRow item={item} selected={selectedForecast?.prediction_key === item.prediction_key} onSelect={setSelectedForecast} />}
+              />
+            )}
+          </CollapsibleSection>
         </div>
       </div>
 
       <div className="vs-grid-2">
-        <SectionCard title="Relationship Forecasts" subtitle="Likely relationship movement based on graph edge strength." right={<Badge tone="info">{relationships.length}</Badge>}>
-          <div className="vs-stack">
-            {!relationships.length ? <EmptyState text="No relationship forecasts available." /> : relationships.slice(0, 14).map((item) => (
-              <RelationshipRow key={item.forecast_key || item.id} item={item} onSelect={setSelectedForecast} />
-            ))}
-          </div>
-        </SectionCard>
+        <CollapsibleSection id="forecast-relationships" title="Relationship Forecasts" subtitle="Likely relationship movement based on graph edge strength." defaultOpen={false} right={<Badge tone="info">{relationships.length}</Badge>}>
+          {!relationships.length ? <EmptyState text="No relationship forecasts available." /> : (
+            <ShowMoreList
+              items={relationships}
+              initialCount={14}
+              showAllLabel={(count) => `Show All ${count} Relationship Forecasts`}
+              className="vs-stack"
+              renderItem={(item) => <RelationshipRow item={item} onSelect={setSelectedForecast} />}
+            />
+          )}
+        </CollapsibleSection>
 
-        <SectionCard title="Coalition Formation Forecasts" subtitle="State and entity-type clusters that may form coalitions." right={<Badge tone="accent">{coalitions.length}</Badge>}>
-          <div className="vs-stack">
-            {!coalitions.length ? <EmptyState text="No coalition forecasts available." /> : coalitions.slice(0, 12).map((item) => (
-              <CoalitionRow key={item.coalition_key || item.id} item={item} onSelect={setSelectedForecast} />
-            ))}
-          </div>
-        </SectionCard>
+        <CollapsibleSection id="forecast-coalitions" title="Coalition Formation Forecasts" subtitle="State and entity-type clusters that may form coalitions." defaultOpen={false} right={<Badge tone="accent">{coalitions.length}</Badge>}>
+          {!coalitions.length ? <EmptyState text="No coalition forecasts available." /> : (
+            <ShowMoreList
+              items={coalitions}
+              initialCount={12}
+              showAllLabel={(count) => `Show All ${count} Coalition Forecasts`}
+              className="vs-stack"
+              renderItem={(item) => <CoalitionRow item={item} onSelect={setSelectedForecast} />}
+            />
+          )}
+        </CollapsibleSection>
       </div>
+
+      <CollapsibleSection
+        id="forecast-actions"
+        title="Executive Action Center"
+        subtitle="Move forecast intelligence into graph, influence, command, and operations workflows."
+        defaultOpen={false}
+        right={<Badge tone="active">Forecast Handoff</Badge>}
+      >
+        <ForecastActionCenter
+          selectedForecast={selectedForecast}
+          onRefresh={() => loadDashboard()}
+          onRecalculate={handleRecalculate}
+        />
+      </CollapsibleSection>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
