@@ -18,7 +18,6 @@ import PredictiveCampaignSimulation from "./pages/PredictiveCampaignSimulation";
 import NationalPoliticalDigitalTwin from "./pages/NationalPoliticalDigitalTwin";
 import AutonomousCampaignOperations from "./pages/AutonomousCampaignOperations";
 import ExecutiveAICommandPlatform from "./pages/ExecutiveAICommandPlatform";
-import AIWarRoom from "./pages/AIWarRoom";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
