@@ -262,46 +262,28 @@ function buildExecutiveRecommendation(item = {}) {
 }
 
 function forecastDisplayTitle(item = {}) {
-  const rawTitle = String(itemTitle(item) || "").trim();
-  const rawAction = String(item.recommended_action || "").trim();
   const label = recommendationLabel(item);
-
-  const isGenericGrowth =
-    /positioned for influence growth/i.test(rawTitle) ||
-    /positioned for influence growth/i.test(rawAction) ||
-    /^influence growth$/i.test(rawTitle) ||
-    /^forecast signal$/i.test(rawTitle);
-
-  const entity = itemEntityName(item);
   const state = item.state || "National";
-  const type = String(item.forecast_type || item.coalition_type || item.relationship_type || "forecast")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-  if (isGenericGrowth || !rawTitle || rawTitle === "Forecast Signal") {
-    return `${state} ${label}`;
-  }
-
-  if (rawTitle.length <= 6 && entity) {
-    return `${label}: ${entity}`;
-  }
-
-  return rawTitle;
+  return `${state} ${label}`;
 }
 
 function forecastDisplayDetail(item = {}) {
   const classified = classifyExecutiveRecommendation(item);
-  const rawDetail = String(itemDetail(item) || "").trim();
+  const rawTitle = String(itemTitle(item) || "").trim();
   const rawAction = String(item.recommended_action || "").trim();
-  const isGeneric =
-    /positioned for influence growth/i.test(rawDetail) ||
-    /positioned for influence growth/i.test(rawAction);
+  const type = String(item.forecast_type || item.coalition_type || item.relationship_type || "forecast").replace(/_/g, " ");
+  const entity = itemEntityName(item);
+  const backendContext = [type, entity, rawTitle]
+    .filter(Boolean)
+    .filter((value) => !/influence\s+(for\s+)?growth/i.test(String(value)))
+    .filter((value) => !/positioned/i.test(String(value)))
+    .join(" • ");
 
-  if (!rawDetail || isGeneric || rawDetail === "Forecast intelligence signal") {
-    return classified.detail;
+  if (rawAction && !/influence\s+(for\s+)?growth/i.test(rawAction) && !/positioned/i.test(rawAction)) {
+    return `${classified.detail} Backend action: ${rawAction}`;
   }
 
-  return rawDetail;
+  return `${classified.detail}${backendContext ? ` Context: ${backendContext}` : ""}`;
 }
 
 async function apiGet(path, params = {}) {
@@ -387,7 +369,7 @@ function ForecastRow({ item, selected, onSelect }) {
       <div className="vs-terminal-signal-head">
         <div>
           <div className="vs-terminal-kicker">
-            {String(item.forecast_type || item.coalition_type || item.relationship_type || "Forecast").replace(/_/g, " ")}
+            {recommendationLabel(item)}
           </div>
           <h3>{forecastDisplayTitle(item)}</h3>
           <p>{forecastDisplayDetail(item)}</p>
