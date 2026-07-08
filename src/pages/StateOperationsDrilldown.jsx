@@ -9,6 +9,10 @@ import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 import PoliticalGraphContextPanel from "../components/graph/PoliticalGraphContextPanel";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 function riskTone(label) {
   const value = String(label || "").toLowerCase();
@@ -147,6 +151,135 @@ function DMARow({ item }) {
           { label: "Vendor", value: fmtDecimal(item.vendor_score) },
         ]}
       />
+    </div>
+  );
+}
+
+function DrilldownExecutiveHeader({
+  stateCode,
+  summary,
+  stateHeat,
+  counties,
+  filteredCounties,
+  selectedCounty,
+  tacticalFeed,
+  dmas,
+  refreshing,
+  loading,
+  lastUpdated,
+  onRefresh,
+  onCommandCenter,
+  onCreateTask,
+  creatingTask,
+}) {
+  const critical = Number(summary.critical_counties || 0);
+  const totalCounties = Number(summary.counties_tracked || counties.length || 0);
+  const heat = Number(stateHeat || 0);
+  const alertCount = Number(summary.total_alerts || tacticalFeed.length || 0);
+  const vendorGaps = Number(summary.vendor_gap_count || 0);
+  const mailJobs = Number(summary.total_mail_jobs || 0);
+
+  const readinessScore = Math.max(
+    5,
+    Math.min(
+      100,
+      Math.round(
+        96 -
+          Math.min(28, heat * 0.28) -
+          Math.min(22, critical * 4) -
+          Math.min(15, vendorGaps * 0.65) -
+          Math.min(12, alertCount * 0.55) +
+          Math.min(8, totalCounties / 8)
+      )
+    )
+  );
+
+  return (
+    <div className="drilldown-exec-ribbon" id="drilldown-overview">
+      <div className="drilldown-exec-copy">
+        <span>{stateCode} County / Parish Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive county operations layer for locality heat, vendor readiness, MailOps pressure,
+          tactical alerts, regional DMA signals, and Command Center task conversion.
+        </p>
+
+        <div className="drilldown-exec-badges">
+          <Badge tone={heat >= 65 ? "danger" : heat >= 45 ? "demo" : "active"}>{fmtDecimal(heat)}% State Heat</Badge>
+          <Badge tone={critical ? "danger" : "active"}>{critical} Critical</Badge>
+          <Badge tone={vendorGaps ? "demo" : "active"}>{fmtNumber(vendorGaps)} Vendor Gaps</Badge>
+          <Badge tone={alertCount ? "danger" : "active"}>{fmtNumber(alertCount)} Alerts</Badge>
+          <Badge tone="info">{fmtNumber(totalCounties)} Localities</Badge>
+          {selectedCounty ? <Badge tone={riskTone(selectedCounty.risk)}>{selectedCounty.name}</Badge> : null}
+        </div>
+      </div>
+
+      <div className="drilldown-exec-grid">
+        <div>
+          <span>Filtered Localities</span>
+          <strong>{fmtNumber(filteredCounties.length)}</strong>
+        </div>
+        <div>
+          <span>Tactical Alerts</span>
+          <strong>{fmtNumber(alertCount)}</strong>
+        </div>
+        <div>
+          <span>MailOps Jobs</span>
+          <strong>{fmtNumber(mailJobs)}</strong>
+        </div>
+        <div>
+          <span>DMA Regions</span>
+          <strong>{fmtNumber(dmas.length)}</strong>
+        </div>
+      </div>
+
+      <div className="drilldown-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading || refreshing}>
+          {refreshing ? "Refreshing Drilldown..." : "Refresh Drilldown"}
+        </button>
+        <button type="button" onClick={onCommandCenter}>
+          Open Command Center
+        </button>
+        <button type="button" onClick={onCreateTask} disabled={!selectedCounty || creatingTask}>
+          {creatingTask ? "Creating Task..." : "Create County Task"}
+        </button>
+        <button type="button" onClick={() => document.getElementById("drilldown-county-heat")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          County Heat
+        </button>
+      </div>
+
+      <div className="drilldown-exec-footer">
+        <span>Last Updated: {lastUpdated || "Live"}</span>
+        <span>Selected Locality: {selectedCounty?.name || "None"}</span>
+      </div>
+    </div>
+  );
+}
+
+function DrilldownActionCenter({ stateCode, selectedCounty, onCommandCenter, onCreateTask, creatingTask }) {
+  const params = new URLSearchParams();
+  params.set("source", "state-operations-drilldown");
+  params.set("state", stateCode);
+  if (selectedCounty?.name) params.set("county", selectedCounty.name);
+
+  return (
+    <div className="drilldown-action-center">
+      <button type="button" onClick={onCommandCenter}>Open Command Center</button>
+      <button type="button" onClick={onCreateTask} disabled={!selectedCounty || creatingTask}>
+        {creatingTask ? "Creating County Task..." : "Create County Task"}
+      </button>
+      <button type="button" onClick={() => window.location.href = `/vendors?state=${stateCode}&source=state-operations-drilldown`}>
+        Vendor Coverage
+      </button>
+      <button type="button" onClick={() => window.location.href = "/mailops"}>
+        MailOps Dashboard
+      </button>
+      <button type="button" onClick={() => window.location.href = "/state-operations"}>
+        Back to State Operations
+      </button>
+      <button type="button" onClick={() => window.location.href = `/command-center?${params.toString()}`}>
+        Send Context to Command Center
+      </button>
     </div>
   );
 }
@@ -325,6 +458,26 @@ export default function StateOperationsDrilldown() {
   const selectedBreakdown = selectedCounty?.scoring_breakdown || {};
   const selectedSignals = selectedCounty?.live_signal_counts || {};
 
+  const navSections = [
+    { id: "drilldown-overview", label: "Overview" },
+    { id: "drilldown-metrics", label: "Metrics" },
+    { id: "drilldown-county-heat", label: "County Heat", badge: filteredCounties.length },
+    { id: "drilldown-intel-panel", label: "Intel Panel" },
+    { id: "drilldown-feed", label: "Tactical Feed", badge: tacticalFeed.length },
+    { id: "drilldown-graph", label: "Graph" },
+    { id: "drilldown-dma", label: "DMA", badge: dmas.length },
+    { id: "drilldown-actions", label: "Actions" },
+  ];
+
+  function openCommandCenter() {
+    const params = new URLSearchParams();
+    params.set("source", "state-operations-drilldown");
+    params.set("state", stateCode);
+    if (selectedCounty?.name) params.set("county", selectedCounty.name);
+    if (selectedCounty?.risk) params.set("risk", selectedCounty.risk);
+    navigate(`/command-center?${params.toString()}`);
+  }
+
   return (
     <PageShell
       eyebrow="Operational Drilldown"
@@ -368,6 +521,129 @@ export default function StateOperationsDrilldown() {
       ]}
     >
       <style>{`
+        .drilldown-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .drilldown-exec-copy { min-width: 0; }
+
+        .drilldown-exec-copy span,
+        .drilldown-exec-grid span,
+        .drilldown-exec-footer span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .drilldown-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .drilldown-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .drilldown-exec-badges,
+        .drilldown-exec-actions,
+        .drilldown-exec-footer,
+        .drilldown-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .drilldown-exec-badges { margin-top: 14px; }
+
+        .drilldown-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .drilldown-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .drilldown-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .drilldown-exec-actions,
+        .drilldown-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .drilldown-exec-actions button,
+        .drilldown-action-center button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .drilldown-exec-actions button:hover,
+        .drilldown-action-center button:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+        .drilldown-exec-actions button:disabled,
+        .drilldown-action-center button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .drilldown-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+
         .ops-toolbar {
           display: flex;
           justify-content: space-between;
@@ -690,7 +966,8 @@ export default function StateOperationsDrilldown() {
         }
 
         @media (max-width: 1100px) {
-          .ops-layout {
+          .ops-layout,
+          .drilldown-exec-ribbon {
             grid-template-columns: 1fr;
           }
         }
@@ -698,7 +975,8 @@ export default function StateOperationsDrilldown() {
         @media (max-width: 760px) {
           .ops-county-grid,
           .ops-intel-grid,
-          .ops-signal-grid {
+          .ops-signal-grid,
+          .drilldown-exec-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
@@ -712,8 +990,37 @@ export default function StateOperationsDrilldown() {
         }
       `}</style>
 
+      <div className="drilldown-exec-stack">
+        <DrilldownExecutiveHeader
+          stateCode={stateCode}
+          summary={summary}
+          stateHeat={stateHeat}
+          counties={counties}
+          filteredCounties={filteredCounties}
+          selectedCounty={selectedCounty}
+          tacticalFeed={tacticalFeed}
+          dmas={dmas}
+          refreshing={refreshing}
+          loading={loading}
+          lastUpdated={lastUpdated}
+          onRefresh={() => load({ quiet: true })}
+          onCommandCenter={openCommandCenter}
+          onCreateTask={handleCreateCommandTask}
+          creatingTask={creatingTask}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
+      <CollapsibleSection
+        id="drilldown-metrics"
+        title="State Drilldown Metrics"
+        subtitle="Operational heat, critical localities, vendor gaps, and MailOps volume."
+        defaultOpen
+        right={<Badge tone={Number(stateHeat || 0) >= 65 ? "danger" : "active"}>{fmtDecimal(stateHeat)}% Heat</Badge>}
+      >
       <div className="vs-grid-4">
         <StatCard
           label="State Heat"
@@ -743,12 +1050,15 @@ export default function StateOperationsDrilldown() {
           tone="up"
         />
       </div>
+      </CollapsibleSection>
 
       <div className="ops-layout">
         <div className="ops-column">
-          <SectionCard
+          <CollapsibleSection
+            id="drilldown-county-heat"
             title={`${stateCode} County / Parish Heat`}
             subtitle="Live tactical scoring generated from operational pressure, vendor readiness, turnout intensity, and MailOps activity."
+            defaultOpen
             right={<Badge tone="accent">{filteredCounties.length} localities</Badge>}
           >
             <div className="ops-toolbar">
@@ -786,68 +1096,87 @@ export default function StateOperationsDrilldown() {
             ) : !filteredCounties.length ? (
               <EmptyState text="No counties/parishes match current filters." />
             ) : (
-              <div className="ops-county-list">
-                {filteredCounties.map((item) => (
+              <ShowMoreList
+                items={filteredCounties}
+                initialCount={12}
+                showAllLabel={(count) => `Show All ${count} Localities`}
+                className="ops-county-list"
+                renderItem={(item) => (
                   <CountyRow
-                    key={item.full_fips || item.id || item.name}
                     item={item}
                     selected={selectedCounty}
                     onSelect={setSelectedCounty}
                   />
-                ))}
-              </div>
+                )}
+              />
             )}
-          </SectionCard>
+          </CollapsibleSection>
 
-          <SectionCard
+          <CollapsibleSection
+            id="drilldown-feed"
             title="Tactical Intelligence Feed"
             subtitle="Escalation feed generated from live county heat scoring."
+            defaultOpen={false}
             right={<Badge tone="danger">{tacticalFeed.length} alerts</Badge>}
           >
             {!tacticalFeed.length ? (
               <EmptyState text="No tactical alerts detected." />
             ) : (
-              <div className="ops-alert-list">
-                {tacticalFeed.map((item) => (
-                  <TacticalAlert
-                    key={item.id || `${item.state}-${item.title}`}
-                    item={item}
-                  />
-                ))}
-              </div>
+              <ShowMoreList
+                items={tacticalFeed}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Tactical Alerts`}
+                className="ops-alert-list"
+                renderItem={(item) => <TacticalAlert item={item} />}
+              />
             )}
-          </SectionCard>
+          </CollapsibleSection>
 
-          <PoliticalGraphContextPanel
-            entityType="state"
-            entityName={stateCode}
-            state={stateCode}
+          <CollapsibleSection
+            id="drilldown-graph"
             title="State Operations Relationship Graph"
             subtitle="Political graph context for this state operation."
-            compact
-          />
+            defaultOpen={false}
+            right={<Badge tone="accent">{stateCode}</Badge>}
+          >
+            <PoliticalGraphContextPanel
+              entityType="state"
+              entityName={stateCode}
+              state={stateCode}
+              title="State Operations Relationship Graph"
+              subtitle="Political graph context for this state operation."
+              compact
+            />
+          </CollapsibleSection>
 
-          <SectionCard
+          <CollapsibleSection
+            id="drilldown-dma"
             title="DMA / Regional Operations"
             subtitle="Regional media market and operational readiness overlays."
+            defaultOpen={false}
             right={<Badge tone="accent">{dmas.length} DMAs</Badge>}
           >
             {!dmas.length ? (
               <EmptyState text="No DMA overlays detected." />
             ) : (
-              <div className="ops-dma-list">
-                {dmas.map((item) => (
-                  <DMARow key={item.name} item={item} />
-                ))}
-              </div>
+              <ShowMoreList
+                items={dmas}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} DMA Regions`}
+                className="ops-dma-list"
+                renderItem={(item) => <DMARow item={item} />}
+              />
             )}
-          </SectionCard>
+          </CollapsibleSection>
         </div>
 
         <div className="ops-column">
-          <SectionCard
+          <CollapsibleSection
+            id="drilldown-intel-panel"
             title="Executive Intelligence Panel"
             subtitle="Top heat drivers, live signal counts, scoring breakdown, and Command Center tasking."
+            defaultOpen
+            right={selectedCounty ? <Badge tone={riskTone(selectedCounty.risk)}>{selectedCounty.risk || "Stable"}</Badge> : null}
           >
             {!selectedCounty ? (
               <EmptyState text="Select a county/parish to inspect operational readiness." />
@@ -911,11 +1240,13 @@ export default function StateOperationsDrilldown() {
                   {!selectedDrivers.length ? (
                     <EmptyState text="No driver breakdown available." />
                   ) : (
-                    <div className="ops-driver-list">
-                      {selectedDrivers.map((driver) => (
-                        <DriverBar key={driver.label} item={driver} />
-                      ))}
-                    </div>
+                    <ShowMoreList
+                      items={selectedDrivers}
+                      initialCount={5}
+                      showAllLabel={(count) => `Show All ${count} Drivers`}
+                      className="ops-driver-list"
+                      renderItem={(driver) => <DriverBar item={driver} />}
+                    />
                   )}
                 </div>
 
@@ -958,9 +1289,27 @@ export default function StateOperationsDrilldown() {
                 </div>
               </div>
             )}
-          </SectionCard>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="drilldown-actions"
+            title="Executive Action Center"
+            subtitle="Send the selected county/parish context into execution pages."
+            defaultOpen={false}
+            right={<Badge tone="active">Execution Handoff</Badge>}
+          >
+            <DrilldownActionCenter
+              stateCode={stateCode}
+              selectedCounty={selectedCounty}
+              onCommandCenter={openCommandCenter}
+              onCreateTask={handleCreateCommandTask}
+              creatingTask={creatingTask}
+            />
+          </CollapsibleSection>
         </div>
       </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
