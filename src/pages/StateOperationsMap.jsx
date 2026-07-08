@@ -14,6 +14,10 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 const US_TOPO_JSON = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
@@ -392,6 +396,113 @@ function FeedRow({ item, onOpen }) {
   );
 }
 
+function StateOperationsExecutiveHeader({
+  summary,
+  selected,
+  layer,
+  liveStates,
+  modeledStates,
+  rows,
+  refreshing,
+  loading,
+  lastUpdated,
+  onRefresh,
+  onCommandCenter,
+  onDrilldown,
+}) {
+  const readinessScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        92 -
+          Number(summary.critical || 0) * 7 -
+          Number(summary.escalated || 0) * 3 -
+          Number(summary.vendorGaps || 0) * 0.4 -
+          Number(summary.escalations || 0) * 1.5
+      )
+    )
+  );
+
+  return (
+    <div className="stateops-exec-ribbon" id="stateops-overview">
+      <div className="stateops-exec-copy">
+        <span>State Operations Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive operations layer for state execution status, open tasks, vendor gaps,
+          MailOps pressure, escalation coverage, resolved work, and county drilldown handoff.
+        </p>
+
+        <div className="stateops-exec-badges">
+          <Badge tone={summary.critical ? "danger" : "active"}>{summary.critical || 0} Critical</Badge>
+          <Badge tone={summary.escalated ? "demo" : "active"}>{summary.escalated || 0} Escalated</Badge>
+          <Badge tone={summary.monitoring ? "accent" : "active"}>{summary.monitoring || 0} Monitoring</Badge>
+          <Badge tone="active">{summary.healthy || 0} Healthy</Badge>
+          <Badge tone="info">{liveStates} Live / {modeledStates} Modeled</Badge>
+          {selected ? <Badge tone={statusTone(selected.status)}>{selected.state_code} Selected</Badge> : null}
+        </div>
+      </div>
+
+      <div className="stateops-exec-grid">
+        <div>
+          <span>Open Tasks</span>
+          <strong>{fmtNumber(summary.openTasks)}</strong>
+        </div>
+        <div>
+          <span>Vendor Gaps</span>
+          <strong>{fmtNumber(summary.vendorGaps)}</strong>
+        </div>
+        <div>
+          <span>MailOps Jobs</span>
+          <strong>{fmtNumber(summary.mailJobs)}</strong>
+        </div>
+        <div>
+          <span>Active Queue</span>
+          <strong>{fmtNumber(rows.length)}</strong>
+        </div>
+      </div>
+
+      <div className="stateops-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading || refreshing}>
+          {refreshing ? "Refreshing Operations..." : "Refresh Operations"}
+        </button>
+        <button type="button" onClick={onCommandCenter}>
+          Open Command Center
+        </button>
+        <button type="button" onClick={onDrilldown} disabled={!selected}>
+          County Drilldown
+        </button>
+        <Link to="/vendors">Vendor Network</Link>
+        <Link to="/mailops">MailOps Dashboard</Link>
+      </div>
+
+      <div className="stateops-exec-footer">
+        <span>Active Layer: {EXECUTION_LAYERS.find(([id]) => id === layer)?.[1] || "Status"}</span>
+        <span>Last Updated: {lastUpdated || "Live"}</span>
+      </div>
+    </div>
+  );
+}
+
+function StateOperationsActionCenter({ selected, openCommandCenter, openStateDrilldown }) {
+  return (
+    <div className="stateops-action-center">
+      <Link to="/operations-map">Executive Strategic Map</Link>
+      <button type="button" onClick={() => openCommandCenter(selected?.state_code, "state-operations-action-center")}>
+        Open Command Center
+      </button>
+      <button type="button" onClick={() => openStateDrilldown(selected?.state_code)} disabled={!selected?.state_code}>
+        County / Parish Drilldown
+      </button>
+      <Link to={selected?.state_code ? `/vendors?state=${selected.state_code}&source=state-operations-map` : "/vendors"}>
+        Vendor Coverage
+      </Link>
+      <Link to="/mailops">MailOps Dashboard</Link>
+    </div>
+  );
+}
+
 export default function StateOperationsMap() {
   const navigate = useNavigate();
 
@@ -487,6 +598,16 @@ export default function StateOperationsMap() {
     navigate(`/state-operations/${String(stateCode).toUpperCase()}`);
   }
 
+  const navSections = [
+    { id: "stateops-overview", label: "Overview" },
+    { id: "stateops-metrics", label: "Metrics" },
+    { id: "stateops-map", label: "Map" },
+    { id: "stateops-selected", label: "Selected State" },
+    { id: "stateops-queue", label: "Execution Queue", badge: rows.length },
+    { id: "stateops-feed", label: "Operational Feed", badge: feed.length },
+    { id: "stateops-actions", label: "Actions" },
+  ];
+
   return (
     <PageShell
       eyebrow="Operational Execution"
@@ -502,6 +623,144 @@ export default function StateOperationsMap() {
       ]}
     >
       <style>{`
+        .stateops-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(251, 146, 60, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .stateops-exec-copy {
+          min-width: 0;
+        }
+
+        .stateops-exec-copy span,
+        .stateops-exec-grid span,
+        .stateops-exec-footer span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .stateops-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .stateops-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .stateops-exec-badges,
+        .stateops-exec-actions,
+        .stateops-exec-footer,
+        .stateops-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .stateops-exec-badges {
+          margin-top: 14px;
+        }
+
+        .stateops-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .stateops-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .stateops-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .stateops-exec-actions,
+        .stateops-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .stateops-exec-actions button,
+        .stateops-exec-actions a,
+        .stateops-action-center button,
+        .stateops-action-center a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .stateops-exec-actions button:hover,
+        .stateops-exec-actions a:hover,
+        .stateops-action-center button:hover,
+        .stateops-action-center a:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+        .stateops-exec-actions button:disabled,
+        .stateops-action-center button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .stateops-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .stateops-main-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.8fr);
+          gap: 18px;
+          align-items: start;
+        }
+
+
         .ops-exec-layout {
           display: grid;
           grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.8fr);
@@ -816,7 +1075,9 @@ export default function StateOperationsMap() {
         }
 
         @media (max-width: 1150px) {
-          .ops-exec-layout {
+          .ops-exec-layout,
+          .stateops-exec-ribbon,
+          .stateops-main-layout {
             grid-template-columns: 1fr;
           }
         }
@@ -826,7 +1087,8 @@ export default function StateOperationsMap() {
             padding: 14px;
           }
 
-          .ops-selected-grid {
+          .ops-selected-grid,
+          .stateops-exec-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -834,15 +1096,42 @@ export default function StateOperationsMap() {
 
       {error ? <div className="vs-banner vs-banner-demo">{error}</div> : null}
 
+      <div className="stateops-exec-stack">
+        <StateOperationsExecutiveHeader
+          summary={summary}
+          selected={selected}
+          layer={layer}
+          liveStates={summary.live}
+          modeledStates={summary.modeled}
+          rows={rows}
+          refreshing={refreshing}
+          loading={loading}
+          lastUpdated={lastUpdated}
+          onRefresh={() => load({ quiet: true })}
+          onCommandCenter={() => openCommandCenter(selected?.state_code, "state-operations-header")}
+          onDrilldown={() => openStateDrilldown(selected?.state_code)}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
+      <CollapsibleSection
+        id="stateops-metrics"
+        title="State Operations Metrics"
+        subtitle="Open tasks, critical states, vendor gaps, resolved items, MailOps pressure, and escalation count."
+        defaultOpen
+        right={<Badge tone={summary.critical ? "danger" : "active"}>{summary.critical || 0} Critical</Badge>}
+      >
       <div className="vs-grid-4">
         <StatCard label="Open Tasks" value={fmtNumber(summary.openTasks)} delta="Execution items requiring ownership" tone={summary.openTasks ? "down" : "up"} />
         <StatCard label="Critical States" value={fmtNumber(summary.critical)} delta="Immediate operational review" tone={summary.critical ? "down" : "up"} />
         <StatCard label="Vendor Gaps" value={fmtNumber(summary.vendorGaps)} delta="Coverage blockers" tone={summary.vendorGaps ? "down" : "up"} />
         <StatCard label="Resolved Items" value={fmtNumber(summary.resolved)} delta="Closed execution pressure" tone="up" />
       </div>
+      </CollapsibleSection>
 
-      <div className="ops-exec-layout">
-        <div className="ops-exec-map-stage" data-tour="state-operations-execution-map">
+      <div className="stateops-main-layout">
+        <div id="stateops-map" className="ops-exec-map-stage" data-tour="state-operations-execution-map">
           <div className="ops-exec-map-header">
             <div>
               <strong>U.S. Operations Execution Command</strong>
@@ -931,7 +1220,7 @@ export default function StateOperationsMap() {
         </div>
 
         <div className="ops-exec-side">
-          <div className="ops-selected-panel" data-tour="state-operations-selected-execution">
+          <div id="stateops-selected" className="ops-selected-panel" data-tour="state-operations-selected-execution">
             {!selected ? (
               <EmptyState text="Select a state to inspect execution status." />
             ) : (
@@ -976,52 +1265,67 @@ export default function StateOperationsMap() {
             )}
           </div>
 
-          <SectionCard
+          <CollapsibleSection
+            id="stateops-queue"
             title="Execution Queue"
             subtitle="States sorted by current operational action requirement."
+            defaultOpen
             right={<Badge tone="danger">{rows.length} active</Badge>}
           >
-            <div className="ops-exec-list">
-              {!rows.length ? (
-                <EmptyState text="No execution work is currently flagged." />
-              ) : (
-                rows.slice(0, 10).map((item) => (
-                  <ExecutionRow key={item.state_code} item={item} onSelect={setSelectedState} />
-                ))
-              )}
-            </div>
-          </SectionCard>
+            {!rows.length ? (
+              <EmptyState text="No execution work is currently flagged." />
+            ) : (
+              <ShowMoreList
+                items={rows}
+                initialCount={10}
+                showAllLabel={(count) => `Show All ${count} Execution States`}
+                className="ops-exec-list"
+                renderItem={(item) => (
+                  <ExecutionRow item={item} onSelect={setSelectedState} />
+                )}
+              />
+            )}
+          </CollapsibleSection>
         </div>
       </div>
 
       <div className="vs-grid-2" style={{ marginTop: 18 }}>
-        <SectionCard
+        <CollapsibleSection
+          id="stateops-feed"
           title="Operational Feed"
           subtitle="Execution movement coming from tasks, vendor gaps, MailOps and escalation status."
+          defaultOpen={false}
           right={<Badge tone="accent">{feed.length} signals</Badge>}
         >
-          <div className="ops-exec-feed">
-            {!feed.length ? (
-              <EmptyState text="No execution feed items." />
-            ) : (
-              feed.map((item) => <FeedRow key={item.id} item={item} onOpen={openCommandCenter} />)
-            )}
-          </div>
-        </SectionCard>
+          {!feed.length ? (
+            <EmptyState text="No execution feed items." />
+          ) : (
+            <ShowMoreList
+              items={feed}
+              initialCount={8}
+              showAllLabel={(count) => `Show All ${count} Feed Items`}
+              className="ops-exec-feed"
+              renderItem={(item) => <FeedRow item={item} onOpen={openCommandCenter} />}
+            />
+          )}
+        </CollapsibleSection>
 
-        <SectionCard
+        <CollapsibleSection
+          id="stateops-actions"
           title="Map Actions"
           subtitle="Move from the execution layer into the pages that complete the work."
+          defaultOpen={false}
+          right={<Badge tone="active">Execution Handoff</Badge>}
         >
-          <div className="ops-selected-buttons">
-            <Link to="/operations-map">Executive Strategic Map</Link>
-            <Link to="/command-center">Command Center</Link>
-            <Link to="/state-operations">State Operations Index</Link>
-            <Link to="/mailops">MailOps Dashboard</Link>
-            <Link to="/vendors">Vendor Network</Link>
-          </div>
-        </SectionCard>
+          <StateOperationsActionCenter
+            selected={selected}
+            openCommandCenter={openCommandCenter}
+            openStateDrilldown={openStateDrilldown}
+          />
+        </CollapsibleSection>
       </div>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
