@@ -410,16 +410,40 @@ function StateOperationsExecutiveHeader({
   onCommandCenter,
   onDrilldown,
 }) {
+  const totalStates =
+    Number(summary.critical || 0) +
+    Number(summary.escalated || 0) +
+    Number(summary.monitoring || 0) +
+    Number(summary.healthy || 0);
+
+  const healthScore =
+    totalStates > 0
+      ? (
+          (Number(summary.healthy || 0) * 100 +
+            Number(summary.monitoring || 0) * 72 +
+            Number(summary.escalated || 0) * 46 +
+            Number(summary.critical || 0) * 18) /
+          totalStates
+        )
+      : 82;
+
+  const taskPressure = Math.min(18, Number(summary.openTasks || 0) / Math.max(1, totalStates) * 3.5);
+  const vendorPressure = Math.min(12, Number(summary.vendorGaps || 0) / Math.max(1, totalStates) * 3);
+  const escalationPressure = Math.min(16, Number(summary.escalations || 0) / Math.max(1, totalStates) * 5);
+  const resolvedCredit = Math.min(10, Number(summary.resolved || 0) / Math.max(1, totalStates) * 2.5);
+  const liveCredit = Math.min(8, liveStates / Math.max(1, totalStates) * 8);
+
   const readinessScore = Math.max(
-    0,
+    5,
     Math.min(
       100,
       Math.round(
-        92 -
-          Number(summary.critical || 0) * 7 -
-          Number(summary.escalated || 0) * 3 -
-          Number(summary.vendorGaps || 0) * 0.4 -
-          Number(summary.escalations || 0) * 1.5
+        healthScore -
+          taskPressure -
+          vendorPressure -
+          escalationPressure +
+          resolvedCredit +
+          liveCredit
       )
     )
   );
