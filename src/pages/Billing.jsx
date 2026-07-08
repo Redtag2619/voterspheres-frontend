@@ -8,7 +8,6 @@ import StatCard from "../components/ui/StatCard";
 import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
-import ShowMoreList from "../components/ui/ShowMoreList";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -572,10 +571,95 @@ export default function Billing() {
           margin: 10px 0 14px;
         }
 
+
+        .billing-plan-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(260px, 1fr));
+          gap: 18px;
+          align-items: stretch;
+        }
+
+        .billing-plan-card {
+          min-width: 0;
+          padding: 20px;
+          display: grid;
+          gap: 16px;
+          align-content: start;
+          border-radius: 24px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.62));
+        }
+
+        .billing-plan-card.is-current {
+          border-color: rgba(34, 197, 94, 0.46);
+          box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12), 0 20px 60px rgba(2, 6, 23, 0.22);
+        }
+
+        .billing-plan-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .billing-plan-name {
+          color: white;
+          font-size: 22px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .billing-plan-price {
+          margin-top: 5px;
+          color: rgba(226, 232, 240, 0.72);
+          font-size: 14px;
+          font-weight: 800;
+        }
+
+        .billing-plan-description {
+          color: rgba(203, 213, 225, 0.82);
+          font-size: 13px;
+          line-height: 1.65;
+          min-height: 44px;
+        }
+
+        .billing-plan-features {
+          display: grid;
+          gap: 10px;
+        }
+
+        .billing-plan-feature {
+          display: grid;
+          grid-template-columns: 12px 1fr;
+          gap: 10px;
+          align-items: start;
+          color: rgba(226, 232, 240, 0.76);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .billing-plan-feature span:first-child {
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          background: rgba(34, 197, 94, 0.9);
+          margin-top: 6px;
+          box-shadow: 0 0 14px rgba(34, 197, 94, 0.35);
+        }
+
+        .billing-plan-card .vs-button {
+          width: 100%;
+          justify-content: center;
+          margin-top: auto;
+        }
+
         @media (max-width: 1100px) {
           .billing-exec-ribbon,
           .billing-exec-grid,
-          .billing-ai-brief-grid {
+          .billing-ai-brief-grid,
+          .billing-plan-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -741,15 +825,12 @@ export default function Billing() {
       <CollapsibleSection
         id="billing-plans"
         title="Change Plan"
-        subtitle="Upgrade or manage firm access. Checkout returns to VoterSpheres and refreshes access automatically."
+        subtitle="Compare all firm access tiers side-by-side. Checkout returns to VoterSpheres and refreshes access automatically."
+        defaultOpen
+        right={<Badge tone="accent">{PLANS.length} Plans</Badge>}
       >
-        <div className="vs-grid-3">
-          <ShowMoreList
-            items={PLANS}
-            initialCount={3}
-            showAllLabel={(count) => `Show All ${count} Plans`}
-            className="vs-grid-3"
-            renderItem={(plan) => {
+        <div className="billing-plan-grid">
+          {PLANS.map((plan) => {
             const isCurrent = plan.key === currentPlan;
             const isUpgrade =
               PLANS.findIndex((item) => item.key === plan.key) >
@@ -758,47 +839,29 @@ export default function Billing() {
             return (
               <div
                 key={plan.key}
-                className="vs-card"
-                style={{
-                  padding: 18,
-                  display: "grid",
-                  gap: 12,
-                  borderColor: isCurrent
-                    ? "rgba(34,197,94,0.45)"
-                    : "var(--vs-border)",
-                }}
+                className={`billing-plan-card ${isCurrent ? "is-current" : ""}`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div className="billing-plan-head">
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>{plan.name}</div>
-                    <div style={{ marginTop: 4, color: "var(--vs-text-muted)" }}>
-                      {plan.price}
-                    </div>
+                    <div className="billing-plan-name">{plan.name}</div>
+                    <div className="billing-plan-price">{plan.price}</div>
                   </div>
 
-                  {isCurrent ? <Badge tone="active">Current</Badge> : null}
-                  {!isCurrent && isUpgrade ? <Badge tone="accent">Upgrade</Badge> : null}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {isCurrent ? <Badge tone="active">Current</Badge> : null}
+                    {!isCurrent && isUpgrade ? <Badge tone="accent">Upgrade</Badge> : null}
+                    {!isCurrent && !isUpgrade ? <Badge tone="demo">Switch</Badge> : null}
+                  </div>
                 </div>
 
-                <div style={{ color: "var(--vs-text-muted)", fontSize: 13, lineHeight: 1.6 }}>
+                <div className="billing-plan-description">
                   {plan.description}
                 </div>
 
-                <div className="vs-stack">
+                <div className="billing-plan-features">
                   {plan.features.map((feature) => (
-                    <div
-                      key={feature}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "10px 1fr",
-                        gap: 10,
-                        alignItems: "start",
-                        color: "var(--vs-text-muted)",
-                        fontSize: 12,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      <span className="vs-live-dot-success" style={{ marginTop: 6 }} />
+                    <div key={feature} className="billing-plan-feature">
+                      <span />
                       <span>{feature}</span>
                     </div>
                   ))}
@@ -828,8 +891,7 @@ export default function Billing() {
                 )}
               </div>
             );
-          }}
-          />
+          })}
         </div>
       </CollapsibleSection>
 
