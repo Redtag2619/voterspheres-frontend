@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
+import StatCard from "../components/ui/StatCard";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 import { api } from "../services/api";
 
 const PIPELINE_STAGES = [
@@ -15,6 +21,14 @@ const PIPELINE_STAGES = [
   "won",
   "lost",
   "archived",
+];
+
+const SUMMARY_FILTERS = [
+  { key: "new", label: "New" },
+  { key: "approved", label: "Approved" },
+  { key: "invited", label: "Invited" },
+  { key: "converted", label: "Converted" },
+  { key: "provisioned", label: "Provisioned" },
 ];
 
 function formatDateTime(value) {
@@ -33,6 +47,18 @@ function formatDateTime(value) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function fmt(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function money(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
+}
+
+function label(value = "") {
+  return String(value || "").replaceAll("_", " ");
 }
 
 function statusTone(status) {
@@ -79,6 +105,17 @@ function getLeadFirm(lead = {}) {
 
 function getWorkspaceId(lead = {}) {
   return lead.provisioned_workspace_id || lead.workspace_id || "";
+}
+
+function estimateLeadRevenue(lead = {}) {
+  const range = String(lead.budget_range || "");
+
+  if (range.includes("$50k")) return 50000;
+  if (range.includes("$15k")) return 15000;
+  if (range.includes("$5k")) return 5000;
+  if (range.includes("$1k")) return 1000;
+
+  return 0;
 }
 
 async function fetchLeads(params = {}) {
@@ -160,11 +197,325 @@ async function provisionLeadWorkspace(id) {
   return {};
 }
 
+function EnterpriseLeadsExecutiveHeader({
+  summary,
+  filteredCount,
+  summaryFilter,
+  loading,
+  lastUpdated,
+  onRefresh,
+}) {
+  const readinessScore = Math.max(
+    5,
+    Math.min(
+      100,
+      Math.round(
+        62 +
+          Math.min(12, summary.approvedCount * 2) +
+          Math.min(12, summary.invitedCount * 2) +
+          Math.min(12, summary.provisionedCount * 4) +
+          Math.min(8, summary.convertedCount * 5) -
+          Math.min(16, summary.newCount * 0.8) -
+          (loading ? 5 : 0)
+      )
+    )
+  );
+
+  return (
+    <div className="leads-exec-ribbon" id="leads-overview">
+      <div className="leads-exec-copy">
+        <span>Enterprise Pipeline Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive pipeline center for enterprise onboarding requests, beta approval,
+          invite handoff, workspace provisioning, consultant CRM follow-through, and projected
+          pipeline value.
+        </p>
+
+        <div className="leads-exec-badges">
+          <Badge tone="info">{summary.total} Total Leads</Badge>
+          <Badge tone={summary.newCount ? "demo" : "active"}>{summary.newCount} New</Badge>
+          <Badge tone="accent">{summary.approvedCount} Approved</Badge>
+          <Badge tone="warning">{summary.invitedCount} Invited</Badge>
+          <Badge tone="active">{summary.provisionedCount} Provisioned</Badge>
+          <Badge tone="active">{money(summary.estimatedRevenue)}</Badge>
+        </div>
+      </div>
+
+      <div className="leads-exec-grid">
+        <div>
+          <span>Visible Queue</span>
+          <strong>{fmt(filteredCount)}</strong>
+        </div>
+        <div>
+          <span>Active Filter</span>
+          <strong>{summaryFilter === "all" ? "All Leads" : label(summaryFilter)}</strong>
+        </div>
+        <div>
+          <span>Pipeline Status</span>
+          <strong>{loading ? "Refreshing" : "Ready"}</strong>
+        </div>
+        <div>
+          <span>Updated</span>
+          <strong>{lastUpdated || "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="leads-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading}>
+          {loading ? "Refreshing..." : "Refresh Leads"}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("leads-filters")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+        >
+          Filter Pipeline
+        </button>
+        <Link to="/client-portal-admin">Client Portal</Link>
+        <Link to="/firm-users">Firm Users</Link>
+        <Link to="/campaign-crm">Campaign CRM</Link>
+        <Link to="/mission-control">Mission Control</Link>
+        <Link to="/billing">Billing</Link>
+      </div>
+
+      <div className="leads-exec-footer">
+        <span>Lifecycle: approve, invite, provision, convert</span>
+        <span>Workspace handoff: /campaign-workspace/:id</span>
+      </div>
+    </div>
+  );
+}
+
+function PipelineBrief({ summary, leads }) {
+  const urgentLeads = leads.filter((lead) =>
+    ["urgent", "high"].includes(String(lead.priority || "").toLowerCase())
+  );
+  const unprovisionedApproved = leads.filter(
+    (lead) => Boolean(lead.is_beta_approved) && !Boolean(getWorkspaceId(lead))
+  );
+  const topLead = [...leads]
+    .sort((a, b) => estimateLeadRevenue(b) - estimateLeadRevenue(a))[0];
+
+  return (
+    <div className="leads-ai-brief">
+      <strong>Executive Pipeline Brief</strong>
+      <p>
+        The enterprise pipeline contains {fmt(summary.total)} leads with {fmt(summary.newCount)}
+        new, {fmt(summary.approvedCount)} approved, {fmt(summary.invitedCount)} invited,
+        and {fmt(summary.provisionedCount)} provisioned. Estimated pipeline value is{" "}
+        {money(summary.estimatedRevenue)}.
+        {urgentLeads.length
+          ? ` ${fmt(urgentLeads.length)} high-priority lead${urgentLeads.length === 1 ? "" : "s"} should be reviewed first.`
+          : " No urgent lead backlog is currently visible."}
+        {unprovisionedApproved.length
+          ? ` ${fmt(unprovisionedApproved.length)} approved lead${unprovisionedApproved.length === 1 ? "" : "s"} still need workspace provisioning.`
+          : " Approved leads appear provision-ready."}
+        {topLead ? ` Highest-value visible opportunity: ${getLeadFirm(topLead)}.` : ""}
+      </p>
+
+      <div className="leads-ai-brief-grid">
+        <div><span>Pipeline Value</span><b>{money(summary.estimatedRevenue)}</b></div>
+        <div><span>High Priority</span><b>{fmt(urgentLeads.length)}</b></div>
+        <div><span>Approved Pending Workspace</span><b>{fmt(unprovisionedApproved.length)}</b></div>
+        <div><span>Converted</span><b>{fmt(summary.convertedCount)}</b></div>
+      </div>
+    </div>
+  );
+}
+
+function PipelineStageGrid({ leads }) {
+  return (
+    <div className="leads-stage-grid">
+      {PIPELINE_STAGES.map((stage) => {
+        const count = leads.filter(
+          (lead) => String(lead.status || lead.stage || "").toLowerCase() === stage
+        ).length;
+
+        return (
+          <div key={stage} className="leads-stage-card">
+            <span>{label(stage)}</span>
+            <strong>{fmt(count)}</strong>
+            <Badge tone={statusTone(stage)}>{label(stage)}</Badge>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LeadCard({
+  lead,
+  provisioningLeadId,
+  updatingLeadId,
+  onUpdateLead,
+  onApproveLead,
+  onInviteLead,
+  onApproveAndInviteLead,
+  onProvisionWorkspace,
+}) {
+  const workspaceId = getWorkspaceId(lead);
+  const isProvisioning = provisioningLeadId === lead.id;
+  const isUpdating = updatingLeadId === lead.id;
+  const status = lead.status || lead.stage || "new";
+
+  return (
+    <div className="lead-card">
+      <ResponsiveRow
+        title={getLeadName(lead)}
+        subtitle={`${getLeadFirm(lead)} â€¢ ${lead.email || "No email"}`}
+        meta={[
+          { label: "Status", value: label(status) },
+          { label: "Priority", value: lead.priority || "medium" },
+          { label: "States", value: Array.isArray(lead.states) && lead.states.length ? lead.states.join(", ") : "N/A" },
+          { label: "Budget", value: lead.budget_range || "N/A" },
+          { label: "Team", value: lead.team_size || "N/A" },
+          { label: "Submitted", value: formatDateTime(lead.created_at) },
+        ]}
+        right={
+          <div className="lead-badges">
+            <Badge tone={statusTone(status)}>{label(status)}</Badge>
+            {lead.priority ? <Badge tone={priorityTone(lead.priority)}>{lead.priority}</Badge> : null}
+            {workspaceId ? <Badge tone="active">Workspace Ready</Badge> : null}
+          </div>
+        }
+      />
+
+      <div className="lead-lifecycle">
+        <Badge tone={lifecycleTone(lead.is_beta_approved)}>
+          {lead.is_beta_approved ? "Approved" : "Not Approved"}
+        </Badge>
+        <Badge tone={lifecycleTone(lead.has_pending_invite)}>
+          {lead.has_pending_invite ? "Invited" : "No Invite"}
+        </Badge>
+        <Badge tone={lifecycleTone(lead.has_converted_user)}>
+          {lead.has_converted_user ? "Converted" : "Not Converted"}
+        </Badge>
+        <Badge tone={lifecycleTone(Boolean(workspaceId))}>
+          {workspaceId ? "Provisioned" : "Not Provisioned"}
+        </Badge>
+      </div>
+
+      <div className="lead-detail-grid">
+        <div className="lead-detail">
+          <span>Source</span>
+          <strong>{lead.source || "enterprise"}</strong>
+        </div>
+        <div className="lead-detail">
+          <span>Use Case</span>
+          <strong>{lead.use_case || lead.message || "No details provided."}</strong>
+        </div>
+      </div>
+
+      <div className="lead-actions">
+        <select
+          className="vs-select"
+          value={status}
+          onChange={(event) => onUpdateLead(lead.id, event.target.value)}
+          disabled={isUpdating || isProvisioning}
+        >
+          {PIPELINE_STAGES.map((stage) => (
+            <option key={stage} value={stage}>
+              {label(stage)}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          className="vs-button"
+          onClick={() => onUpdateLead(lead.id, "contacted")}
+          disabled={isUpdating || isProvisioning}
+        >
+          Mark Contacted
+        </button>
+
+        <button
+          type="button"
+          className="vs-button vs-button-secondary"
+          onClick={() => onApproveLead(lead.id)}
+          disabled={Boolean(lead.is_beta_approved) || isUpdating}
+        >
+          {lead.is_beta_approved ? "Approved" : "Approve"}
+        </button>
+
+        <button
+          type="button"
+          className="vs-button vs-button-secondary"
+          onClick={() => onInviteLead(lead.id)}
+          disabled={Boolean(lead.has_converted_user) || isUpdating}
+        >
+          {lead.has_converted_user ? "Converted" : "Send Invite"}
+        </button>
+
+        <button
+          type="button"
+          className="vs-button vs-button-secondary"
+          onClick={() => onApproveAndInviteLead(lead.id)}
+          disabled={Boolean(lead.has_converted_user) || isUpdating}
+        >
+          Approve + Invite
+        </button>
+
+        <button
+          type="button"
+          className="vs-button"
+          onClick={() => onProvisionWorkspace(lead)}
+          disabled={isProvisioning || Boolean(workspaceId)}
+        >
+          {workspaceId
+            ? "Workspace Provisioned"
+            : isProvisioning
+              ? "Provisioning..."
+              : "Provision Workspace"}
+        </button>
+
+        {workspaceId ? (
+          <a className="vs-button vs-button-secondary" href={`/campaign-workspace/${workspaceId}`}>
+            Open Workspace
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EnterpriseActionCenter({ loading, onRefresh }) {
+  return (
+    <div className="leads-action-center">
+      <button type="button" onClick={onRefresh} disabled={loading}>
+        Refresh Enterprise Leads
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          document
+            .getElementById("leads-filters")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+      >
+        Review Filters
+      </button>
+      <Link to="/client-portal-admin">Client Portal Admin</Link>
+      <Link to="/firm-users">Firm Users</Link>
+      <Link to="/billing">Billing</Link>
+      <Link to="/campaign-crm">Campaign CRM</Link>
+      <Link to="/mission-control">Mission Control</Link>
+      <Link to="/command-center">Command Center</Link>
+      <Link to="/ai-war-room">AI War Room</Link>
+    </div>
+  );
+}
+
 export default function EnterpriseLeadsAdmin() {
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
   const [provisioningLeadId, setProvisioningLeadId] = useState(null);
   const [updatingLeadId, setUpdatingLeadId] = useState(null);
 
@@ -206,29 +557,14 @@ export default function EnterpriseLeadsAdmin() {
 
     return {
       total: source.length,
-
       newCount: source.filter(
         (lead) => String(lead.status || lead.stage || "").toLowerCase() === "new"
       ).length,
-
       approvedCount: source.filter((lead) => Boolean(lead.is_beta_approved)).length,
-
       invitedCount: source.filter((lead) => Boolean(lead.has_pending_invite)).length,
-
       convertedCount: source.filter((lead) => Boolean(lead.has_converted_user)).length,
-
       provisionedCount: source.filter((lead) => Boolean(getWorkspaceId(lead))).length,
-
-      estimatedRevenue: source.reduce((sum, lead) => {
-        const range = String(lead.budget_range || "");
-
-        if (range.includes("$50k")) return sum + 50000;
-        if (range.includes("$15k")) return sum + 15000;
-        if (range.includes("$5k")) return sum + 5000;
-        if (range.includes("$1k")) return sum + 1000;
-
-        return sum;
-      }, 0),
+      estimatedRevenue: source.reduce((sum, lead) => sum + estimateLeadRevenue(lead), 0),
     };
   }, [leads]);
 
@@ -250,6 +586,9 @@ export default function EnterpriseLeadsAdmin() {
         [];
 
       setLeads(rows.map(normalizeLead));
+      setLastUpdated(
+        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      );
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -392,24 +731,287 @@ export default function EnterpriseLeadsAdmin() {
     setSummaryFilter((current) => (current === key ? "all" : key));
   }
 
-  function summaryCardStyle(active) {
-    return {
-      padding: "16px",
-      cursor: "pointer",
-      border: active ? "1px solid var(--vs-accent, #60a5fa)" : undefined,
-      boxShadow: active
-        ? "0 0 0 1px rgba(96, 165, 250, 0.2) inset"
-        : undefined,
-      textAlign: "left",
-    };
-  }
+  const navSections = [
+    { id: "leads-overview", label: "Overview" },
+    { id: "leads-metrics", label: "Metrics" },
+    { id: "leads-filters", label: "Filters" },
+    { id: "leads-queue", label: "Lead Queue", badge: filteredLeads.length },
+    { id: "leads-intelligence", label: "Intelligence" },
+    { id: "leads-actions", label: "Actions" },
+  ];
 
   return (
     <PageShell
       eyebrow="Enterprise CRM"
       title="Enterprise Leads"
       description="Review enterprise onboarding requests, manage your consultant pipeline, and provision client workspaces."
+      tickerItems={[
+        { label: "Leads", value: `${summary.total}`, dotClass: "vs-live-dot-success" },
+        { label: "Approved", value: `${summary.approvedCount}`, dotClass: "vs-live-dot-success" },
+        { label: "Provisioned", value: `${summary.provisionedCount}`, dotClass: "vs-live-dot-success" },
+        { label: "Value", value: money(summary.estimatedRevenue), dotClass: "vs-live-dot-success" },
+      ]}
     >
+      <style>{`
+        .leads-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.13), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .leads-exec-copy { min-width: 0; }
+
+        .leads-exec-copy span,
+        .leads-exec-grid span,
+        .leads-exec-footer span,
+        .leads-ai-brief-grid span,
+        .leads-stage-card span,
+        .lead-detail span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .leads-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .leads-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .leads-exec-badges,
+        .leads-exec-actions,
+        .leads-exec-footer,
+        .leads-action-center,
+        .lead-badges,
+        .lead-lifecycle,
+        .lead-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .leads-exec-badges { margin-top: 14px; }
+
+        .leads-exec-grid,
+        .leads-ai-brief-grid,
+        .lead-detail-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .leads-exec-grid div,
+        .leads-ai-brief-grid div,
+        .leads-stage-card,
+        .lead-detail {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .leads-exec-grid strong,
+        .leads-ai-brief-grid b,
+        .leads-stage-card strong,
+        .lead-detail strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .lead-detail strong {
+          font-size: 13px;
+          line-height: 1.55;
+          font-weight: 750;
+        }
+
+        .leads-exec-actions,
+        .leads-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .leads-exec-actions button,
+        .leads-exec-actions a,
+        .leads-action-center button,
+        .leads-action-center a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .leads-exec-actions button:hover,
+        .leads-exec-actions a:hover,
+        .leads-action-center button:hover,
+        .leads-action-center a:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+        .leads-exec-actions button:disabled,
+        .leads-action-center button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .leads-exec-stack,
+        .leads-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .leads-filter-grid {
+          display: grid;
+          grid-template-columns: minmax(160px, 0.35fr) minmax(220px, 1fr) auto;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .leads-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 12px;
+        }
+
+        .leads-summary-button {
+          text-align: left;
+          cursor: pointer;
+          border: 1px solid rgba(148, 163, 184, 0.15);
+          background: rgba(15, 23, 42, 0.62);
+        }
+
+        .leads-summary-button.is-active {
+          border-color: rgba(96, 165, 250, 0.7);
+          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.22) inset;
+        }
+
+        .lead-card {
+          border-radius: 24px;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: rgba(15, 23, 42, 0.58);
+          overflow: hidden;
+        }
+
+        .lead-card .vs-responsive-row {
+          border: 0;
+          background: transparent;
+        }
+
+        .lead-lifecycle,
+        .lead-detail-grid,
+        .lead-actions {
+          padding: 0 16px 14px;
+        }
+
+        .lead-actions {
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .lead-actions .vs-select {
+          min-width: 190px;
+        }
+
+        .leads-ai-brief {
+          border-radius: 24px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 36%),
+            rgba(15, 23, 42, 0.58);
+          padding: 18px;
+        }
+
+        .leads-ai-brief strong {
+          display: block;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .leads-ai-brief p {
+          color: rgba(226, 232, 240, 0.86);
+          font-size: 13px;
+          line-height: 1.65;
+          margin: 10px 0 14px;
+        }
+
+        .leads-stage-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+          gap: 12px;
+        }
+
+        .leads-stage-card {
+          display: grid;
+          gap: 8px;
+          align-content: start;
+        }
+
+        @media (max-width: 1100px) {
+          .leads-exec-ribbon,
+          .leads-exec-grid,
+          .leads-ai-brief-grid,
+          .lead-detail-grid,
+          .leads-filter-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div className="leads-exec-stack">
+        <EnterpriseLeadsExecutiveHeader
+          summary={summary}
+          filteredCount={filteredLeads.length}
+          summaryFilter={summaryFilter}
+          loading={loading}
+          lastUpdated={lastUpdated}
+          onRefresh={loadLeads}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
       {message ? (
@@ -425,74 +1027,58 @@ export default function EnterpriseLeadsAdmin() {
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-          gap: "12px",
-          marginBottom: "16px",
-        }}
+      <CollapsibleSection
+        id="leads-metrics"
+        title="Pipeline Metrics"
+        subtitle="Clickable executive summary filters for the enterprise pipeline."
+        defaultOpen
+        right={<Badge tone="active">{money(summary.estimatedRevenue)}</Badge>}
       >
-        <button
-          type="button"
-          className="vs-card"
-          style={summaryCardStyle(summaryFilter === "new")}
-          onClick={() => toggleSummaryFilter("new")}
-        >
-          <div className="vs-stat-label">New</div>
-          <div style={styles.statValue}>{summary.newCount}</div>
-        </button>
-
-        <button
-          type="button"
-          className="vs-card"
-          style={summaryCardStyle(summaryFilter === "approved")}
-          onClick={() => toggleSummaryFilter("approved")}
-        >
-          <div className="vs-stat-label">Approved</div>
-          <div style={styles.statValue}>{summary.approvedCount}</div>
-        </button>
-
-        <button
-          type="button"
-          className="vs-card"
-          style={summaryCardStyle(summaryFilter === "invited")}
-          onClick={() => toggleSummaryFilter("invited")}
-        >
-          <div className="vs-stat-label">Invited</div>
-          <div style={styles.statValue}>{summary.invitedCount}</div>
-        </button>
-
-        <button
-          type="button"
-          className="vs-card"
-          style={summaryCardStyle(summaryFilter === "converted")}
-          onClick={() => toggleSummaryFilter("converted")}
-        >
-          <div className="vs-stat-label">Converted</div>
-          <div style={styles.statValue}>{summary.convertedCount}</div>
-        </button>
-
-        <button
-          type="button"
-          className="vs-card"
-          style={summaryCardStyle(summaryFilter === "provisioned")}
-          onClick={() => toggleSummaryFilter("provisioned")}
-        >
-          <div className="vs-stat-label">Provisioned</div>
-          <div style={styles.statValue}>{summary.provisionedCount}</div>
-        </button>
-
-        <div className="vs-card" style={{ padding: "16px" }}>
-          <div className="vs-stat-label">Pipeline Value</div>
-          <div style={styles.statValue}>
-            ${summary.estimatedRevenue?.toLocaleString?.() || 0}
-          </div>
+        <div className="vs-grid-4">
+          <StatCard label="Total Leads" value={fmt(summary.total)} delta="Enterprise pipeline" tone="up" />
+          <StatCard label="Approved" value={fmt(summary.approvedCount)} delta="Beta/onboarding approved" tone="up" />
+          <StatCard label="Provisioned" value={fmt(summary.provisionedCount)} delta="Workspace ready" tone="up" />
+          <StatCard label="Pipeline Value" value={money(summary.estimatedRevenue)} delta="Estimated value" tone="up" />
         </div>
-      </div>
 
-      <SectionCard title="Filters" subtitle="Search and triage enterprise leads.">
-        <div className="vs-grid-3">
+        <div className="leads-summary-grid" style={{ marginTop: 14 }}>
+          {SUMMARY_FILTERS.map((item) => {
+            const value =
+              item.key === "new"
+                ? summary.newCount
+                : item.key === "approved"
+                  ? summary.approvedCount
+                  : item.key === "invited"
+                    ? summary.invitedCount
+                    : item.key === "converted"
+                      ? summary.convertedCount
+                      : summary.provisionedCount;
+
+            return (
+              <button
+                key={item.key}
+                type="button"
+                className={`vs-card leads-summary-button ${summaryFilter === item.key ? "is-active" : ""}`}
+                onClick={() => setSummaryFilter((current) => (current === item.key ? "all" : item.key))}
+              >
+                <div className="vs-stat-label">{item.label}</div>
+                <div style={{ marginTop: 8, fontSize: 28, fontWeight: 950, color: "var(--vs-text)" }}>
+                  {fmt(value)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="leads-filters"
+        title="Filters"
+        subtitle="Search and triage enterprise leads."
+        defaultOpen
+        right={<Badge tone="info">{summaryFilter === "all" ? "All" : label(summaryFilter)}</Badge>}
+      >
+        <div className="leads-filter-grid">
           <select
             className="vs-select"
             value={filters.status}
@@ -507,7 +1093,7 @@ export default function EnterpriseLeadsAdmin() {
 
             {PIPELINE_STAGES.map((stage) => (
               <option key={stage} value={stage}>
-                {stage.replaceAll("_", " ")}
+                {label(stage)}
               </option>
             ))}
           </select>
@@ -539,251 +1125,66 @@ export default function EnterpriseLeadsAdmin() {
             Clear Filters
           </button>
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
+        id="leads-queue"
         title="Lead Queue"
         subtitle="Enterprise onboarding opportunities."
+        defaultOpen
         right={<Badge tone="accent">{filteredLeads.length} leads</Badge>}
       >
-        <div className="vs-stack">
-          {loading ? (
-            <EmptyState text="Loading enterprise leads..." />
-          ) : !filteredLeads.length ? (
-            <EmptyState text="No enterprise leads found." />
-          ) : (
-            filteredLeads.map((lead) => {
-              const workspaceId = getWorkspaceId(lead);
-              const isProvisioning = provisioningLeadId === lead.id;
-              const isUpdating = updatingLeadId === lead.id;
+        {loading ? (
+          <EmptyState text="Loading enterprise leads..." />
+        ) : !filteredLeads.length ? (
+          <EmptyState text="No enterprise leads found." />
+        ) : (
+          <ShowMoreList
+            items={filteredLeads}
+            initialCount={8}
+            showAllLabel={(count) => `Show All ${count} Enterprise Leads`}
+            className="leads-stack"
+            renderItem={(lead) => (
+              <LeadCard
+                lead={lead}
+                provisioningLeadId={provisioningLeadId}
+                updatingLeadId={updatingLeadId}
+                onUpdateLead={handleUpdateLead}
+                onApproveLead={handleApproveLead}
+                onInviteLead={handleInviteLead}
+                onApproveAndInviteLead={handleApproveAndInviteLead}
+                onProvisionWorkspace={handleProvisionWorkspace}
+              />
+            )}
+          />
+        )}
+      </CollapsibleSection>
 
-              return (
-                <div
-                  key={lead.id}
-                  className="vs-card"
-                  style={{
-                    padding: "16px",
-                    display: "grid",
-                    gap: "12px",
-                  }}
-                >
-                  <div style={styles.headerRow}>
-                    <div>
-                      <div style={styles.leadName}>{getLeadName(lead)}</div>
-
-                      <div style={styles.leadMeta}>
-                        {getLeadFirm(lead)} • {lead.email || "No email"}
-                      </div>
-                    </div>
-
-                    <div className="vs-chip-row">
-                      <Badge tone={statusTone(lead.status || lead.stage)}>
-                        {String(lead.status || lead.stage || "new").replaceAll(
-                          "_",
-                          " "
-                        )}
-                      </Badge>
-
-                      {lead.priority ? (
-                        <Badge tone={priorityTone(lead.priority)}>
-                          {lead.priority}
-                        </Badge>
-                      ) : null}
-
-                      {workspaceId ? <Badge tone="active">Workspace Ready</Badge> : null}
-                    </div>
-                  </div>
-
-                  <div style={styles.badgeRow}>
-                    <Badge tone={lifecycleTone(lead.is_beta_approved)}>
-                      {lead.is_beta_approved ? "Approved" : "Not Approved"}
-                    </Badge>
-
-                    <Badge tone={lifecycleTone(lead.has_pending_invite)}>
-                      {lead.has_pending_invite ? "Invited" : "No Invite"}
-                    </Badge>
-
-                    <Badge tone={lifecycleTone(lead.has_converted_user)}>
-                      {lead.has_converted_user ? "Converted" : "Not Converted"}
-                    </Badge>
-
-                    <Badge tone={lifecycleTone(Boolean(workspaceId))}>
-                      {workspaceId ? "Provisioned" : "Not Provisioned"}
-                    </Badge>
-                  </div>
-
-                  <div className="vs-grid-3">
-                    <div className="vs-card-muted" style={styles.mutedCard}>
-                      <div className="vs-stat-label">States</div>
-                      <div style={styles.mutedValue}>
-                        {Array.isArray(lead.states) && lead.states.length
-                          ? lead.states.join(", ")
-                          : "N/A"}
-                      </div>
-                    </div>
-
-                    <div className="vs-card-muted" style={styles.mutedCard}>
-                      <div className="vs-stat-label">Budget Range</div>
-                      <div style={styles.mutedValue}>
-                        {lead.budget_range || "N/A"}
-                      </div>
-                    </div>
-
-                    <div className="vs-card-muted" style={styles.mutedCard}>
-                      <div className="vs-stat-label">Team Size</div>
-                      <div style={styles.mutedValue}>{lead.team_size || "N/A"}</div>
-                    </div>
-                  </div>
-
-                  <div className="vs-grid-2">
-                    <div className="vs-card-muted" style={styles.mutedCard}>
-                      <div className="vs-stat-label">Source</div>
-                      <div style={styles.mutedValue}>{lead.source || "enterprise"}</div>
-                    </div>
-
-                    <div className="vs-card-muted" style={styles.mutedCard}>
-                      <div className="vs-stat-label">Submitted</div>
-                      <div style={styles.mutedValue}>
-                        {formatDateTime(lead.created_at)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="vs-card-muted" style={styles.mutedCard}>
-                    <div className="vs-stat-label">Use Case</div>
-
-                    <div style={styles.useCaseText}>
-                      {lead.use_case || lead.message || "No details provided."}
-                    </div>
-                  </div>
-
-                  <div style={styles.actionsRow}>
-                    <select
-                      className="vs-select"
-                      value={lead.status || lead.stage || "new"}
-                      onChange={(event) => handleUpdateLead(lead.id, event.target.value)}
-                      disabled={isUpdating || isProvisioning}
-                    >
-                      {PIPELINE_STAGES.map((stage) => (
-                        <option key={stage} value={stage}>
-                          {stage.replaceAll("_", " ")}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      type="button"
-                      className="vs-button"
-                      onClick={() => handleUpdateLead(lead.id, "contacted")}
-                      disabled={isUpdating || isProvisioning}
-                    >
-                      Mark Contacted
-                    </button>
-
-                    <button
-                      type="button"
-                      className="vs-button vs-button-secondary"
-                      onClick={() => handleApproveLead(lead.id)}
-                      disabled={Boolean(lead.is_beta_approved) || isUpdating}
-                    >
-                      {lead.is_beta_approved ? "Approved" : "Approve"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="vs-button vs-button-secondary"
-                      onClick={() => handleInviteLead(lead.id)}
-                      disabled={Boolean(lead.has_converted_user) || isUpdating}
-                    >
-                      {lead.has_converted_user ? "Converted" : "Send Invite"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="vs-button vs-button-secondary"
-                      onClick={() => handleApproveAndInviteLead(lead.id)}
-                      disabled={Boolean(lead.has_converted_user) || isUpdating}
-                    >
-                      Approve + Invite
-                    </button>
-
-                    <button
-                      type="button"
-                      className="vs-button"
-                      onClick={() => handleProvisionWorkspace(lead)}
-                      disabled={isProvisioning || Boolean(workspaceId)}
-                    >
-                      {workspaceId
-                        ? "Workspace Provisioned"
-                        : isProvisioning
-                          ? "Provisioning..."
-                          : "Provision Workspace"}
-                    </button>
-
-                    {workspaceId ? (
-                      <a
-                        className="vs-button vs-button-secondary"
-                        href={`/campaign-workspace/${workspaceId}`}
-                      >
-                        Open Workspace
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })
-          )}
+      <CollapsibleSection
+        id="leads-intelligence"
+        title="Executive Pipeline Intelligence"
+        subtitle="Stage distribution, conversion posture, provisioning readiness, and high-value pipeline assessment."
+        defaultOpen={false}
+        right={<Badge tone="active">{summary.provisionedCount} Provisioned</Badge>}
+      >
+        <div className="leads-stack">
+          <PipelineStageGrid leads={leads} />
+          <PipelineBrief summary={summary} leads={leads} />
         </div>
-      </SectionCard>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="leads-actions"
+        title="Executive Action Center"
+        subtitle="Move enterprise pipeline activity into connected VoterSpheres modules."
+        defaultOpen={false}
+        right={<Badge tone="active">Pipeline Handoff</Badge>}
+      >
+        <EnterpriseActionCenter loading={loading} onRefresh={loadLeads} />
+      </CollapsibleSection>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
-
-const styles = {
-  statValue: {
-    marginTop: "8px",
-    fontSize: "28px",
-    fontWeight: 900,
-    color: "var(--vs-text)",
-  },
-  headerRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    flexWrap: "wrap",
-  },
-  leadName: {
-    fontSize: "16px",
-    fontWeight: 800,
-    color: "var(--vs-text)",
-  },
-  leadMeta: {
-    marginTop: "4px",
-    color: "var(--vs-text-muted)",
-    fontSize: "13px",
-  },
-  badgeRow: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  mutedCard: {
-    padding: "12px 14px",
-  },
-  mutedValue: {
-    marginTop: "4px",
-    fontWeight: 700,
-  },
-  useCaseText: {
-    marginTop: "6px",
-    color: "var(--vs-text)",
-  },
-  actionsRow: {
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-};
 
