@@ -3,6 +3,12 @@ import { Link } from "react-router-dom";
 import Badge from "../components/ui/Badge";
 import SectionCard from "../components/ui/SectionCard";
 import EmptyState from "../components/ui/EmptyState";
+import PageShell from "../components/ui/PageShell";
+import StatCard from "../components/ui/StatCard";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -83,6 +89,153 @@ function statusTone(status = "") {
   if (value === "canceled" || value === "inactive") return "default";
 
   return "demo";
+}
+
+function planRank(plan) {
+  const order = { starter: 1, pro: 2, enterprise: 3 };
+  return order[normalizePlan(plan)] || 1;
+}
+
+function billingHealthText(status = "") {
+  const value = String(status || "").toLowerCase();
+  if (value === "active" || value === "trialing") return "Billing is active and platform access is in good standing.";
+  if (value === "past_due" || value === "unpaid") return "Payment requires attention. Open the Stripe portal to update billing details.";
+  if (value === "canceled" || value === "inactive") return "Subscription appears inactive. Choose a plan or contact support to restore access.";
+  return "Billing status is available. Review Stripe portal for complete invoice and payment details.";
+}
+
+function billingReadinessScore({ currentPlan, subscriptionStatus, firm }) {
+  const status = String(subscriptionStatus || "").toLowerCase();
+  const hasCustomer = Boolean(firm?.stripe_customer_id);
+  const hasPeriodEnd = Boolean(firm?.current_period_end);
+  const rank = planRank(currentPlan);
+
+  let score = 62 + rank * 8;
+  if (status === "active" || status === "trialing") score += 16;
+  if (status === "past_due" || status === "unpaid") score -= 36;
+  if (status === "canceled" || status === "inactive") score -= 44;
+  if (hasCustomer) score += 8;
+  if (hasPeriodEnd) score += 4;
+
+  return Math.max(5, Math.min(100, Math.round(score)));
+}
+
+function BillingExecutiveHeader({
+  currentPlanDetails,
+  currentPlan,
+  subscriptionStatus,
+  firm,
+  loading,
+  portalBusy,
+  busyPlan,
+  onRefresh,
+  onPortal,
+}) {
+  const readinessScore = billingReadinessScore({ currentPlan, subscriptionStatus, firm });
+  const stripeLinked = Boolean(firm?.stripe_customer_id);
+  const periodEnd = formatDate(firm?.current_period_end);
+
+  return (
+    <div className="billing-exec-ribbon" id="billing-overview">
+      <div className="billing-exec-copy">
+        <span>Billing Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive billing center for plan access, Stripe health, renewal visibility,
+          enterprise support, upgrade paths, invoice management, and firm subscription status.
+        </p>
+
+        <div className="billing-exec-badges">
+          <Badge tone="active">{currentPlanDetails.name}</Badge>
+          <Badge tone={statusTone(subscriptionStatus)}>{subscriptionStatus || "active"}</Badge>
+          <Badge tone={stripeLinked ? "active" : "demo"}>{stripeLinked ? "Stripe Linked" : "Stripe Pending"}</Badge>
+          <Badge tone={currentPlan === "enterprise" ? "active" : "accent"}>{currentPlan === "enterprise" ? "Enterprise" : "Upgrade Available"}</Badge>
+        </div>
+      </div>
+
+      <div className="billing-exec-grid">
+        <div>
+          <span>Current Plan</span>
+          <strong>{currentPlanDetails.name}</strong>
+        </div>
+        <div>
+          <span>Plan Price</span>
+          <strong>{currentPlanDetails.price}</strong>
+        </div>
+        <div>
+          <span>Period Ends</span>
+          <strong>{periodEnd}</strong>
+        </div>
+        <div>
+          <span>Billing Status</span>
+          <strong>{loading || portalBusy || busyPlan ? "Working" : "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="billing-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading}>
+          {loading ? "Refreshing Billing..." : "Refresh Billing"}
+        </button>
+        <button type="button" onClick={onPortal} disabled={portalBusy}>
+          {portalBusy ? "Opening Portal..." : "Open Stripe Portal"}
+        </button>
+        <button type="button" onClick={() => document.getElementById("billing-plans")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Change Plan
+        </button>
+        <Link to="/mission-control">Mission Control</Link>
+        <Link to="/command-center">Command Center</Link>
+        <Link to="/executive-decision-intelligence">Executive Intelligence</Link>
+      </div>
+
+      <div className="billing-exec-footer">
+        <span>Firm: {firm?.firm_name || firm?.name || "Your Firm"}</span>
+        <span>Stripe Customer: {firm?.stripe_customer_id || "Not linked yet"}</span>
+      </div>
+    </div>
+  );
+}
+
+function BillingExecutiveBrief({ currentPlanDetails, currentPlan, subscriptionStatus, firm }) {
+  const readinessScore = billingReadinessScore({ currentPlan, subscriptionStatus, firm });
+  const stripeLinked = Boolean(firm?.stripe_customer_id);
+
+  return (
+    <div className="billing-ai-brief">
+      <strong>Executive Billing Brief</strong>
+      <p>
+        The firm is currently on the {currentPlanDetails.name} plan at {currentPlanDetails.price}.
+        Subscription status is {subscriptionStatus || "active"}. {billingHealthText(subscriptionStatus)}
+        {stripeLinked ? " Stripe customer linkage is active." : " Stripe customer linkage is not visible yet."}
+      </p>
+
+      <div className="billing-ai-brief-grid">
+        <div><span>Readiness</span><b>{readinessScore}%</b></div>
+        <div><span>Plan</span><b>{currentPlanDetails.name}</b></div>
+        <div><span>Status</span><b>{subscriptionStatus || "active"}</b></div>
+        <div><span>Renewal</span><b>{formatDate(firm?.current_period_end)}</b></div>
+      </div>
+    </div>
+  );
+}
+
+function BillingActionCenter({ onRefresh, onPortal, portalBusy }) {
+  return (
+    <div className="billing-action-center">
+      <button type="button" onClick={onRefresh}>Refresh Billing</button>
+      <button type="button" onClick={onPortal} disabled={portalBusy}>
+        {portalBusy ? "Opening Portal..." : "Open Stripe Portal"}
+      </button>
+      <button type="button" onClick={() => document.getElementById("billing-plans")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+        Review Plans
+      </button>
+      <Link to="/pricing?upgrade=enterprise">Enterprise Pricing</Link>
+      <Link to="/enterprise">Enterprise Support</Link>
+      <Link to="/enterprise-leads">Enterprise Pipeline</Link>
+      <Link to="/mission-control">Mission Control</Link>
+      <Link to="/command-center">Command Center</Link>
+      <Link to="/ai-war-room">AI War Room</Link>
+    </div>
+  );
 }
 
 export default function Billing() {
@@ -225,48 +378,223 @@ export default function Billing() {
 
   if (loading) {
     return (
-      <div className="vs-page">
-        <div className="vs-page-header">
-          <div>
-            <h1 className="vs-page-title">Billing</h1>
-            <p className="vs-page-subtitle">Loading subscription details...</p>
-          </div>
-        </div>
-
+      <PageShell
+        eyebrow="Billing Management"
+        title="Billing Management Center"
+        description="Loading subscription details, Stripe status, and firm plan access."
+        tickerItems={[
+          { label: "Billing", value: "Loading", dotClass: "vs-live-dot-warning" },
+        ]}
+      >
         <EmptyState text="Loading billing center..." />
-      </div>
+      </PageShell>
     );
   }
 
+  const readinessScore = billingReadinessScore({ currentPlan, subscriptionStatus, firm });
+
+  const navSections = [
+    { id: "billing-overview", label: "Overview" },
+    { id: "billing-metrics", label: "Metrics" },
+    { id: "billing-current", label: "Subscription" },
+    { id: "billing-health", label: "Payment Health" },
+    { id: "billing-plans", label: "Plans", badge: PLANS.length },
+    { id: "billing-invoices", label: "Invoices" },
+    { id: "billing-enterprise", label: "Enterprise" },
+    { id: "billing-brief", label: "Brief" },
+    { id: "billing-actions", label: "Actions" },
+  ];
+
   return (
-    <div className="vs-page">
-      <div className="vs-page-header">
-        <div>
-          <h1 className="vs-page-title">Billing Management Center</h1>
-          <p className="vs-page-subtitle">
-            Manage plan access, Stripe billing, subscription status, and upgrade
-            paths for your firm.
-          </p>
-        </div>
+    <PageShell
+      eyebrow="Billing Management"
+      title="Billing Management Center"
+      description="Manage plan access, Stripe billing, subscription status, invoices, enterprise support, and upgrade paths for your firm."
+      tickerItems={[
+        { label: "Plan", value: currentPlanDetails.name, dotClass: "vs-live-dot-success" },
+        { label: "Status", value: subscriptionStatus || "active", dotClass: ["active", "trialing"].includes(String(subscriptionStatus || "").toLowerCase()) ? "vs-live-dot-success" : "vs-live-dot-warning" },
+        { label: "Readiness", value: `${readinessScore}%`, dotClass: readinessScore >= 80 ? "vs-live-dot-success" : "vs-live-dot-warning" },
+        { label: "Renewal", value: formatDate(firm?.current_period_end), dotClass: "vs-live-dot-success" },
+      ]}
+    >
+      <style>{`
+        .billing-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(34, 197, 94, 0.16), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
 
-        <div className="vs-inline-actions">
-          <button
-            type="button"
-            className="vs-button vs-button-secondary"
-            onClick={loadBilling}
-          >
-            Refresh
-          </button>
+        .billing-exec-copy { min-width: 0; }
 
-          <button
-            type="button"
-            className="vs-button"
-            onClick={openPortal}
-            disabled={portalBusy}
-          >
-            {portalBusy ? "Opening..." : "Open Stripe Portal"}
-          </button>
-        </div>
+        .billing-exec-copy span,
+        .billing-exec-grid span,
+        .billing-exec-footer span,
+        .billing-ai-brief-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .billing-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .billing-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .billing-exec-badges,
+        .billing-exec-actions,
+        .billing-exec-footer,
+        .billing-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .billing-exec-badges { margin-top: 14px; }
+
+        .billing-exec-grid,
+        .billing-ai-brief-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .billing-exec-grid div,
+        .billing-ai-brief-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .billing-exec-grid strong,
+        .billing-ai-brief-grid b {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .billing-exec-actions,
+        .billing-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .billing-exec-actions button,
+        .billing-exec-actions a,
+        .billing-action-center button,
+        .billing-action-center a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .billing-exec-actions button:hover,
+        .billing-exec-actions a:hover,
+        .billing-action-center button:hover,
+        .billing-action-center a:hover {
+          border-color: rgba(74, 222, 128, 0.42);
+          background: rgba(34, 197, 94, 0.14);
+          color: white;
+        }
+
+        .billing-exec-actions button:disabled,
+        .billing-action-center button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .billing-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .billing-ai-brief {
+          border-radius: 24px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 36%),
+            rgba(15, 23, 42, 0.58);
+          padding: 18px;
+        }
+
+        .billing-ai-brief strong {
+          display: block;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .billing-ai-brief p {
+          color: rgba(226, 232, 240, 0.86);
+          font-size: 13px;
+          line-height: 1.65;
+          margin: 10px 0 14px;
+        }
+
+        @media (max-width: 1100px) {
+          .billing-exec-ribbon,
+          .billing-exec-grid,
+          .billing-ai-brief-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div className="billing-exec-stack">
+        <BillingExecutiveHeader
+          currentPlanDetails={currentPlanDetails}
+          currentPlan={currentPlan}
+          subscriptionStatus={subscriptionStatus}
+          firm={firm}
+          loading={loading}
+          portalBusy={portalBusy}
+          busyPlan={busyPlan}
+          onRefresh={loadBilling}
+          onPortal={openPortal}
+        />
+
+        <ExecutivePageNav sections={navSections} />
       </div>
 
       {error ? (
@@ -295,7 +623,22 @@ export default function Billing() {
         </div>
       ) : null}
 
+      <CollapsibleSection
+        id="billing-metrics"
+        title="Billing Metrics"
+        subtitle="Current plan, subscription health, Stripe linkage, and renewal readiness."
+        defaultOpen
+        right={<Badge tone={statusTone(subscriptionStatus)}>{subscriptionStatus}</Badge>}
+      >
+        <div className="vs-grid-3">
+          <StatCard label="Billing Readiness" value={`${readinessScore}%`} delta="Executive account health" tone={readinessScore >= 80 ? "up" : "neutral"} />
+          <StatCard label="Current Plan" value={currentPlanDetails.name} delta={currentPlanDetails.price} tone="up" />
+          <StatCard label="Subscription" value={subscriptionStatus || "active"} delta="Stripe status" tone={["active", "trialing"].includes(String(subscriptionStatus || "").toLowerCase()) ? "up" : "down"} />
+        </div>
+      </CollapsibleSection>
+
       <div className="vs-grid-2">
+        <div id="billing-current">
         <SectionCard
           title="Current Subscription"
           subtitle="Your active firm plan and Stripe subscription state."
@@ -339,10 +682,12 @@ export default function Billing() {
             </div>
           </div>
         </SectionCard>
+        </div>
 
+        <div id="billing-health">
         <SectionCard
           title="Payment Health"
-          subtitle="Keep the firm’s access in good standing."
+          subtitle="Keep the firmâ€™s access in good standing."
           right={
             <Badge tone={statusTone(subscriptionStatus)}>
               {String(subscriptionStatus || "active").toUpperCase()}
@@ -390,14 +735,21 @@ export default function Billing() {
             </div>
           </div>
         </SectionCard>
+        </div>
       </div>
 
-      <SectionCard
+      <CollapsibleSection
+        id="billing-plans"
         title="Change Plan"
         subtitle="Upgrade or manage firm access. Checkout returns to VoterSpheres and refreshes access automatically."
       >
         <div className="vs-grid-3">
-          {PLANS.map((plan) => {
+          <ShowMoreList
+            items={PLANS}
+            initialCount={3}
+            showAllLabel={(count) => `Show All ${count} Plans`}
+            className="vs-grid-3"
+            renderItem={(plan) => {
             const isCurrent = plan.key === currentPlan;
             const isUpgrade =
               PLANS.findIndex((item) => item.key === plan.key) >
@@ -476,11 +828,13 @@ export default function Billing() {
                 )}
               </div>
             );
-          })}
+          }}
+          />
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
+        id="billing-invoices"
         title="Invoice History"
         subtitle="Stripe manages invoice records and receipts."
         right={
@@ -495,9 +849,10 @@ export default function Billing() {
         }
       >
         <EmptyState text="Open the Stripe portal to view receipts, invoices, payment methods, and subscription history." />
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
+        id="billing-enterprise"
         title="Enterprise Support"
         subtitle="Need procurement, onboarding, multi-firm operations, or a white-glove rollout?"
       >
@@ -518,7 +873,38 @@ export default function Billing() {
             Review Enterprise Plan   
           </Link>
         </div>
-      </SectionCard>
-    </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="billing-brief"
+        title="Executive Billing Brief"
+        subtitle="Subscription health, plan posture, Stripe linkage, and renewal summary."
+        defaultOpen={false}
+        right={<Badge tone={statusTone(subscriptionStatus)}>{subscriptionStatus}</Badge>}
+      >
+        <BillingExecutiveBrief
+          currentPlanDetails={currentPlanDetails}
+          currentPlan={currentPlan}
+          subscriptionStatus={subscriptionStatus}
+          firm={firm}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="billing-actions"
+        title="Executive Action Center"
+        subtitle="Manage billing and move into connected VoterSpheres command modules."
+        defaultOpen={false}
+        right={<Badge tone="active">Billing Handoff</Badge>}
+      >
+        <BillingActionCenter
+          onRefresh={loadBilling}
+          onPortal={openPortal}
+          portalBusy={portalBusy}
+        />
+      </CollapsibleSection>
+
+      <BackToTopButton />
+    </PageShell>
   );
 }
