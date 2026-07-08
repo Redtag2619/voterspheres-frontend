@@ -2528,9 +2528,10 @@ export default function Vendors() {
             </SectionCard>
           </div>
         </div>
-      </SectionCard>
+      </CollapsibleSection>
       
-      <SectionCard
+      <CollapsibleSection
+        id="vendors-groups"
         title="Vendor Spend Groups"
         subtitle="FEC-imported vendors and modeled baseline coverage organized by Mail, Digital, Media, Compliance, Consulting, and Events."
         right={<Badge tone="info">6 groups</Badge>}
