@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
@@ -8,6 +8,10 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 function fmt(value) {
   return Number(value || 0).toLocaleString();
@@ -236,6 +240,168 @@ function ActivityForm({ workspaceId, contacts, onCreated, onError }) {
   );
 }
 
+function CrmExecutiveHeader({
+  summary,
+  selectedWorkspace,
+  workspaceId,
+  contacts,
+  activities,
+  tasks,
+  signals,
+  rapidResponses,
+  recommendations,
+  highSignals,
+  loading,
+  refreshing,
+  lastUpdated,
+  onRefresh,
+}) {
+  const openTasks = Number(summary.open_tasks || tasks.length || 0);
+  const signalCount = Number(summary.signals || signals.length || 0);
+  const contactCount = Number(summary.contacts || contacts.length || 0);
+  const activityCount = Number(summary.activities || activities.length || 0);
+  const highSignalCount = highSignals.length;
+
+  const readinessScore = Math.max(
+    5,
+    Math.min(
+      100,
+      Math.round(
+        74 +
+          Math.min(12, contactCount * 0.8) +
+          Math.min(10, activityCount * 0.55) +
+          Math.min(8, recommendations.length * 1.2) -
+          Math.min(20, highSignalCount * 5) -
+          Math.min(14, openTasks * 1.1) -
+          Math.min(8, rapidResponses.length * 1.4)
+      )
+    )
+  );
+
+  const scope =
+    selectedWorkspace
+      ? workspaceTitle(selectedWorkspace)
+      : workspaceId
+        ? `Workspace ${workspaceId}`
+        : "Firmwide CRM";
+
+  return (
+    <div className="crm-exec-ribbon" id="crm-overview">
+      <div className="crm-exec-copy">
+        <span>Campaign CRM Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive relationship command layer for workspace contacts, activities,
+          follow-ups, political signals, rapid responses, execution tasks, and AI CRM recommendations.
+        </p>
+
+        <div className="crm-exec-badges">
+          <Badge tone="active">{contactCount} Contacts</Badge>
+          <Badge tone="info">{activityCount} Activities</Badge>
+          <Badge tone={openTasks ? "demo" : "active"}>{openTasks} Open Tasks</Badge>
+          <Badge tone={highSignalCount ? "danger" : "active"}>{highSignalCount} High Signals</Badge>
+          <Badge tone="accent">{recommendations.length} AI Recommendations</Badge>
+        </div>
+      </div>
+
+      <div className="crm-exec-grid">
+        <div>
+          <span>Active Scope</span>
+          <strong>{scope}</strong>
+        </div>
+        <div>
+          <span>Political Signals</span>
+          <strong>{fmt(signalCount)}</strong>
+        </div>
+        <div>
+          <span>Rapid Responses</span>
+          <strong>{fmt(rapidResponses.length)}</strong>
+        </div>
+        <div>
+          <span>Live Status</span>
+          <strong>{loading || refreshing ? "Refreshing" : "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="crm-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading || refreshing}>
+          {refreshing ? "Refreshing CRM..." : "Refresh CRM"}
+        </button>
+        <button type="button" onClick={() => document.getElementById("crm-add-contact")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Add Contact
+        </button>
+        <button type="button" onClick={() => document.getElementById("crm-log-activity")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          Log Activity
+        </button>
+        <Link to="/command-center">Command Center</Link>
+        <Link to="/ai-war-room">AI War Room</Link>
+        <Link to="/political-intelligence">Political Intelligence</Link>
+        <Link to="/state-operations">State Operations</Link>
+      </div>
+
+      <div className="crm-exec-footer">
+        <span>Updated: {lastUpdated || "Ready"}</span>
+        <span>Auto Refresh: 30 seconds</span>
+      </div>
+    </div>
+  );
+}
+
+function CrmActionCenter({ onRefresh }) {
+  return (
+    <div className="crm-action-center">
+      <button type="button" onClick={onRefresh}>Refresh CRM</button>
+      <button type="button" onClick={() => document.getElementById("crm-add-contact")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Add Contact</button>
+      <button type="button" onClick={() => document.getElementById("crm-log-activity")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Log Activity</button>
+      <Link to="/command-center">Open Command Center</Link>
+      <Link to="/ai-war-room">Open AI War Room</Link>
+      <Link to="/political-intelligence">Open Political Intelligence</Link>
+      <Link to="/executive-decision-intelligence">Executive Intelligence</Link>
+      <Link to="/state-operations">Open State Operations</Link>
+      <Link to="/narrative-response">Open Rapid Response</Link>
+    </div>
+  );
+}
+
+function CrmExecutiveBrief({
+  selectedWorkspace,
+  workspaceId,
+  contacts,
+  activities,
+  tasks,
+  signals,
+  rapidResponses,
+  recommendations,
+  highSignals,
+}) {
+  const scope =
+    selectedWorkspace
+      ? workspaceTitle(selectedWorkspace)
+      : workspaceId
+        ? `Workspace ${workspaceId}`
+        : "Firmwide CRM";
+
+  return (
+    <div className="crm-ai-brief">
+      <strong>{scope} Relationship Brief</strong>
+      <p>
+        This workspace currently has {fmt(contacts.length)} contacts, {fmt(activities.length)} activities,
+        {fmt(tasks.length)} execution tasks, {fmt(signals.length)} political signals,
+        and {fmt(rapidResponses.length)} rapid response items. {highSignals.length
+          ? `${fmt(highSignals.length)} high-priority signal${highSignals.length === 1 ? "" : "s"} should be reviewed before the next outreach cycle.`
+          : "No high-priority political signals are currently attached to this CRM scope."}
+      </p>
+
+      <div className="crm-ai-brief-grid">
+        <div><span>Contacts</span><b>{fmt(contacts.length)}</b></div>
+        <div><span>Activities</span><b>{fmt(activities.length)}</b></div>
+        <div><span>Open Tasks</span><b>{fmt(tasks.length)}</b></div>
+        <div><span>AI Recommendations</span><b>{fmt(recommendations.length)}</b></div>
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignWorkspaceCRM() {
   const [params, setParams] = useSearchParams();
 
@@ -388,6 +554,21 @@ export default function CampaignWorkspaceCRM() {
     );
   }, [signals]);
 
+  const navSections = [
+    { id: "crm-overview", label: "Overview" },
+    { id: "crm-scope", label: "Scope" },
+    { id: "crm-metrics", label: "Metrics" },
+    { id: "crm-contacts", label: "Contacts", badge: contacts.length },
+    { id: "crm-activities", label: "Activities", badge: activities.length },
+    { id: "crm-signals", label: "Signals", badge: signals.length },
+    { id: "crm-tasks", label: "Tasks", badge: tasks.length },
+    { id: "crm-add-contact", label: "Add Contact" },
+    { id: "crm-log-activity", label: "Log Activity" },
+    { id: "crm-ai", label: "AI", badge: recommendations.length },
+    { id: "crm-brief", label: "Brief" },
+    { id: "crm-actions", label: "Actions" },
+  ];
+
   return (
     <PageShell
       eyebrow="Campaign Workspace CRM"
@@ -426,6 +607,157 @@ export default function CampaignWorkspaceCRM() {
       ]}
     >
       <style>{`
+        .crm-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.12), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .crm-exec-copy { min-width: 0; }
+
+        .crm-exec-copy span,
+        .crm-exec-grid span,
+        .crm-exec-footer span,
+        .crm-ai-brief-grid span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .crm-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .crm-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .crm-exec-badges,
+        .crm-exec-actions,
+        .crm-exec-footer,
+        .crm-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .crm-exec-badges { margin-top: 14px; }
+
+        .crm-exec-grid,
+        .crm-ai-brief-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .crm-exec-grid div,
+        .crm-ai-brief-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .crm-exec-grid strong,
+        .crm-ai-brief-grid b {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .crm-exec-actions,
+        .crm-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .crm-exec-actions button,
+        .crm-exec-actions a,
+        .crm-action-center button,
+        .crm-action-center a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .crm-exec-actions button:hover,
+        .crm-exec-actions a:hover,
+        .crm-action-center button:hover,
+        .crm-action-center a:hover {
+          border-color: rgba(74, 222, 128, 0.42);
+          background: rgba(34, 197, 94, 0.14);
+          color: white;
+        }
+
+        .crm-exec-actions button:disabled { opacity: 0.62; cursor: not-allowed; }
+
+        .crm-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .crm-ai-brief {
+          border-radius: 24px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 36%),
+            rgba(15, 23, 42, 0.58);
+          padding: 18px;
+        }
+
+        .crm-ai-brief strong {
+          display: block;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .crm-ai-brief p {
+          color: rgba(226, 232, 240, 0.86);
+          font-size: 13px;
+          line-height: 1.65;
+          margin: 10px 0 14px;
+        }
+
+
         .crm-grid {
           display: grid;
           grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
@@ -532,16 +864,44 @@ export default function CampaignWorkspaceCRM() {
 
         @media (max-width: 1100px) {
           .crm-grid,
-          .crm-workspace-box {
+          .crm-workspace-box,
+          .crm-exec-ribbon {
+            grid-template-columns: 1fr;
+          }
+
+          .crm-exec-grid,
+          .crm-ai-brief-grid {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
 
+      <div className="crm-exec-stack">
+        <CrmExecutiveHeader
+          summary={summary}
+          selectedWorkspace={selectedWorkspace}
+          workspaceId={workspaceId}
+          contacts={contacts}
+          activities={activities}
+          tasks={tasks}
+          signals={signals}
+          rapidResponses={rapidResponses}
+          recommendations={recommendations}
+          highSignals={highSignals}
+          loading={loading}
+          refreshing={refreshing}
+          lastUpdated={lastUpdated}
+          onRefresh={() => load({ quiet: true })}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {message ? <div className="crm-message">{message}</div> : null}
 
-      <SectionCard
+      <CollapsibleSection
+        id="crm-scope"
         title="CRM Workspace Scope"
         subtitle="Loads firmwide by default. Select a workspace to narrow contacts, tasks, and signals."
         right={
@@ -580,27 +940,39 @@ export default function CampaignWorkspaceCRM() {
             ))}
           </select>
         </div>
-      </SectionCard>
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        id="crm-metrics"
+        title="CRM Metrics"
+        subtitle="Contacts, activities, open tasks, and political intelligence signals for the active scope."
+        defaultOpen
+        right={<Badge tone="active">{summary.contacts || contacts.length} Contacts</Badge>}
+      >
       <div className="vs-grid-4">
         <StatCard label="Contacts" value={fmt(summary.contacts)} delta="Workspace relationships" tone="up" />
         <StatCard label="Activities" value={fmt(summary.activities)} delta="Notes and touches" tone="up" />
         <StatCard label="Open Tasks" value={fmt(summary.open_tasks)} delta="Execution items" tone={summary.open_tasks ? "neutral" : "up"} />
         <StatCard label="Signals" value={fmt(summary.signals || signals.length)} delta="Political intelligence" tone="up" />
       </div>
+      </CollapsibleSection>
 
       {loading ? (
         <EmptyState text="Loading Campaign Workspace CRM..." />
       ) : (
         <div className="crm-grid">
           <div className="crm-stack">
-            <SectionCard title="Workspace Contacts" subtitle="Candidates, consultants, vendors, donors, press, and key stakeholders." right={<Badge tone="accent">{contacts.length} contacts</Badge>}>
+            <CollapsibleSection id="crm-contacts" title="Workspace Contacts" subtitle="Candidates, consultants, vendors, donors, press, and key stakeholders." right={<Badge tone="accent">{contacts.length} contacts</Badge>}>
               {!contacts.length ? (
                 <EmptyState text="No CRM contacts yet." />
               ) : (
-                <div className="crm-stack">
-                  {contacts.map((contact) => (
-                    <div key={contact.id} className="crm-row">
+                <ShowMoreList
+                  items={contacts}
+                  initialCount={10}
+                  showAllLabel={(count) => `Show All ${count} Contacts`}
+                  className="crm-stack"
+                  renderItem={(contact) => (
+                    <div className="crm-row">
                       <ResponsiveRow
                         title={contact.full_name}
                         subtitle={`${contact.organization || "No organization"} • ${contact.title || contact.role_type || "Stakeholder"}`}
@@ -613,18 +985,22 @@ export default function CampaignWorkspaceCRM() {
                         right={<Badge tone="accent">{contact.role_type || "contact"}</Badge>}
                       />
                     </div>
-                  ))}
-                </div>
+                  )}
+                />
               )}
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard title="Activity Timeline" subtitle="Notes, meetings, calls, follow-ups, outcomes, and institutional memory." right={<Badge tone="accent">{activities.length} activities</Badge>}>
+            <CollapsibleSection id="crm-activities" title="Activity Timeline" subtitle="Notes, meetings, calls, follow-ups, outcomes, and institutional memory." right={<Badge tone="accent">{activities.length} activities</Badge>}>
               {!activities.length ? (
                 <EmptyState text="No CRM activity yet." />
               ) : (
-                <div className="crm-stack">
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="crm-row">
+                <ShowMoreList
+                  items={activities}
+                  initialCount={10}
+                  showAllLabel={(count) => `Show All ${count} Activities`}
+                  className="crm-stack"
+                  renderItem={(activity) => (
+                    <div className="crm-row">
                       <ResponsiveRow
                         title={activity.title}
                         subtitle={clean(activity.body || activity.outcome || activity.contact_name || "CRM activity")}
@@ -646,14 +1022,14 @@ export default function CampaignWorkspaceCRM() {
                         }
                       />
                     </div>
-                  ))}
-                </div>
+                  )}
+                />
               )}
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard title="Signals + Rapid Responses" subtitle="Live political signals and narrative response work linked to this CRM context." right={<Badge tone={highSignals.length ? "danger" : "active"}>{signals.length} signals</Badge>}>
+            <CollapsibleSection id="crm-signals" title="Signals + Rapid Responses" subtitle="Live political signals and narrative response work linked to this CRM context." right={<Badge tone={highSignals.length ? "danger" : "active"}>{signals.length} signals</Badge>}>
               <div className="crm-stack">
-                {signals.slice(0, 10).map((signal) => (
+                {signals.slice(0, 25).map((signal) => (
                   <div key={signal.id} className="crm-row">
                     <ResponsiveRow
                       title={clean(signal.title || "Political signal")}
@@ -671,7 +1047,7 @@ export default function CampaignWorkspaceCRM() {
 
                 {!signals.length ? <EmptyState text="No workspace political signals yet." /> : null}
 
-                {rapidResponses.slice(0, 4).map((response) => (
+                {rapidResponses.slice(0, 12).map((response) => (
                   <div key={`rr-${response.id}`} className="crm-row">
                     <ResponsiveRow
                       title={response.title || "Rapid response"}
@@ -686,15 +1062,19 @@ export default function CampaignWorkspaceCRM() {
                   </div>
                 ))}
               </div>
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard title="Workspace Tasks" subtitle="Execution items attached to this campaign CRM context." right={<Badge tone="accent">{tasks.length} tasks</Badge>}>
+            <CollapsibleSection id="crm-tasks" title="Workspace Tasks" subtitle="Execution items attached to this campaign CRM context." right={<Badge tone="accent">{tasks.length} tasks</Badge>}>
               {!tasks.length ? (
                 <EmptyState text="No workspace tasks yet." />
               ) : (
-                <div className="crm-stack">
-                  {tasks.slice(0, 10).map((task) => (
-                    <div key={task.id} className="crm-row">
+                <ShowMoreList
+                  items={tasks}
+                  initialCount={10}
+                  showAllLabel={(count) => `Show All ${count} Tasks`}
+                  className="crm-stack"
+                  renderItem={(task) => (
+                    <div className="crm-row">
                       <ResponsiveRow
                         title={task.title || "Task"}
                         subtitle={task.description || task.source || "Execution task"}
@@ -707,33 +1087,73 @@ export default function CampaignWorkspaceCRM() {
                         right={<Badge tone={tone(task.priority || task.status)}>{task.status || "open"}</Badge>}
                       />
                     </div>
-                  ))}
-                </div>
+                  )}
+                />
               )}
-            </SectionCard>
+            </CollapsibleSection>
           </div>
 
           <div className="crm-stack">
-            <SectionCard title="Add Contact" subtitle="Create CRM relationship records.">
+            <CollapsibleSection id="crm-add-contact" title="Add Contact" subtitle="Create CRM relationship records.">
               <ContactForm workspaceId={workspaceId} onCreated={() => load({ quiet: true })} onError={setError} />
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard title="Log Activity" subtitle="Add notes, calls, meetings, and follow-ups.">
+            <CollapsibleSection id="crm-log-activity" title="Log Activity" subtitle="Add notes, calls, meetings, and follow-ups.">
               <ActivityForm workspaceId={workspaceId} contacts={contacts} onCreated={() => load({ quiet: true })} onError={setError} />
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard title="AI CRM Recommendations" subtitle="Operational next steps from workspace intelligence.">
-              <div className="crm-stack">
-                {recommendations.map((item, index) => (
-                  <div key={`${item}-${index}`} className="crm-recommendation">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+            <CollapsibleSection id="crm-ai" title="AI CRM Recommendations" subtitle="Operational next steps from workspace intelligence.">
+              {!recommendations.length ? (
+                <EmptyState text="No AI CRM recommendations available." />
+              ) : (
+                <ShowMoreList
+                  items={recommendations}
+                  initialCount={6}
+                  showAllLabel={(count) => `Show All ${count} Recommendations`}
+                  className="crm-stack"
+                  renderItem={(item) => (
+                    <div className="crm-recommendation">
+                      {typeof item === "string" ? item : item.title || item.recommendation || item.detail || "CRM recommendation"}
+                    </div>
+                  )}
+                />
+              )}
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              id="crm-brief"
+              title="Executive CRM Brief"
+              subtitle="Summary of relationship health, activity, tasks, signals, and recommended action."
+              defaultOpen={false}
+              right={<Badge tone={highSignals.length ? "danger" : "active"}>{highSignals.length} High Signals</Badge>}
+            >
+              <CrmExecutiveBrief
+                selectedWorkspace={selectedWorkspace}
+                workspaceId={workspaceId}
+                contacts={contacts}
+                activities={activities}
+                tasks={tasks}
+                signals={signals}
+                rapidResponses={rapidResponses}
+                recommendations={recommendations}
+                highSignals={highSignals}
+              />
+            </CollapsibleSection>
           </div>
         </div>
       )}
+
+      <CollapsibleSection
+        id="crm-actions"
+        title="Executive Action Center"
+        subtitle="Move CRM context into connected VoterSpheres execution modules."
+        defaultOpen={false}
+        right={<Badge tone="active">CRM Handoff</Badge>}
+      >
+        <CrmActionCenter onRefresh={() => load({ quiet: true })} />
+      </CollapsibleSection>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
