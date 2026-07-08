@@ -8,6 +8,10 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
 import useLiveChannel from "../hooks/useLiveChannel";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
@@ -198,6 +202,115 @@ function ReportRow({ item }) {
   );
 }
 
+function WarRoomExecutiveHeader({
+  summary,
+  threats,
+  queue,
+  signals,
+  commandCards,
+  recommendations,
+  reports,
+  tasks,
+  crmFollowups,
+  rapidResponses,
+  vendorGaps,
+  highThreats,
+  loading,
+  refreshing,
+  lastUpdated,
+  onRefresh,
+}) {
+  const pressure = Number(summary.pressure_score || 0);
+  const queuePressure = queue.length + tasks.length + crmFollowups.length + rapidResponses.length + vendorGaps.length;
+  const readinessScore = Math.max(
+    5,
+    Math.min(
+      100,
+      Math.round(
+        96 -
+          Math.min(28, pressure * 0.28) -
+          Math.min(24, highThreats * 5) -
+          Math.min(14, queue.length * 1.5) -
+          Math.min(10, queuePressure * 0.75) +
+          Math.min(8, commandCards.length * 1.25) +
+          Math.min(6, reports.length * 1.2)
+      )
+    )
+  );
+
+  return (
+    <div className="war-exec-ribbon" id="war-overview">
+      <div className="war-exec-copy">
+        <span>Election War Room Readiness</span>
+        <strong>{readinessScore}% Ready</strong>
+        <p>
+          Executive live-command layer for mission risk, threat detection, signal velocity,
+          strategic recommendations, operational backlog, CRM follow-ups, workspace pressure,
+          and intelligence report review.
+        </p>
+
+        <div className="war-exec-badges">
+          <Badge tone={tone(summary.mission_risk)}>{summary.mission_risk || "Stable"} Mission Risk</Badge>
+          <Badge tone={highThreats ? "danger" : "active"}>{highThreats} High Threats</Badge>
+          <Badge tone={queue.length ? "demo" : "active"}>{queue.length} Queue Items</Badge>
+          <Badge tone="info">{signals.length} Signals</Badge>
+          <Badge tone="accent">{commandCards.length} Workspaces</Badge>
+          <Badge tone="active">{reports.length} Reports</Badge>
+        </div>
+      </div>
+
+      <div className="war-exec-grid">
+        <div>
+          <span>Pressure Score</span>
+          <strong>{pct(pressure)}</strong>
+        </div>
+        <div>
+          <span>Recommendations</span>
+          <strong>{fmt(recommendations.length)}</strong>
+        </div>
+        <div>
+          <span>Operational Backlog</span>
+          <strong>{fmt(queuePressure)}</strong>
+        </div>
+        <div>
+          <span>Live Status</span>
+          <strong>{loading || refreshing ? "Refreshing" : "Ready"}</strong>
+        </div>
+      </div>
+
+      <div className="war-exec-actions">
+        <button type="button" onClick={onRefresh} disabled={loading || refreshing}>
+          {refreshing ? "Refreshing War Room..." : "Refresh War Room"}
+        </button>
+        <Link to="/mission-control">Mission Control</Link>
+        <Link to="/strategic-advisor">Strategic Advisor</Link>
+        <Link to="/command-center">Command Center</Link>
+        <Link to="/intelligence-reports">Reports</Link>
+        <Link to="/campaign-crm">CRM</Link>
+      </div>
+
+      <div className="war-exec-footer">
+        <span>Updated: {lastUpdated || "Ready"}</span>
+        <span>Live Channel: intelligence:warroom</span>
+      </div>
+    </div>
+  );
+}
+
+function WarRoomActionCenter({ onRefresh }) {
+  return (
+    <div className="war-action-center">
+      <button type="button" onClick={onRefresh}>Refresh War Room</button>
+      <Link to="/mission-control">Open Mission Control</Link>
+      <Link to="/strategic-advisor">Open Strategic Advisor</Link>
+      <Link to="/command-center">Open Command Center</Link>
+      <Link to="/intelligence-reports">Open Intelligence Reports</Link>
+      <Link to="/campaign-crm">Open Campaign CRM</Link>
+      <Link to="/political-intelligence">Open Political Intelligence</Link>
+    </div>
+  );
+}
+
 export default function AIWarRoom() {
   const { filters } = useExecutiveFilters();
 
@@ -337,6 +450,22 @@ export default function AIWarRoom() {
   const vendorGaps = arr(data.vendor_gaps);
   const reports = arr(data.reports);
 
+  const backlogCount = tasks.length + crmFollowups.length + rapidResponses.length + vendorGaps.length;
+
+  const navSections = [
+    { id: "war-overview", label: "Overview" },
+    { id: "war-metrics", label: "Metrics" },
+    { id: "war-command-hero", label: "Mission" },
+    { id: "war-threats", label: "Threat Board", badge: threats.length },
+    { id: "war-queue", label: "Response Queue", badge: queue.length },
+    { id: "war-workspaces", label: "Workspaces", badge: commandCards.length },
+    { id: "war-signals", label: "Signals", badge: signals.length },
+    { id: "war-advisor", label: "Strategic Advisor", badge: recommendations.length },
+    { id: "war-backlog", label: "Backlog", badge: backlogCount },
+    { id: "war-reports", label: "Reports", badge: reports.length },
+    { id: "war-actions", label: "Actions" },
+  ];
+
   return (
     <PageShell
       eyebrow="Election War Room"
@@ -353,6 +482,136 @@ export default function AIWarRoom() {
       ]}
     >
       <style>{`
+        .war-exec-ribbon {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
+          gap: 18px;
+          align-items: stretch;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(239, 68, 68, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.16), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.86));
+          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
+          padding: 20px;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .war-exec-copy {
+          min-width: 0;
+        }
+
+        .war-exec-copy span,
+        .war-exec-grid span,
+        .war-exec-footer span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .war-exec-copy strong {
+          display: block;
+          margin-top: 8px;
+          color: white;
+          font-size: clamp(30px, 4vw, 50px);
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.07em;
+        }
+
+        .war-exec-copy p {
+          margin: 12px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.6;
+          max-width: 820px;
+        }
+
+        .war-exec-badges,
+        .war-exec-actions,
+        .war-exec-footer,
+        .war-action-center {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .war-exec-badges {
+          margin-top: 14px;
+        }
+
+        .war-exec-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .war-exec-grid div {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+          min-width: 0;
+        }
+
+        .war-exec-grid strong {
+          display: block;
+          margin-top: 7px;
+          color: white;
+          font-size: 20px;
+          font-weight: 950;
+          overflow-wrap: anywhere;
+        }
+
+        .war-exec-actions,
+        .war-exec-footer {
+          grid-column: 1 / -1;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 14px;
+        }
+
+        .war-exec-actions button,
+        .war-exec-actions a,
+        .war-action-center button,
+        .war-action-center a {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 11px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .war-exec-actions button:hover,
+        .war-exec-actions a:hover,
+        .war-action-center button:hover,
+        .war-action-center a:hover {
+          border-color: rgba(248, 113, 113, 0.44);
+          background: rgba(239, 68, 68, 0.14);
+          color: white;
+        }
+
+        .war-exec-actions button:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .war-exec-stack {
+          display: grid;
+          gap: 18px;
+          min-width: 0;
+        }
+
+
         .war-grid {
           display: grid;
           grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.65fr);
@@ -513,15 +772,46 @@ export default function AIWarRoom() {
 
         @media (max-width: 1100px) {
           .war-grid,
-          .war-card-grid {
+          .war-card-grid,
+          .war-exec-ribbon {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
 
+      <div className="war-exec-stack">
+        <WarRoomExecutiveHeader
+          summary={summary}
+          threats={threats}
+          queue={queue}
+          signals={signals}
+          commandCards={commandCards}
+          recommendations={recommendations}
+          reports={reports}
+          tasks={tasks}
+          crmFollowups={crmFollowups}
+          rapidResponses={rapidResponses}
+          vendorGaps={vendorGaps}
+          highThreats={highThreats}
+          loading={loading}
+          refreshing={refreshing}
+          lastUpdated={lastUpdated}
+          onRefresh={() => load({ quiet: true })}
+        />
+
+        <ExecutivePageNav sections={navSections} />
+      </div>
+
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {liveBanner ? <div className="vs-banner">{liveBanner}</div> : null}
 
+      <CollapsibleSection
+        id="war-metrics"
+        title="War Room Metrics"
+        subtitle="Mission risk, pressure, threat count, queue volume, live signals, and generated reports."
+        defaultOpen
+        right={<Badge tone={highThreats ? "danger" : "active"}>{highThreats} High Threats</Badge>}
+      >
       <div className="vs-grid-4">
         {metrics.length ? (
           metrics.map((metric, index) => (
@@ -542,13 +832,14 @@ export default function AIWarRoom() {
           </>
         )}
       </div>
+      </CollapsibleSection>
 
       {loading ? (
         <EmptyState text="Loading Election War Room..." />
       ) : (
         <div className="war-grid">
           <div className="war-stack">
-            <div className="war-hero">
+            <div id="war-command-hero" className="war-hero">
               <div className="war-hero-top">
                 <div>
                   <h2>Election War Room</h2>
@@ -573,91 +864,117 @@ export default function AIWarRoom() {
               </div>
             </div>
 
-            <SectionCard
+            <CollapsibleSection
+              id="war-threats"
               title="Live Threat Board"
               subtitle="Highest-priority political and operational pressure entering the war room."
+              defaultOpen
               right={<Badge tone={threats.length ? "danger" : "active"}>{threats.length} threats</Badge>}
             >
-              <div className="war-stack">
-                {!threats.length ? (
-                  <EmptyState text="No active threats available for the current filters." />
-                ) : (
-                  threats.map((item) => <ThreatRow key={item.id || item.title} item={item} />)
-                )}
-              </div>
-            </SectionCard>
+              {!threats.length ? (
+                <EmptyState text="No active threats available for the current filters." />
+              ) : (
+                <ShowMoreList
+                  items={threats}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Threats`}
+                  className="war-stack"
+                  renderItem={(item) => <ThreatRow item={item} />}
+                />
+              )}
+            </CollapsibleSection>
 
-            <SectionCard
+            <CollapsibleSection
+              id="war-queue"
               title="Response Queue"
               subtitle="Next-cycle command items from Mission Control."
+              defaultOpen
               right={<Badge tone={queue.length ? "demo" : "active"}>{queue.length} live</Badge>}
             >
-              <div className="war-stack">
-                {!queue.length ? (
-                  <EmptyState text="No response queue items available for the current filters." />
-                ) : (
-                  queue.map((item) => <QueueRow key={item.id || item.item} item={item} />)
-                )}
-              </div>
-            </SectionCard>
+              {!queue.length ? (
+                <EmptyState text="No response queue items available for the current filters." />
+              ) : (
+                <ShowMoreList
+                  items={queue}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Queue Items`}
+                  className="war-stack"
+                  renderItem={(item) => <QueueRow item={item} />}
+                />
+              )}
+            </CollapsibleSection>
 
-            <SectionCard
+            <CollapsibleSection
+              id="war-workspaces"
               title="Workspace Command Cards"
               subtitle="Workspace pressure and execution status."
+              defaultOpen={false}
               right={<Badge tone="accent">{commandCards.length} workspaces</Badge>}
             >
               {!commandCards.length ? (
                 <EmptyState text="No workspace command cards available." />
               ) : (
-                <div className="war-card-grid">
-                  {commandCards.map((item) => (
-                    <WorkspaceCard key={item.id || item.title} item={item} />
-                  ))}
-                </div>
+                <ShowMoreList
+                  items={commandCards}
+                  initialCount={6}
+                  showAllLabel={(count) => `Show All ${count} Workspaces`}
+                  className="war-card-grid"
+                  renderItem={(item) => <WorkspaceCard item={item} />}
+                />
               )}
-            </SectionCard>
+            </CollapsibleSection>
           </div>
 
           <div className="war-stack">
-            <SectionCard
+            <CollapsibleSection
+              id="war-signals"
               title="Signal Stream"
               subtitle="Live intelligence entering the terminal."
+              defaultOpen
               right={<Badge tone="info">{signals.length} active</Badge>}
             >
-              <div className="war-stack">
-                {!signals.length ? (
-                  <EmptyState text="No live signals available for the current filters." />
-                ) : (
-                  signals.slice(0, 12).map((item) => (
-                    <SignalRow key={item.id || `${item.time}-${item.channel}`} item={item} />
-                  ))
-                )}
-              </div>
-            </SectionCard>
+              {!signals.length ? (
+                <EmptyState text="No live signals available for the current filters." />
+              ) : (
+                <ShowMoreList
+                  items={signals}
+                  initialCount={12}
+                  showAllLabel={(count) => `Show All ${count} Signals`}
+                  className="war-stack"
+                  renderItem={(item) => <SignalRow item={item} />}
+                />
+              )}
+            </CollapsibleSection>
 
-            <SectionCard
+            <CollapsibleSection
+              id="war-advisor"
               title="Strategic Advisor Feed"
               subtitle="AI-ranked strategic recommendations."
+              defaultOpen={false}
               right={<Badge tone={recommendations.length ? "demo" : "active"}>{recommendations.length}</Badge>}
             >
-              <div className="war-stack">
-                {!recommendations.length ? (
-                  <EmptyState text="No strategic advisor recommendations available." />
-                ) : (
-                  recommendations.slice(0, 6).map((item) => (
-                    <RecommendationRow key={item.id || item.title} item={item} />
-                  ))
-                )}
-              </div>
-            </SectionCard>
+              {!recommendations.length ? (
+                <EmptyState text="No strategic advisor recommendations available." />
+              ) : (
+                <ShowMoreList
+                  items={recommendations}
+                  initialCount={6}
+                  showAllLabel={(count) => `Show All ${count} Recommendations`}
+                  className="war-stack"
+                  renderItem={(item) => <RecommendationRow item={item} />}
+                />
+              )}
+            </CollapsibleSection>
 
-            <SectionCard
+            <CollapsibleSection
+              id="war-backlog"
               title="Operational Backlog"
               subtitle="Tasks, CRM follow-ups, rapid responses, and vendor gaps."
+              defaultOpen={false}
               right={<Badge tone="accent">{tasks.length + crmFollowups.length + rapidResponses.length + vendorGaps.length}</Badge>}
             >
               <div className="war-stack">
-                {tasks.slice(0, 3).map((task) => (
+                {tasks.slice(0, 6).map((task) => (
                   <QueueRow
                     key={`task-${task.id}`}
                     item={{
@@ -672,7 +989,7 @@ export default function AIWarRoom() {
                   />
                 ))}
 
-                {crmFollowups.slice(0, 3).map((item) => (
+                {crmFollowups.slice(0, 6).map((item) => (
                   <QueueRow
                     key={`crm-${item.id}`}
                     item={{
@@ -691,26 +1008,42 @@ export default function AIWarRoom() {
                   <EmptyState text="No operational backlog detected." />
                 ) : null}
               </div>
-            </SectionCard>
+            </CollapsibleSection>
 
-            <SectionCard
+            <CollapsibleSection
+              id="war-reports"
               title="Recent Intelligence Reports"
               subtitle="Latest generated reports and briefs."
+              defaultOpen={false}
               right={<Badge tone="active">{reports.length}</Badge>}
             >
-              <div className="war-stack">
-                {!reports.length ? (
-                  <EmptyState text="No reports generated yet." />
-                ) : (
-                  reports.slice(0, 5).map((item) => (
-                    <ReportRow key={item.id || item.title} item={item} />
-                  ))
-                )}
-              </div>
-            </SectionCard>
+              {!reports.length ? (
+                <EmptyState text="No reports generated yet." />
+              ) : (
+                <ShowMoreList
+                  items={reports}
+                  initialCount={5}
+                  showAllLabel={(count) => `Show All ${count} Reports`}
+                  className="war-stack"
+                  renderItem={(item) => <ReportRow item={item} />}
+                />
+              )}
+            </CollapsibleSection>
           </div>
         </div>
       )}
+
+      <CollapsibleSection
+        id="war-actions"
+        title="Executive Action Center"
+        subtitle="Move from the War Room into connected VoterSpheres execution modules."
+        defaultOpen={false}
+        right={<Badge tone="active">Command Links</Badge>}
+      >
+        <WarRoomActionCenter onRefresh={() => load({ quiet: true })} />
+      </CollapsibleSection>
+
+      <BackToTopButton />
     </PageShell>
   );
 }
