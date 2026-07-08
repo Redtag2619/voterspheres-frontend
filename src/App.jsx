@@ -249,6 +249,7 @@ function AppRoutes() {
 
             <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_WAR_ROOM]} />}>
               <Route path="/war-room" element={<AIWarRoom />} />
+              <Route path="/ai-war-room" element={<AIWarRoom />} />
             </Route>
 
               <Route element={<RequirePermission permissions={[PERMISSIONS.VIEW_COMMAND_CENTER]} />}>
@@ -314,7 +315,6 @@ function AppRoutes() {
               <Route path="/autonomous-campaign-operations" element={<AutonomousCampaignOperations />} />
               <Route path="/strategy-recommendation-dashboard" element={<StrategyRecommendationDashboard />} />
               <Route path="/executive-ai-command-platform" element={<ExecutiveAICommandPlatform />} />
-              <Route path="/ai-war-room" element={<AIWarRoom />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
