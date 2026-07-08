@@ -103,6 +103,164 @@ function itemEntityType(item = {}) {
   return item.entity_type || item.coalition_type || item.source_type || "organization";
 }
 
+function getForecastScores(item = {}) {
+  const probability = n(item.probability);
+  const opportunity = n(item.opportunity_score || item.coalition_score);
+  const momentum = n(item.momentum_score);
+  const risk = n(item.risk_score);
+  const confidence = n(item.confidence_score);
+  const strength = n(item.strength_score || item.relationship_strength || item.influence_score);
+
+  const fundraising =
+    n(item.fundraising_score) ||
+    n(item.donor_score) ||
+    (String(item.forecast_type || "").toLowerCase().includes("donor") ? Math.max(opportunity, probability) : 0);
+
+  const coalition =
+    n(item.coalition_score) ||
+    (String(item.coalition_type || item.forecast_type || "").toLowerCase().includes("coalition") ? Math.max(opportunity, probability) : 0);
+
+  const organization =
+    n(item.organization_score) ||
+    n(item.vendor_score) ||
+    (String(item.forecast_type || "").toLowerCase().includes("vendor") ? Math.max(35, opportunity) : 0);
+
+  return {
+    probability,
+    opportunity,
+    momentum,
+    risk,
+    confidence,
+    strength,
+    fundraising,
+    coalition,
+    organization,
+  };
+}
+
+function getForecastSignalType(item = {}) {
+  return String(item.forecast_type || item.coalition_type || item.relationship_type || "").toLowerCase();
+}
+
+function classifyExecutiveRecommendation(item = {}) {
+  const s = getForecastScores(item);
+  const type = getForecastSignalType(item);
+  const state = String(item.state || "").toUpperCase();
+
+  if (s.risk >= 88 && s.momentum >= 58) {
+    return {
+      label: "Immediate Executive Review",
+      tone: "danger",
+      detail: "High downside risk is moving quickly enough to require executive review and rapid response planning.",
+    };
+  }
+
+  if (type.includes("decline") || (s.risk >= 78 && s.opportunity < 55)) {
+    return {
+      label: "Defensive Priority",
+      tone: "danger",
+      detail: "Risk is outpacing opportunity. Protect the position before additional deterioration appears in the graph.",
+    };
+  }
+
+  if (s.risk >= 70 && s.momentum >= 66 && s.opportunity >= 55) {
+    return {
+      label: "Competitive Battleground",
+      tone: "demo",
+      detail: "Momentum and risk are both elevated. Treat this as a contested environment requiring daily monitoring.",
+    };
+  }
+
+  if ((type.includes("donor") || s.fundraising >= 70) && s.opportunity >= 62 && s.risk < 72) {
+    return {
+      label: "Fundraising Opportunity",
+      tone: "active",
+      detail: "Donor or finance signals are strong enough to justify targeted fundraising and PAC development.",
+    };
+  }
+
+  if ((type.includes("coalition") || s.coalition >= 70) && s.confidence >= 48) {
+    return {
+      label: "Coalition Expansion",
+      tone: "accent",
+      detail: "Coalition formation signals are strong. Expand partner, endorsement, and stakeholder outreach.",
+    };
+  }
+
+  if ((type.includes("vendor") || s.organization >= 58) && s.opportunity >= 50 && s.risk >= 45) {
+    return {
+      label: "Organization Needed",
+      tone: "info",
+      detail: "The opportunity exists, but execution infrastructure should be strengthened before pressure increases.",
+    };
+  }
+
+  if (s.momentum >= 74 && s.opportunity >= 68 && s.risk < 62) {
+    return {
+      label: "Momentum Building",
+      tone: "active",
+      detail: "Momentum and opportunity are rising while risk remains manageable.",
+    };
+  }
+
+  if (s.probability >= 76 && s.opportunity >= 70 && s.risk < 55 && s.confidence >= 52) {
+    return {
+      label: "Positioned for Influence Growth",
+      tone: "active",
+      detail: "High probability, strong opportunity, and manageable risk support expansion.",
+    };
+  }
+
+  if (s.probability >= 58 && s.confidence >= 45 && s.risk < 68) {
+    return {
+      label: "Maintain Position",
+      tone: "info",
+      detail: "Signals are stable. Continue monitoring while preserving current posture.",
+    };
+  }
+
+  if (s.opportunity < 45 && s.momentum < 45 && s.risk < 65) {
+    return {
+      label: "Low-Signal Watch",
+      tone: "default",
+      detail: "Current data does not support aggressive action. Keep this in monitoring until stronger movement appears.",
+    };
+  }
+
+  return {
+    label: state ? `${state} Monitor Closely` : "Monitor Closely",
+    tone: s.risk >= 60 ? "demo" : "info",
+    detail: "Signals are mixed. Continue monitoring and wait for stronger confirmation before committing resources.",
+  };
+}
+
+function recommendationLabel(item = {}) {
+  return classifyExecutiveRecommendation(item).label;
+}
+
+function recommendationTone(item = {}) {
+  return classifyExecutiveRecommendation(item).tone;
+}
+
+function recommendationDetail(item = {}) {
+  return classifyExecutiveRecommendation(item).detail;
+}
+
+function buildExecutiveRecommendation(item = {}) {
+  const classified = classifyExecutiveRecommendation(item);
+  const backendAction = String(item.recommended_action || "").trim();
+
+  if (
+    !backendAction ||
+    /positioned for influence growth/i.test(backendAction) ||
+    /monitor/i.test(backendAction)
+  ) {
+    return `${classified.label}: ${classified.detail}`;
+  }
+
+  return backendAction;
+}
+
 async function apiGet(path, params = {}) {
   const response = await api.get(path, { params, timeout: 15000 });
   return response?.data || response;
@@ -202,7 +360,7 @@ function ForecastRow({ item, selected, onSelect }) {
       </div>
 
       <div className="vs-terminal-signal-foot">
-        <Badge tone={signalTone}>Forecast Signal</Badge>
+        <Badge tone={recommendationTone(item)}>{recommendationLabel(item)}</Badge>
         <span>Probability {fmtFullPercent(probability)}</span>
         <em>Inspect →</em>
       </div>
@@ -282,8 +440,8 @@ function SelectedForecastPanel({ item }) {
     <div className="selected-forecast-panel">
       <div className="selected-forecast-header">
         <div>
-          <Badge tone={typeTone(item.forecast_type || item.coalition_type || item.relationship_type)}>
-            {item.forecast_type || item.coalition_type || item.relationship_type || "forecast"}
+          <Badge tone={recommendationTone(item)}>
+            {recommendationLabel(item)}
           </Badge>
           <h3>{itemTitle(item)}</h3>
           <p>{itemDetail(item)}</p>
@@ -298,12 +456,10 @@ function SelectedForecastPanel({ item }) {
         <StatCard label="Risk" value={fmtFullPercent(item.risk_score)} subtext="Downside exposure" />
       </div>
 
-      {item.recommended_action ? (
-        <div className="forecast-recommendation">
-          <span>Recommended Executive Action</span>
-          <p>{item.recommended_action}</p>
-        </div>
-      ) : null}
+      <div className="forecast-recommendation">
+        <span>Recommended Executive Action</span>
+        <p>{buildExecutiveRecommendation(item)}</p>
+      </div>
 
       <div className="forecast-link-row">
         <Link className="vs-button" to={`/influence?state=${encodeURIComponent(selectedState)}&search=${encodeURIComponent(selectedName)}&type=${encodeURIComponent(selectedType)}`}>
@@ -346,11 +502,11 @@ function BriefCard({ title, value, detail, tone = "accent" }) {
 
 function buildBrief({ predictions, opportunities, risks, momentum, coalitions }) {
   const lines = [];
-  if (predictions[0]) lines.push(`${itemTitle(predictions[0])} is the highest-probability forecast at ${fmtPct(predictions[0].probability)}.`);
-  if (opportunities[0]) lines.push(`${itemEntityName(opportunities[0]) || itemTitle(opportunities[0])} is the strongest opportunity signal with opportunity ${fmtFullPercent(opportunities[0].opportunity_score)}.`);
-  if (risks[0]) lines.push(`${itemEntityName(risks[0]) || itemTitle(risks[0])} carries the highest forecast risk at ${fmtFullPercent(risks[0].risk_score)}.`);
-  if (momentum[0]) lines.push(`${itemEntityName(momentum[0]) || itemTitle(momentum[0])} has notable momentum at ${fmtFullPercent(momentum[0].momentum_score)}.`);
-  if (coalitions[0]) lines.push(`${coalitions[0].state || "National"} ${coalitions[0].coalition_type || "coalition"} formation is forecast at ${fmtPct(coalitions[0].probability)}.`);
+  if (predictions[0]) lines.push(`${itemTitle(predictions[0])} is classified as ${recommendationLabel(predictions[0])} at ${fmtPct(predictions[0].probability)} probability.`);
+  if (opportunities[0]) lines.push(`${itemEntityName(opportunities[0]) || itemTitle(opportunities[0])} is classified as ${recommendationLabel(opportunities[0])} with opportunity ${fmtFullPercent(opportunities[0].opportunity_score)}.`);
+  if (risks[0]) lines.push(`${itemEntityName(risks[0]) || itemTitle(risks[0])} is classified as ${recommendationLabel(risks[0])} with risk ${fmtFullPercent(risks[0].risk_score)}.`);
+  if (momentum[0]) lines.push(`${itemEntityName(momentum[0]) || itemTitle(momentum[0])} is classified as ${recommendationLabel(momentum[0])} with momentum ${fmtFullPercent(momentum[0].momentum_score)}.`);
+  if (coalitions[0]) lines.push(`${coalitions[0].state || "National"} ${coalitions[0].coalition_type || "coalition"} is classified as ${recommendationLabel(coalitions[0])} at ${fmtPct(coalitions[0].probability)}.`);
   return lines.length ? lines.join(" ") : "No forecast brief is available yet. Run Recalculate Forecasts after Influence Engine data has been synced.";
 }
 
