@@ -261,6 +261,49 @@ function buildExecutiveRecommendation(item = {}) {
   return backendAction;
 }
 
+function forecastDisplayTitle(item = {}) {
+  const rawTitle = String(itemTitle(item) || "").trim();
+  const rawAction = String(item.recommended_action || "").trim();
+  const label = recommendationLabel(item);
+
+  const isGenericGrowth =
+    /positioned for influence growth/i.test(rawTitle) ||
+    /positioned for influence growth/i.test(rawAction) ||
+    /^influence growth$/i.test(rawTitle) ||
+    /^forecast signal$/i.test(rawTitle);
+
+  const entity = itemEntityName(item);
+  const state = item.state || "National";
+  const type = String(item.forecast_type || item.coalition_type || item.relationship_type || "forecast")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  if (isGenericGrowth || !rawTitle || rawTitle === "Forecast Signal") {
+    return `${state} ${label}`;
+  }
+
+  if (rawTitle.length <= 6 && entity) {
+    return `${label}: ${entity}`;
+  }
+
+  return rawTitle;
+}
+
+function forecastDisplayDetail(item = {}) {
+  const classified = classifyExecutiveRecommendation(item);
+  const rawDetail = String(itemDetail(item) || "").trim();
+  const rawAction = String(item.recommended_action || "").trim();
+  const isGeneric =
+    /positioned for influence growth/i.test(rawDetail) ||
+    /positioned for influence growth/i.test(rawAction);
+
+  if (!rawDetail || isGeneric || rawDetail === "Forecast intelligence signal") {
+    return classified.detail;
+  }
+
+  return rawDetail;
+}
+
 async function apiGet(path, params = {}) {
   const response = await api.get(path, { params, timeout: 15000 });
   return response?.data || response;
@@ -346,8 +389,11 @@ function ForecastRow({ item, selected, onSelect }) {
           <div className="vs-terminal-kicker">
             {String(item.forecast_type || item.coalition_type || item.relationship_type || "Forecast").replace(/_/g, " ")}
           </div>
-          <h3>{itemTitle(item)}</h3>
-          <p>{itemDetail(item)}</p>
+          <h3>{forecastDisplayTitle(item)}</h3>
+          <p>{forecastDisplayDetail(item)}</p>
+          <div className="forecast-classification-line">
+            Executive classification: <strong>{recommendationLabel(item)}</strong>
+          </div>
         </div>
         <SignalGauge value={probability} label="Probability" tone={toneByScore(probability)} />
       </div>
@@ -361,7 +407,7 @@ function ForecastRow({ item, selected, onSelect }) {
 
       <div className="vs-terminal-signal-foot">
         <Badge tone={recommendationTone(item)}>{recommendationLabel(item)}</Badge>
-        <span>Probability {fmtFullPercent(probability)}</span>
+        <span>{String(item.forecast_type || item.coalition_type || item.relationship_type || "forecast").replace(/_/g, " ")} • Probability {fmtFullPercent(probability)}</span>
         <em>Inspect →</em>
       </div>
     </button>
@@ -443,8 +489,8 @@ function SelectedForecastPanel({ item }) {
           <Badge tone={recommendationTone(item)}>
             {recommendationLabel(item)}
           </Badge>
-          <h3>{itemTitle(item)}</h3>
-          <p>{itemDetail(item)}</p>
+          <h3>{forecastDisplayTitle(item)}</h3>
+          <p>{forecastDisplayDetail(item)}</p>
         </div>
         <Badge tone={toneByScore(item.probability)}>{fmtPct(item.probability)}</Badge>
       </div>
@@ -502,7 +548,7 @@ function BriefCard({ title, value, detail, tone = "accent" }) {
 
 function buildBrief({ predictions, opportunities, risks, momentum, coalitions }) {
   const lines = [];
-  if (predictions[0]) lines.push(`${itemTitle(predictions[0])} is classified as ${recommendationLabel(predictions[0])} at ${fmtPct(predictions[0].probability)} probability.`);
+  if (predictions[0]) lines.push(`${forecastDisplayTitle(predictions[0])} is classified at ${fmtPct(predictions[0].probability)} probability.`);
   if (opportunities[0]) lines.push(`${itemEntityName(opportunities[0]) || itemTitle(opportunities[0])} is classified as ${recommendationLabel(opportunities[0])} with opportunity ${fmtFullPercent(opportunities[0].opportunity_score)}.`);
   if (risks[0]) lines.push(`${itemEntityName(risks[0]) || itemTitle(risks[0])} is classified as ${recommendationLabel(risks[0])} with risk ${fmtFullPercent(risks[0].risk_score)}.`);
   if (momentum[0]) lines.push(`${itemEntityName(momentum[0]) || itemTitle(momentum[0])} is classified as ${recommendationLabel(momentum[0])} with momentum ${fmtFullPercent(momentum[0].momentum_score)}.`);
@@ -965,6 +1011,19 @@ export default function ExecutiveForecastDashboard() {
           color: rgba(203, 213, 225, 0.72);
           font-size: 12px;
           line-height: 1.5;
+        }
+
+        .forecast-classification-line {
+          margin-top: 9px;
+          color: rgba(147, 197, 253, 0.9);
+          font-size: 11px;
+          font-weight: 850;
+          letter-spacing: 0.01em;
+        }
+
+        .forecast-classification-line strong {
+          color: white;
+          font-weight: 950;
         }
 
         .vs-terminal-gauge {
