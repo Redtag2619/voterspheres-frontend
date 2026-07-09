@@ -41,6 +41,133 @@ function fmt(value) {
   return Number(value || 0).toLocaleString();
 }
 
+const AI_AGENTS = [
+  {
+    key: "executive_chief_of_staff",
+    label: "Executive Chief of Staff",
+    icon: "👔",
+    description: "Prioritizes executive decisions, operating rhythm, risk, staff accountability, and daily command posture.",
+    prompts: [
+      "Give me today's executive briefing.",
+      "Prioritize Mission Control for the next 24 hours.",
+      "What is my biggest operational risk?",
+      "What should leadership decide this week?",
+    ],
+  },
+  {
+    key: "campaign_strategist",
+    label: "Campaign Strategist",
+    icon: "🎯",
+    description: "Builds path-to-victory plans, messaging priorities, target geography, and resource allocation strategy.",
+    prompts: [
+      "Build a 90-day campaign plan.",
+      "What is the path to victory?",
+      "Analyze swing voters and persuasion targets.",
+      "Recommend messaging priorities for this race.",
+    ],
+  },
+  {
+    key: "polling_data_analyst",
+    label: "Polling & Data Analyst",
+    icon: "📊",
+    description: "Interprets polling, voter universes, turnout, segmentation, and county/state performance signals.",
+    prompts: [
+      "Explain the most important polling trend.",
+      "What data signals should we watch this week?",
+      "Which voter segments need more attention?",
+      "Build a turnout risk assessment.",
+    ],
+  },
+  {
+    key: "fundraising_director",
+    label: "Fundraising Director",
+    icon: "💰",
+    description: "Focuses on donor strategy, call time, revenue goals, finance calendar, and fundraising risk.",
+    prompts: [
+      "Build a 30-day fundraising plan.",
+      "Which donor follow-ups should we prioritize?",
+      "How do we improve donor retention?",
+      "Create a finance calendar for this campaign.",
+    ],
+  },
+  {
+    key: "communications_director",
+    label: "Communications Director",
+    icon: "📣",
+    description: "Shapes messaging, earned media, speeches, debate prep, press response, and narrative discipline.",
+    prompts: [
+      "Draft a message framework.",
+      "Prepare a debate contrast strategy.",
+      "What should our earned media strategy be?",
+      "Write a rapid press statement outline.",
+    ],
+  },
+  {
+    key: "rapid_response_director",
+    label: "Rapid Response Director",
+    icon: "📰",
+    description: "Handles attacks, crisis posture, rebuttals, escalation, and 24-hour response planning.",
+    prompts: [
+      "Build a rapid response plan.",
+      "How should we respond to an attack?",
+      "What narrative threat is most urgent?",
+      "Create a 24-hour crisis communications checklist.",
+    ],
+  },
+  {
+    key: "field_operations_director",
+    label: "Field Operations Director",
+    icon: "🗺️",
+    description: "Optimizes GOTV, voter contact, county targeting, volunteers, canvassing, and field assignments.",
+    prompts: [
+      "Build a GOTV plan.",
+      "Which counties should field prioritize?",
+      "What volunteer goals do we need this week?",
+      "Create a field staff assignment plan.",
+    ],
+  },
+  {
+    key: "mailops_director",
+    label: "MailOps Director",
+    icon: "📬",
+    description: "Plans direct mail, production timing, vendor capacity, universes, creative tests, and delivery risk.",
+    prompts: [
+      "Build a direct mail calendar.",
+      "What mail universe should we target?",
+      "Identify MailOps production risks.",
+      "Create a direct mail testing plan.",
+    ],
+  },
+  {
+    key: "digital_advertising_advisor",
+    label: "Digital Advertising Advisor",
+    icon: "📈",
+    description: "Advises on digital targeting, creative testing, budget pacing, retargeting, and persuasion funnels.",
+    prompts: [
+      "Build a digital advertising plan.",
+      "What audiences should we target online?",
+      "Create a creative testing matrix.",
+      "How should we pace digital budget this month?",
+    ],
+  },
+  {
+    key: "compliance_advisor",
+    label: "Compliance Advisor",
+    icon: "⚖️",
+    description: "Provides general compliance risk flags, process controls, recordkeeping reminders, and counsel escalation prompts.",
+    prompts: [
+      "What compliance risks should we review?",
+      "Create a campaign recordkeeping checklist.",
+      "What should we ask counsel before launch?",
+      "Review this plan for general compliance concerns.",
+    ],
+  },
+];
+
+function getAgent(key) {
+  return AI_AGENTS.find((agent) => agent.key === key) || AI_AGENTS[0];
+}
+
 const intelligenceSources = [
   "Mission Control",
   "Election War Room",
@@ -122,11 +249,56 @@ const promptGroups = [
   },
 ];
 
+function AgentSelector({ selectedAgent, setSelectedAgent, onAsk, asking }) {
+  const activeAgent = getAgent(selectedAgent);
+
+  return (
+    <div className="copilot-agent-shell">
+      <div className="copilot-active-agent">
+        <div className="copilot-agent-icon">{activeAgent.icon}</div>
+        <div>
+          <span>Active AI Agent</span>
+          <strong>{activeAgent.label}</strong>
+          <p>{activeAgent.description}</p>
+        </div>
+        <Badge tone="active">Agent Mode</Badge>
+      </div>
+
+      <div className="copilot-agent-grid">
+        {AI_AGENTS.map((agent) => (
+          <button
+            key={agent.key}
+            type="button"
+            className={`copilot-agent-card ${selectedAgent === agent.key ? "is-active" : ""}`}
+            onClick={() => setSelectedAgent(agent.key)}
+          >
+            <span>{agent.icon}</span>
+            <strong>{agent.label}</strong>
+            <small>{agent.description}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="copilot-agent-prompts">
+        <div className="copilot-prompt-title">{activeAgent.label} Suggested Prompts</div>
+        <div className="copilot-quick">
+          {activeAgent.prompts.map((item) => (
+            <button key={item} type="button" onClick={() => onAsk(item)} disabled={asking}>
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CopilotExecutiveHeader({
   stats,
   asking,
   lastUpdated,
   selectedContext,
+  activeAgent,
   voiceEnabled,
   onNewThread,
   onGenerateBrief,
@@ -164,6 +336,7 @@ function CopilotExecutiveHeader({
           <Badge tone="accent">{confidence}% AI Confidence</Badge>
           <Badge tone={voiceEnabled ? "active" : "danger"}>{voiceEnabled ? "Voice Ready" : "Voice Unsupported"}</Badge>
           <Badge tone="warning">{selectedContext.state || "National"}</Badge>
+          <Badge tone="accent">{activeAgent?.label || "Executive Chief of Staff"}</Badge>
         </div>
       </div>
 
@@ -554,6 +727,7 @@ export default function AICampaignCopilot() {
     cycle: "2026",
     campaign: "",
   });
+  const [selectedAgent, setSelectedAgent] = useState("executive_chief_of_staff");
   const [listening, setListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [voiceStatus, setVoiceStatus] = useState("");
@@ -738,7 +912,10 @@ export default function AICampaignCopilot() {
   }
 
   function buildPromptWithContext(value) {
+    const agent = getAgent(selectedAgent);
     const contextParts = [
+      `Active AI Agent: ${agent.label}`,
+      `Agent Focus: ${agent.description}`,
       `Scope: ${selectedContext.scope || "National"}`,
       selectedContext.state ? `State: ${selectedContext.state}` : "",
       selectedContext.cycle ? `Cycle: ${selectedContext.cycle}` : "",
@@ -769,6 +946,7 @@ export default function AICampaignCopilot() {
       const result = await api.askAiCampaignCopilot({
         prompt: buildPromptWithContext(value),
         thread_id: threadId || null,
+        agent: selectedAgent,
       });
 
       setThreadId(result?.thread_id || threadId);
@@ -823,9 +1001,12 @@ export default function AICampaignCopilot() {
     };
   }, [threads, messages]);
 
+  const activeAgent = useMemo(() => getAgent(selectedAgent), [selectedAgent]);
+
   const navSections = [
     { id: "copilot-overview", label: "Overview" },
     { id: "copilot-brief", label: "Executive Brief" },
+    { id: "copilot-agents", label: "Agents" },
     { id: "copilot-context", label: "Context" },
     { id: "copilot-voice", label: "Voice" },
     { id: "copilot-chat", label: "Chat", badge: stats.messages },
@@ -1370,6 +1551,110 @@ export default function AICampaignCopilot() {
           100% { transform: scale(1); }
         }
 
+
+        .copilot-agent-shell {
+          display: grid;
+          gap: 16px;
+        }
+
+        .copilot-active-agent {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          border-radius: 22px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 36%),
+            rgba(15, 23, 42, 0.58);
+          padding: 16px;
+        }
+
+        .copilot-agent-icon {
+          width: 54px;
+          height: 54px;
+          border-radius: 18px;
+          display: grid;
+          place-items: center;
+          background: rgba(37, 99, 235, 0.22);
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          font-size: 26px;
+        }
+
+        .copilot-active-agent span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .copilot-active-agent strong {
+          display: block;
+          margin-top: 4px;
+          color: white;
+          font-size: 22px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .copilot-active-agent p {
+          margin: 6px 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.55;
+          font-size: 13px;
+        }
+
+        .copilot-agent-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+          gap: 12px;
+        }
+
+        .copilot-agent-card {
+          text-align: left;
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.58);
+          padding: 14px;
+          color: rgba(226, 232, 240, 0.9);
+          cursor: pointer;
+          display: grid;
+          gap: 8px;
+        }
+
+        .copilot-agent-card.is-active {
+          border-color: rgba(96, 165, 250, 0.64);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            rgba(15, 23, 42, 0.74);
+          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18) inset;
+        }
+
+        .copilot-agent-card span {
+          font-size: 24px;
+        }
+
+        .copilot-agent-card strong {
+          color: white;
+          font-size: 14px;
+          font-weight: 950;
+        }
+
+        .copilot-agent-card small {
+          color: rgba(203, 213, 225, 0.72);
+          line-height: 1.45;
+        }
+
+        .copilot-agent-prompts {
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(15, 23, 42, 0.46);
+          padding: 14px;
+        }
+
+
         @media (max-width: 1100px) {
           .copilot-grid,
           .copilot-input,
@@ -1396,6 +1681,7 @@ export default function AICampaignCopilot() {
           asking={asking}
           lastUpdated={lastUpdated}
           selectedContext={selectedContext}
+          activeAgent={activeAgent}
           voiceEnabled={speechSupported}
           onNewThread={startNewThread}
           onGenerateBrief={generateExecutiveBrief}
@@ -1465,6 +1751,21 @@ export default function AICampaignCopilot() {
                 />
               )}
             </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="copilot-agents"
+            title="AI Agents"
+            subtitle="Choose the specialist that should answer the next question."
+            defaultOpen
+            right={<Badge tone="accent">{activeAgent.label}</Badge>}
+          >
+            <AgentSelector
+              selectedAgent={selectedAgent}
+              setSelectedAgent={setSelectedAgent}
+              onAsk={ask}
+              asking={asking}
+            />
           </CollapsibleSection>
 
           <CollapsibleSection
