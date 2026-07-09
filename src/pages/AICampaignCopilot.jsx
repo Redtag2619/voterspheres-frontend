@@ -192,7 +192,7 @@ function CopilotExecutiveHeader({
           Generate Executive Brief
         </button>
         <button type="button" onClick={onVoiceToggle} disabled={!voiceEnabled}>
-          🎙 Voice Co-Pilot
+          🎙 Human Voice Co-Pilot
         </button>
         <Link to="/mission-control">Mission Control</Link>
         <Link to="/war-room">War Room</Link>
@@ -400,12 +400,57 @@ function isVoiceOutputSupported() {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
+function pickHumanFemaleVoice() {
+  if (!isVoiceOutputSupported()) return null;
+
+  const voices = window.speechSynthesis.getVoices?.() || [];
+  const englishVoices = voices.filter((voice) =>
+    String(voice.lang || "").toLowerCase().startsWith("en")
+  );
+
+  const preferredNames = [
+    "samantha",
+    "jenny",
+    "aria",
+    "zira",
+    "victoria",
+    "karen",
+    "serena",
+    "susan",
+    "tessa",
+    "moira",
+    "fiona",
+    "ava",
+    "allison",
+    "google us english",
+    "google uk english female",
+    "microsoft zira",
+    "microsoft aria",
+    "microsoft jenny",
+  ];
+
+  return (
+    englishVoices.find((voice) =>
+      preferredNames.some((name) =>
+        String(voice.name || "").toLowerCase().includes(name)
+      )
+    ) ||
+    englishVoices.find((voice) =>
+      /female|woman|girl/i.test(`${voice.name || ""} ${voice.voiceURI || ""}`)
+    ) ||
+    englishVoices[0] ||
+    voices[0] ||
+    null
+  );
+}
+
 function VoiceCopilotPanel({
   listening,
   voiceTranscript,
   voiceStatus,
   speechSupported,
   voiceOutputSupported,
+  selectedVoiceName,
   onStartListening,
   onStopListening,
   onSubmitVoice,
@@ -442,6 +487,11 @@ function VoiceCopilotPanel({
             “Show Pennsylvania priorities,” or “Create tasks from this answer.”
           </p>
         </div>
+      </div>
+
+      <div className="copilot-voice-transcript">
+        <span>Voice Output</span>
+        <p>{voiceOutputSupported ? selectedVoiceName : "Text-to-speech is not supported in this browser."}</p>
       </div>
 
       <div className="copilot-voice-transcript">
@@ -507,6 +557,7 @@ export default function AICampaignCopilot() {
   const [listening, setListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [voiceStatus, setVoiceStatus] = useState("");
+  const [selectedVoiceName, setSelectedVoiceName] = useState("Human Female Voice");
   const recognitionRef = useRef(null);
 
   const speechSupported = useMemo(() => isSpeechSupported(), []);
@@ -549,6 +600,26 @@ export default function AICampaignCopilot() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!voiceOutputSupported || typeof window === "undefined") return undefined;
+
+    function syncVoiceName() {
+      const voice = pickHumanFemaleVoice();
+      if (voice?.name) {
+        setSelectedVoiceName(voice.name);
+      }
+    }
+
+    syncVoiceName();
+    window.speechSynthesis.onvoiceschanged = syncVoiceName;
+
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, [voiceOutputSupported]);
 
   function startVoiceListening() {
     const SpeechRecognition = getSpeechRecognition();
@@ -628,11 +699,23 @@ export default function AICampaignCopilot() {
     }
 
     window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(clean(lastAssistant.content));
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    utterance.onstart = () => setVoiceStatus("Reading the last Co-Pilot answer...");
+    const voice = pickHumanFemaleVoice();
+
+    if (voice) {
+      utterance.voice = voice;
+      setSelectedVoiceName(voice.name || "Human Female Voice");
+    }
+
+    utterance.lang = voice?.lang || "en-US";
+    utterance.rate = 0.88;
+    utterance.pitch = 1.08;
+    utterance.volume = 1;
+    utterance.onstart = () =>
+      setVoiceStatus(`Reading with ${voice?.name || "a human-like female voice"}...`);
     utterance.onend = () => setVoiceStatus("Finished reading the last answer.");
+
     window.speechSynthesis.speak(utterance);
   }
 
@@ -1410,6 +1493,7 @@ export default function AICampaignCopilot() {
               voiceStatus={voiceStatus}
               speechSupported={speechSupported}
               voiceOutputSupported={voiceOutputSupported}
+              selectedVoiceName={selectedVoiceName}
               onStartListening={startVoiceListening}
               onStopListening={stopVoiceListening}
               onSubmitVoice={submitVoiceCommand}
