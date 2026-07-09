@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 
@@ -127,8 +127,10 @@ function CopilotExecutiveHeader({
   asking,
   lastUpdated,
   selectedContext,
+  voiceEnabled,
   onNewThread,
   onGenerateBrief,
+  onVoiceToggle,
 }) {
   const confidence = asking ? 88 : 96;
   const readiness = Math.max(
@@ -160,6 +162,7 @@ function CopilotExecutiveHeader({
           <Badge tone="info">{stats.messages} Messages</Badge>
           <Badge tone={asking ? "demo" : "active"}>{asking ? "Thinking" : "Ready"}</Badge>
           <Badge tone="accent">{confidence}% AI Confidence</Badge>
+          <Badge tone={voiceEnabled ? "active" : "danger"}>{voiceEnabled ? "Voice Ready" : "Voice Unsupported"}</Badge>
           <Badge tone="warning">{selectedContext.state || "National"}</Badge>
         </div>
       </div>
@@ -187,6 +190,9 @@ function CopilotExecutiveHeader({
         <button type="button" onClick={onNewThread}>New Conversation</button>
         <button type="button" onClick={onGenerateBrief} disabled={asking}>
           Generate Executive Brief
+        </button>
+        <button type="button" onClick={onVoiceToggle} disabled={!voiceEnabled}>
+          🎙 Voice Co-Pilot
         </button>
         <Link to="/mission-control">Mission Control</Link>
         <Link to="/war-room">War Room</Link>
@@ -380,6 +386,108 @@ function KnowledgeGraphPreview() {
   );
 }
 
+
+function getSpeechRecognition() {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function isSpeechSupported() {
+  return Boolean(getSpeechRecognition());
+}
+
+function isVoiceOutputSupported() {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
+function VoiceCopilotPanel({
+  listening,
+  voiceTranscript,
+  voiceStatus,
+  speechSupported,
+  voiceOutputSupported,
+  onStartListening,
+  onStopListening,
+  onSubmitVoice,
+  onClearTranscript,
+  onReadLastAnswer,
+  onStopSpeaking,
+}) {
+  return (
+    <div className="copilot-voice-panel">
+      <div className="copilot-voice-header">
+        <div>
+          <span>Executive Voice Assistant</span>
+          <strong>{listening ? "Listening..." : "Voice Co-Pilot"}</strong>
+        </div>
+        <Badge tone={speechSupported ? (listening ? "demo" : "active") : "danger"}>
+          {speechSupported ? (listening ? "Live Mic" : "Ready") : "Not Supported"}
+        </Badge>
+      </div>
+
+      <div className="copilot-voice-orb-wrap">
+        <button
+          type="button"
+          className={`copilot-voice-orb ${listening ? "is-listening" : ""}`}
+          onClick={listening ? onStopListening : onStartListening}
+          disabled={!speechSupported}
+          aria-label={listening ? "Stop voice listening" : "Start voice listening"}
+        >
+          🎙
+        </button>
+        <div>
+          <strong>{voiceStatus || "Click the microphone and speak an executive command."}</strong>
+          <p>
+            Try: “Generate executive brief,” “What are today’s threats,”
+            “Show Pennsylvania priorities,” or “Create tasks from this answer.”
+          </p>
+        </div>
+      </div>
+
+      <div className="copilot-voice-transcript">
+        <span>Transcript</span>
+        <p>{voiceTranscript || "No voice transcript yet."}</p>
+      </div>
+
+      <div className="copilot-voice-actions">
+        <button type="button" onClick={onStartListening} disabled={!speechSupported || listening}>
+          Start Listening
+        </button>
+        <button type="button" onClick={onStopListening} disabled={!listening}>
+          Stop
+        </button>
+        <button type="button" onClick={onSubmitVoice} disabled={!voiceTranscript.trim()}>
+          Ask Co-Pilot
+        </button>
+        <button type="button" onClick={onClearTranscript} disabled={!voiceTranscript}>
+          Clear
+        </button>
+        <button type="button" onClick={onReadLastAnswer} disabled={!voiceOutputSupported}>
+          🔊 Read Last Answer
+        </button>
+        <button type="button" onClick={onStopSpeaking} disabled={!voiceOutputSupported}>
+          Stop Audio
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FloatingVoiceButton({ listening, speechSupported, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`copilot-floating-mic ${listening ? "is-listening" : ""}`}
+      onClick={onClick}
+      disabled={!speechSupported}
+      aria-label={listening ? "Stop voice assistant" : "Start voice assistant"}
+      title={speechSupported ? "Voice Co-Pilot" : "Voice not supported in this browser"}
+    >
+      🎙
+    </button>
+  );
+}
+
 export default function AICampaignCopilot() {
   const [threads, setThreads] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -396,6 +504,13 @@ export default function AICampaignCopilot() {
     cycle: "2026",
     campaign: "",
   });
+  const [listening, setListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const recognitionRef = useRef(null);
+
+  const speechSupported = useMemo(() => isSpeechSupported(), []);
+  const voiceOutputSupported = useMemo(() => isVoiceOutputSupported(), []);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -422,6 +537,111 @@ export default function AICampaignCopilot() {
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  function startVoiceListening() {
+    const SpeechRecognition = getSpeechRecognition();
+
+    if (!SpeechRecognition) {
+      setVoiceStatus("Voice recognition is not supported in this browser.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setListening(true);
+        setVoiceStatus("Listening for your executive command...");
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map((result) => result[0]?.transcript || "")
+          .join(" ")
+          .trim();
+
+        setVoiceTranscript(transcript);
+        setVoiceStatus(transcript ? "Command captured. Submit or keep speaking." : "Listening...");
+      };
+
+      recognition.onerror = (event) => {
+        setListening(false);
+        setVoiceStatus(event?.error ? `Voice error: ${event.error}` : "Voice recognition error.");
+      };
+
+      recognition.onend = () => {
+        setListening(false);
+        setVoiceStatus("Voice capture ended.");
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      setListening(false);
+      setVoiceStatus(err?.message || "Unable to start voice recognition.");
+    }
+  }
+
+  function stopVoiceListening() {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+
+    setListening(false);
+    setVoiceStatus("Voice listening stopped.");
+  }
+
+  function submitVoiceCommand() {
+    const command = clean(voiceTranscript);
+    if (!command) return;
+
+    ask(command);
+    setVoiceTranscript("");
+    setVoiceStatus("Voice command sent to Co-Pilot.");
+  }
+
+  function readLastAnswer() {
+    if (!voiceOutputSupported) {
+      setVoiceStatus("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    const lastAssistant = [...messages].reverse().find((item) => item.role === "assistant");
+    if (!lastAssistant?.content) {
+      setVoiceStatus("No assistant answer is available to read.");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(clean(lastAssistant.content));
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.onstart = () => setVoiceStatus("Reading the last Co-Pilot answer...");
+    utterance.onend = () => setVoiceStatus("Finished reading the last answer.");
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopSpeaking() {
+    if (voiceOutputSupported) {
+      window.speechSynthesis.cancel();
+      setVoiceStatus("Voice playback stopped.");
+    }
+  }
 
   async function openThread(id) {
     try {
@@ -524,6 +744,7 @@ export default function AICampaignCopilot() {
     { id: "copilot-overview", label: "Overview" },
     { id: "copilot-brief", label: "Executive Brief" },
     { id: "copilot-context", label: "Context" },
+    { id: "copilot-voice", label: "Voice" },
     { id: "copilot-chat", label: "Chat", badge: stats.messages },
     { id: "copilot-prompts", label: "Prompts" },
     { id: "copilot-sources", label: "Sources" },
@@ -914,6 +1135,158 @@ export default function AICampaignCopilot() {
           text-align: center;
         }
 
+
+        .copilot-voice-panel {
+          border-radius: 24px;
+          border: 1px solid rgba(96, 165, 250, 0.24);
+          background:
+            radial-gradient(circle at top right, rgba(14, 165, 233, 0.2), transparent 36%),
+            radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.15), transparent 34%),
+            rgba(15, 23, 42, 0.64);
+          padding: 18px;
+          display: grid;
+          gap: 16px;
+        }
+
+        .copilot-voice-header {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+
+        .copilot-voice-header span,
+        .copilot-voice-transcript span {
+          display: block;
+          color: rgba(147, 197, 253, 0.86);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .copilot-voice-header strong {
+          display: block;
+          margin-top: 5px;
+          color: white;
+          font-size: 22px;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .copilot-voice-orb-wrap {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          gap: 16px;
+          align-items: center;
+        }
+
+        .copilot-voice-orb {
+          width: 82px;
+          height: 82px;
+          border-radius: 999px;
+          border: 1px solid rgba(96, 165, 250, 0.38);
+          background:
+            radial-gradient(circle, rgba(59, 130, 246, 0.34), rgba(15, 23, 42, 0.88));
+          color: white;
+          font-size: 32px;
+          cursor: pointer;
+          box-shadow: 0 0 34px rgba(37, 99, 235, 0.24);
+        }
+
+        .copilot-voice-orb.is-listening,
+        .copilot-floating-mic.is-listening {
+          animation: copilotPulse 1.25s infinite;
+          border-color: rgba(34, 197, 94, 0.72);
+          box-shadow: 0 0 44px rgba(34, 197, 94, 0.36);
+        }
+
+        .copilot-voice-orb:disabled,
+        .copilot-floating-mic:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
+        .copilot-voice-orb-wrap strong {
+          color: white;
+          font-size: 16px;
+          font-weight: 900;
+        }
+
+        .copilot-voice-orb-wrap p {
+          margin: 6px 0 0;
+          color: rgba(226, 232, 240, 0.74);
+          font-size: 13px;
+          line-height: 1.6;
+        }
+
+        .copilot-voice-transcript {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 18px;
+          background: rgba(2, 6, 23, 0.34);
+          padding: 14px;
+        }
+
+        .copilot-voice-transcript p {
+          margin: 7px 0 0;
+          color: rgba(226, 232, 240, 0.92);
+          line-height: 1.6;
+          min-height: 42px;
+        }
+
+        .copilot-voice-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .copilot-voice-actions button {
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
+          border-radius: 15px;
+          padding: 10px 12px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .copilot-voice-actions button:hover {
+          border-color: rgba(96, 165, 250, 0.48);
+          background: rgba(37, 99, 235, 0.24);
+          color: white;
+        }
+
+        .copilot-voice-actions button:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .copilot-floating-mic {
+          position: fixed;
+          right: 24px;
+          bottom: 24px;
+          z-index: 50;
+          width: 62px;
+          height: 62px;
+          border-radius: 999px;
+          border: 1px solid rgba(96, 165, 250, 0.44);
+          background:
+            radial-gradient(circle, rgba(37, 99, 235, 0.42), rgba(2, 6, 23, 0.92));
+          color: white;
+          font-size: 26px;
+          cursor: pointer;
+          box-shadow: 0 22px 60px rgba(2, 6, 23, 0.48);
+        }
+
+        @keyframes copilotPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.06); }
+          100% { transform: scale(1); }
+        }
+
         @media (max-width: 1100px) {
           .copilot-grid,
           .copilot-input,
@@ -940,8 +1313,10 @@ export default function AICampaignCopilot() {
           asking={asking}
           lastUpdated={lastUpdated}
           selectedContext={selectedContext}
+          voiceEnabled={speechSupported}
           onNewThread={startNewThread}
           onGenerateBrief={generateExecutiveBrief}
+          onVoiceToggle={listening ? stopVoiceListening : startVoiceListening}
         />
 
         <ExecutivePageNav sections={navSections} />
@@ -1022,6 +1397,31 @@ export default function AICampaignCopilot() {
             />
           </CollapsibleSection>
 
+          <CollapsibleSection
+            id="copilot-voice"
+            title="Voice Co-Pilot"
+            subtitle="Speak executive commands and listen to AI responses."
+            defaultOpen
+            right={<Badge tone={speechSupported ? (listening ? "demo" : "active") : "danger"}>{speechSupported ? "Voice Ready" : "Unsupported"}</Badge>}
+          >
+            <VoiceCopilotPanel
+              listening={listening}
+              voiceTranscript={voiceTranscript}
+              voiceStatus={voiceStatus}
+              speechSupported={speechSupported}
+              voiceOutputSupported={voiceOutputSupported}
+              onStartListening={startVoiceListening}
+              onStopListening={stopVoiceListening}
+              onSubmitVoice={submitVoiceCommand}
+              onClearTranscript={() => {
+                setVoiceTranscript("");
+                setVoiceStatus("Transcript cleared.");
+              }}
+              onReadLastAnswer={readLastAnswer}
+              onStopSpeaking={stopSpeaking}
+            />
+          </CollapsibleSection>
+
           <CollapsibleSection title="Operating Links" subtitle="Jump to source systems." defaultOpen={false}>
             <div className="copilot-stack">
               <Link className="vs-button vs-button-secondary" to="/war-room">Election War Room</Link>
@@ -1064,6 +1464,7 @@ export default function AICampaignCopilot() {
                           <button type="button" onClick={() => ask("Create Mission Control tasks from the previous answer.")}>Create Tasks</button>
                           <button type="button" onClick={() => ask("Turn the previous answer into a client-ready executive report.")}>Client Report</button>
                           <button type="button" onClick={() => ask("Summarize the previous answer for the War Room.")}>War Room Summary</button>
+                          <button type="button" onClick={readLastAnswer}>🔊 Listen</button>
                         </div>
                       </>
                     ) : null}
@@ -1140,6 +1541,12 @@ export default function AICampaignCopilot() {
           <KnowledgeGraphPreview />
         </div>
       </CollapsibleSection>
+
+      <FloatingVoiceButton
+        listening={listening}
+        speechSupported={speechSupported}
+        onClick={listening ? stopVoiceListening : startVoiceListening}
+      />
 
       <BackToTopButton />
     </PageShell>
