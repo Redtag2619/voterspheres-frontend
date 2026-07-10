@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../services/api";
 import {
   ComposableMap,
   Geographies,
@@ -180,15 +181,76 @@ function ScoreCard({ title, value, subtitle, inverse = false }) {
   );
 }
 
-function AgentStatus({ name, status, note }) {
+function AgentStatus({ agent }) {
+  const status = agent.status || "idle";
+  const confidence = clamp(
+    agent.confidence_percentage ??
+      agent.confidence ??
+      agent.score ??
+      0
+  );
+
   return (
-    <div className="cmd-agent-card">
+    <div className={`cmd-agent-card is-${String(status).toLowerCase()}`}>
       <div className="cmd-agent-head">
-        <span className={`cmd-status-dot ${String(status || "").toLowerCase()}`} />
-        <strong>{name}</strong>
+        <span className={`cmd-status-dot ${String(status).toLowerCase()}`} />
+
+        <div className="cmd-agent-title">
+          <strong>{agent.name || agent.label || "Executive AI Agent"}</strong>
+          <small>{agent.role || agent.specialty || "Executive Intelligence"}</small>
+        </div>
+
+        <Badge tone={tone(status)}>{labelize(status)}</Badge>
       </div>
-      <small>{note}</small>
-      <Badge tone={tone(status)}>{labelize(status)}</Badge>
+
+      <p>
+        {agent.note ||
+          agent.description ||
+          agent.current_activity ||
+          "Standing by for executive command activity."}
+      </p>
+
+      <div className="cmd-agent-mission">
+        <span>Current Mission</span>
+        <strong>
+          {agent.current_mission ||
+            agent.mission_title ||
+            agent.active_task ||
+            "No active mission assigned"}
+        </strong>
+      </div>
+
+      <div className="cmd-agent-metrics">
+        <div>
+          <span>Confidence</span>
+          <strong>{pct(confidence)}</strong>
+        </div>
+        <div>
+          <span>Queue</span>
+          <strong>
+            {number(
+              agent.queue_count ??
+                agent.pending_actions ??
+                agent.open_tasks ??
+                0
+            )}
+          </strong>
+        </div>
+        <div>
+          <span>Updated</span>
+          <strong>
+            {formatTime(
+              agent.last_activity_at ||
+                agent.updated_at ||
+                agent.last_seen_at
+            )}
+          </strong>
+        </div>
+      </div>
+
+      <div className="cmd-agent-confidence">
+        <i style={{ width: `${confidence}%` }} />
+      </div>
     </div>
   );
 }
@@ -530,6 +592,485 @@ function ReasoningPanel({ brief, activeMission }) {
   );
 }
 
+function buildFallbackAgents({ brief, missions, timeline, summary }) {
+  const baseConfidence = clamp(
+    brief?.ai_confidence_percentage ||
+      summary?.aiConfidencePercentage ||
+      78
+  );
+
+  const openApprovals = number(summary?.queuedApprovalActions);
+  const missionCount = missions.length;
+  const eventCount = timeline.length;
+
+  return [
+    {
+      id: "executive-chief-of-staff",
+      name: "Executive Chief of Staff",
+      role: "Executive Orchestration",
+      status: openApprovals > 0 ? "active" : "monitoring",
+      note: "Coordinating executive priorities and leadership decisions.",
+      current_mission: missions[0]?.title || "National command posture review",
+      confidence_percentage: baseConfidence,
+      queue_count: openApprovals,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "campaign-strategist",
+      name: "Campaign Strategist",
+      role: "Path-to-Victory Modeling",
+      status: missionCount > 0 ? "thinking" : "idle",
+      note: "Modeling mission impact, state posture, and strategic sequencing.",
+      current_mission: missions[0]?.mission_summary || "Awaiting mission package",
+      confidence_percentage: Math.max(0, baseConfidence - 4),
+      queue_count: missionCount,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "polling-analyst",
+      name: "Polling & Data Analyst",
+      role: "Trend Intelligence",
+      status: eventCount > 0 ? "processing" : "monitoring",
+      note: "Reviewing timeline events and national trend pressure.",
+      current_mission: "National state posture analysis",
+      confidence_percentage: Math.max(0, baseConfidence - 2),
+      queue_count: eventCount,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "fundraising-director",
+      name: "Fundraising Director",
+      role: "Revenue Intelligence",
+      status: "active",
+      note: "Tracking financial readiness and resource pressure.",
+      current_mission: "Executive revenue readiness",
+      confidence_percentage: Math.max(0, baseConfidence - 6),
+      queue_count: 0,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "communications-director",
+      name: "Communications Director",
+      role: "Narrative Command",
+      status: eventCount > 3 ? "active" : "idle",
+      note: "Monitoring narrative shifts and escalation triggers.",
+      current_mission: "National narrative watch",
+      confidence_percentage: Math.max(0, baseConfidence - 8),
+      queue_count: Math.min(eventCount, 9),
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "rapid-response",
+      name: "Rapid Response Director",
+      role: "Threat Response",
+      status:
+        number(brief?.execution_risk_percentage) >= 60
+          ? "alert"
+          : "monitoring",
+      note: "Scanning high-risk signals and executive escalation conditions.",
+      current_mission: "Threat and escalation watch",
+      confidence_percentage: baseConfidence,
+      queue_count: openApprovals,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "mailops-director",
+      name: "MailOps Director",
+      role: "Production Intelligence",
+      status: "active",
+      note: "Reviewing production capacity and timing dependencies.",
+      current_mission: "Operational delivery readiness",
+      confidence_percentage: Math.max(0, baseConfidence - 5),
+      queue_count: 0,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+    {
+      id: "compliance-advisor",
+      name: "Compliance Advisor",
+      role: "Risk & Controls",
+      status: openApprovals > 0 ? "monitoring" : "idle",
+      note: "Scanning approval requirements, controls, and escalation points.",
+      current_mission: "Executive approval review",
+      confidence_percentage: Math.max(0, baseConfidence - 3),
+      queue_count: openApprovals,
+      updated_at: new Date().toISOString(),
+      source: "derived",
+    },
+  ];
+}
+
+
+const AGENT_PROMPTS = {
+  "executive-chief-of-staff": [
+    "Give me today's executive briefing.",
+    "What should leadership decide next?",
+    "Prioritize our top three operational risks.",
+  ],
+  "campaign-strategist": [
+    "Build a 30-day strategic plan.",
+    "What is our strongest path to victory?",
+    "Which states deserve immediate attention?",
+  ],
+  "polling-analyst": [
+    "Explain the most important trend in the current data.",
+    "Which voter groups should we watch?",
+    "Where is turnout risk increasing?",
+  ],
+  "fundraising-director": [
+    "Build a 30-day fundraising plan.",
+    "What donor actions should we prioritize?",
+    "Where is revenue risk highest?",
+  ],
+  "communications-director": [
+    "Draft a message framework.",
+    "What narrative should we lead with?",
+    "Prepare a rapid press response outline.",
+  ],
+  "rapid-response": [
+    "What threat requires immediate response?",
+    "Build a 24-hour rapid response plan.",
+    "How should we answer an opposition attack?",
+  ],
+  "mailops-director": [
+    "Review MailOps readiness.",
+    "What production risks should we address?",
+    "Build a direct mail execution checklist.",
+  ],
+  "compliance-advisor": [
+    "What compliance risks should we review?",
+    "Create an approval and recordkeeping checklist.",
+    "What should be escalated to counsel?",
+  ],
+};
+
+function normalizeAgentKey(agent = {}) {
+  return (
+    agent.key ||
+    agent.id ||
+    String(agent.name || agent.label || "")
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+  );
+}
+
+async function askExecutiveAgent(payload) {
+  if (typeof api?.askAiCampaignCopilot === "function") {
+    return api.askAiCampaignCopilot(payload);
+  }
+
+  const response = await api.post("/ai-campaign-copilot/ask", payload);
+  return response?.data || response;
+}
+
+function extractAgentAnswer(result) {
+  return (
+    result?.answer ||
+    result?.message?.content ||
+    result?.message ||
+    result?.data?.answer ||
+    result?.data?.message?.content ||
+    "The AI agent returned no readable response."
+  );
+}
+
+function ExecutiveAgentWorkspace({
+  agents,
+  missions,
+  selectedAgentKey,
+  setSelectedAgentKey,
+}) {
+  const [messages, setMessages] = useState([
+    {
+      id: "welcome",
+      role: "assistant",
+      agent: "Executive Chief of Staff",
+      content:
+        "Executive AI Team is online. Select a specialist or use Team Consult to coordinate a cross-functional response.",
+      created_at: new Date().toISOString(),
+    },
+  ]);
+  const [prompt, setPrompt] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [teamMode, setTeamMode] = useState(false);
+  const [error, setError] = useState("");
+  const [threadId, setThreadId] = useState(null);
+
+  const selectedAgent =
+    agents.find((agent) => normalizeAgentKey(agent) === selectedAgentKey) ||
+    agents[0] ||
+    null;
+
+  const selectedKey = normalizeAgentKey(selectedAgent);
+  const suggestions =
+    AGENT_PROMPTS[selectedKey] ||
+    [
+      "What should we do next?",
+      "Summarize the biggest risk.",
+      "Build an executive action plan.",
+    ];
+
+  async function submitQuestion(value = prompt) {
+    const question = String(value || "").trim();
+    if (!question || asking) return;
+
+    setError("");
+    setPrompt("");
+    setAsking(true);
+
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: question,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((current) => [...current, userMessage]);
+
+    try {
+      const activeMission = missions[0] || null;
+      const requestPrompt = teamMode
+        ? `Coordinate an executive team consultation. Have the Executive Chief of Staff synthesize perspectives from strategy, polling, fundraising, communications, rapid response, MailOps, and compliance.\n\nQuestion: ${question}`
+        : question;
+
+      const result = await askExecutiveAgent({
+        prompt: requestPrompt,
+        thread_id: threadId || null,
+        agent: teamMode ? "executive_chief_of_staff" : selectedKey.replace(/-/g, "_"),
+        workspace_id: activeMission?.workspace_id || 1,
+        executive_context: {
+          mission_id: activeMission?.id || null,
+          mission_title: activeMission?.title || null,
+          geographic_scope:
+            activeMission?.state_name ||
+            activeMission?.geographic_scope ||
+            "National",
+          consultation_mode: teamMode ? "team" : "single_agent",
+        },
+      });
+
+      const nextThreadId =
+        result?.thread_id ||
+        result?.data?.thread_id ||
+        threadId;
+
+      if (nextThreadId) setThreadId(nextThreadId);
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          agent: teamMode
+            ? "Executive AI Team"
+            : selectedAgent?.name || selectedAgent?.label || "Executive AI Agent",
+          content: extractAgentAnswer(result),
+          sources: result?.sources || result?.data?.sources || [],
+          confidence:
+            result?.confidence ??
+            result?.data?.confidence ??
+            selectedAgent?.confidence_percentage ??
+            0,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    } catch (err) {
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Executive AI consultation failed.";
+
+      setError(message);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          agent: "Executive AI System",
+          content:
+            "I could not complete the consultation. Confirm the AI Campaign Co-Pilot backend is online and that your OpenAI key is configured.",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  return (
+    <div className="cmd-consult-shell">
+      <aside className="cmd-consult-agents">
+        <div className="cmd-consult-mode">
+          <button
+            type="button"
+            className={!teamMode ? "is-active" : ""}
+            onClick={() => setTeamMode(false)}
+          >
+            Single Agent
+          </button>
+          <button
+            type="button"
+            className={teamMode ? "is-active" : ""}
+            onClick={() => setTeamMode(true)}
+          >
+            Team Consult
+          </button>
+        </div>
+
+        <div className="cmd-consult-agent-list">
+          {agents.map((agent) => {
+            const key = normalizeAgentKey(agent);
+            const active = key === selectedAgentKey;
+
+            return (
+              <button
+                key={key}
+                type="button"
+                className={active ? "is-active" : ""}
+                onClick={() => {
+                  setSelectedAgentKey(key);
+                  setTeamMode(false);
+                }}
+              >
+                <span className={`cmd-status-dot ${String(agent.status || "idle").toLowerCase()}`} />
+                <div>
+                  <strong>{agent.name || agent.label}</strong>
+                  <small>{agent.role || agent.specialty || "Executive Intelligence"}</small>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="cmd-consult-suggestions">
+          <span>Suggested Questions</span>
+          {suggestions.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => submitQuestion(item)}
+              disabled={asking}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div className="cmd-consult-main">
+        <div className="cmd-consult-header">
+          <div>
+            <span>{teamMode ? "Executive Team Consultation" : "Active AI Advisor"}</span>
+            <strong>
+              {teamMode
+                ? "Executive AI Team"
+                : selectedAgent?.name || selectedAgent?.label || "Executive AI Agent"}
+            </strong>
+          </div>
+
+          <div className="vs-chip-row">
+            <Badge tone="active">LLM Connected</Badge>
+            <Badge tone={teamMode ? "accent" : "info"}>
+              {teamMode ? "Multi-Agent Synthesis" : "Specialist Mode"}
+            </Badge>
+          </div>
+        </div>
+
+        {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+
+        <div className="cmd-consult-messages">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`cmd-consult-message is-${message.role}`}
+            >
+              <div className="cmd-consult-message-head">
+                <strong>
+                  {message.role === "user"
+                    ? "You"
+                    : message.agent || "Executive AI"}
+                </strong>
+                <span>{formatTime(message.created_at)}</span>
+              </div>
+
+              <p>{message.content}</p>
+
+              {message.role === "assistant" ? (
+                <div className="cmd-consult-message-meta">
+                  {message.confidence ? (
+                    <Badge tone="active">
+                      Confidence {pct(message.confidence)}
+                    </Badge>
+                  ) : null}
+
+                  {arr(message.sources).slice(0, 4).map((source) => (
+                    <Badge key={String(source)} tone="info">
+                      {typeof source === "string"
+                        ? source
+                        : source?.label || source?.name || "Source"}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+
+          {asking ? (
+            <div className="cmd-consult-thinking">
+              <span className="cmd-status-dot processing" />
+              Executive AI is analyzing the request…
+            </div>
+          ) : null}
+        </div>
+
+        <form
+          className="cmd-consult-composer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitQuestion();
+          }}
+        >
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder={
+              teamMode
+                ? "Ask the executive team to collaborate on a decision…"
+                : `Ask ${selectedAgent?.name || "the selected AI agent"}…`
+            }
+            rows={4}
+          />
+
+          <div>
+            <span>
+              {threadId
+                ? `Conversation thread ${threadId}`
+                : "A new secure executive conversation will be created."}
+            </span>
+
+            <button
+              type="submit"
+              className="vs-button vs-button-primary"
+              disabled={asking || !prompt.trim()}
+            >
+              {asking ? "Consulting…" : teamMode ? "Consult Executive Team" : "Ask Agent"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ExecutiveAICommandPlatform() {
   const [data, setData] = useState(null);
   const [activeMissionId, setActiveMissionId] = useState(null);
@@ -539,6 +1080,8 @@ export default function ExecutiveAICommandPlatform() {
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedMapState, setSelectedMapState] = useState("");
+  const [agentRefreshTick, setAgentRefreshTick] = useState(0);
+  const [selectedExecutiveAgent, setSelectedExecutiveAgent] = useState("executive-chief-of-staff");
 
   async function loadData() {
     setLoading(true);
@@ -592,6 +1135,20 @@ export default function ExecutiveAICommandPlatform() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setAgentRefreshTick((value) => value + 1);
+    }, 30000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (agentRefreshTick > 0) {
+      loadData();
+    }
+  }, [agentRefreshTick]);
+
   const brief = data?.brief;
   const missions = arr(data?.missions);
   const timeline = arr(data?.timeline);
@@ -612,19 +1169,57 @@ export default function ExecutiveAICommandPlatform() {
     { id: "cmd-missions", label: "Missions", badge: missions.length },
     { id: "cmd-reasoning", label: "AI Reasoning" },
     { id: "cmd-agents", label: "AI Agents" },
+    { id: "cmd-consult", label: "Consult AI Team" },
     { id: "cmd-timeline", label: "Command Feed", badge: timeline.length },
   ];
 
-  const agents = [
-    ["Executive Chief of Staff", "active", "Coordinating executive priorities"],
-    ["Campaign Strategist", "thinking", "Modeling path-to-victory decisions"],
-    ["Polling Analyst", "processing", "Reviewing trend shifts"],
-    ["Fundraising Director", "active", "Tracking donor velocity"],
-    ["Communications Director", "idle", "Standing by for narrative changes"],
-    ["Rapid Response", "alert", "Monitoring high-risk signals"],
-    ["MailOps Director", "active", "Reviewing production capacity"],
-    ["Compliance Advisor", "monitoring", "Scanning approval requirements"],
-  ];
+  const liveAgents = useMemo(() => {
+    const apiAgents = arr(
+      data?.agents ||
+        data?.ai_agents ||
+        data?.agent_statuses
+    );
+
+    if (apiAgents.length) {
+      return apiAgents.map((agent, index) => ({
+        id: agent.id || agent.key || `agent-${index}`,
+        name: agent.name || agent.label || `AI Agent ${index + 1}`,
+        role: agent.role || agent.specialty || agent.focus,
+        status: agent.status || agent.state || "active",
+        note:
+          agent.note ||
+          agent.description ||
+          agent.current_activity ||
+          agent.summary,
+        current_mission:
+          agent.current_mission ||
+          agent.mission_title ||
+          agent.active_task,
+        confidence_percentage:
+          agent.confidence_percentage ??
+          agent.confidence ??
+          agent.score ??
+          0,
+        queue_count:
+          agent.queue_count ??
+          agent.pending_actions ??
+          agent.open_tasks ??
+          0,
+        last_activity_at:
+          agent.last_activity_at ||
+          agent.updated_at ||
+          agent.last_seen_at,
+        source: "live",
+      }));
+    }
+
+    return buildFallbackAgents({
+      brief,
+      missions,
+      timeline,
+      summary,
+    });
+  }, [data, brief, missions, timeline, summary]);
 
   return (
     <PageShell
@@ -659,7 +1254,22 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-map-panel{position:relative;min-height:360px;border:1px solid rgba(96,165,250,.24);border-radius:26px;overflow:hidden;background:radial-gradient(circle at 70% 30%,rgba(59,130,246,.18),transparent 30%),radial-gradient(circle at 30% 70%,rgba(251,146,60,.12),transparent 34%),linear-gradient(145deg,rgba(2,6,23,.96),rgba(15,23,42,.88))}.cmd-map-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(148,163,184,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.06) 1px,transparent 1px);background-size:34px 34px}.cmd-map-label{position:absolute;left:18px;top:16px;z-index:2}
         .cmd-map-marker{position:absolute;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:950;color:white;border:1px solid rgba(255,255,255,.18);box-shadow:0 0 24px rgba(59,130,246,.22)}.cmd-map-marker.high{background:rgba(239,68,68,.72);box-shadow:0 0 26px rgba(239,68,68,.42)}.cmd-map-marker.watch{background:rgba(245,158,11,.72);box-shadow:0 0 26px rgba(245,158,11,.34)}.cmd-map-marker.active{background:rgba(34,197,94,.72);box-shadow:0 0 26px rgba(34,197,94,.34)}.cmd-map-legend{position:absolute;left:18px;bottom:16px;z-index:2}
         .cmd-reasoning-panel{padding:18px;display:grid;grid-template-columns:minmax(260px,.9fr) minmax(0,1.1fr);gap:18px;background:radial-gradient(circle at top right,rgba(168,85,247,.14),transparent 34%),rgba(15,23,42,.56)}.cmd-reasoning-copy strong{display:block;margin:8px 0 10px;color:white;font-size:22px;line-height:1.25;font-weight:950}.cmd-reasoning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.cmd-reasoning-grid>div{border:1px solid rgba(148,163,184,.12);border-radius:16px;background:rgba(2,6,23,.28);padding:12px}.cmd-reasoning-grid strong{display:block;margin:6px 0 9px;color:white;font-size:18px}
-        .cmd-agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.cmd-agent-card{padding:14px;display:grid;gap:9px}.cmd-agent-head{display:flex;gap:9px;align-items:center}.cmd-agent-head strong{color:white;font-size:14px}.cmd-status-dot{width:10px;height:10px;border-radius:999px;background:#64748b}.cmd-status-dot.active,.cmd-status-dot.processing{background:#22c55e;box-shadow:0 0 14px rgba(34,197,94,.5)}.cmd-status-dot.thinking,.cmd-status-dot.monitoring{background:#f59e0b;box-shadow:0 0 14px rgba(245,158,11,.45)}.cmd-status-dot.alert{background:#ef4444;box-shadow:0 0 14px rgba(239,68,68,.5)}
+        .cmd-agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.cmd-agent-card{padding:14px;display:grid;gap:10px;position:relative;overflow:hidden}
+        .cmd-agent-card::after{content:"";position:absolute;inset:auto 0 0;height:2px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.55),transparent)}
+        .cmd-agent-card.is-alert{border-color:rgba(239,68,68,.36);background:radial-gradient(circle at top right,rgba(239,68,68,.12),transparent 42%),rgba(15,23,42,.56)}
+        .cmd-agent-card.is-active,.cmd-agent-card.is-processing{border-color:rgba(34,197,94,.28)}
+        .cmd-agent-title{min-width:0;flex:1}
+        .cmd-agent-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .cmd-agent-title small{margin-top:3px;color:rgba(148,163,184,.78);font-size:10px;letter-spacing:.07em}
+        .cmd-agent-card p{margin:0;color:rgba(203,213,225,.76);font-size:12px;line-height:1.55;min-height:38px}
+        .cmd-agent-mission{border:1px solid rgba(148,163,184,.12);border-radius:14px;background:rgba(2,6,23,.28);padding:10px}
+        .cmd-agent-mission span,.cmd-agent-metrics span{display:block;color:rgba(148,163,184,.76);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+        .cmd-agent-mission strong{display:block;margin-top:5px;color:rgba(241,245,249,.94);font-size:12px;line-height:1.4}
+        .cmd-agent-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+        .cmd-agent-metrics>div{border:1px solid rgba(148,163,184,.1);border-radius:12px;background:rgba(2,6,23,.22);padding:8px}
+        .cmd-agent-metrics strong{display:block;margin-top:4px;color:white;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .cmd-agent-confidence{height:5px;border-radius:999px;background:rgba(148,163,184,.14);overflow:hidden}
+        .cmd-agent-confidence i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#3b82f6,#22c55e)}.cmd-agent-head{display:flex;gap:9px;align-items:center}.cmd-agent-head strong{color:white;font-size:14px}.cmd-status-dot{width:10px;height:10px;border-radius:999px;background:#64748b}.cmd-status-dot.active,.cmd-status-dot.processing{background:#22c55e;box-shadow:0 0 14px rgba(34,197,94,.5)}.cmd-status-dot.thinking,.cmd-status-dot.monitoring{background:#f59e0b;box-shadow:0 0 14px rgba(245,158,11,.45)}.cmd-status-dot.alert{background:#ef4444;box-shadow:0 0 14px rgba(239,68,68,.5)}
 
         .cmd-geo-map-shell{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.45fr);gap:16px;align-items:stretch}
         .cmd-geo-map-main,.cmd-map-detail{border:1px solid rgba(96,165,250,.22);border-radius:24px;background:radial-gradient(circle at top right,rgba(59,130,246,.14),transparent 34%),linear-gradient(145deg,rgba(2,6,23,.96),rgba(15,23,42,.88));overflow:hidden}
@@ -671,7 +1281,21 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-map-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cmd-map-detail-grid>div{border:1px solid rgba(148,163,184,.12);border-radius:15px;background:rgba(2,6,23,.3);padding:11px}.cmd-map-detail-grid span{display:block;color:rgba(148,163,184,.78);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.cmd-map-detail-grid strong{display:block;margin-top:5px;color:white;font-size:18px}
         .cmd-map-mission-list{display:grid;gap:8px}.cmd-map-mission-list>div{border:1px solid rgba(148,163,184,.12);border-radius:13px;background:rgba(15,23,42,.48);padding:10px;color:rgba(226,232,240,.9);font-size:12px;line-height:1.45}.cmd-map-mission-list p{margin:0;color:rgba(148,163,184,.76);font-size:12px;line-height:1.55}
 
-        @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}}@media(max-width:900px){.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
+
+        .cmd-consult-shell{display:grid;grid-template-columns:minmax(230px,.34fr) minmax(0,1fr);gap:14px;min-height:620px}
+        .cmd-consult-agents,.cmd-consult-main{border:1px solid rgba(148,163,184,.14);border-radius:20px;background:rgba(2,6,23,.3);min-width:0}
+        .cmd-consult-agents{padding:12px;display:grid;align-content:start;gap:12px}
+        .cmd-consult-mode{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cmd-consult-mode button,.cmd-consult-agent-list button,.cmd-consult-suggestions button{border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.55);color:rgba(226,232,240,.88);border-radius:12px;cursor:pointer}
+        .cmd-consult-mode button{padding:9px;font-size:11px;font-weight:900}.cmd-consult-mode button.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.2);color:white}
+        .cmd-consult-agent-list{display:grid;gap:7px}.cmd-consult-agent-list button{display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;align-items:center;padding:10px;text-align:left}.cmd-consult-agent-list button.is-active{border-color:rgba(251,146,60,.5);background:rgba(251,146,60,.1)}
+        .cmd-consult-agent-list strong{display:block;color:white;font-size:12px}.cmd-consult-agent-list small{display:block;margin-top:3px;color:rgba(148,163,184,.74);font-size:9px}
+        .cmd-consult-suggestions{display:grid;gap:7px}.cmd-consult-suggestions>span{color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-consult-suggestions button{padding:9px;text-align:left;font-size:10px;line-height:1.4}.cmd-consult-suggestions button:hover{border-color:rgba(96,165,250,.45)}
+        .cmd-consult-main{display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}.cmd-consult-header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px;border-bottom:1px solid rgba(148,163,184,.12);background:rgba(15,23,42,.42)}.cmd-consult-header span{display:block;color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-consult-header strong{display:block;margin-top:4px;color:white;font-size:17px}
+        .cmd-consult-messages{padding:14px;display:grid;align-content:start;gap:12px;overflow:auto;max-height:520px}.cmd-consult-message{max-width:88%;border:1px solid rgba(148,163,184,.13);border-radius:18px;padding:12px;background:rgba(15,23,42,.55)}.cmd-consult-message.is-user{margin-left:auto;background:rgba(37,99,235,.16);border-color:rgba(96,165,250,.28)}.cmd-consult-message-head{display:flex;justify-content:space-between;gap:10px}.cmd-consult-message-head strong{color:white;font-size:11px}.cmd-consult-message-head span{color:rgba(148,163,184,.68);font-size:9px}.cmd-consult-message p{margin:8px 0 0;color:rgba(226,232,240,.88);font-size:12px;line-height:1.65;white-space:pre-wrap}.cmd-consult-message-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+        .cmd-consult-thinking{display:flex;gap:9px;align-items:center;color:rgba(203,213,225,.76);font-size:11px}
+        .cmd-consult-composer{border-top:1px solid rgba(148,163,184,.12);padding:12px;background:rgba(15,23,42,.45)}.cmd-consult-composer textarea{width:100%;resize:vertical;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(2,6,23,.45);color:white;padding:12px;outline:none;line-height:1.55}.cmd-consult-composer textarea:focus{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 3px rgba(59,130,246,.1)}.cmd-consult-composer>div{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px}.cmd-consult-composer span{color:rgba(148,163,184,.7);font-size:9px}
+
+        @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell,.cmd-consult-shell{grid-template-columns:1fr}}@media(max-width:900px){.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
       `}</style>
 
       <div id="cmd-overview" className="cmd-command-ribbon">
@@ -738,10 +1362,53 @@ export default function ExecutiveAICommandPlatform() {
             ) : <EmptyState text="No executive AI missions are currently available." />}
           </CollapsibleSection>
 
-          <CollapsibleSection id="cmd-agents" title="Live AI Agents" subtitle="Specialized executive agents coordinating command recommendations." defaultOpen={false} right={<Badge tone="active">{agents.length} Agents</Badge>}>
+          <CollapsibleSection id="cmd-agents" title="Live AI Agents" subtitle="Specialized executive agents coordinating command recommendations with automatic 30-second refresh." defaultOpen={false} right={
+              <div className="vs-chip-row">
+                <Badge
+                  tone={
+                    arr(
+                      data?.agents ||
+                        data?.ai_agents ||
+                        data?.agent_statuses
+                    ).length
+                      ? "active"
+                      : "info"
+                  }
+                >
+                  {arr(
+                    data?.agents ||
+                      data?.ai_agents ||
+                      data?.agent_statuses
+                  ).length
+                    ? "Live API"
+                    : "Derived Status"}
+                </Badge>
+                <Badge tone="active">{liveAgents.length} Agents</Badge>
+              </div>
+            }>
             <div className="cmd-agent-grid">
-              {agents.map(([name, status, note]) => <AgentStatus key={name} name={name} status={status} note={note} />)}
+              {liveAgents.map((agent) => (
+                <AgentStatus
+                  key={agent.id || agent.name}
+                  agent={agent}
+                />
+              ))}
             </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="cmd-consult"
+            title="Consult the Executive AI Team"
+            subtitle="Ask specialist agents questions, continue a conversation, or coordinate a cross-functional team consultation."
+            defaultOpen
+            right={<Badge tone="active">Interactive AI</Badge>}
+          >
+            <ExecutiveAgentWorkspace
+              agents={liveAgents}
+              missions={missions}
+              selectedAgentKey={selectedExecutiveAgent}
+              setSelectedAgentKey={setSelectedExecutiveAgent}
+            />
           </CollapsibleSection>
         </div>
 
