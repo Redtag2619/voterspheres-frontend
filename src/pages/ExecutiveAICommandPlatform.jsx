@@ -1570,7 +1570,6 @@ function ExecutiveAgentWorkspace({
             </div>
           </div>
         </div>
-          </div>
         </div>
 
         {historyOpen ? (
