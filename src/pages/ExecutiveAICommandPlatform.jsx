@@ -22,6 +22,8 @@ import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
 
+// Build-safe conversation management revision.
+
 
 const US_TOPO_JSON =
   "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
@@ -828,7 +830,9 @@ function chooseFemaleVoice(voices = []) {
 
 function stripSpeechText(value = "") {
   return String(value || "")
-    .replace(/[#*_>`~]/g, "")
+    .replace(/[\\#*_>~]/g, "")
+    .split("`")
+    .join("")
     .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
