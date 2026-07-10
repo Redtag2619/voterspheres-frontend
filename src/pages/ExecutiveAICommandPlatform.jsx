@@ -1022,6 +1022,7 @@ function ExecutiveAgentWorkspace({
   selectedAgentKey,
   setSelectedAgentKey,
   onVoiceCommand,
+  executiveContext,
 }) {
   const [messages, setMessages] = useState([
     {
@@ -1054,11 +1055,19 @@ function ExecutiveAgentWorkspace({
   const [pinnedThreadIds, setPinnedThreadIds] = useState([]);
   const [savedBriefings, setSavedBriefings] = useState([]);
   const [lastVoiceCommand, setLastVoiceCommand] = useState("");
+  const [handsFreeMode, setHandsFreeMode] = useState(false);
+  const [wakePhraseEnabled, setWakePhraseEnabled] = useState(false);
+  const [wakePhrase, setWakePhrase] = useState("executive");
+  const [autoSubmitVoice, setAutoSubmitVoice] = useState(true);
+  const [conversationStatus, setConversationStatus] = useState("ready");
+  const [streamingText, setStreamingText] = useState("");
 
 
 
 
   const recognitionRef = useRef(null);
+  const autoRestartTimerRef = useRef(null);
+  const streamingTimerRef = useRef(null);
 
   useEffect(() => {
     const recognitionCtor = getSpeechRecognition();
@@ -1095,6 +1104,8 @@ function ExecutiveAgentWorkspace({
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop?.();
+      window.clearTimeout(autoRestartTimerRef.current);
+      window.clearInterval(streamingTimerRef.current);
 
       if (
         typeof window !== "undefined" &&
@@ -1141,12 +1152,17 @@ function ExecutiveAgentWorkspace({
     window.speechSynthesis.speak(utterance);
   }
 
-  function stopListening() {
+  function stopListening(options = {}) {
     recognitionRef.current?.stop?.();
     setListening(false);
+    setConversationStatus("ready");
+
+    if (!options.preserveHandsFree) {
+      setHandsFreeMode(false);
+    }
   }
 
-  function startListening() {
+  function startListening(options = {}) {
     const Recognition = getSpeechRecognition();
 
     if (!Recognition) {
@@ -1156,18 +1172,26 @@ function ExecutiveAgentWorkspace({
       return;
     }
 
-    stopSpeaking();
+    const continuous = Boolean(options.continuous || handsFreeMode);
+
+    if (speaking) {
+      stopSpeaking();
+    }
+
+    window.clearTimeout(autoRestartTimerRef.current);
     setError("");
     setLiveTranscript("");
+    setConversationStatus("listening");
 
     const recognition = new Recognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = false;
+    recognition.continuous = continuous;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setListening(true);
+      setConversationStatus("listening");
       setLiveTranscript("Listening…");
     };
 
@@ -1175,7 +1199,11 @@ function ExecutiveAgentWorkspace({
       let interim = "";
       let finalText = "";
 
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      for (
+        let index = event.resultIndex;
+        index < event.results.length;
+        index += 1
+      ) {
         const transcript = event.results[index][0]?.transcript || "";
 
         if (event.results[index].isFinal) {
@@ -1188,29 +1216,51 @@ function ExecutiveAgentWorkspace({
       const nextTranscript = (finalText || interim).trim();
       setLiveTranscript(nextTranscript);
 
-      if (finalText.trim()) {
-        const spoken = finalText.trim();
-        setLastVoiceCommand(spoken);
+      if (!finalText.trim()) return;
 
-        if (
-          typeof onVoiceCommand === "function" &&
-          isVoiceNavigationCommand(spoken)
-        ) {
-          const handled = onVoiceCommand(spoken, {
-            startNewConversation,
-            clearConversationScreen,
-            setTeamMode,
-            setVoiceEnabled,
-            stopSpeaking,
-          });
+      let spoken = finalText.trim();
 
-          if (handled) {
-            setPrompt("");
-            return;
-          }
+      if (wakePhraseEnabled) {
+        const normalizedWake = normalizeVoiceCommand(wakePhrase);
+        const normalizedSpoken = normalizeVoiceCommand(spoken);
+
+        if (!normalizedSpoken.startsWith(normalizedWake)) {
+          setLiveTranscript(`Waiting for wake phrase “${wakePhrase}”…`);
+          return;
         }
 
-        setPrompt(spoken);
+        spoken = spoken
+          .replace(new RegExp(`^${wakePhrase}\\s*`, "i"), "")
+          .trim();
+
+        if (!spoken) return;
+      }
+
+      setLastVoiceCommand(spoken);
+
+      if (
+        typeof onVoiceCommand === "function" &&
+        isVoiceNavigationCommand(spoken)
+      ) {
+        const handled = onVoiceCommand(spoken, {
+          startNewConversation,
+          clearConversationScreen,
+          setTeamMode,
+          setVoiceEnabled,
+          stopSpeaking,
+        });
+
+        if (handled) {
+          setPrompt("");
+          setConversationStatus("ready");
+          return;
+        }
+      }
+
+      setPrompt(spoken);
+
+      if (autoSubmitVoice) {
+        window.setTimeout(() => submitQuestion(spoken), 100);
       }
     };
 
@@ -1218,14 +1268,27 @@ function ExecutiveAgentWorkspace({
       setListening(false);
       setLiveTranscript("");
 
-      if (event.error !== "no-speech" && event.error !== "aborted") {
-        setError(`Microphone error: ${labelize(event.error || "unknown")}`);
+      if (
+        event.error !== "no-speech" &&
+        event.error !== "aborted"
+      ) {
+        setError(
+          `Microphone error: ${labelize(event.error || "unknown")}`
+        );
       }
     };
 
     recognition.onend = () => {
       setListening(false);
       setLiveTranscript("");
+
+      if (handsFreeMode && !asking && !speaking) {
+        autoRestartTimerRef.current = window.setTimeout(() => {
+          startListening({ continuous: true });
+        }, 650);
+      } else if (!asking && !speaking) {
+        setConversationStatus("ready");
+      }
     };
 
     recognitionRef.current = recognition;
@@ -1430,6 +1493,26 @@ function ExecutiveAgentWorkspace({
       "Build an executive action plan.",
     ];
 
+  function streamAssistantText(fullText, onComplete) {
+    window.clearInterval(streamingTimerRef.current);
+    setStreamingText("");
+    setConversationStatus("streaming");
+
+    const words = String(fullText || "").split(/\s+/);
+    let index = 0;
+
+    streamingTimerRef.current = window.setInterval(() => {
+      index += 1;
+      setStreamingText(words.slice(0, index).join(" "));
+
+      if (index >= words.length) {
+        window.clearInterval(streamingTimerRef.current);
+        setStreamingText("");
+        onComplete?.();
+      }
+    }, 24);
+  }
+
   async function submitQuestion(value = prompt) {
     const question = String(value || "").trim();
     if (!question || asking) return;
@@ -1437,6 +1520,8 @@ function ExecutiveAgentWorkspace({
     setError("");
     setPrompt("");
     setAsking(true);
+    setConversationStatus("thinking");
+    stopListening({ preserveHandsFree: handsFreeMode });
 
     const userMessage = {
       id: `user-${Date.now()}`,
@@ -1466,6 +1551,14 @@ function ExecutiveAgentWorkspace({
             activeMission?.geographic_scope ||
             "National",
           consultation_mode: teamMode ? "team" : "single_agent",
+          national_readiness_percentage:
+            executiveContext?.national_readiness_percentage || null,
+          execution_risk_percentage:
+            executiveContext?.execution_risk_percentage || null,
+          selected_state:
+            executiveContext?.selected_state || null,
+          map_risk_filter:
+            executiveContext?.map_risk_filter || "all",
         },
       });
 
@@ -1478,26 +1571,33 @@ function ExecutiveAgentWorkspace({
 
       const assistantAnswer = extractAgentAnswer(result);
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          agent: teamMode
-            ? "Executive AI Team"
-            : selectedAgent?.name || selectedAgent?.label || "Executive AI Agent",
-          content: assistantAnswer,
-          sources: result?.sources || result?.data?.sources || [],
-          confidence:
-            result?.confidence ??
-            result?.data?.confidence ??
-            selectedAgent?.confidence_percentage ??
-            0,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      streamAssistantText(assistantAnswer, () => {
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            agent: teamMode
+              ? "Executive AI Team"
+              : selectedAgent?.name ||
+                selectedAgent?.label ||
+                "Executive AI Agent",
+            content: assistantAnswer,
+            sources:
+              result?.sources ||
+              result?.data?.sources ||
+              [],
+            confidence:
+              result?.confidence ??
+              result?.data?.confidence ??
+              selectedAgent?.confidence_percentage ??
+              0,
+            created_at: new Date().toISOString(),
+          },
+        ]);
 
-      speakAnswer(assistantAnswer);
+        speakAnswer(assistantAnswer);
+      });
     } catch (err) {
       const message =
         err?.response?.data?.error ||
@@ -1700,6 +1800,19 @@ function ExecutiveAgentWorkspace({
             ? "Microphone Ready"
             : "No Mic Support"}
         </Badge>
+
+        <Badge
+          tone={
+            conversationStatus === "speaking"
+              ? "accent"
+              : conversationStatus === "thinking" ||
+                  conversationStatus === "streaming"
+                ? "warning"
+                : "active"
+          }
+        >
+          {labelize(conversationStatus)}
+        </Badge>
       </div>
 
       <div className="cmd-voice-controls">
@@ -1740,14 +1853,69 @@ function ExecutiveAgentWorkspace({
             : "Voice Off"}
         </button>
 
+        <button
+          type="button"
+          className={handsFreeMode ? "is-active" : ""}
+          onClick={() => {
+            const next = !handsFreeMode;
+            setHandsFreeMode(next);
+
+            if (next) {
+              startListening({ continuous: true });
+            } else {
+              stopListening();
+            }
+          }}
+          disabled={!recognitionSupported}
+        >
+          {handsFreeMode ? "Hands-Free On" : "Hands-Free Off"}
+        </button>
+
+        <button
+          type="button"
+          className={wakePhraseEnabled ? "is-active" : ""}
+          onClick={() =>
+            setWakePhraseEnabled((value) => !value)
+          }
+          disabled={!recognitionSupported}
+        >
+          {wakePhraseEnabled
+            ? `Wake: ${wakePhrase}`
+            : "Wake Phrase Off"}
+        </button>
+
         {speaking ? (
           <button
             type="button"
             onClick={stopSpeaking}
           >
-            Stop Speaking
+            Interrupt AI
           </button>
         ) : null}
+      </div>
+
+      <div className="cmd-v3-settings">
+        <label>
+          <span>Wake Phrase</span>
+          <input
+            value={wakePhrase}
+            onChange={(event) =>
+              setWakePhrase(event.target.value)
+            }
+            disabled={!wakePhraseEnabled}
+          />
+        </label>
+
+        <label className="cmd-v3-check">
+          <input
+            type="checkbox"
+            checked={autoSubmitVoice}
+            onChange={(event) =>
+              setAutoSubmitVoice(event.target.checked)
+            }
+          />
+          Auto-send spoken questions
+        </label>
       </div>
     </div>
   </div>
@@ -1896,7 +2064,23 @@ function ExecutiveAgentWorkspace({
             </div>
           ))}
 
-          {asking ? (
+          {streamingText ? (
+            <div className="cmd-consult-message is-assistant cmd-streaming-message">
+              <div className="cmd-consult-message-head">
+                <strong>
+                  {teamMode
+                    ? "Executive AI Team"
+                    : selectedAgent?.name ||
+                      selectedAgent?.label ||
+                      "Executive AI"}
+                </strong>
+                <span>Streaming</span>
+              </div>
+              <p>{streamingText}</p>
+            </div>
+          ) : null}
+
+          {asking && !streamingText ? (
             <div className="cmd-consult-thinking">
               <span className="cmd-status-dot processing" />
               Executive AI is analyzing the request…
@@ -1915,13 +2099,21 @@ function ExecutiveAgentWorkspace({
             <button
               type="button"
               className={listening ? "cmd-mic-button is-listening" : "cmd-mic-button"}
-              onClick={listening ? stopListening : startListening}
-              disabled={!recognitionSupported || asking}
+              onClick={listening ? () => stopListening() : () => startListening({ continuous: handsFreeMode })}
+              disabled={!recognitionSupported || (asking && !streamingText)}
               aria-label={listening ? "Stop listening" : "Start microphone"}
             >
               <span className="cmd-mic-icon">{listening ? "■" : "🎤"}</span>
               <span>
-                <strong>{listening ? "Listening…" : "Speak to Executive AI"}</strong>
+                <strong>
+                  {speaking
+                    ? "Tap to Interrupt and Speak"
+                    : listening
+                      ? "Listening…"
+                      : handsFreeMode
+                        ? "Hands-Free Voice Session"
+                        : "Speak to Executive AI"}
+                </strong>
                 <small>
                   {listening
                     ? liveTranscript || "Say your political question now."
@@ -2272,7 +2464,7 @@ export default function ExecutiveAICommandPlatform() {
 
   return (
     <PageShell
-      eyebrow="Build 3C · Executive AI Command Platform"
+      eyebrow="Build 3D · Executive Voice Assistant v3"
       title="Executive AI Command Platform"
       description="The unified executive operating system for VoterSpheres, connecting decision intelligence, predictive simulation, national digital twin modeling, autonomous operations, forecast, command center, and political graph intelligence."
       demo={String(data?.source || "").includes("fallback")}
@@ -2381,6 +2573,15 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-last-voice-command{margin-top:8px;color:rgba(148,163,184,.78);font-size:10px}
         .cmd-last-voice-command strong{color:rgba(226,232,240,.92)}
         .cmd-voice-nav-banner{border-color:rgba(96,165,250,.35);background:rgba(37,99,235,.13);color:#dbeafe}
+
+
+        .cmd-v3-settings{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+        .cmd-v3-settings label{display:flex;gap:7px;align-items:center;color:rgba(203,213,225,.78);font-size:9px}
+        .cmd-v3-settings input:not([type="checkbox"]){border:1px solid rgba(148,163,184,.15);border-radius:9px;background:rgba(2,6,23,.42);color:white;padding:7px 9px;max-width:120px}
+        .cmd-v3-check{border:1px solid rgba(148,163,184,.12);border-radius:9px;padding:7px 9px;background:rgba(2,6,23,.28)}
+        .cmd-streaming-message{border-color:rgba(96,165,250,.34);background:radial-gradient(circle at top left,rgba(59,130,246,.12),transparent 40%),rgba(15,23,42,.58)}
+        .cmd-streaming-message p::after{content:"";display:inline-block;width:7px;height:14px;margin-left:4px;background:rgba(96,165,250,.9);vertical-align:-2px;animation:cmdCursorBlink .8s steps(1) infinite}
+        @keyframes cmdCursorBlink{0%,50%{opacity:1}51%,100%{opacity:0}}
 
         @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}.cmd-consult-shell{grid-template-columns:280px minmax(0,1fr)}}@media(max-width:1050px){
           .cmd-consult-shell{grid-template-columns:1fr;min-height:auto}
@@ -2546,6 +2747,12 @@ export default function ExecutiveAICommandPlatform() {
           selectedAgentKey={selectedExecutiveAgent}
           setSelectedAgentKey={setSelectedExecutiveAgent}
           onVoiceCommand={handleVoiceCommand}
+          executiveContext={{
+            national_readiness_percentage: readiness,
+            execution_risk_percentage: executionRisk,
+            selected_state: selectedMapState,
+            map_risk_filter: mapRiskFilter,
+          }}
         />
       </CollapsibleSection>
 
