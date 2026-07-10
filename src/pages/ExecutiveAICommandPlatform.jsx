@@ -4,7 +4,6 @@ import {
   ComposableMap,
   Geographies,
   Geography,
-  Marker,
   ZoomableGroup,
 } from "react-simple-maps";
 import {
@@ -323,19 +322,6 @@ function NationalOperationsMap({
                   );
                 })}
               </Geographies>
-
-              {Object.entries(stateMetrics).map(([abbr, metric]) => {
-                const meta = Object.values(STATE_META).find((item) => item.abbr === abbr);
-                if (!meta) return null;
-                return (
-                  <Marker key={abbr} coordinates={meta.coordinates}>
-                    <g className="cmd-map-marker-group" onClick={() => onSelectState(selectedState === abbr ? "" : abbr)}>
-                      <circle r={selectedState === abbr ? 12 : 9} className={`cmd-map-pulse ${metric.risk_percentage >= 70 ? "danger" : metric.risk_percentage >= 45 ? "warning" : "active"}`} />
-                      <text textAnchor="middle" y={3} className="cmd-map-state-label">{abbr}</text>
-                    </g>
-                  </Marker>
-                );
-              })}
             </ZoomableGroup>
           </ComposableMap>
         </div>
