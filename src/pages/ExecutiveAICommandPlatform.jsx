@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import {
   ComposableMap,
@@ -21,8 +21,6 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
-
-// Build-safe conversation management revision.
 
 
 const US_TOPO_JSON =
@@ -329,6 +327,7 @@ function NationalOperationsMap({
   timeline,
   selectedState,
   onSelectState,
+  riskFilter = "all",
 }) {
   const stateMetrics = useMemo(() => {
     const map = {};
@@ -396,6 +395,18 @@ function NationalOperationsMap({
 
   const selectedMetric = selectedState ? stateMetrics[selectedState] : null;
 
+  const metricMatchesFilter = (metric) => {
+    if (riskFilter === "all") return true;
+    if (riskFilter === "critical") return metric.risk_percentage >= 70;
+    if (riskFilter === "watch") {
+      return metric.risk_percentage >= 45 && metric.risk_percentage < 70;
+    }
+    if (riskFilter === "operational") {
+      return metric.risk_percentage < 45 && metric.readiness_percentage >= 70;
+    }
+    return true;
+  };
+
   const nationalSummary = useMemo(() => {
     const values = Object.values(stateMetrics);
     return {
@@ -428,6 +439,9 @@ function NationalOperationsMap({
             <Badge tone="accent">{nationalSummary.watch} Watch</Badge>
             <Badge tone="active">{nationalSummary.operational} Operational</Badge>
             <Badge tone="info">{nationalSummary.modeled} Modeled</Badge>
+            {riskFilter !== "all" ? (
+              <Badge tone="accent">Filter: {labelize(riskFilter)}</Badge>
+            ) : null}
           </div>
         </div>
 
@@ -462,7 +476,10 @@ function NationalOperationsMap({
                         }}
                         style={{
                           default: {
-                            fill: stateFill(metric, isSelected),
+                            fill:
+                              riskFilter !== "all" && !metricMatchesFilter(metric)
+                                ? "rgba(30,41,59,.32)"
+                                : stateFill(metric, isSelected),
                             stroke: "rgba(226,232,240,.34)",
                             strokeWidth: 0.7,
                             outline: "none",
@@ -830,9 +847,7 @@ function chooseFemaleVoice(voices = []) {
 
 function stripSpeechText(value = "") {
   return String(value || "")
-    .replace(/[\\#*_>~]/g, "")
-    .split("`")
-    .join("")
+    .replace(/[#*_>`~]/g, "")
     .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
@@ -928,11 +943,85 @@ function printConversation({ messages, title }) {
   printWindow.print();
 }
 
+
+const VOICE_NAV_ROUTES = [
+  { phrases: ["dashboard", "home"], path: "/dashboard", label: "Dashboard" },
+  { phrases: ["command center"], path: "/command-center", label: "Command Center" },
+  { phrases: ["executive operations", "executive operations map"], path: "/executive-operations-map", label: "Executive Operations" },
+  { phrases: ["state operations"], path: "/state-operations", label: "State Operations" },
+  { phrases: ["election map", "forecast"], path: "/election-map", label: "Election Map" },
+  { phrases: ["donor network", "donors"], path: "/donor-network", label: "Donor Network" },
+  { phrases: ["vendor network", "vendors"], path: "/vendors", label: "Vendor Network" },
+  { phrases: ["crm", "campaign crm"], path: "/crm", label: "Campaign CRM" },
+  { phrases: ["mail ops", "mailops"], path: "/mailops", label: "MailOps" },
+  { phrases: ["reports", "intelligence reports"], path: "/reports", label: "Intelligence Reports" },
+  { phrases: ["digital twin"], path: "/national-political-digital-twin", label: "National Political Digital Twin" },
+  { phrases: ["autonomous operations"], path: "/autonomous-campaign-operations", label: "Autonomous Operations" },
+];
+
+function normalizeVoiceCommand(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findSpokenState(command = "") {
+  const normalized = ` ${normalizeVoiceCommand(command)} `;
+
+  for (const item of Object.values(STATE_META)) {
+    if (
+      normalized.includes(` ${item.name.toLowerCase()} `) ||
+      normalized.includes(` ${item.abbr.toLowerCase()} `)
+    ) {
+      return item.abbr;
+    }
+  }
+
+  return "";
+}
+
+function matchVoiceRoute(command = "") {
+  const normalized = normalizeVoiceCommand(command);
+
+  return (
+    VOICE_NAV_ROUTES.find((route) =>
+      route.phrases.some((phrase) => normalized.includes(phrase))
+    ) || null
+  );
+}
+
+function isVoiceNavigationCommand(command = "") {
+  const normalized = normalizeVoiceCommand(command);
+
+  return [
+    "open ",
+    "go to ",
+    "navigate to ",
+    "show ",
+    "highlight ",
+    "select ",
+    "reset map",
+    "national view",
+    "new conversation",
+    "clear chat",
+    "team consult",
+    "single agent",
+    "voice off",
+    "voice on",
+    "stop speaking",
+    "generate mission",
+    "refresh command platform",
+  ].some((phrase) => normalized.includes(phrase));
+}
+
 function ExecutiveAgentWorkspace({
   agents,
   missions,
   selectedAgentKey,
   setSelectedAgentKey,
+  onVoiceCommand,
 }) {
   const [messages, setMessages] = useState([
     {
@@ -964,6 +1053,7 @@ function ExecutiveAgentWorkspace({
   const [historySearch, setHistorySearch] = useState("");
   const [pinnedThreadIds, setPinnedThreadIds] = useState([]);
   const [savedBriefings, setSavedBriefings] = useState([]);
+  const [lastVoiceCommand, setLastVoiceCommand] = useState("");
 
 
 
@@ -1099,7 +1189,28 @@ function ExecutiveAgentWorkspace({
       setLiveTranscript(nextTranscript);
 
       if (finalText.trim()) {
-        setPrompt(finalText.trim());
+        const spoken = finalText.trim();
+        setLastVoiceCommand(spoken);
+
+        if (
+          typeof onVoiceCommand === "function" &&
+          isVoiceNavigationCommand(spoken)
+        ) {
+          const handled = onVoiceCommand(spoken, {
+            startNewConversation,
+            clearConversationScreen,
+            setTeamMode,
+            setVoiceEnabled,
+            stopSpeaking,
+          });
+
+          if (handled) {
+            setPrompt("");
+            return;
+          }
+        }
+
+        setPrompt(spoken);
       }
     };
 
@@ -1429,6 +1540,15 @@ function ExecutiveAgentWorkspace({
           >
             Team Consult
           </button>
+        </div>
+
+        <div className="cmd-voice-command-guide">
+          <span>Voice Navigation Examples</span>
+          <small>“Open Georgia”</small>
+          <small>“Show high-risk states”</small>
+          <small>“Go to Donor Network”</small>
+          <small>“Start team consult”</small>
+          <small>“Clear chat”</small>
         </div>
 
         <div className="cmd-consult-agent-list">
@@ -1805,10 +1925,16 @@ function ExecutiveAgentWorkspace({
                 <small>
                   {listening
                     ? liveTranscript || "Say your political question now."
-                    : "Ask national, state, county, parish, district, or local questions."}
+                    : "Ask political questions or say commands like “open Georgia,” “show high-risk states,” or “go to Donor Network.”"}
                 </small>
               </span>
             </button>
+
+            {lastVoiceCommand ? (
+              <div className="cmd-last-voice-command">
+                Last voice command: <strong>{lastVoiceCommand}</strong>
+              </div>
+            ) : null}
           </div>
 
           <textarea
@@ -1844,6 +1970,7 @@ function ExecutiveAgentWorkspace({
 }
 
 export default function ExecutiveAICommandPlatform() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [activeMissionId, setActiveMissionId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1854,6 +1981,8 @@ export default function ExecutiveAICommandPlatform() {
   const [selectedMapState, setSelectedMapState] = useState("");
   const [agentRefreshTick, setAgentRefreshTick] = useState(0);
   const [selectedExecutiveAgent, setSelectedExecutiveAgent] = useState("executive-chief-of-staff");
+  const [mapRiskFilter, setMapRiskFilter] = useState("all");
+  const [voiceNavigationMessage, setVoiceNavigationMessage] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -1993,6 +2122,154 @@ export default function ExecutiveAICommandPlatform() {
     });
   }, [data, brief, missions, timeline, summary]);
 
+
+  const handleVoiceCommand = useCallback(
+    (rawCommand, controls = {}) => {
+      const command = normalizeVoiceCommand(rawCommand);
+      const spokenState = findSpokenState(command);
+      const route = matchVoiceRoute(command);
+
+      const confirm = (text) => {
+        setVoiceNavigationMessage(text);
+        window.setTimeout(() => setVoiceNavigationMessage(""), 5000);
+      };
+
+      if (
+        route &&
+        (command.includes("open") ||
+          command.includes("go to") ||
+          command.includes("navigate"))
+      ) {
+        confirm(`Opening ${route.label}.`);
+        navigate(route.path);
+        return true;
+      }
+
+      if (
+        spokenState &&
+        (command.includes("open") ||
+          command.includes("show") ||
+          command.includes("select") ||
+          command.includes("highlight"))
+      ) {
+        setSelectedMapState(spokenState);
+        setMapRiskFilter("all");
+        confirm(`Selected ${spokenState} on the national situation map.`);
+        document.getElementById("cmd-map")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return true;
+      }
+
+      if (
+        command.includes("show high risk") ||
+        command.includes("highlight high risk") ||
+        command.includes("show critical")
+      ) {
+        setMapRiskFilter("critical");
+        setSelectedMapState("");
+        confirm("Showing critical and high-risk states.");
+        document.getElementById("cmd-map")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return true;
+      }
+
+      if (
+        command.includes("show watch") ||
+        command.includes("highlight watch") ||
+        command.includes("elevated states")
+      ) {
+        setMapRiskFilter("watch");
+        setSelectedMapState("");
+        confirm("Showing states on watch.");
+        return true;
+      }
+
+      if (
+        command.includes("show operational") ||
+        command.includes("highlight operational") ||
+        command.includes("strong states")
+      ) {
+        setMapRiskFilter("operational");
+        setSelectedMapState("");
+        confirm("Showing operational states.");
+        return true;
+      }
+
+      if (
+        command.includes("reset map") ||
+        command.includes("national view") ||
+        command.includes("show all states")
+      ) {
+        setMapRiskFilter("all");
+        setSelectedMapState("");
+        confirm("National map reset.");
+        return true;
+      }
+
+      if (command.includes("new conversation")) {
+        controls.startNewConversation?.();
+        confirm("Started a new executive AI conversation.");
+        return true;
+      }
+
+      if (command.includes("clear chat")) {
+        controls.clearConversationScreen?.();
+        confirm("Conversation cleared.");
+        return true;
+      }
+
+      if (command.includes("team consult")) {
+        controls.setTeamMode?.(true);
+        confirm("Executive Team Consult mode enabled.");
+        return true;
+      }
+
+      if (command.includes("single agent")) {
+        controls.setTeamMode?.(false);
+        confirm("Single Agent mode enabled.");
+        return true;
+      }
+
+      if (command.includes("voice off")) {
+        controls.setVoiceEnabled?.(false);
+        controls.stopSpeaking?.();
+        confirm("Voice replies disabled.");
+        return true;
+      }
+
+      if (command.includes("voice on")) {
+        controls.setVoiceEnabled?.(true);
+        confirm("Voice replies enabled.");
+        return true;
+      }
+
+      if (command.includes("stop speaking")) {
+        controls.stopSpeaking?.();
+        confirm("Stopped speaking.");
+        return true;
+      }
+
+      if (command.includes("generate mission")) {
+        handleGenerateMission();
+        confirm("Generating a new executive AI mission.");
+        return true;
+      }
+
+      if (command.includes("refresh command platform")) {
+        loadData();
+        confirm("Refreshing the Executive AI Command Platform.");
+        return true;
+      }
+
+      return false;
+    },
+    [navigate]
+  );
+
   return (
     <PageShell
       eyebrow="Build 3C · Executive AI Command Platform"
@@ -2097,6 +2374,14 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-history-empty{border:1px dashed rgba(148,163,184,.18);border-radius:12px;padding:18px;text-align:center;color:rgba(148,163,184,.76);font-size:11px}
         .cmd-saved-briefings{border-top:1px solid rgba(148,163,184,.12);padding-top:12px}.cmd-saved-briefings button{border:1px solid rgba(148,163,184,.1);border-radius:12px;background:rgba(15,23,42,.36);padding:10px}
 
+
+        .cmd-voice-command-guide{border:1px solid rgba(96,165,250,.16);border-radius:14px;background:rgba(37,99,235,.08);padding:11px;display:grid;gap:6px}
+        .cmd-voice-command-guide span{color:rgba(147,197,253,.88);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .cmd-voice-command-guide small{color:rgba(203,213,225,.78);font-size:10px;line-height:1.35}
+        .cmd-last-voice-command{margin-top:8px;color:rgba(148,163,184,.78);font-size:10px}
+        .cmd-last-voice-command strong{color:rgba(226,232,240,.92)}
+        .cmd-voice-nav-banner{border-color:rgba(96,165,250,.35);background:rgba(37,99,235,.13);color:#dbeafe}
+
         @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}.cmd-consult-shell{grid-template-columns:280px minmax(0,1fr)}}@media(max-width:1050px){
           .cmd-consult-shell{grid-template-columns:1fr;min-height:auto}
           .cmd-consult-agents{grid-template-columns:1fr;gap:14px}
@@ -2144,6 +2429,11 @@ export default function ExecutiveAICommandPlatform() {
       </div>
 
       {message ? <div className="vs-banner">{message}</div> : null}
+      {voiceNavigationMessage ? (
+        <div className="vs-banner cmd-voice-nav-banner">
+          Voice Command: {voiceNavigationMessage}
+        </div>
+      ) : null}
 
       <div className="vs-grid-4">
         <StatCard label="Active Executive Command Briefs" value={summary.activeCommandBriefs || 0} subtext="Current national executive command briefs" />
@@ -2158,6 +2448,7 @@ export default function ExecutiveAICommandPlatform() {
           timeline={timeline}
           selectedState={selectedMapState}
           onSelectState={setSelectedMapState}
+          riskFilter={mapRiskFilter}
         />
       </CollapsibleSection>
 
@@ -2254,6 +2545,7 @@ export default function ExecutiveAICommandPlatform() {
           missions={missions}
           selectedAgentKey={selectedExecutiveAgent}
           setSelectedAgentKey={setSelectedExecutiveAgent}
+          onVoiceCommand={handleVoiceCommand}
         />
       </CollapsibleSection>
 
