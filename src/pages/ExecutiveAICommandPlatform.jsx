@@ -1,5 +1,12 @@
-import { useEffect, useMemo, useState } from "react"; 
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  ZoomableGroup,
+} from "react-simple-maps";
 import {
   fetchExecutiveAiCommand,
   seedExecutiveAiCommand,
@@ -15,6 +22,88 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
+
+const US_TOPO_JSON =
+  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
+const STATE_META = {
+  "01": { abbr: "AL", name: "Alabama", coordinates: [-86.8, 32.8] },
+  "02": { abbr: "AK", name: "Alaska", coordinates: [-152.4, 64.2] },
+  "04": { abbr: "AZ", name: "Arizona", coordinates: [-111.9, 34.2] },
+  "05": { abbr: "AR", name: "Arkansas", coordinates: [-92.4, 34.9] },
+  "06": { abbr: "CA", name: "California", coordinates: [-119.7, 37.2] },
+  "08": { abbr: "CO", name: "Colorado", coordinates: [-105.5, 39.0] },
+  "09": { abbr: "CT", name: "Connecticut", coordinates: [-72.7, 41.6] },
+  "10": { abbr: "DE", name: "Delaware", coordinates: [-75.5, 39.0] },
+  "11": { abbr: "DC", name: "District of Columbia", coordinates: [-77.0, 38.9] },
+  "12": { abbr: "FL", name: "Florida", coordinates: [-81.7, 27.8] },
+  "13": { abbr: "GA", name: "Georgia", coordinates: [-83.4, 32.7] },
+  "15": { abbr: "HI", name: "Hawaii", coordinates: [-157.5, 20.8] },
+  "16": { abbr: "ID", name: "Idaho", coordinates: [-114.6, 44.2] },
+  "17": { abbr: "IL", name: "Illinois", coordinates: [-89.2, 40.0] },
+  "18": { abbr: "IN", name: "Indiana", coordinates: [-86.1, 39.9] },
+  "19": { abbr: "IA", name: "Iowa", coordinates: [-93.5, 42.1] },
+  "20": { abbr: "KS", name: "Kansas", coordinates: [-98.2, 38.5] },
+  "21": { abbr: "KY", name: "Kentucky", coordinates: [-84.7, 37.5] },
+  "22": { abbr: "LA", name: "Louisiana", coordinates: [-91.9, 31.0] },
+  "23": { abbr: "ME", name: "Maine", coordinates: [-69.2, 45.3] },
+  "24": { abbr: "MD", name: "Maryland", coordinates: [-76.7, 39.0] },
+  "25": { abbr: "MA", name: "Massachusetts", coordinates: [-71.8, 42.3] },
+  "26": { abbr: "MI", name: "Michigan", coordinates: [-84.6, 44.3] },
+  "27": { abbr: "MN", name: "Minnesota", coordinates: [-94.3, 46.3] },
+  "28": { abbr: "MS", name: "Mississippi", coordinates: [-89.7, 32.7] },
+  "29": { abbr: "MO", name: "Missouri", coordinates: [-92.6, 38.5] },
+  "30": { abbr: "MT", name: "Montana", coordinates: [-110.4, 47.0] },
+  "31": { abbr: "NE", name: "Nebraska", coordinates: [-99.8, 41.5] },
+  "32": { abbr: "NV", name: "Nevada", coordinates: [-116.6, 39.3] },
+  "33": { abbr: "NH", name: "New Hampshire", coordinates: [-71.6, 43.7] },
+  "34": { abbr: "NJ", name: "New Jersey", coordinates: [-74.5, 40.1] },
+  "35": { abbr: "NM", name: "New Mexico", coordinates: [-106.1, 34.4] },
+  "36": { abbr: "NY", name: "New York", coordinates: [-75.5, 43.0] },
+  "37": { abbr: "NC", name: "North Carolina", coordinates: [-79.4, 35.5] },
+  "38": { abbr: "ND", name: "North Dakota", coordinates: [-100.5, 47.5] },
+  "39": { abbr: "OH", name: "Ohio", coordinates: [-82.8, 40.3] },
+  "40": { abbr: "OK", name: "Oklahoma", coordinates: [-97.5, 35.6] },
+  "41": { abbr: "OR", name: "Oregon", coordinates: [-120.6, 44.0] },
+  "42": { abbr: "PA", name: "Pennsylvania", coordinates: [-77.7, 40.9] },
+  "44": { abbr: "RI", name: "Rhode Island", coordinates: [-71.5, 41.7] },
+  "45": { abbr: "SC", name: "South Carolina", coordinates: [-80.9, 33.8] },
+  "46": { abbr: "SD", name: "South Dakota", coordinates: [-100.2, 44.4] },
+  "47": { abbr: "TN", name: "Tennessee", coordinates: [-86.4, 35.8] },
+  "48": { abbr: "TX", name: "Texas", coordinates: [-99.3, 31.5] },
+  "49": { abbr: "UT", name: "Utah", coordinates: [-111.7, 39.3] },
+  "50": { abbr: "VT", name: "Vermont", coordinates: [-72.7, 44.0] },
+  "51": { abbr: "VA", name: "Virginia", coordinates: [-78.7, 37.5] },
+  "53": { abbr: "WA", name: "Washington", coordinates: [-120.7, 47.4] },
+  "54": { abbr: "WV", name: "West Virginia", coordinates: [-80.6, 38.6] },
+  "55": { abbr: "WI", name: "Wisconsin", coordinates: [-89.8, 44.5] },
+  "56": { abbr: "WY", name: "Wyoming", coordinates: [-107.6, 43.0] },
+};
+
+const STATE_NAME_TO_ABBR = Object.values(STATE_META).reduce((acc, item) => {
+  acc[item.name.toLowerCase()] = item.abbr;
+  acc[item.abbr.toLowerCase()] = item.abbr;
+  return acc;
+}, {});
+
+function normalizeStateCode(value = "") {
+  const raw = String(value || "").trim().toLowerCase();
+  return STATE_NAME_TO_ABBR[raw] || "";
+}
+
+function stateFill(metric, selected = false) {
+  if (selected) return "rgba(251,146,60,.82)";
+  if (!metric) return "rgba(30,41,59,.88)";
+
+  const risk = clamp(metric.risk_percentage);
+  const confidence = clamp(metric.confidence_percentage);
+  const impact = clamp(metric.impact_percentage);
+
+  if (risk >= 70) return "rgba(239,68,68,.78)";
+  if (risk >= 45) return "rgba(245,158,11,.74)";
+  if (confidence >= 75 || impact >= 75) return "rgba(34,197,94,.68)";
+  return "rgba(59,130,246,.62)";
+}
 
 function arr(value) {
   return Array.isArray(value) ? value : [];
@@ -151,34 +240,136 @@ function ActionRow({ action }) {
   );
 }
 
-function MiniMap() {
-  const markers = [
-    { state: "PA", x: 70, y: 31, risk: "high" },
-    { state: "MI", x: 57, y: 22, risk: "watch" },
-    { state: "WI", x: 48, y: 20, risk: "watch" },
-    { state: "AZ", x: 22, y: 60, risk: "high" },
-    { state: "GA", x: 67, y: 61, risk: "active" },
-    { state: "NC", x: 74, y: 50, risk: "active" },
-  ];
+function NationalOperationsMap({
+  missions,
+  timeline,
+  selectedState,
+  onSelectState,
+}) {
+  const stateMetrics = useMemo(() => {
+    const map = {};
+
+    for (const mission of missions) {
+      const abbr = normalizeStateCode(
+        mission.state_code || mission.state || mission.state_name || mission.geographic_scope
+      );
+      if (!abbr) continue;
+      const current = map[abbr] || {
+        state: abbr, mission_count: 0, event_count: 0, impact_percentage: 0,
+        confidence_percentage: 0, risk_percentage: 0, titles: [],
+      };
+      current.mission_count += 1;
+      current.impact_percentage = Math.max(current.impact_percentage, number(mission.impact_percentage));
+      current.confidence_percentage = Math.max(current.confidence_percentage, number(mission.confidence_percentage));
+      current.risk_percentage = Math.max(current.risk_percentage, number(mission.risk_percentage));
+      if (mission.title) current.titles.push(mission.title);
+      map[abbr] = current;
+    }
+
+    for (const event of timeline) {
+      const abbr = normalizeStateCode(event.state_code || event.state || event.state_name);
+      if (!abbr) continue;
+      const current = map[abbr] || {
+        state: abbr, mission_count: 0, event_count: 0, impact_percentage: 0,
+        confidence_percentage: 0, risk_percentage: 0, titles: [],
+      };
+      current.event_count += 1;
+      current.impact_percentage = Math.max(current.impact_percentage, number(event.impact_percentage));
+      map[abbr] = current;
+    }
+
+    return map;
+  }, [missions, timeline]);
+
+  const activeStates = Object.keys(stateMetrics);
+  const selectedMetric = selectedState ? stateMetrics[selectedState] : null;
 
   return (
-    <div className="cmd-map-panel">
-      <div className="cmd-map-grid" />
-      <div className="cmd-map-label">National Operations Map</div>
-      {markers.map((marker) => (
-        <div
-          key={marker.state}
-          className={`cmd-map-marker ${marker.risk}`}
-          style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
-        >
-          <span>{marker.state}</span>
+    <div className="cmd-geo-map-shell">
+      <div className="cmd-geo-map-main">
+        <div className="cmd-map-heading">
+          <div>
+            <span>Live National Geographic Layer</span>
+            <strong>{selectedState ? `${selectedState} Executive Posture` : "United States Executive Mission Posture"}</strong>
+          </div>
+          <div className="cmd-map-summary">
+            <Badge tone="active">{activeStates.length} Active States</Badge>
+            <Badge tone="info">{missions.length} Missions</Badge>
+            <Badge tone="accent">{timeline.length} Timeline Events</Badge>
+          </div>
         </div>
-      ))}
-      <div className="cmd-map-legend">
-        <Badge tone="danger">High Attention</Badge>
-        <Badge tone="accent">Watch</Badge>
-        <Badge tone="active">Operational</Badge>
+
+        <div className="cmd-geo-map-canvas">
+          <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 980 }} width={980} height={560} style={{ width: "100%", height: "auto" }}>
+            <ZoomableGroup minZoom={1} maxZoom={4}>
+              <Geographies geography={US_TOPO_JSON}>
+                {({ geographies }) => geographies.map((geo) => {
+                  const fips = String(geo.id).padStart(2, "0");
+                  const meta = STATE_META[fips];
+                  const abbr = meta?.abbr || "";
+                  const metric = stateMetrics[abbr];
+                  const isSelected = selectedState === abbr;
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onClick={() => abbr && onSelectState(isSelected ? "" : abbr)}
+                      style={{
+                        default: { fill: stateFill(metric, isSelected), stroke: "rgba(226,232,240,.34)", strokeWidth: .7, outline: "none", cursor: abbr ? "pointer" : "default" },
+                        hover: { fill: isSelected ? "rgba(251,146,60,.92)" : "rgba(96,165,250,.78)", stroke: "rgba(255,255,255,.72)", strokeWidth: 1, outline: "none", cursor: abbr ? "pointer" : "default" },
+                        pressed: { fill: "rgba(251,146,60,.92)", stroke: "white", strokeWidth: 1, outline: "none" },
+                      }}
+                    />
+                  );
+                })}
+              </Geographies>
+
+              {Object.entries(stateMetrics).map(([abbr, metric]) => {
+                const meta = Object.values(STATE_META).find((item) => item.abbr === abbr);
+                if (!meta) return null;
+                return (
+                  <Marker key={abbr} coordinates={meta.coordinates}>
+                    <g className="cmd-map-marker-group" onClick={() => onSelectState(selectedState === abbr ? "" : abbr)}>
+                      <circle r={selectedState === abbr ? 12 : 9} className={`cmd-map-pulse ${metric.risk_percentage >= 70 ? "danger" : metric.risk_percentage >= 45 ? "warning" : "active"}`} />
+                      <text textAnchor="middle" y={3} className="cmd-map-state-label">{abbr}</text>
+                    </g>
+                  </Marker>
+                );
+              })}
+            </ZoomableGroup>
+          </ComposableMap>
+        </div>
+
+        <div className="cmd-map-legend-row">
+          <span><i className="legend-danger" /> High Risk</span>
+          <span><i className="legend-warning" /> Watch</span>
+          <span><i className="legend-active" /> Strong / Operational</span>
+          <span><i className="legend-neutral" /> No Active Mission Data</span>
+        </div>
       </div>
+
+      <aside className="cmd-map-detail">
+        <span className="cmd-map-detail-eyebrow">Selected Geography</span>
+        <strong>{selectedState || "National"}</strong>
+        {selectedMetric ? (
+          <>
+            <div className="cmd-map-detail-grid">
+              <div><span>Missions</span><strong>{selectedMetric.mission_count}</strong></div>
+              <div><span>Events</span><strong>{selectedMetric.event_count}</strong></div>
+              <div><span>Impact</span><strong>{pct(selectedMetric.impact_percentage)}</strong></div>
+              <div><span>Confidence</span><strong>{pct(selectedMetric.confidence_percentage)}</strong></div>
+              <div><span>Risk</span><strong>{pct(selectedMetric.risk_percentage)}</strong></div>
+            </div>
+            <div className="cmd-map-mission-list">
+              <span>Mission Coverage</span>
+              {selectedMetric.titles.length ? selectedMetric.titles.slice(0, 5).map((title) => <div key={title}>{title}</div>) : <p>No named missions are currently attached.</p>}
+            </div>
+          </>
+        ) : (
+          <p>Select a state with an active mission marker to review its executive posture, risk, confidence, and timeline activity.</p>
+        )}
+        {selectedState ? <button type="button" className="vs-button vs-button-secondary" onClick={() => onSelectState("")}>Reset National View</button> : null}
+      </aside>
     </div>
   );
 }
@@ -224,6 +415,7 @@ export default function ExecutiveAICommandPlatform() {
   const [generateLoading, setGenerateLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+  const [selectedMapState, setSelectedMapState] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -345,7 +537,36 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-map-marker{position:absolute;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:950;color:white;border:1px solid rgba(255,255,255,.18);box-shadow:0 0 24px rgba(59,130,246,.22)}.cmd-map-marker.high{background:rgba(239,68,68,.72);box-shadow:0 0 26px rgba(239,68,68,.42)}.cmd-map-marker.watch{background:rgba(245,158,11,.72);box-shadow:0 0 26px rgba(245,158,11,.34)}.cmd-map-marker.active{background:rgba(34,197,94,.72);box-shadow:0 0 26px rgba(34,197,94,.34)}.cmd-map-legend{position:absolute;left:18px;bottom:16px;z-index:2}
         .cmd-reasoning-panel{padding:18px;display:grid;grid-template-columns:minmax(260px,.9fr) minmax(0,1.1fr);gap:18px;background:radial-gradient(circle at top right,rgba(168,85,247,.14),transparent 34%),rgba(15,23,42,.56)}.cmd-reasoning-copy strong{display:block;margin:8px 0 10px;color:white;font-size:22px;line-height:1.25;font-weight:950}.cmd-reasoning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.cmd-reasoning-grid>div{border:1px solid rgba(148,163,184,.12);border-radius:16px;background:rgba(2,6,23,.28);padding:12px}.cmd-reasoning-grid strong{display:block;margin:6px 0 9px;color:white;font-size:18px}
         .cmd-agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.cmd-agent-card{padding:14px;display:grid;gap:9px}.cmd-agent-head{display:flex;gap:9px;align-items:center}.cmd-agent-head strong{color:white;font-size:14px}.cmd-status-dot{width:10px;height:10px;border-radius:999px;background:#64748b}.cmd-status-dot.active,.cmd-status-dot.processing{background:#22c55e;box-shadow:0 0 14px rgba(34,197,94,.5)}.cmd-status-dot.thinking,.cmd-status-dot.monitoring{background:#f59e0b;box-shadow:0 0 14px rgba(245,158,11,.45)}.cmd-status-dot.alert{background:#ef4444;box-shadow:0 0 14px rgba(239,68,68,.5)}
-        @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel{grid-template-columns:1fr}}@media(max-width:900px){.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
+
+        .cmd-geo-map-shell { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(260px,.45fr); gap:16px; align-items:stretch; }
+        .cmd-geo-map-main,.cmd-map-detail { border:1px solid rgba(96,165,250,.22); border-radius:24px; background:radial-gradient(circle at top right,rgba(59,130,246,.14),transparent 34%),linear-gradient(145deg,rgba(2,6,23,.96),rgba(15,23,42,.88)); overflow:hidden; }
+        .cmd-geo-map-main { padding:16px; }
+        .cmd-map-heading { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; margin-bottom:10px; }
+        .cmd-map-heading span,.cmd-map-detail-eyebrow,.cmd-map-mission-list>span { display:block; color:rgba(147,197,253,.86); font-size:11px; font-weight:950; letter-spacing:.1em; text-transform:uppercase; }
+        .cmd-map-heading strong { display:block; margin-top:5px; color:white; font-size:22px; font-weight:950; letter-spacing:-.035em; }
+        .cmd-map-summary { display:flex; gap:8px; flex-wrap:wrap; }
+        .cmd-geo-map-canvas { border:1px solid rgba(148,163,184,.12); border-radius:20px; background:radial-gradient(circle at center,rgba(30,64,175,.12),transparent 55%),rgba(2,6,23,.42); overflow:hidden; }
+        .cmd-map-marker-group { cursor:pointer; }
+        .cmd-map-pulse { fill:rgba(34,197,94,.82); stroke:rgba(255,255,255,.72); stroke-width:1.5; filter:drop-shadow(0 0 7px rgba(34,197,94,.75)); }
+        .cmd-map-pulse.warning { fill:rgba(245,158,11,.88); filter:drop-shadow(0 0 7px rgba(245,158,11,.72)); }
+        .cmd-map-pulse.danger { fill:rgba(239,68,68,.9); filter:drop-shadow(0 0 8px rgba(239,68,68,.78)); }
+        .cmd-map-state-label { fill:white; font-size:7px; font-weight:950; pointer-events:none; }
+        .cmd-map-legend-row { display:flex; gap:16px; flex-wrap:wrap; padding:12px 4px 0; color:rgba(226,232,240,.76); font-size:11px; font-weight:800; }
+        .cmd-map-legend-row span { display:flex; gap:7px; align-items:center; }
+        .cmd-map-legend-row i { width:10px; height:10px; border-radius:999px; display:block; }
+        .legend-danger { background:#ef4444; } .legend-warning { background:#f59e0b; } .legend-active { background:#22c55e; } .legend-neutral { background:#334155; }
+        .cmd-map-detail { padding:18px; display:grid; align-content:start; gap:16px; }
+        .cmd-map-detail>strong { color:white; font-size:34px; font-weight:950; letter-spacing:-.06em; }
+        .cmd-map-detail>p { margin:0; color:rgba(203,213,225,.76); line-height:1.65; }
+        .cmd-map-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .cmd-map-detail-grid>div { border:1px solid rgba(148,163,184,.12); border-radius:15px; background:rgba(2,6,23,.3); padding:11px; }
+        .cmd-map-detail-grid span { display:block; color:rgba(148,163,184,.78); font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; }
+        .cmd-map-detail-grid strong { display:block; margin-top:5px; color:white; font-size:18px; }
+        .cmd-map-mission-list { display:grid; gap:8px; }
+        .cmd-map-mission-list>div { border:1px solid rgba(148,163,184,.12); border-radius:13px; background:rgba(15,23,42,.48); padding:10px; color:rgba(226,232,240,.9); font-size:12px; line-height:1.45; }
+        .cmd-map-mission-list p { margin:0; color:rgba(148,163,184,.76); font-size:12px; }
+
+        @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}}@media(max-width:900px){.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
       `}</style>
 
       <div id="cmd-overview" className="cmd-command-ribbon">
@@ -394,7 +615,7 @@ export default function ExecutiveAICommandPlatform() {
       </div>
 
       <CollapsibleSection id="cmd-map" title="National Operations Map" subtitle="Executive mission posture, attention states, and active operational zones." defaultOpen right={<Badge tone="active">National Live Layer</Badge>}>
-        <MiniMap />
+        <NationalOperationsMap missions={missions} timeline={timeline} selectedState={selectedMapState} onSelectState={setSelectedMapState} />
       </CollapsibleSection>
 
       <div className="cmd-layout">
