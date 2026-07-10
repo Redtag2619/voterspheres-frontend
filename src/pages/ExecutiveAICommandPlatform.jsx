@@ -1469,110 +1469,167 @@ function ExecutiveAgentWorkspace({
 
       <div className="cmd-consult-main">
         <div className="cmd-consult-header">
-          <div className="cmd-conversation-heading">
-            <span>{teamMode ? "Executive Team Consultation" : "Active AI Advisor"}</span>
-            <strong>{conversationTitle}</strong>
-            <small>
-              {teamMode
-                ? "Executive AI Team"
-                : selectedAgent?.name || selectedAgent?.label || "Executive AI Agent"}
-            </small>
-          </div>
+  <div className="cmd-conversation-heading">
+    <span>
+      {teamMode
+        ? "Executive Team Consultation"
+        : "Active AI Advisor"}
+    </span>
 
-          <div className="cmd-consult-header-tools">
-            <div className="cmd-conversation-toolbar">
-              <button type="button" onClick={startNewConversation}>
-                New Conversation
-              </button>
-              <button type="button" onClick={clearConversationScreen}>
-                Clear Chat
-              </button>
-              <button type="button" onClick={renameConversation}>
-                Rename
-              </button>
-              <button type="button" onClick={saveCurrentBriefing}>
-                Save Briefing
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  downloadConversationText({
-                    messages,
-                    title: conversationTitle,
-                    extension: "doc",
-                  })
-                }
-              >
-                Export Word
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  printConversation({
-                    messages,
-                    title: conversationTitle,
-                  })
-                }
-              >
-                Export PDF
-              </button>
-              <button
-                type="button"
-                className={historyOpen ? "is-active" : ""}
-                onClick={() => setHistoryOpen((value) => !value)}
-              >
-                History
-              </button>
-            </div>
+    <strong>{conversationTitle}</strong>
 
-            <div className="cmd-voice-toolbar">
-            <div className="vs-chip-row">
-              <Badge tone="active">LLM Connected</Badge>
-              <Badge tone={teamMode ? "accent" : "info"}>
-                {teamMode ? "Multi-Agent Synthesis" : "Specialist Mode"}
-              </Badge>
-              <Badge tone={recognitionSupported ? "active" : "danger"}>
-                {recognitionSupported ? "Microphone Ready" : "No Mic Support"}
-              </Badge>
-            </div>
+    <small>
+      {teamMode
+        ? "Executive AI Team"
+        : selectedAgent?.name ||
+          selectedAgent?.label ||
+          "Executive AI Agent"}
+    </small>
+  </div>
 
-            <div className="cmd-voice-controls">
-              <select
-                value={selectedVoiceName}
-                onChange={(event) => setSelectedVoiceName(event.target.value)}
-                disabled={!voiceSupported}
-                aria-label="Select AI voice"
-              >
-                {voices.map((voice) => (
-                  <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
-                    {voice.name} · {voice.lang}
-                  </option>
-                ))}
-              </select>
+  <div className="cmd-consult-header-tools">
+    <div className="cmd-conversation-toolbar">
+      <button
+        type="button"
+        onClick={startNewConversation}
+      >
+        New Conversation
+      </button>
 
-              <button
-                type="button"
-                className={voiceEnabled ? "is-active" : ""}
-                onClick={() => {
-                  setVoiceEnabled((value) => !value);
-                  if (voiceEnabled) stopSpeaking();
-                }}
-                disabled={!voiceSupported}
-              >
-                {voiceEnabled ? "Voice On" : "Voice Off"}
-              </button>
+      <button
+        type="button"
+        onClick={clearConversationScreen}
+      >
+        Clear Chat
+      </button>
 
-              {speaking ? (
-                <button type="button" onClick={stopSpeaking}>
-                  Stop Speaking
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        </div>
-        
-        {historyOpen ? (
+      <button
+        type="button"
+        onClick={renameConversation}
+      >
+        Rename
+      </button>
+
+      <button
+        type="button"
+        onClick={saveCurrentBriefing}
+      >
+        Save Briefing
+      </button>
+
+      <button
+        type="button"
+        onClick={() =>
+          downloadConversationText({
+            messages,
+            title: conversationTitle,
+            extension: "doc",
+          })
+        }
+      >
+        Export Word
+      </button>
+
+      <button
+        type="button"
+        onClick={() =>
+          printConversation({
+            messages,
+            title: conversationTitle,
+          })
+        }
+      >
+        Export PDF
+      </button>
+
+      <button
+        type="button"
+        className={historyOpen ? "is-active" : ""}
+        onClick={() =>
+          setHistoryOpen((value) => !value)
+        }
+      >
+        History
+      </button>
+    </div>
+
+    <div className="cmd-voice-toolbar">
+      <div className="vs-chip-row">
+        <Badge tone="active">
+          LLM Connected
+        </Badge>
+
+        <Badge tone={teamMode ? "accent" : "info"}>
+          {teamMode
+            ? "Multi-Agent Synthesis"
+            : "Specialist Mode"}
+        </Badge>
+
+        <Badge
+          tone={
+            recognitionSupported
+              ? "active"
+              : "danger"
+          }
+        >
+          {recognitionSupported
+            ? "Microphone Ready"
+            : "No Mic Support"}
+        </Badge>
+      </div>
+
+      <div className="cmd-voice-controls">
+        <select
+          value={selectedVoiceName}
+          onChange={(event) =>
+            setSelectedVoiceName(event.target.value)
+          }
+          disabled={!voiceSupported}
+          aria-label="Select AI voice"
+        >
+          {voices.map((voice) => (
+            <option
+              key={`${voice.name}-${voice.lang}`}
+              value={voice.name}
+            >
+              {voice.name} · {voice.lang}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          className={
+            voiceEnabled ? "is-active" : ""
+          }
+          onClick={() => {
+            setVoiceEnabled((value) => !value);
+
+            if (voiceEnabled) {
+              stopSpeaking();
+            }
+          }}
+          disabled={!voiceSupported}
+        >
+          {voiceEnabled
+            ? "Voice On"
+            : "Voice Off"}
+        </button>
+
+        {speaking ? (
+          <button
+            type="button"
+            onClick={stopSpeaking}
+          >
+            Stop Speaking
+          </button>
+        ) : null}
+      </div>
+    </div>
+  </div>
+</div>
+
+{historyOpen ? (
           <div className="cmd-history-drawer">
             <div className="cmd-history-head">
               <div>
