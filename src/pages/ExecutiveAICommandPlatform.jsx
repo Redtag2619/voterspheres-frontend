@@ -1570,8 +1570,7 @@ function ExecutiveAgentWorkspace({
             </div>
           </div>
         </div>
-        </div>
-
+        
         {historyOpen ? (
           <div className="cmd-history-drawer">
             <div className="cmd-history-head">
