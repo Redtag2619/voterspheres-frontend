@@ -4,7 +4,6 @@ import {
   ComposableMap,
   Geographies,
   Geography,
-  ZoomableGroup,
 } from "react-simple-maps";
 import {
   fetchExecutiveAiCommand,
@@ -299,32 +298,67 @@ function NationalOperationsMap({
         </div>
 
         <div className="cmd-geo-map-canvas">
-          <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 980 }} width={980} height={560} style={{ width: "100%", height: "auto" }}>
-            <ZoomableGroup minZoom={1} maxZoom={4}>
-              <Geographies geography={US_TOPO_JSON}>
-                {({ geographies }) => geographies.map((geo) => {
-                  const fips = String(geo.id).padStart(2, "0");
-                  const meta = STATE_META[fips];
-                  const abbr = meta?.abbr || "";
-                  const metric = stateMetrics[abbr];
-                  const isSelected = selectedState === abbr;
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      onClick={() => abbr && onSelectState(isSelected ? "" : abbr)}
-                      style={{
-                        default: { fill: stateFill(metric, isSelected), stroke: "rgba(226,232,240,.34)", strokeWidth: .7, outline: "none", cursor: abbr ? "pointer" : "default" },
-                        hover: { fill: isSelected ? "rgba(251,146,60,.92)" : "rgba(96,165,250,.78)", stroke: "rgba(255,255,255,.72)", strokeWidth: 1, outline: "none", cursor: abbr ? "pointer" : "default" },
-                        pressed: { fill: "rgba(251,146,60,.92)", stroke: "white", strokeWidth: 1, outline: "none" },
-                      }}
-                    />
-                  );
-                })}
-              </Geographies>
-            </ZoomableGroup>
-          </ComposableMap>
-        </div>
+  <ComposableMap
+    projection="geoAlbersUsa"
+    projectionConfig={{ scale: 980 }}
+    width={980}
+    height={560}
+    style={{ width: "100%", height: "auto" }}
+  >
+    <Geographies geography={US_TOPO_JSON}>
+      {({ geographies }) =>
+        geographies
+          .filter((geo) => {
+            const fips = String(geo.id).padStart(2, "0");
+            return Boolean(STATE_META[fips]);
+          })
+          .map((geo) => {
+            const fips = String(geo.id).padStart(2, "0");
+            const meta = STATE_META[fips];
+            const abbr = meta?.abbr || "";
+            const metric = stateMetrics[abbr];
+            const isSelected = selectedState === abbr;
+
+            return (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                onClick={() => {
+                  if (abbr) {
+                    onSelectState(isSelected ? "" : abbr);
+                  }
+                }}
+                style={{
+                  default: {
+                    fill: stateFill(metric, isSelected),
+                    stroke: "rgba(226,232,240,.34)",
+                    strokeWidth: 0.7,
+                    outline: "none",
+                    cursor: abbr ? "pointer" : "default",
+                  },
+                  hover: {
+                    fill: isSelected
+                      ? "rgba(251,146,60,.92)"
+                      : "rgba(96,165,250,.78)",
+                    stroke: "rgba(255,255,255,.72)",
+                    strokeWidth: 1,
+                    outline: "none",
+                    cursor: abbr ? "pointer" : "default",
+                  },
+                  pressed: {
+                    fill: "rgba(251,146,60,.92)",
+                    stroke: "white",
+                    strokeWidth: 1,
+                    outline: "none",
+                  },
+                }}
+              />
+            );
+          })
+      }
+    </Geographies>
+  </ComposableMap>
+</div>
 
         <div className="cmd-map-legend-row">
           <span><i className="legend-danger" /> High Risk</span>
