@@ -21,6 +21,7 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
+import ExecutiveRealtimeVoicePanel from "../components/executive-ai/ExecutiveRealtimeVoicePanel";
 
 
 const US_TOPO_JSON =
@@ -2733,6 +2734,35 @@ export default function ExecutiveAICommandPlatform() {
           </CollapsibleSection>
         </div>
       </div>
+
+      <CollapsibleSection
+  id="cmd-realtime-voice"
+  title="Realtime Executive Voice"
+  subtitle="Low-latency, full-duplex Executive AI conversation powered by OpenAI Realtime WebRTC."
+  defaultOpen
+  right={<Badge tone="active">WebRTC Voice</Badge>}
+>
+  <ExecutiveRealtimeVoicePanel
+    agent="executive_chief_of_staff"
+    workspaceId={1}
+    executiveContext={{
+      selected_state: selectedMapState,
+      geographic_scope: selectedMapState || "National",
+      national_readiness_percentage: readiness,
+      execution_risk_percentage: executionRisk,
+      map_risk_filter: mapRiskFilter,
+      consultation_mode: "team",
+      mission_id: activeMission?.id || null,
+      mission_title: activeMission?.title || null,
+    }}
+    onUserTranscript={(payload) => {
+      console.log("[Executive Voice] User:", payload);
+    }}
+    onAssistantTranscript={(payload) => {
+      console.log("[Executive Voice] Assistant:", payload);
+    }}
+  />
+</CollapsibleSection>
 
       <CollapsibleSection
         id="cmd-consult"
