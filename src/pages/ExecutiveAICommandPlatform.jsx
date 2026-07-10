@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import {
@@ -782,6 +782,58 @@ function extractAgentAnswer(result) {
   );
 }
 
+
+function getSpeechRecognition() {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function chooseFemaleVoice(voices = []) {
+  const preferredNames = [
+    "Microsoft Aria",
+    "Microsoft Jenny",
+    "Samantha",
+    "Victoria",
+    "Karen",
+    "Moira",
+    "Tessa",
+    "Zira",
+    "Google US English",
+    "Google UK English Female",
+  ];
+
+  for (const preferred of preferredNames) {
+    const match = voices.find((voice) =>
+      String(voice.name || "")
+        .toLowerCase()
+        .includes(preferred.toLowerCase())
+    );
+    if (match) return match;
+  }
+
+  const femaleHint = voices.find((voice) =>
+    /(female|woman|aria|jenny|samantha|victoria|karen|zira|moira|tessa)/i.test(
+      `${voice.name || ""} ${voice.voiceURI || ""}`
+    )
+  );
+
+  if (femaleHint) return femaleHint;
+
+  return (
+    voices.find((voice) => /^en(-|_)/i.test(voice.lang || "")) ||
+    voices[0] ||
+    null
+  );
+}
+
+function stripSpeechText(value = "") {
+  return String(value || "")
+    .replace(/[#*_>`~]/g, "")
+    .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function ExecutiveAgentWorkspace({
   agents,
   missions,
@@ -803,6 +855,169 @@ function ExecutiveAgentWorkspace({
   const [teamMode, setTeamMode] = useState(false);
   const [error, setError] = useState("");
   const [threadId, setThreadId] = useState(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [recognitionSupported, setRecognitionSupported] = useState(false);
+  const [voices, setVoices] = useState([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState("");
+  const [liveTranscript, setLiveTranscript] = useState("");
+
+
+
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const recognitionCtor = getSpeechRecognition();
+    const speechAvailable =
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window &&
+      typeof window.SpeechSynthesisUtterance !== "undefined";
+
+    setRecognitionSupported(Boolean(recognitionCtor));
+    setVoiceSupported(Boolean(speechAvailable));
+
+    if (speechAvailable) {
+      const loadVoices = () => {
+        const available = window.speechSynthesis.getVoices() || [];
+        setVoices(available);
+
+        const preferred = chooseFemaleVoice(available);
+        if (preferred && !selectedVoiceName) {
+          setSelectedVoiceName(preferred.name);
+        }
+      };
+
+      loadVoices();
+      window.speechSynthesis.addEventListener?.("voiceschanged", loadVoices);
+
+      return () => {
+        window.speechSynthesis.removeEventListener?.("voiceschanged", loadVoices);
+      };
+    }
+
+    return undefined;
+  }, [selectedVoiceName]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop?.();
+
+      if (
+        typeof window !== "undefined" &&
+        "speechSynthesis" in window
+      ) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  function stopSpeaking() {
+    if (
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window
+    ) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+    }
+  }
+
+  function speakAnswer(text) {
+    if (!voiceEnabled || !voiceSupported) return;
+
+    const cleaned = stripSpeechText(text);
+    if (!cleaned) return;
+
+    stopSpeaking();
+
+    const utterance = new window.SpeechSynthesisUtterance(cleaned);
+    const selectedVoice =
+      voices.find((voice) => voice.name === selectedVoiceName) ||
+      chooseFemaleVoice(voices);
+
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.lang = selectedVoice?.lang || "en-US";
+    utterance.rate = 0.96;
+    utterance.pitch = 1.04;
+    utterance.volume = 1;
+
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopListening() {
+    recognitionRef.current?.stop?.();
+    setListening(false);
+  }
+
+  function startListening() {
+    const Recognition = getSpeechRecognition();
+
+    if (!Recognition) {
+      setError(
+        "Speech recognition is not available in this browser. Use Microsoft Edge or Google Chrome."
+      );
+      return;
+    }
+
+    stopSpeaking();
+    setError("");
+    setLiveTranscript("");
+
+    const recognition = new Recognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setListening(true);
+      setLiveTranscript("Listening…");
+    };
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      let finalText = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const transcript = event.results[index][0]?.transcript || "";
+
+        if (event.results[index].isFinal) {
+          finalText += transcript;
+        } else {
+          interim += transcript;
+        }
+      }
+
+      const nextTranscript = (finalText || interim).trim();
+      setLiveTranscript(nextTranscript);
+
+      if (finalText.trim()) {
+        setPrompt(finalText.trim());
+      }
+    };
+
+    recognition.onerror = (event) => {
+      setListening(false);
+      setLiveTranscript("");
+
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setError(`Microphone error: ${labelize(event.error || "unknown")}`);
+      }
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      setLiveTranscript("");
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
 
   const selectedAgent =
     agents.find((agent) => normalizeAgentKey(agent) === selectedAgentKey) ||
@@ -864,6 +1079,8 @@ function ExecutiveAgentWorkspace({
 
       if (nextThreadId) setThreadId(nextThreadId);
 
+      const assistantAnswer = extractAgentAnswer(result);
+
       setMessages((current) => [
         ...current,
         {
@@ -872,7 +1089,7 @@ function ExecutiveAgentWorkspace({
           agent: teamMode
             ? "Executive AI Team"
             : selectedAgent?.name || selectedAgent?.label || "Executive AI Agent",
-          content: extractAgentAnswer(result),
+          content: assistantAnswer,
           sources: result?.sources || result?.data?.sources || [],
           confidence:
             result?.confidence ??
@@ -882,6 +1099,8 @@ function ExecutiveAgentWorkspace({
           created_at: new Date().toISOString(),
         },
       ]);
+
+      speakAnswer(assistantAnswer);
     } catch (err) {
       const message =
         err?.response?.data?.error ||
@@ -977,11 +1196,49 @@ function ExecutiveAgentWorkspace({
             </strong>
           </div>
 
-          <div className="vs-chip-row">
-            <Badge tone="active">LLM Connected</Badge>
-            <Badge tone={teamMode ? "accent" : "info"}>
-              {teamMode ? "Multi-Agent Synthesis" : "Specialist Mode"}
-            </Badge>
+          <div className="cmd-voice-toolbar">
+            <div className="vs-chip-row">
+              <Badge tone="active">LLM Connected</Badge>
+              <Badge tone={teamMode ? "accent" : "info"}>
+                {teamMode ? "Multi-Agent Synthesis" : "Specialist Mode"}
+              </Badge>
+              <Badge tone={recognitionSupported ? "active" : "danger"}>
+                {recognitionSupported ? "Microphone Ready" : "No Mic Support"}
+              </Badge>
+            </div>
+
+            <div className="cmd-voice-controls">
+              <select
+                value={selectedVoiceName}
+                onChange={(event) => setSelectedVoiceName(event.target.value)}
+                disabled={!voiceSupported}
+                aria-label="Select AI voice"
+              >
+                {voices.map((voice) => (
+                  <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
+                    {voice.name} · {voice.lang}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className={voiceEnabled ? "is-active" : ""}
+                onClick={() => {
+                  setVoiceEnabled((value) => !value);
+                  if (voiceEnabled) stopSpeaking();
+                }}
+                disabled={!voiceSupported}
+              >
+                {voiceEnabled ? "Voice On" : "Voice Off"}
+              </button>
+
+              {speaking ? (
+                <button type="button" onClick={stopSpeaking}>
+                  Stop Speaking
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -1039,6 +1296,26 @@ function ExecutiveAgentWorkspace({
             submitQuestion();
           }}
         >
+          <div className="cmd-voice-capture">
+            <button
+              type="button"
+              className={listening ? "cmd-mic-button is-listening" : "cmd-mic-button"}
+              onClick={listening ? stopListening : startListening}
+              disabled={!recognitionSupported || asking}
+              aria-label={listening ? "Stop listening" : "Start microphone"}
+            >
+              <span className="cmd-mic-icon">{listening ? "■" : "🎤"}</span>
+              <span>
+                <strong>{listening ? "Listening…" : "Speak to Executive AI"}</strong>
+                <small>
+                  {listening
+                    ? liveTranscript || "Say your political question now."
+                    : "Ask national, state, county, parish, district, or local questions."}
+                </small>
+              </span>
+            </button>
+          </div>
+
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
@@ -1053,8 +1330,8 @@ function ExecutiveAgentWorkspace({
           <div>
             <span>
               {threadId
-                ? `Conversation thread ${threadId}`
-                : "A new secure executive conversation will be created."}
+                ? `Conversation thread ${threadId} · Voice replies ${voiceEnabled ? "enabled" : "disabled"}`
+                : `A new secure executive conversation will be created · Voice replies ${voiceEnabled ? "enabled" : "disabled"}.`}
             </span>
 
             <button
@@ -1295,6 +1572,20 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-consult-thinking{display:flex;gap:9px;align-items:center;color:rgba(203,213,225,.76);font-size:11px}
         .cmd-consult-composer{border-top:1px solid rgba(148,163,184,.12);padding:16px 18px;background:rgba(15,23,42,.45)}.cmd-consult-composer textarea{width:100%;resize:vertical;border:1px solid rgba(148,163,184,.16);border-radius:16px;background:rgba(2,6,23,.45);color:white;padding:16px;outline:none;line-height:1.6;font-size:14px;min-height:130px}.cmd-consult-composer textarea:focus{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 3px rgba(59,130,246,.1)}.cmd-consult-composer>div{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:12px}.cmd-consult-composer span{color:rgba(148,163,184,.7);font-size:9px}
 
+
+        .cmd-voice-toolbar{display:grid;justify-items:end;gap:9px}
+        .cmd-voice-controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+        .cmd-voice-controls select,.cmd-voice-controls button{border:1px solid rgba(148,163,184,.16);border-radius:11px;background:rgba(2,6,23,.42);color:rgba(226,232,240,.9);padding:8px 10px;font-size:10px;font-weight:800}
+        .cmd-voice-controls select{max-width:220px}.cmd-voice-controls button{cursor:pointer}.cmd-voice-controls button.is-active{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.12);color:#dcfce7}
+        .cmd-voice-capture{margin-bottom:12px}
+        .cmd-mic-button{width:100%;border:1px solid rgba(96,165,250,.26);border-radius:18px;background:radial-gradient(circle at left,rgba(59,130,246,.13),transparent 40%),rgba(2,6,23,.38);color:white;padding:14px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;text-align:left;cursor:pointer}
+        .cmd-mic-button:hover{border-color:rgba(96,165,250,.55);background:rgba(37,99,235,.12)}
+        .cmd-mic-button.is-listening{border-color:rgba(239,68,68,.58);background:radial-gradient(circle at left,rgba(239,68,68,.18),transparent 42%),rgba(2,6,23,.42);box-shadow:0 0 0 3px rgba(239,68,68,.08)}
+        .cmd-mic-icon{width:48px;height:48px;border-radius:999px;display:grid;place-items:center;background:rgba(59,130,246,.18);border:1px solid rgba(96,165,250,.24);font-size:21px}
+        .cmd-mic-button.is-listening .cmd-mic-icon{background:rgba(239,68,68,.2);border-color:rgba(248,113,113,.38);animation:cmdMicPulse 1.25s ease-in-out infinite}
+        .cmd-mic-button strong{display:block;font-size:13px}.cmd-mic-button small{display:block;margin-top:4px;color:rgba(203,213,225,.72);font-size:10px;line-height:1.45}
+        @keyframes cmdMicPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(239,68,68,.3)}50%{transform:scale(1.05);box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+
         @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}.cmd-consult-shell{grid-template-columns:280px minmax(0,1fr)}}@media(max-width:1050px){
           .cmd-consult-shell{grid-template-columns:1fr;min-height:auto}
           .cmd-consult-agents{grid-template-columns:1fr;gap:14px}
@@ -1302,7 +1593,7 @@ export default function ExecutiveAICommandPlatform() {
           .cmd-consult-suggestions{grid-template-columns:repeat(2,minmax(0,1fr))}
           .cmd-consult-main{min-height:680px}
         }
-        @media(max-width:900px){.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
+        @media(max-width:900px){.cmd-voice-toolbar{justify-items:start}.cmd-voice-controls{justify-content:flex-start}.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
       `}</style>
 
       <div id="cmd-overview" className="cmd-command-ribbon">
