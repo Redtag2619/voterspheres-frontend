@@ -1282,20 +1282,27 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-map-mission-list{display:grid;gap:8px}.cmd-map-mission-list>div{border:1px solid rgba(148,163,184,.12);border-radius:13px;background:rgba(15,23,42,.48);padding:10px;color:rgba(226,232,240,.9);font-size:12px;line-height:1.45}.cmd-map-mission-list p{margin:0;color:rgba(148,163,184,.76);font-size:12px;line-height:1.55}
 
 
-        .cmd-consult-shell{display:grid;grid-template-columns:minmax(230px,.34fr) minmax(0,1fr);gap:14px;min-height:620px}
+        .cmd-consult-shell{display:grid;grid-template-columns:minmax(300px,.34fr) minmax(0,1fr);gap:18px;min-height:760px}
         .cmd-consult-agents,.cmd-consult-main{border:1px solid rgba(148,163,184,.14);border-radius:20px;background:rgba(2,6,23,.3);min-width:0}
-        .cmd-consult-agents{padding:12px;display:grid;align-content:start;gap:12px}
-        .cmd-consult-mode{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cmd-consult-mode button,.cmd-consult-agent-list button,.cmd-consult-suggestions button{border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.55);color:rgba(226,232,240,.88);border-radius:12px;cursor:pointer}
-        .cmd-consult-mode button{padding:9px;font-size:11px;font-weight:900}.cmd-consult-mode button.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.2);color:white}
-        .cmd-consult-agent-list{display:grid;gap:7px}.cmd-consult-agent-list button{display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;align-items:center;padding:10px;text-align:left}.cmd-consult-agent-list button.is-active{border-color:rgba(251,146,60,.5);background:rgba(251,146,60,.1)}
-        .cmd-consult-agent-list strong{display:block;color:white;font-size:12px}.cmd-consult-agent-list small{display:block;margin-top:3px;color:rgba(148,163,184,.74);font-size:9px}
-        .cmd-consult-suggestions{display:grid;gap:7px}.cmd-consult-suggestions>span{color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-consult-suggestions button{padding:9px;text-align:left;font-size:10px;line-height:1.4}.cmd-consult-suggestions button:hover{border-color:rgba(96,165,250,.45)}
-        .cmd-consult-main{display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}.cmd-consult-header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px;border-bottom:1px solid rgba(148,163,184,.12);background:rgba(15,23,42,.42)}.cmd-consult-header span{display:block;color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-consult-header strong{display:block;margin-top:4px;color:white;font-size:17px}
-        .cmd-consult-messages{padding:14px;display:grid;align-content:start;gap:12px;overflow:auto;max-height:520px}.cmd-consult-message{max-width:88%;border:1px solid rgba(148,163,184,.13);border-radius:18px;padding:12px;background:rgba(15,23,42,.55)}.cmd-consult-message.is-user{margin-left:auto;background:rgba(37,99,235,.16);border-color:rgba(96,165,250,.28)}.cmd-consult-message-head{display:flex;justify-content:space-between;gap:10px}.cmd-consult-message-head strong{color:white;font-size:11px}.cmd-consult-message-head span{color:rgba(148,163,184,.68);font-size:9px}.cmd-consult-message p{margin:8px 0 0;color:rgba(226,232,240,.88);font-size:12px;line-height:1.65;white-space:pre-wrap}.cmd-consult-message-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+        .cmd-consult-agents{padding:16px;display:grid;align-content:start;gap:16px}
+        .cmd-consult-mode{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cmd-consult-mode button,.cmd-consult-agent-list button,.cmd-consult-suggestions button{border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.55);color:rgba(226,232,240,.88);border-radius:12px;cursor:pointer}
+        .cmd-consult-mode button{padding:12px;font-size:12px;font-weight:900}.cmd-consult-mode button.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.2);color:white}
+        .cmd-consult-agent-list{display:grid;gap:10px}.cmd-consult-agent-list button{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;padding:13px;text-align:left}.cmd-consult-agent-list button.is-active{border-color:rgba(251,146,60,.5);background:rgba(251,146,60,.1)}
+        .cmd-consult-agent-list strong{display:block;color:white;font-size:13px}.cmd-consult-agent-list small{display:block;margin-top:4px;color:rgba(148,163,184,.74);font-size:10px;line-height:1.35}
+        .cmd-consult-suggestions{display:grid;gap:9px}.cmd-consult-suggestions>span{color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-consult-suggestions button{padding:11px;text-align:left;font-size:11px;line-height:1.45}.cmd-consult-suggestions button:hover{border-color:rgba(96,165,250,.45)}
+        .cmd-consult-main{display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;min-height:760px}.cmd-consult-header{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:18px 20px;border-bottom:1px solid rgba(148,163,184,.12);background:rgba(15,23,42,.42)}.cmd-consult-header span{display:block;color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-consult-header strong{display:block;margin-top:5px;color:white;font-size:21px}
+        .cmd-consult-messages{padding:20px;display:grid;align-content:start;gap:16px;overflow:auto;max-height:660px}.cmd-consult-message{max-width:82%;border:1px solid rgba(148,163,184,.13);border-radius:20px;padding:16px 18px;background:rgba(15,23,42,.55)}.cmd-consult-message.is-user{margin-left:auto;background:rgba(37,99,235,.16);border-color:rgba(96,165,250,.28)}.cmd-consult-message-head{display:flex;justify-content:space-between;gap:10px}.cmd-consult-message-head strong{color:white;font-size:12px}.cmd-consult-message-head span{color:rgba(148,163,184,.68);font-size:9px}.cmd-consult-message p{margin:10px 0 0;color:rgba(226,232,240,.9);font-size:14px;line-height:1.7;white-space:pre-wrap}.cmd-consult-message-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
         .cmd-consult-thinking{display:flex;gap:9px;align-items:center;color:rgba(203,213,225,.76);font-size:11px}
-        .cmd-consult-composer{border-top:1px solid rgba(148,163,184,.12);padding:12px;background:rgba(15,23,42,.45)}.cmd-consult-composer textarea{width:100%;resize:vertical;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(2,6,23,.45);color:white;padding:12px;outline:none;line-height:1.55}.cmd-consult-composer textarea:focus{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 3px rgba(59,130,246,.1)}.cmd-consult-composer>div{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px}.cmd-consult-composer span{color:rgba(148,163,184,.7);font-size:9px}
+        .cmd-consult-composer{border-top:1px solid rgba(148,163,184,.12);padding:16px 18px;background:rgba(15,23,42,.45)}.cmd-consult-composer textarea{width:100%;resize:vertical;border:1px solid rgba(148,163,184,.16);border-radius:16px;background:rgba(2,6,23,.45);color:white;padding:16px;outline:none;line-height:1.6;font-size:14px;min-height:130px}.cmd-consult-composer textarea:focus{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 3px rgba(59,130,246,.1)}.cmd-consult-composer>div{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:12px}.cmd-consult-composer span{color:rgba(148,163,184,.7);font-size:9px}
 
-        @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell,.cmd-consult-shell{grid-template-columns:1fr}}@media(max-width:900px){.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
+        @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}.cmd-consult-shell{grid-template-columns:280px minmax(0,1fr)}}@media(max-width:1050px){
+          .cmd-consult-shell{grid-template-columns:1fr;min-height:auto}
+          .cmd-consult-agents{grid-template-columns:1fr;gap:14px}
+          .cmd-consult-agent-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+          .cmd-consult-suggestions{grid-template-columns:repeat(2,minmax(0,1fr))}
+          .cmd-consult-main{min-height:680px}
+        }
+        @media(max-width:900px){.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
       `}</style>
 
       <div id="cmd-overview" className="cmd-command-ribbon">
@@ -1396,20 +1403,6 @@ export default function ExecutiveAICommandPlatform() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection
-            id="cmd-consult"
-            title="Consult the Executive AI Team"
-            subtitle="Ask specialist agents questions, continue a conversation, or coordinate a cross-functional team consultation."
-            defaultOpen
-            right={<Badge tone="active">Interactive AI</Badge>}
-          >
-            <ExecutiveAgentWorkspace
-              agents={liveAgents}
-              missions={missions}
-              selectedAgentKey={selectedExecutiveAgent}
-              setSelectedAgentKey={setSelectedExecutiveAgent}
-            />
-          </CollapsibleSection>
         </div>
 
         <div className="cmd-stack">
@@ -1446,6 +1439,21 @@ export default function ExecutiveAICommandPlatform() {
           </CollapsibleSection>
         </div>
       </div>
+
+      <CollapsibleSection
+        id="cmd-consult"
+        title="Consult the Executive AI Team"
+        subtitle="Ask specialist agents questions, continue a conversation, or coordinate a cross-functional team consultation."
+        defaultOpen
+        right={<Badge tone="active">Interactive AI</Badge>}
+      >
+        <ExecutiveAgentWorkspace
+          agents={liveAgents}
+          missions={missions}
+          selectedAgentKey={selectedExecutiveAgent}
+          setSelectedAgentKey={setSelectedExecutiveAgent}
+        />
+      </CollapsibleSection>
 
       <BackToTopButton />
     </PageShell>
