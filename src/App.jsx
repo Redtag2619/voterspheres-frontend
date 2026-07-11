@@ -67,7 +67,7 @@ const CampaignWorkspaceCRM = lazy(() => import("./pages/CampaignWorkspaceCRM.jsx
 const ExecutiveMissionControl = lazy(() => import("./pages/ExecutiveMissionControl.jsx"));
 const AIStrategicAdvisor = lazy(() => import("./pages/AIStrategicAdvisor.jsx"));
 const IntelligenceReports = lazy(() => import("./pages/IntelligenceReports.jsx"));
-const AICampaignCopilot = lazy(() => import("./pages/AICampaignCopilot.jsx"));
+const CampaignOperationsStudioAI = lazy(() => import("./pages/CampaignOperationsStudioAI.jsx"));
 const ClientPortalAdmin = lazy(() => import("./pages/ClientPortalAdmin.jsx"));
 const ClientPortalView = lazy(() => import("./pages/ClientPortalView.jsx"));
 const ReportExportCenter = lazy(() => import("./pages/ReportExportCenter.jsx"));
