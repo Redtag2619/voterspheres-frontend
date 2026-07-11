@@ -5,7 +5,7 @@ export const navigationSections = [
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
       { label: "Executive AI Command Platform", to: "/executive-ai-command-platform" },
-      { label: "National Political Digital Twin", to: "/national-political-digital-twin" },
+      { label: "National Political Digital Twin", to: "/national-political-digital-twin" }, 
       { label: "Autonomous Campaign Operations", to: "/autonomous-campaign-operations" },
       { label: "Executive Decision Intelligence", to: "/executive-decision-intelligence" },
       { label: "Predictive Campaign Simulation", to: "/predictive-campaign-simulation" },
