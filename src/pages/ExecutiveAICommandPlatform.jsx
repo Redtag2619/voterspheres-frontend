@@ -770,6 +770,11 @@ const AGENT_PROMPTS = {
   ],
 };
 
+function toRealtimeAgentKey(agent = {}) {
+  const key = normalizeAgentKey(agent);
+  return key.replace(/-/g, "_") || "executive_chief_of_staff";
+}
+
 function normalizeAgentKey(agent = {}) {
   return (
     agent.key ||
@@ -2264,6 +2269,7 @@ export default function ExecutiveAICommandPlatform() {
     { id: "cmd-reasoning", label: "AI Reasoning" },
     { id: "cmd-agents", label: "AI Agents" },
     { id: "cmd-consult", label: "Consult AI Team" },
+    { id: "cmd-realtime-voice", label: "Realtime Voice" },
     { id: "cmd-timeline", label: "Command Feed", badge: timeline.length },
   ];
 
@@ -2465,7 +2471,7 @@ export default function ExecutiveAICommandPlatform() {
 
   return (
     <PageShell
-      eyebrow="Build 3D · Executive Voice Assistant v3"
+      eyebrow="Build 4A · Executive Voice Assistant v3 + Realtime WebRTC"
       title="Executive AI Command Platform"
       description="The unified executive operating system for VoterSpheres, connecting decision intelligence, predictive simulation, national digital twin modeling, autonomous operations, forecast, command center, and political graph intelligence."
       demo={String(data?.source || "").includes("fallback")}
@@ -2736,35 +2742,6 @@ export default function ExecutiveAICommandPlatform() {
       </div>
 
       <CollapsibleSection
-  id="cmd-realtime-voice"
-  title="Realtime Executive Voice"
-  subtitle="Low-latency, full-duplex Executive AI conversation powered by OpenAI Realtime WebRTC."
-  defaultOpen
-  right={<Badge tone="active">WebRTC Voice</Badge>}
->
-  <ExecutiveRealtimeVoicePanel
-    agent="executive_chief_of_staff"
-    workspaceId={1}
-    executiveContext={{
-      selected_state: selectedMapState,
-      geographic_scope: selectedMapState || "National",
-      national_readiness_percentage: readiness,
-      execution_risk_percentage: executionRisk,
-      map_risk_filter: mapRiskFilter,
-      consultation_mode: "team",
-      mission_id: activeMission?.id || null,
-      mission_title: activeMission?.title || null,
-    }}
-    onUserTranscript={(payload) => {
-      console.log("[Executive Voice] User:", payload);
-    }}
-    onAssistantTranscript={(payload) => {
-      console.log("[Executive Voice] Assistant:", payload);
-    }}
-  />
-</CollapsibleSection>
-
-      <CollapsibleSection
         id="cmd-consult"
         title="Consult the Executive AI Team"
         subtitle="Ask specialist agents questions, continue a conversation, or coordinate a cross-functional team consultation."
@@ -2782,6 +2759,53 @@ export default function ExecutiveAICommandPlatform() {
             execution_risk_percentage: executionRisk,
             selected_state: selectedMapState,
             map_risk_filter: mapRiskFilter,
+          }}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="cmd-realtime-voice"
+        title="Realtime Executive Voice"
+        subtitle="Low-latency, full-duplex Executive AI conversation powered by OpenAI Realtime WebRTC."
+        defaultOpen
+        right={<Badge tone="active">WebRTC Voice</Badge>}
+      >
+        <ExecutiveRealtimeVoicePanel
+          agent={toRealtimeAgentKey(
+            liveAgents.find(
+              (agent) =>
+                normalizeAgentKey(agent) === selectedExecutiveAgent
+            ) || liveAgents[0] || {}
+          )}
+          agentLabel={
+            liveAgents.find(
+              (agent) =>
+                normalizeAgentKey(agent) === selectedExecutiveAgent
+            )?.name ||
+            liveAgents[0]?.name ||
+            "Executive Chief of Staff"
+          }
+          workspaceId={1}
+          executiveContext={{
+            selected_state: selectedMapState,
+            geographic_scope: selectedMapState || "National",
+            national_readiness_percentage: readiness,
+            execution_risk_percentage: executionRisk,
+            map_risk_filter: mapRiskFilter,
+            consultation_mode: "team",
+            mission_id: activeMission?.id || null,
+            mission_title: activeMission?.title || null,
+          }}
+          onUserTranscript={(payload) => {
+            console.log("[Executive Voice] User:", payload);
+          }}
+          onAssistantTranscript={(payload) => {
+            console.log("[Executive Voice] Assistant:", payload);
+          }}
+          onRealtimeEvent={(event) => {
+            if (event?.type === "error") {
+              console.error("[Executive Voice] Realtime error:", event);
+            }
           }}
         />
       </CollapsibleSection>
