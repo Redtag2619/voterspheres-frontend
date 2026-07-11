@@ -18,6 +18,7 @@ import PredictiveCampaignSimulation from "./pages/PredictiveCampaignSimulation";
 import NationalPoliticalDigitalTwin from "./pages/NationalPoliticalDigitalTwin";
 import AutonomousCampaignOperations from "./pages/AutonomousCampaignOperations";
 import ExecutiveAICommandPlatform from "./pages/ExecutiveAICommandPlatform";
+import CampaignOperationsStudioAI from "./pages/CampaignOperationsStudioAI";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
@@ -314,6 +315,7 @@ function AppRoutes() {
               <Route path="/autonomous-campaign-operations" element={<AutonomousCampaignOperations />} />
               <Route path="/strategy-recommendation-dashboard" element={<StrategyRecommendationDashboard />} />
               <Route path="/executive-ai-command-platform" element={<ExecutiveAICommandPlatform />} />
+              <Route path="/campaign-operations-studio" element={<CampaignOperationsStudioAI />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
