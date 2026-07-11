@@ -278,7 +278,6 @@ function AppRoutes() {
               <Route path="/strategic-advisor" element={<AIStrategicAdvisor />} />
               <Route path="/intelligence-reports" element={<IntelligenceReports />} />
               <Route path="/political-graph" element={<PoliticalRelationshipGraph />} />
-              <Route path="/campaign-copilot" element={<AICampaignCopilot />} />
               <Route path="/client-portal/:token" element={<ClientPortalView />} />
               <Route path="/client-portal-admin" element={<ClientPortalAdmin />} />
               <Route path="/report-exports" element={<ReportExportCenter />} />
