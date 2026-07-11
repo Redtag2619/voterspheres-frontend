@@ -1029,6 +1029,7 @@ function ExecutiveAgentWorkspace({
   setSelectedAgentKey,
   onVoiceCommand,
   executiveContext,
+  textOnly = false,
 }) {
   const [messages, setMessages] = useState([
     {
@@ -1629,7 +1630,13 @@ function ExecutiveAgentWorkspace({
   }
 
   return (
-    <div className="cmd-consult-shell">
+    <div
+      className={
+        textOnly
+          ? "cmd-consult-shell is-text-only"
+          : "cmd-consult-shell"
+      }
+    >
       <aside className="cmd-consult-agents">
         <div className="cmd-consult-mode">
           <button
@@ -2167,6 +2174,111 @@ function ExecutiveAgentWorkspace({
   );
 }
 
+function UnifiedExecutiveAIConsole({
+  agents,
+  missions,
+  selectedAgentKey,
+  setSelectedAgentKey,
+  onVoiceCommand,
+  executiveContext,
+  workspaceId = 1,
+}) {
+  const [mode, setMode] = useState("voice");
+
+  const activeAgent =
+    agents.find(
+      (agent) => normalizeAgentKey(agent) === selectedAgentKey
+    ) ||
+    agents[0] ||
+    {};
+
+  return (
+    <div className="cmd-unified-ai-console">
+      <div className="cmd-unified-ai-header">
+        <div>
+          <span>Unified Executive Intelligence Workspace</span>
+          <strong>Executive AI Command Center</strong>
+          <p>
+            Use one advisor across realtime voice, executive chat,
+            team consultation, saved briefings, and conversation history.
+          </p>
+        </div>
+
+        <div className="cmd-unified-ai-status">
+          <Badge tone="active">AI Online</Badge>
+          <Badge tone="accent">
+            {activeAgent.name || "Executive Chief of Staff"}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="cmd-unified-ai-tabs" role="tablist">
+        <button
+          type="button"
+          className={mode === "voice" ? "is-active" : ""}
+          onClick={() => setMode("voice")}
+          role="tab"
+          aria-selected={mode === "voice"}
+        >
+          <span>Realtime Voice</span>
+          <small>Natural full-duplex WebRTC conversation</small>
+        </button>
+
+        <button
+          type="button"
+          className={mode === "chat" ? "is-active" : ""}
+          onClick={() => setMode("chat")}
+          role="tab"
+          aria-selected={mode === "chat"}
+        >
+          <span>Executive Chat</span>
+          <small>Long-form analysis, team consult, history, and export</small>
+        </button>
+      </div>
+
+      <div className="cmd-unified-ai-body">
+        {mode === "voice" ? (
+          <ExecutiveRealtimeVoicePanel
+            agent={toRealtimeAgentKey(activeAgent)}
+            agentLabel={
+              activeAgent.name || "Executive Chief of Staff"
+            }
+            workspaceId={workspaceId}
+            executiveContext={{
+              ...executiveContext,
+              consultation_mode: "team",
+            }}
+            onUserTranscript={(payload) => {
+              console.log("[Executive Voice] User:", payload);
+            }}
+            onAssistantTranscript={(payload) => {
+              console.log("[Executive Voice] Assistant:", payload);
+            }}
+            onRealtimeEvent={(event) => {
+              if (event?.type === "error") {
+                console.error(
+                  "[Executive Voice] Realtime error:",
+                  event
+                );
+              }
+            }}
+          />
+        ) : (
+          <ExecutiveAgentWorkspace
+            agents={agents}
+            missions={missions}
+            selectedAgentKey={selectedAgentKey}
+            setSelectedAgentKey={setSelectedAgentKey}
+            onVoiceCommand={onVoiceCommand}
+            executiveContext={executiveContext}
+            textOnly
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ExecutiveAICommandPlatform() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
@@ -2268,8 +2380,7 @@ export default function ExecutiveAICommandPlatform() {
     { id: "cmd-missions", label: "Missions", badge: missions.length },
     { id: "cmd-reasoning", label: "AI Reasoning" },
     { id: "cmd-agents", label: "AI Agents" },
-    { id: "cmd-consult", label: "Consult AI Team" },
-    { id: "cmd-realtime-voice", label: "Realtime Voice" },
+    { id: "cmd-ai-console", label: "Executive AI" },
     { id: "cmd-timeline", label: "Command Feed", badge: timeline.length },
   ];
 
@@ -2471,7 +2582,7 @@ export default function ExecutiveAICommandPlatform() {
 
   return (
     <PageShell
-      eyebrow="Build 4A · Executive Voice Assistant v3 + Realtime WebRTC"
+      eyebrow="Build 4B · Unified Executive AI Command Center"
       title="Executive AI Command Platform"
       description="The unified executive operating system for VoterSpheres, connecting decision intelligence, predictive simulation, national digital twin modeling, autonomous operations, forecast, command center, and political graph intelligence."
       demo={String(data?.source || "").includes("fallback")}
@@ -2589,6 +2700,27 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-streaming-message{border-color:rgba(96,165,250,.34);background:radial-gradient(circle at top left,rgba(59,130,246,.12),transparent 40%),rgba(15,23,42,.58)}
         .cmd-streaming-message p::after{content:"";display:inline-block;width:7px;height:14px;margin-left:4px;background:rgba(96,165,250,.9);vertical-align:-2px;animation:cmdCursorBlink .8s steps(1) infinite}
         @keyframes cmdCursorBlink{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+        .cmd-unified-ai-console{display:grid;gap:16px}
+        .cmd-unified-ai-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:20px;border:1px solid rgba(96,165,250,.2);border-radius:22px;background:radial-gradient(circle at top right,rgba(59,130,246,.13),transparent 38%),linear-gradient(145deg,rgba(2,6,23,.92),rgba(15,23,42,.82))}
+        .cmd-unified-ai-header>div:first-child>span{display:block;color:rgba(147,197,253,.88);font-size:10px;font-weight:950;letter-spacing:.1em;text-transform:uppercase}
+        .cmd-unified-ai-header strong{display:block;margin-top:6px;color:white;font-size:27px;font-weight:950;letter-spacing:-.04em}
+        .cmd-unified-ai-header p{max-width:720px;margin:8px 0 0;color:rgba(203,213,225,.76);font-size:12px;line-height:1.6}
+        .cmd-unified-ai-status{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+        .cmd-unified-ai-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+        .cmd-unified-ai-tabs button{border:1px solid rgba(148,163,184,.14);border-radius:17px;background:rgba(15,23,42,.48);color:rgba(226,232,240,.86);padding:15px 17px;text-align:left;cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .2s ease}
+        .cmd-unified-ai-tabs button:hover{transform:translateY(-1px);border-color:rgba(96,165,250,.42)}
+        .cmd-unified-ai-tabs button.is-active{border-color:rgba(96,165,250,.62);background:radial-gradient(circle at top right,rgba(59,130,246,.18),transparent 48%),rgba(37,99,235,.12);box-shadow:0 0 0 3px rgba(59,130,246,.07)}
+        .cmd-unified-ai-tabs span{display:block;color:white;font-size:14px;font-weight:950}
+        .cmd-unified-ai-tabs small{display:block;margin-top:5px;color:rgba(148,163,184,.76);font-size:10px;line-height:1.4}
+        .cmd-unified-ai-body{min-width:0}
+        .cmd-consult-shell.is-text-only .cmd-voice-toolbar,.cmd-consult-shell.is-text-only .cmd-voice-capture,.cmd-consult-shell.is-text-only .cmd-voice-command-guide{display:none}
+
+        @media(max-width:760px){
+          .cmd-unified-ai-header{flex-direction:column}
+          .cmd-unified-ai-status{justify-content:flex-start}
+          .cmd-unified-ai-tabs{grid-template-columns:1fr}
+        }
 
         @media(max-width:1280px){.cmd-command-ribbon,.cmd-layout,.cmd-reasoning-panel,.cmd-geo-map-shell{grid-template-columns:1fr}.cmd-consult-shell{grid-template-columns:280px minmax(0,1fr)}}@media(max-width:1050px){
           .cmd-consult-shell{grid-template-columns:1fr;min-height:auto}
@@ -2742,49 +2874,18 @@ export default function ExecutiveAICommandPlatform() {
       </div>
 
       <CollapsibleSection
-        id="cmd-consult"
-        title="Consult the Executive AI Team"
-        subtitle="Ask specialist agents questions, continue a conversation, or coordinate a cross-functional team consultation."
+        id="cmd-ai-console"
+        title="Executive AI Command Center"
+        subtitle="One unified workspace for realtime voice, executive chat, specialist agents, team consultation, history, and exports."
         defaultOpen
-        right={<Badge tone="active">Interactive AI</Badge>}
+        right={<Badge tone="active">Unified AI Workspace</Badge>}
       >
-        <ExecutiveAgentWorkspace
+        <UnifiedExecutiveAIConsole
           agents={liveAgents}
           missions={missions}
           selectedAgentKey={selectedExecutiveAgent}
           setSelectedAgentKey={setSelectedExecutiveAgent}
           onVoiceCommand={handleVoiceCommand}
-          executiveContext={{
-            national_readiness_percentage: readiness,
-            execution_risk_percentage: executionRisk,
-            selected_state: selectedMapState,
-            map_risk_filter: mapRiskFilter,
-          }}
-        />
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        id="cmd-realtime-voice"
-        title="Realtime Executive Voice"
-        subtitle="Low-latency, full-duplex Executive AI conversation powered by OpenAI Realtime WebRTC."
-        defaultOpen
-        right={<Badge tone="active">WebRTC Voice</Badge>}
-      >
-        <ExecutiveRealtimeVoicePanel
-          agent={toRealtimeAgentKey(
-            liveAgents.find(
-              (agent) =>
-                normalizeAgentKey(agent) === selectedExecutiveAgent
-            ) || liveAgents[0] || {}
-          )}
-          agentLabel={
-            liveAgents.find(
-              (agent) =>
-                normalizeAgentKey(agent) === selectedExecutiveAgent
-            )?.name ||
-            liveAgents[0]?.name ||
-            "Executive Chief of Staff"
-          }
           workspaceId={1}
           executiveContext={{
             selected_state: selectedMapState,
@@ -2792,20 +2893,8 @@ export default function ExecutiveAICommandPlatform() {
             national_readiness_percentage: readiness,
             execution_risk_percentage: executionRisk,
             map_risk_filter: mapRiskFilter,
-            consultation_mode: "team",
             mission_id: activeMission?.id || null,
             mission_title: activeMission?.title || null,
-          }}
-          onUserTranscript={(payload) => {
-            console.log("[Executive Voice] User:", payload);
-          }}
-          onAssistantTranscript={(payload) => {
-            console.log("[Executive Voice] Assistant:", payload);
-          }}
-          onRealtimeEvent={(event) => {
-            if (event?.type === "error") {
-              console.error("[Executive Voice] Realtime error:", event);
-            }
           }}
         />
       </CollapsibleSection>
