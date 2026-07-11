@@ -41,7 +41,7 @@ export const navigationSections = [
       { label: "Donor Network", to: "/donors" },
       { label: "Endorsement Intelligence", to: "/endorsements" },
       { label: "Campaign CRM", to: "/campaign-crm" },
-      { label: "AI Campaign Co-Pilot", to: "/campaign-copilot" },
+      { label: "Campaign Studio AI", path: "/campaign-operations-studio" },
       { label: "Strategic Advisor", to: "/strategic-advisor" },
       { label: "War Room", to: "/war-room" },
       { label: "AI Tactical", to: "/ai-tactical" },
