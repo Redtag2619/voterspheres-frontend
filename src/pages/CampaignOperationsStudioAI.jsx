@@ -157,6 +157,40 @@ const DOCUMENT_TEMPLATES = [
   },
 ];
 
+
+const TIMELINE_CATEGORIES = [
+  "Strategy",
+  "Messaging",
+  "Field",
+  "Fundraising",
+  "Digital",
+  "Direct Mail",
+  "Media",
+  "Compliance",
+  "Operations",
+];
+
+const TIMELINE_STATUSES = [
+  "Planned",
+  "In Progress",
+  "Blocked",
+  "Complete",
+];
+
+function toIsoDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(dateValue, days) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + days);
+  return toIsoDate(date);
+}
+
 function escapeHtml(value = "") {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -369,6 +403,14 @@ export default function CampaignOperationsStudioAI() {
   const [documentIncludeCover, setDocumentIncludeCover] = useState(true);
   const [documentIncludeContext, setDocumentIncludeContext] = useState(true);
   const [documentSource, setDocumentSource] = useState("latest-answer");
+  const [timelineItems, setTimelineItems] = useState([]);
+  const [timelineStartDate, setTimelineStartDate] = useState(
+    toIsoDate(new Date())
+  );
+  const [timelineDurationDays, setTimelineDurationDays] = useState(90);
+  const [timelineFilter, setTimelineFilter] = useState("All");
+  const [timelineStatusFilter, setTimelineStatusFilter] = useState("All");
+  const [timelineMessage, setTimelineMessage] = useState("");
 
 
   const [project, setProject] = useState({
@@ -1026,12 +1068,229 @@ export default function CampaignOperationsStudioAI() {
     setDocumentTitle(template.label);
   }
 
+
+  function createTimelineItem({
+    title,
+    category = "Operations",
+    owner = "Campaign Manager",
+    startDate,
+    endDate,
+    status = "Planned",
+    dependency = "",
+    notes = "",
+  }) {
+    return {
+      id: `timeline-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      title,
+      category,
+      owner,
+      startDate,
+      endDate,
+      status,
+      dependency,
+      notes,
+    };
+  }
+
+  function generateTimelineFromTemplate() {
+    const start = timelineStartDate || toIsoDate(new Date());
+    const duration = Math.max(30, Number(timelineDurationDays) || 90);
+    const milestoneSpacing = Math.max(5, Math.floor(duration / 12));
+
+    const seeds = [
+      ["Campaign strategy approved", "Strategy", "Campaign Manager", 0, 7],
+      ["Message framework finalized", "Messaging", "Communications Director", 4, 14],
+      ["Finance plan and call-time targets set", "Fundraising", "Finance Director", 7, 18],
+      ["Field universe and county priorities approved", "Field", "Field Director", 10, 21],
+      ["Digital audience and creative tests launched", "Digital", "Digital Director", 14, 28],
+      ["Direct-mail production calendar locked", "Direct Mail", "Mail Director", 18, 32],
+      ["Earned-media launch sequence begins", "Media", "Communications Director", 21, 35],
+      ["Volunteer recruitment sprint", "Field", "Field Director", 28, 45],
+      ["Fundraising performance review", "Fundraising", "Finance Director", 35, 42],
+      ["Persuasion message optimization", "Messaging", "Campaign Strategist", 42, 55],
+      ["Compliance and documentation audit", "Compliance", "Compliance Advisor", 50, 60],
+      ["GOTV readiness review", "Field", "Field Director", Math.max(60, duration - 25), Math.max(68, duration - 14)],
+      ["Final execution sprint", "Operations", "Campaign Manager", Math.max(70, duration - 14), duration],
+    ];
+
+    const nextItems = seeds.map(
+      ([title, category, owner, startOffset, endOffset], index) =>
+        createTimelineItem({
+          title,
+          category,
+          owner,
+          startDate: addDays(start, Math.min(startOffset, duration - 1)),
+          endDate: addDays(start, Math.min(endOffset, duration)),
+          status: index === 0 ? "In Progress" : "Planned",
+          dependency: index === 0 ? "" : seeds[index - 1][0],
+          notes: `Generated for ${project.campaign || "the active campaign"} during the ${project.phase} phase.`,
+        })
+    );
+
+    setTimelineItems(nextItems);
+    setTimelineMessage(
+      `${nextItems.length} campaign milestones generated for a ${duration}-day timeline.`
+    );
+  }
+
+  function generateTimelineWithAI() {
+    ask(
+      `Create a detailed ${timelineDurationDays}-day campaign timeline beginning ${timelineStartDate}. Include milestone title, category, owner, start date, end date, dependencies, status, risks, and measurable outcomes. Cover strategy, messaging, fundraising, field, digital, direct mail, media, compliance, and launch execution.`,
+      {
+        createDeliverable: true,
+        title: `${timelineDurationDays}-Day Campaign Timeline`,
+        summary: "AI-generated campaign milestone and execution schedule.",
+      }
+    );
+
+    generateTimelineFromTemplate();
+  }
+
+  function updateTimelineItem(id, field, value) {
+    setTimelineItems((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    );
+  }
+
+  function removeTimelineItem(id) {
+    setTimelineItems((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  function addTimelineItem() {
+    const start = timelineStartDate || toIsoDate(new Date());
+
+    setTimelineItems((current) => [
+      ...current,
+      createTimelineItem({
+        title: "New campaign milestone",
+        category: "Operations",
+        owner: "Campaign Manager",
+        startDate: start,
+        endDate: addDays(start, 7),
+      }),
+    ]);
+  }
+
+  function clearTimeline() {
+    setTimelineItems([]);
+    setTimelineMessage("Campaign timeline cleared.");
+  }
+
+  function duplicateTimelineItem(item) {
+    setTimelineItems((current) => [
+      ...current,
+      {
+        ...item,
+        id: `timeline-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        title: `${item.title} Copy`,
+      },
+    ]);
+  }
+
+  function sendTimelineToMissionControl() {
+    if (!timelineItems.length) {
+      setTimelineMessage("Generate a timeline before creating a Mission Control handoff.");
+      return;
+    }
+
+    const summary = timelineItems
+      .map(
+        (item, index) =>
+          `${index + 1}. ${item.title} | ${item.owner} | ${item.startDate} to ${item.endDate} | ${item.status}`
+      )
+      .join("\n");
+
+    ask(
+      `Convert this campaign timeline into Mission Control tasks with owners, due dates, dependencies, status, and priority:\n\n${summary}`
+    );
+
+    setTimelineMessage("Timeline sent to AI task planning for Mission Control.");
+  }
+
+  function exportTimelineCsv() {
+    if (!timelineItems.length) {
+      setTimelineMessage("Generate a timeline before exporting.");
+      return;
+    }
+
+    const header = [
+      "Title",
+      "Category",
+      "Owner",
+      "Start Date",
+      "End Date",
+      "Status",
+      "Dependency",
+      "Notes",
+    ];
+
+    const escapeCsv = (value) =>
+      `"${String(value || "").replace(/"/g, '""')}"`;
+
+    const rows = timelineItems.map((item) =>
+      [
+        item.title,
+        item.category,
+        item.owner,
+        item.startDate,
+        item.endDate,
+        item.status,
+        item.dependency,
+        item.notes,
+      ]
+        .map(escapeCsv)
+        .join(",")
+    );
+
+    const csv = [header.map(escapeCsv).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(
+      project.campaign || "campaign"
+    )}-timeline.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setTimelineMessage("Campaign timeline exported as CSV.");
+  }
+
+  const filteredTimelineItems = useMemo(() => {
+    return timelineItems.filter((item) => {
+      const categoryMatch =
+        timelineFilter === "All" || item.category === timelineFilter;
+      const statusMatch =
+        timelineStatusFilter === "All" ||
+        item.status === timelineStatusFilter;
+
+      return categoryMatch && statusMatch;
+    });
+  }, [timelineItems, timelineFilter, timelineStatusFilter]);
+
+  const timelineProgress = useMemo(() => {
+    if (!timelineItems.length) return 0;
+    const complete = timelineItems.filter(
+      (item) => item.status === "Complete"
+    ).length;
+    return Math.round((complete / timelineItems.length) * 100);
+  }, [timelineItems]);
+
   const stats = useMemo(() => ({
     threads: threads.length,
     messages: messages.length,
     deliverables: deliverables.length,
     completeChecklist: checklist.filter((item) => item.complete).length,
-  }), [threads, messages, deliverables, checklist]);
+    timelineItems: timelineItems.length,
+    timelineProgress,
+  }), [threads, messages, deliverables, checklist, timelineItems, timelineProgress]);
 
   const navSections = [
     { id: "studio-overview", label: "Overview" },
@@ -1040,6 +1299,7 @@ export default function CampaignOperationsStudioAI() {
     { id: "studio-workspace", label: "AI Workspace", badge: stats.messages },
     { id: "studio-deliverables", label: "Deliverables", badge: stats.deliverables },
     { id: "studio-documents", label: "Document Generator" },
+    { id: "studio-timeline", label: "Timeline Builder", badge: stats.timelineItems },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -1109,8 +1369,30 @@ export default function CampaignOperationsStudioAI() {
         .studio-document-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
         .studio-document-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
         .studio-document-note{border:1px dashed rgba(148,163,184,.17);border-radius:13px;padding:12px;color:rgba(203,213,225,.72);font-size:11px;line-height:1.55}
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell{grid-template-columns:1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
-        @media(max-width:700px){.studio-hero-metrics,.studio-composer{grid-template-columns:1fr}}
+
+        .studio-timeline-shell{display:grid;gap:14px}
+        .studio-timeline-controls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+        .studio-timeline-controls label{display:grid;gap:6px}
+        .studio-timeline-controls span{color:rgba(147,197,253,.86);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-timeline-controls input,.studio-timeline-controls select{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-timeline-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .studio-timeline-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-timeline-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-timeline-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+        .studio-timeline-summary>div{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(15,23,42,.46);padding:12px}
+        .studio-timeline-summary span{display:block;color:rgba(147,197,253,.8);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+        .studio-timeline-summary strong{display:block;margin-top:6px;color:white;font-size:17px}
+        .studio-timeline-list{display:grid;gap:10px}
+        .studio-timeline-item{border:1px solid rgba(148,163,184,.13);border-radius:18px;background:rgba(15,23,42,.46);padding:13px;display:grid;grid-template-columns:minmax(220px,1.3fr) repeat(5,minmax(120px,.7fr)) auto;gap:9px;align-items:end}
+        .studio-timeline-item label{display:grid;gap:5px}
+        .studio-timeline-item label span{color:rgba(148,163,184,.72);font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.07em}
+        .studio-timeline-item input,.studio-timeline-item select{width:100%;border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.38);color:white;padding:9px;font-size:10px}
+        .studio-timeline-item-actions{display:flex;gap:6px;align-items:center}
+        .studio-timeline-item-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:9px;cursor:pointer}
+        .studio-timeline-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
+
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary{grid-template-columns:1fr}.studio-timeline-item{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+        @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item{grid-template-columns:1fr}}
       `}</style>
 
       <div className="studio-stack">
@@ -1357,6 +1639,276 @@ export default function CampaignOperationsStudioAI() {
               </button>
             </div>
           </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-timeline"
+        title="Campaign Timeline Builder"
+        subtitle="Create, edit, filter, and export an execution calendar with milestones, owners, dependencies, and Mission Control handoff."
+        defaultOpen
+        right={
+          <Badge tone={timelineProgress === 100 ? "active" : "warning"}>
+            {timelineProgress}% Complete
+          </Badge>
+        }
+      >
+        <div className="studio-timeline-shell">
+          <div className="studio-timeline-controls">
+            <label>
+              <span>Timeline Start</span>
+              <input
+                type="date"
+                value={timelineStartDate}
+                onChange={(event) =>
+                  setTimelineStartDate(event.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              <span>Duration</span>
+              <select
+                value={timelineDurationDays}
+                onChange={(event) =>
+                  setTimelineDurationDays(Number(event.target.value))
+                }
+              >
+                <option value={30}>30 Days</option>
+                <option value={60}>60 Days</option>
+                <option value={90}>90 Days</option>
+                <option value={120}>120 Days</option>
+                <option value={180}>180 Days</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Category Filter</span>
+              <select
+                value={timelineFilter}
+                onChange={(event) =>
+                  setTimelineFilter(event.target.value)
+                }
+              >
+                <option>All</option>
+                {TIMELINE_CATEGORIES.map((category) => (
+                  <option key={category}>{category}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Status Filter</span>
+              <select
+                value={timelineStatusFilter}
+                onChange={(event) =>
+                  setTimelineStatusFilter(event.target.value)
+                }
+              >
+                <option>All</option>
+                {TIMELINE_STATUSES.map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Active Campaign</span>
+              <input
+                value={project.campaign}
+                onChange={(event) =>
+                  setProject((current) => ({
+                    ...current,
+                    campaign: event.target.value,
+                  }))
+                }
+                placeholder="Campaign name"
+              />
+            </label>
+          </div>
+
+          <div className="studio-timeline-actions">
+            <button
+              type="button"
+              onClick={generateTimelineWithAI}
+              disabled={asking}
+            >
+              Generate Timeline with AI
+            </button>
+            <button type="button" onClick={generateTimelineFromTemplate}>
+              Generate Standard Timeline
+            </button>
+            <button type="button" onClick={addTimelineItem}>
+              Add Milestone
+            </button>
+            <button type="button" onClick={sendTimelineToMissionControl}>
+              Send to Mission Control
+            </button>
+            <button type="button" onClick={exportTimelineCsv}>
+              Export CSV
+            </button>
+            <button type="button" onClick={clearTimeline}>
+              Clear Timeline
+            </button>
+          </div>
+
+          <div className="studio-timeline-summary">
+            <div>
+              <span>Total Milestones</span>
+              <strong>{timelineItems.length}</strong>
+            </div>
+            <div>
+              <span>Complete</span>
+              <strong>
+                {
+                  timelineItems.filter(
+                    (item) => item.status === "Complete"
+                  ).length
+                }
+              </strong>
+            </div>
+            <div>
+              <span>Blocked</span>
+              <strong>
+                {
+                  timelineItems.filter(
+                    (item) => item.status === "Blocked"
+                  ).length
+                }
+              </strong>
+            </div>
+            <div>
+              <span>Progress</span>
+              <strong>{timelineProgress}%</strong>
+            </div>
+          </div>
+
+          {timelineMessage ? (
+            <div className="studio-timeline-message">
+              {timelineMessage}
+            </div>
+          ) : null}
+
+          {!filteredTimelineItems.length ? (
+            <EmptyState text="No campaign milestones match the current filters." />
+          ) : (
+            <div className="studio-timeline-list">
+              {filteredTimelineItems.map((item) => (
+                <div key={item.id} className="studio-timeline-item">
+                  <label>
+                    <span>Milestone</span>
+                    <input
+                      value={item.title}
+                      onChange={(event) =>
+                        updateTimelineItem(
+                          item.id,
+                          "title",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span>Category</span>
+                    <select
+                      value={item.category}
+                      onChange={(event) =>
+                        updateTimelineItem(
+                          item.id,
+                          "category",
+                          event.target.value
+                        )
+                      }
+                    >
+                      {TIMELINE_CATEGORIES.map((category) => (
+                        <option key={category}>{category}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>Owner</span>
+                    <input
+                      value={item.owner}
+                      onChange={(event) =>
+                        updateTimelineItem(
+                          item.id,
+                          "owner",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span>Start</span>
+                    <input
+                      type="date"
+                      value={item.startDate}
+                      onChange={(event) =>
+                        updateTimelineItem(
+                          item.id,
+                          "startDate",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span>End</span>
+                    <input
+                      type="date"
+                      value={item.endDate}
+                      onChange={(event) =>
+                        updateTimelineItem(
+                          item.id,
+                          "endDate",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span>Status</span>
+                    <select
+                      value={item.status}
+                      onChange={(event) =>
+                        updateTimelineItem(
+                          item.id,
+                          "status",
+                          event.target.value
+                        )
+                      }
+                    >
+                      {TIMELINE_STATUSES.map((status) => (
+                        <option key={status}>{status}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="studio-timeline-item-actions">
+                    <button
+                      type="button"
+                      onClick={() => duplicateTimelineItem(item)}
+                      title="Duplicate milestone"
+                    >
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeTimelineItem(item.id)}
+                      title="Remove milestone"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </CollapsibleSection>
 
