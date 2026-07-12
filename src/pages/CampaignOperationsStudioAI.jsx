@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"; 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 
@@ -6,7 +6,7 @@ import PageShell from "../components/ui/PageShell";
 import Badge from "../components/ui/Badge";
 import StatCard from "../components/ui/StatCard";
 import EmptyState from "../components/ui/EmptyState";
-import ExecutivePageNav from "../components/ui/ExecutivePageNav"; 
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
 import ShowMoreList from "../components/ui/ShowMoreList";
@@ -265,6 +265,8 @@ export default function CampaignOperationsStudioAI() {
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedDeliverable, setSelectedDeliverable] = useState(null);
+  const [isReading, setIsReading] = useState(false);
+  const speechRef = useRef(null);
 
   const [project, setProject] = useState({
     campaign: "",
@@ -305,6 +307,14 @@ export default function CampaignOperationsStudioAI() {
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   function buildStudioPrompt(value) {
     const details = [
@@ -478,6 +488,145 @@ export default function CampaignOperationsStudioAI() {
     setMessage("Deliverable copied.");
   }
 
+  function getLatestAssistantMessage() {
+    return [...messages].reverse().find((item) => item.role === "assistant");
+  }
+
+  function getPreferredVoice() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    const preferredNames = [
+      "Microsoft Aria",
+      "Microsoft Jenny",
+      "Samantha",
+      "Victoria",
+      "Karen",
+      "Zira",
+      "Google US English",
+      "Google UK English Female",
+    ];
+
+    for (const preferred of preferredNames) {
+      const match = voices.find((voice) =>
+        String(voice.name || "").toLowerCase().includes(preferred.toLowerCase())
+      );
+      if (match) return match;
+    }
+
+    return voices.find((voice) => /^en(-|_)/i.test(voice.lang || "")) || voices[0] || null;
+  }
+
+  function readLatestAnswer() {
+    const latest = getLatestAssistantMessage();
+
+    if (!latest?.content) {
+      setMessage("No AI Studio answer is available to read.");
+      return;
+    }
+
+    if (
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window) ||
+      typeof window.SpeechSynthesisUtterance === "undefined"
+    ) {
+      setMessage("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new window.SpeechSynthesisUtterance(clean(latest.content));
+    const voice = getPreferredVoice();
+
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang || "en-US";
+    } else {
+      utterance.lang = "en-US";
+    }
+
+    utterance.rate = 0.96;
+    utterance.pitch = 1.04;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsReading(true);
+      setMessage("Reading the latest AI Studio answer.");
+    };
+
+    utterance.onend = () => {
+      setIsReading(false);
+      setMessage("Finished reading the latest answer.");
+    };
+
+    utterance.onerror = () => {
+      setIsReading(false);
+      setMessage("Voice playback stopped.");
+    };
+
+    speechRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopReading() {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    setIsReading(false);
+    setMessage("Voice playback stopped.");
+  }
+
+  function clearConversation() {
+    stopReading();
+    setMessages([]);
+    setPrompt("");
+    setThreadId(null);
+    setSelectedDeliverable(null);
+    setMessage("AI Studio conversation cleared.");
+    setError("");
+  }
+
+  async function copyLatestAnswer() {
+    const latest = getLatestAssistantMessage();
+
+    if (!latest?.content) {
+      setMessage("No AI Studio answer is available to copy.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(latest.content);
+      setMessage("Latest AI Studio answer copied.");
+    } catch {
+      setMessage("Unable to copy the latest answer.");
+    }
+  }
+
+  function saveLatestAnswerToDeliverables() {
+    const latest = getLatestAssistantMessage();
+
+    if (!latest?.content) {
+      setMessage("Generate an AI Studio answer before saving a deliverable.");
+      return;
+    }
+
+    const item = {
+      id: `deliverable-${Date.now()}`,
+      title: `${activeModule.label} Deliverable`,
+      module: activeModule.key,
+      moduleLabel: activeModule.label,
+      content: latest.content,
+      summary: `Saved from the latest ${activeModule.label} AI Studio response.`,
+      status: "Draft",
+      createdAt: new Date().toISOString(),
+    };
+
+    setDeliverables((current) => [item, ...current]);
+    setSelectedDeliverable(item);
+    setMessage("Latest answer saved to the Deliverable Library.");
+  }
+
   const stats = useMemo(() => ({
     threads: threads.length,
     messages: messages.length,
@@ -515,6 +664,10 @@ export default function CampaignOperationsStudioAI() {
         .studio-hero-copy>strong{display:block;margin-top:8px;color:white;font-size:clamp(34px,5vw,58px);line-height:.98;letter-spacing:-.075em}
         .studio-hero-copy p{margin:14px 0 0;color:rgba(226,232,240,.78);line-height:1.65;max-width:760px}
         .studio-badges,.studio-hero-actions,.studio-card-actions,.studio-deliverable-meta,.studio-ai-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+        .studio-production-toolbar{margin-top:14px;padding-top:14px;border-top:1px solid rgba(148,163,184,.12)}
+        .studio-production-toolbar button:disabled{opacity:.48;cursor:not-allowed}
+        .studio-production-toolbar button:nth-last-child(-n+5){background:rgba(2,6,23,.5)}
+        .studio-production-toolbar button:nth-last-child(-n+5):hover{background:rgba(37,99,235,.2)}
         .studio-badges{margin-top:16px}
         .studio-hero-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
         .studio-hero-metrics>div,.studio-active-module,.studio-prompt-box,.studio-ai-panel,.studio-selected-deliverable{border:1px solid rgba(148,163,184,.13);border-radius:18px;background:rgba(2,6,23,.32);padding:14px}
@@ -620,11 +773,15 @@ export default function CampaignOperationsStudioAI() {
               </button>
             </div>
 
-            <div className="studio-ai-actions">
+            <div className="studio-ai-actions studio-production-toolbar">
               <button type="button" onClick={() => ask("Refine the previous answer into a more concise executive version.")}>Refine</button>
               <button type="button" onClick={() => ask("Expand the previous answer with owners, dates, risks, metrics, and dependencies.")}>Expand</button>
               <button type="button" onClick={() => ask("Convert the previous answer into Mission Control tasks with owners and due dates.")}>Create Task Plan</button>
-              <button type="button" onClick={() => convertLastAnswerToDeliverable(`${activeModule.label} Deliverable`)}>Save as Deliverable</button>
+              <button type="button" onClick={readLatestAnswer} disabled={isReading}>🔊 {isReading ? "Reading..." : "Read Latest"}</button>
+              <button type="button" onClick={stopReading} disabled={!isReading}>⏹ Stop Audio</button>
+              <button type="button" onClick={clearConversation} disabled={!messages.length && !prompt}>🧹 Clear Conversation</button>
+              <button type="button" onClick={copyLatestAnswer} disabled={!messages.some((item) => item.role === "assistant")}>📋 Copy Latest</button>
+              <button type="button" onClick={saveLatestAnswerToDeliverables} disabled={!messages.some((item) => item.role === "assistant")}>💾 Save to Deliverables</button>
             </div>
           </div>
         </div>
