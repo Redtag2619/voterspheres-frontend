@@ -104,6 +104,101 @@ const INTELLIGENCE_SOURCES = [
   "Intelligence Reports",
 ];
 
+const DOCUMENT_TEMPLATES = [
+  {
+    key: "executive-brief",
+    label: "Executive Campaign Brief",
+    description: "Leadership summary with priorities, risks, recommendations, and next actions.",
+  },
+  {
+    key: "master-plan",
+    label: "Master Campaign Plan",
+    description: "Comprehensive cross-functional campaign strategy and 90-day execution roadmap.",
+  },
+  {
+    key: "strategy-memo",
+    label: "Campaign Strategy Memo",
+    description: "Path-to-victory analysis, assumptions, targeting, resource priorities, and decisions.",
+  },
+  {
+    key: "field-plan",
+    label: "Field + GOTV Plan",
+    description: "Target geography, voter-contact goals, staffing, volunteers, metrics, and timeline.",
+  },
+  {
+    key: "fundraising-plan",
+    label: "Fundraising Plan",
+    description: "Revenue goals, donor strategy, call time, events, pacing, and accountability.",
+  },
+  {
+    key: "messaging-guide",
+    label: "Messaging Guide",
+    description: "Core narrative, contrast, proof points, talking points, and message discipline.",
+  },
+  {
+    key: "digital-plan",
+    label: "Digital Advertising Plan",
+    description: "Audiences, channels, creative testing, budget pacing, and measurement.",
+  },
+  {
+    key: "direct-mail-plan",
+    label: "Direct Mail Plan",
+    description: "Mail universes, creative briefs, testing, production schedule, and delivery risks.",
+  },
+  {
+    key: "rapid-response",
+    label: "Rapid Response Playbook",
+    description: "Threat scenarios, response rules, owners, escalation, approvals, and timelines.",
+  },
+  {
+    key: "client-report",
+    label: "Client Strategy Report",
+    description: "Client-ready summary of current posture, recommendations, progress, and decisions.",
+  },
+];
+
+function escapeHtml(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function filenameSafe(value = "") {
+  return String(value || "campaign-document")
+    .trim()
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+}
+
+function documentBodyToHtml(value = "") {
+  return escapeHtml(value)
+    .split(/\n{2,}/)
+    .map((block) => {
+      const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (!lines.length) return "";
+
+      const first = lines[0];
+      const looksLikeHeading =
+        first.length < 90 &&
+        (
+          /^[A-Z0-9][A-Z0-9\s&/+:-]+$/.test(first) ||
+          /^#{1,4}\s+/.test(first) ||
+          /:$/.test(first)
+        );
+
+      if (looksLikeHeading) {
+        const heading = first.replace(/^#{1,4}\s+/, "").replace(/:$/, "");
+        const remainder = lines.slice(1).join("<br />");
+        return `<section><h2>${escapeHtml(heading)}</h2>${remainder ? `<p>${escapeHtml(lines.slice(1).join("\n")).replace(/\n/g, "<br />")}</p>` : ""}</section>`;
+      }
+
+      return `<p>${escapeHtml(lines.join("\n")).replace(/\n/g, "<br />")}</p>`;
+    })
+    .join("");
+}
+
 function arr(value) {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.threads)) return value.threads;
@@ -267,6 +362,14 @@ export default function CampaignOperationsStudioAI() {
   const [selectedDeliverable, setSelectedDeliverable] = useState(null);
   const [isReading, setIsReading] = useState(false);
   const speechRef = useRef(null);
+  const [documentTemplate, setDocumentTemplate] = useState("executive-brief");
+  const [documentTitle, setDocumentTitle] = useState("");
+  const [documentPreparedBy, setDocumentPreparedBy] = useState("VoterSpheres Campaign Operations Studio AI");
+  const [documentStatus, setDocumentStatus] = useState("Draft");
+  const [documentIncludeCover, setDocumentIncludeCover] = useState(true);
+  const [documentIncludeContext, setDocumentIncludeContext] = useState(true);
+  const [documentSource, setDocumentSource] = useState("latest-answer");
+
 
   const [project, setProject] = useState({
     campaign: "",
@@ -627,6 +730,302 @@ export default function CampaignOperationsStudioAI() {
     setMessage("Latest answer saved to the Deliverable Library.");
   }
 
+
+  function getDocumentSourceContent() {
+    if (documentSource === "selected-deliverable") {
+      return selectedDeliverable?.content || "";
+    }
+
+    return getLatestAssistantMessage()?.content || "";
+  }
+
+  function getDocumentSourceTitle() {
+    if (documentTitle.trim()) return documentTitle.trim();
+
+    if (
+      documentSource === "selected-deliverable" &&
+      selectedDeliverable?.title
+    ) {
+      return selectedDeliverable.title;
+    }
+
+    return (
+      DOCUMENT_TEMPLATES.find(
+        (template) => template.key === documentTemplate
+      )?.label || "Campaign Document"
+    );
+  }
+
+  function getDocumentContextHtml() {
+    if (!documentIncludeContext) return "";
+
+    const rows = [
+      ["Campaign / Client", project.campaign || "Not specified"],
+      ["Office", project.office || "Not specified"],
+      ["Geography", project.state || "National"],
+      ["Election Cycle", project.cycle || "2026"],
+      ["Build Phase", project.phase || "Not specified"],
+      ["Primary Goal", project.goal || "Not specified"],
+      ["Studio Module", activeModule.label],
+      ["Document Status", documentStatus],
+    ];
+
+    return `
+      <section class="document-context">
+        <h2>Project Context</h2>
+        <table>
+          <tbody>
+            ${rows
+              .map(
+                ([label, value]) =>
+                  `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  function buildDocumentHtml() {
+    const content = getDocumentSourceContent();
+    const title = getDocumentSourceTitle();
+    const generatedAt = new Date().toLocaleString();
+    const notes = project.notes?.trim();
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { margin: 0.7in; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #172033;
+      line-height: 1.55;
+      margin: 0;
+      background: white;
+    }
+    .cover {
+      min-height: 8.2in;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-top: 12px solid #173a79;
+      padding: 0 0.45in;
+      page-break-after: always;
+    }
+    .eyebrow {
+      color: #315d9e;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 18px 0 12px;
+      font-size: 34px;
+      line-height: 1.08;
+      color: #10254d;
+    }
+    h2 {
+      color: #173a79;
+      border-bottom: 1px solid #cad5e7;
+      padding-bottom: 6px;
+      margin: 26px 0 10px;
+      font-size: 20px;
+    }
+    p { margin: 10px 0; }
+    .meta {
+      margin-top: 26px;
+      color: #4e5d75;
+      font-size: 13px;
+    }
+    .meta div { margin: 5px 0; }
+    .document-context table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    .document-context th,
+    .document-context td {
+      border: 1px solid #d5deeb;
+      padding: 8px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+    .document-context th {
+      width: 32%;
+      background: #eef3fa;
+      color: #173a79;
+    }
+    .content {
+      font-size: 14px;
+    }
+    .footer-note {
+      margin-top: 36px;
+      border-top: 1px solid #d5deeb;
+      padding-top: 12px;
+      color: #66758e;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  ${
+    documentIncludeCover
+      ? `<section class="cover">
+          <div class="eyebrow">VoterSpheres Campaign Operations Studio AI</div>
+          <h1>${escapeHtml(title)}</h1>
+          <p>${escapeHtml(
+            DOCUMENT_TEMPLATES.find(
+              (template) => template.key === documentTemplate
+            )?.description || "AI-generated campaign document."
+          )}</p>
+          <div class="meta">
+            <div><strong>Campaign:</strong> ${escapeHtml(
+              project.campaign || "Not specified"
+            )}</div>
+            <div><strong>Geography:</strong> ${escapeHtml(
+              project.state || "National"
+            )}</div>
+            <div><strong>Prepared by:</strong> ${escapeHtml(
+              documentPreparedBy
+            )}</div>
+            <div><strong>Status:</strong> ${escapeHtml(documentStatus)}</div>
+            <div><strong>Generated:</strong> ${escapeHtml(generatedAt)}</div>
+          </div>
+        </section>`
+      : ""
+  }
+
+  ${getDocumentContextHtml()}
+
+  ${
+    notes
+      ? `<section><h2>Campaign Notes</h2><p>${escapeHtml(notes).replace(
+          /\n/g,
+          "<br />"
+        )}</p></section>`
+      : ""
+  }
+
+  <main class="content">
+    ${documentBodyToHtml(content)}
+  </main>
+
+  <div class="footer-note">
+    Generated by VoterSpheres Campaign Operations Studio AI. Review all assumptions,
+    jurisdiction-specific requirements, financial figures, and legal conclusions before use.
+  </div>
+</body>
+</html>`;
+  }
+
+  function exportDocumentWord() {
+    const content = getDocumentSourceContent();
+
+    if (!content) {
+      setMessage(
+        "Generate an AI answer or select a deliverable before exporting."
+      );
+      return;
+    }
+
+    const title = getDocumentSourceTitle();
+    const html = buildDocumentHtml();
+    const blob = new Blob(["\ufeff", html], {
+      type: "application/msword;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(title)}.doc`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setMessage("Word document generated.");
+  }
+
+  function exportDocumentPdf() {
+    const content = getDocumentSourceContent();
+
+    if (!content) {
+      setMessage(
+        "Generate an AI answer or select a deliverable before exporting."
+      );
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      setMessage(
+        "The browser blocked the PDF window. Allow pop-ups and try again."
+      );
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(buildDocumentHtml());
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+
+    setMessage(
+      "Document opened for PDF export. Choose Save as PDF in the print window."
+    );
+  }
+
+  function previewDocument() {
+    const content = getDocumentSourceContent();
+
+    if (!content) {
+      setMessage(
+        "Generate an AI answer or select a deliverable before previewing."
+      );
+      return;
+    }
+
+    const previewWindow = window.open("", "_blank");
+
+    if (!previewWindow) {
+      setMessage(
+        "The browser blocked the preview window. Allow pop-ups and try again."
+      );
+      return;
+    }
+
+    previewWindow.document.open();
+    previewWindow.document.write(buildDocumentHtml());
+    previewWindow.document.close();
+  }
+
+  function generateDocumentDraft() {
+    const template =
+      DOCUMENT_TEMPLATES.find(
+        (item) => item.key === documentTemplate
+      ) || DOCUMENT_TEMPLATES[0];
+
+    ask(
+      `Create a complete ${template.label}. ${template.description} Format it as a professional client-ready document with an executive summary, strategic findings, priorities, owners, timeline, risks, metrics, assumptions, and next actions.`,
+      {
+        createDeliverable: true,
+        title: template.label,
+        summary: template.description,
+      }
+    );
+
+    setDocumentTitle(template.label);
+  }
+
   const stats = useMemo(() => ({
     threads: threads.length,
     messages: messages.length,
@@ -640,6 +1039,7 @@ export default function CampaignOperationsStudioAI() {
     { id: "studio-modules", label: "Builder Modules" },
     { id: "studio-workspace", label: "AI Workspace", badge: stats.messages },
     { id: "studio-deliverables", label: "Deliverables", badge: stats.deliverables },
+    { id: "studio-documents", label: "Document Generator" },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -692,7 +1092,24 @@ export default function CampaignOperationsStudioAI() {
         .studio-deliverable-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.studio-deliverable-card{border:1px solid rgba(148,163,184,.13);border-radius:18px;background:rgba(15,23,42,.48);padding:14px;display:grid;gap:12px}.studio-deliverable-card strong{display:block;margin-top:5px;color:white;font-size:15px}.studio-deliverable-card p{margin:7px 0 0;color:rgba(203,213,225,.72);font-size:12px;line-height:1.5}.studio-deliverable-meta{justify-content:space-between}.studio-deliverable-meta small{color:rgba(148,163,184,.68)}
         .studio-checklist{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}.studio-checklist button{border:1px solid rgba(148,163,184,.13);border-radius:16px;background:rgba(15,23,42,.46);color:rgba(226,232,240,.9);padding:13px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:11px;align-items:center;text-align:left;cursor:pointer}.studio-checklist button.is-complete{border-color:rgba(34,197,94,.34);background:rgba(34,197,94,.08)}.studio-checklist button>span{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;background:rgba(59,130,246,.16)}.studio-checklist strong{display:block;color:white;font-size:12px}.studio-checklist small{display:block;margin-top:4px;color:rgba(148,163,184,.72);font-size:10px}
         .studio-thread-list{display:grid;gap:9px}.studio-thread{border:1px solid rgba(148,163,184,.13);border-radius:14px;background:rgba(15,23,42,.46);padding:11px;cursor:pointer}.studio-thread strong{display:block;color:white;font-size:12px}.studio-thread span{display:block;margin-top:4px;color:rgba(148,163,184,.68);font-size:10px}
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid{grid-template-columns:1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+
+        .studio-document-shell{display:grid;grid-template-columns:minmax(260px,.34fr) minmax(0,1fr);gap:16px}
+        .studio-document-templates,.studio-document-config{display:grid;gap:10px}
+        .studio-document-template{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(15,23,42,.46);color:rgba(226,232,240,.9);padding:12px;text-align:left;cursor:pointer}
+        .studio-document-template.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.14)}
+        .studio-document-template strong{display:block;color:white;font-size:12px}
+        .studio-document-template small{display:block;margin-top:5px;color:rgba(148,163,184,.75);font-size:10px;line-height:1.45}
+        .studio-document-config{border:1px solid rgba(148,163,184,.13);border-radius:20px;background:rgba(15,23,42,.46);padding:15px}
+        .studio-document-config label{display:grid;gap:7px}
+        .studio-document-config label>span{color:rgba(147,197,253,.86);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-document-config input,.studio-document-config select{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-document-options{display:flex;gap:12px;flex-wrap:wrap}
+        .studio-document-options label{display:flex;grid-template-columns:none;align-items:center;gap:7px;color:rgba(203,213,225,.8);font-size:10px}
+        .studio-document-actions{display:flex;gap:9px;flex-wrap:wrap;border-top:1px solid rgba(148,163,184,.12);padding-top:12px}
+        .studio-document-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-document-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-document-note{border:1px dashed rgba(148,163,184,.17);border-radius:13px;padding:12px;color:rgba(203,213,225,.72);font-size:11px;line-height:1.55}
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell{grid-template-columns:1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
         @media(max-width:700px){.studio-hero-metrics,.studio-composer{grid-template-columns:1fr}}
       `}</style>
 
@@ -801,6 +1218,146 @@ export default function CampaignOperationsStudioAI() {
             </div>
           </div>
         ) : null}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-documents"
+        title="AI Document Generator"
+        subtitle="Turn Studio outputs into professional campaign documents ready for Word, PDF, client review, and internal distribution."
+        defaultOpen
+        right={<Badge tone="active">{DOCUMENT_TEMPLATES.length} Templates</Badge>}
+      >
+        <div className="studio-document-shell">
+          <div className="studio-document-templates">
+            {DOCUMENT_TEMPLATES.map((template) => (
+              <button
+                key={template.key}
+                type="button"
+                className={`studio-document-template ${
+                  documentTemplate === template.key ? "is-active" : ""
+                }`}
+                onClick={() => {
+                  setDocumentTemplate(template.key);
+                  if (!documentTitle.trim()) {
+                    setDocumentTitle(template.label);
+                  }
+                }}
+              >
+                <strong>{template.label}</strong>
+                <small>{template.description}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="studio-document-config">
+            <label>
+              <span>Document Title</span>
+              <input
+                value={documentTitle}
+                onChange={(event) =>
+                  setDocumentTitle(event.target.value)
+                }
+                placeholder="Campaign Strategy Report"
+              />
+            </label>
+
+            <label>
+              <span>Prepared By</span>
+              <input
+                value={documentPreparedBy}
+                onChange={(event) =>
+                  setDocumentPreparedBy(event.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              <span>Document Status</span>
+              <select
+                value={documentStatus}
+                onChange={(event) =>
+                  setDocumentStatus(event.target.value)
+                }
+              >
+                <option>Draft</option>
+                <option>Internal Review</option>
+                <option>Client Review</option>
+                <option>Approved</option>
+                <option>Final</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Document Source</span>
+              <select
+                value={documentSource}
+                onChange={(event) =>
+                  setDocumentSource(event.target.value)
+                }
+              >
+                <option value="latest-answer">Latest AI Answer</option>
+                <option
+                  value="selected-deliverable"
+                  disabled={!selectedDeliverable}
+                >
+                  Selected Deliverable
+                </option>
+              </select>
+            </label>
+
+            <div className="studio-document-options">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={documentIncludeCover}
+                  onChange={(event) =>
+                    setDocumentIncludeCover(event.target.checked)
+                  }
+                />
+                Include cover page
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={documentIncludeContext}
+                  onChange={(event) =>
+                    setDocumentIncludeContext(event.target.checked)
+                  }
+                />
+                Include project context
+              </label>
+            </div>
+
+            <div className="studio-document-note">
+              The Word export creates a Microsoft Word-compatible document.
+              PDF export opens the formatted report in the browser print
+              window; select <strong>Save as PDF</strong>.
+            </div>
+
+            <div className="studio-document-actions">
+              <button
+                type="button"
+                onClick={generateDocumentDraft}
+                disabled={asking}
+              >
+                Generate Document Draft
+              </button>
+
+              <button type="button" onClick={previewDocument}>
+                Preview
+              </button>
+
+              <button type="button" onClick={exportDocumentWord}>
+                Export Word
+              </button>
+
+              <button type="button" onClick={exportDocumentPdf}>
+                Export PDF
+              </button>
+            </div>
+          </div>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection id="studio-launch" title="Campaign Launch Checklist" subtitle="Track the core approvals and operating requirements needed before campaign launch." defaultOpen right={<Badge tone={stats.completeChecklist === checklist.length ? "active" : "warning"}>{stats.completeChecklist}/{checklist.length} Complete</Badge>}>
