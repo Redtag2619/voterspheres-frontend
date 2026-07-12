@@ -158,6 +158,62 @@ const DOCUMENT_TEMPLATES = [
 ];
 
 
+
+const BUDGET_CATEGORIES = [
+  "Television",
+  "Digital",
+  "Direct Mail",
+  "Field",
+  "Staff",
+  "Fundraising",
+  "Polling + Research",
+  "Compliance + Legal",
+  "Events",
+  "Travel",
+  "Operations",
+  "Contingency",
+];
+
+const BUDGET_SCENARIOS = [
+  {
+    key: "baseline",
+    label: "Baseline",
+    description: "Current plan and expected spending pace.",
+    multiplier: 1,
+  },
+  {
+    key: "lean",
+    label: "Lean",
+    description: "Reduce discretionary costs and preserve cash.",
+    multiplier: 0.85,
+  },
+  {
+    key: "growth",
+    label: "Growth",
+    description: "Increase persuasion, field, and fundraising investment.",
+    multiplier: 1.2,
+  },
+  {
+    key: "surge",
+    label: "Election Surge",
+    description: "Aggressive late-cycle acceleration.",
+    multiplier: 1.4,
+  },
+];
+
+function money(value) {
+  return Number(value || 0).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
+
+function numberValue(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 const TIMELINE_CATEGORIES = [
   "Strategy",
   "Messaging",
@@ -411,6 +467,90 @@ export default function CampaignOperationsStudioAI() {
   const [timelineFilter, setTimelineFilter] = useState("All");
   const [timelineStatusFilter, setTimelineStatusFilter] = useState("All");
   const [timelineMessage, setTimelineMessage] = useState("");
+  const [budgetScenario, setBudgetScenario] = useState("baseline");
+  const [budgetRevenueGoal, setBudgetRevenueGoal] = useState(2500000);
+  const [budgetCashOnHand, setBudgetCashOnHand] = useState(750000);
+  const [budgetStartDate, setBudgetStartDate] = useState(
+    toIsoDate(new Date())
+  );
+  const [budgetEndDate, setBudgetEndDate] = useState(
+    addDays(toIsoDate(new Date()), 180)
+  );
+  const [budgetMessage, setBudgetMessage] = useState("");
+  const [budgetItems, setBudgetItems] = useState([
+    {
+      id: "budget-tv",
+      category: "Television",
+      planned: 700000,
+      committed: 250000,
+      spent: 100000,
+      notes: "Broadcast and cable persuasion.",
+    },
+    {
+      id: "budget-digital",
+      category: "Digital",
+      planned: 350000,
+      committed: 125000,
+      spent: 85000,
+      notes: "Persuasion, acquisition, and retargeting.",
+    },
+    {
+      id: "budget-mail",
+      category: "Direct Mail",
+      planned: 275000,
+      committed: 90000,
+      spent: 45000,
+      notes: "Persuasion and turnout mail.",
+    },
+    {
+      id: "budget-field",
+      category: "Field",
+      planned: 300000,
+      committed: 110000,
+      spent: 70000,
+      notes: "Organizers, canvass, and GOTV.",
+    },
+    {
+      id: "budget-staff",
+      category: "Staff",
+      planned: 250000,
+      committed: 160000,
+      spent: 120000,
+      notes: "Core campaign team and payroll.",
+    },
+    {
+      id: "budget-fundraising",
+      category: "Fundraising",
+      planned: 125000,
+      committed: 40000,
+      spent: 25000,
+      notes: "Events, call time, and donor acquisition.",
+    },
+    {
+      id: "budget-research",
+      category: "Polling + Research",
+      planned: 150000,
+      committed: 60000,
+      spent: 45000,
+      notes: "Polling, analytics, and opposition research.",
+    },
+    {
+      id: "budget-operations",
+      category: "Operations",
+      planned: 200000,
+      committed: 80000,
+      spent: 50000,
+      notes: "Technology, office, travel, and administration.",
+    },
+    {
+      id: "budget-contingency",
+      category: "Contingency",
+      planned: 150000,
+      committed: 0,
+      spent: 0,
+      notes: "Emergency and rapid-response reserve.",
+    },
+  ]);
 
 
   const [project, setProject] = useState({
@@ -1283,6 +1423,261 @@ export default function CampaignOperationsStudioAI() {
     return Math.round((complete / timelineItems.length) * 100);
   }, [timelineItems]);
 
+
+  function updateBudgetItem(id, field, value) {
+    setBudgetItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              [field]:
+                ["planned", "committed", "spent"].includes(field)
+                  ? numberValue(value)
+                  : value,
+            }
+          : item
+      )
+    );
+  }
+
+  function addBudgetItem() {
+    setBudgetItems((current) => [
+      ...current,
+      {
+        id: `budget-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}`,
+        category: "Operations",
+        planned: 0,
+        committed: 0,
+        spent: 0,
+        notes: "",
+      },
+    ]);
+  }
+
+  function removeBudgetItem(id) {
+    setBudgetItems((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  function applyBudgetScenario() {
+    const scenario =
+      BUDGET_SCENARIOS.find(
+        (item) => item.key === budgetScenario
+      ) || BUDGET_SCENARIOS[0];
+
+    setBudgetItems((current) =>
+      current.map((item) => ({
+        ...item,
+        planned: Math.round(item.planned * scenario.multiplier),
+      }))
+    );
+
+    setBudgetMessage(
+      `${scenario.label} scenario applied to planned category budgets.`
+    );
+  }
+
+  function resetBudgetPlanner() {
+    setBudgetItems([]);
+    setBudgetMessage("Campaign budget planner cleared.");
+  }
+
+  function generateBudgetWithAI() {
+    const summary = budgetItems
+      .map(
+        (item) =>
+          `${item.category}: planned ${money(
+            item.planned
+          )}, committed ${money(item.committed)}, spent ${money(
+            item.spent
+          )}`
+      )
+      .join("\n");
+
+    ask(
+      `Create a professional campaign budget and cash-flow plan using the following current budget data.
+
+Revenue goal: ${money(budgetRevenueGoal)}
+Cash on hand: ${money(budgetCashOnHand)}
+Budget period: ${budgetStartDate} to ${budgetEndDate}
+Scenario: ${budgetScenario}
+
+Current category budget:
+${summary}
+
+Provide recommended category allocations, monthly pacing, burn-rate targets, fundraising requirements, cash reserve, risk flags, and executive recommendations.`,
+      {
+        createDeliverable: true,
+        title: "Campaign Budget and Cash-Flow Plan",
+        summary:
+          "AI-generated budget allocation, pacing, burn rate, and funding recommendations.",
+      }
+    );
+
+    setBudgetMessage(
+      "Campaign budget sent to AI Studio for analysis and recommendations."
+    );
+  }
+
+  function exportBudgetCsv() {
+    if (!budgetItems.length) {
+      setBudgetMessage("Add budget categories before exporting.");
+      return;
+    }
+
+    const escapeCsv = (value) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const header = [
+      "Category",
+      "Planned",
+      "Committed",
+      "Spent",
+      "Remaining",
+      "Spend Percentage",
+      "Notes",
+    ];
+
+    const rows = budgetItems.map((item) => {
+      const remaining =
+        numberValue(item.planned) - numberValue(item.spent);
+      const spendPercentage = item.planned
+        ? Math.round(
+            (numberValue(item.spent) /
+              numberValue(item.planned)) *
+              100
+          )
+        : 0;
+
+      return [
+        item.category,
+        item.planned,
+        item.committed,
+        item.spent,
+        remaining,
+        `${spendPercentage}%`,
+        item.notes,
+      ]
+        .map(escapeCsv)
+        .join(",");
+    });
+
+    const summaryRows = [
+      [],
+      ["Revenue Goal", budgetRevenueGoal],
+      ["Cash On Hand", budgetCashOnHand],
+      ["Budget Start", budgetStartDate],
+      ["Budget End", budgetEndDate],
+      ["Scenario", budgetScenario],
+    ].map((row) => row.map(escapeCsv).join(","));
+
+    const csv = [
+      header.map(escapeCsv).join(","),
+      ...rows,
+      ...summaryRows,
+    ].join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(
+      project.campaign || "campaign"
+    )}-budget.csv`;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setBudgetMessage("Campaign budget exported as CSV.");
+  }
+
+  const budgetTotals = useMemo(() => {
+    const planned = budgetItems.reduce(
+      (sum, item) => sum + numberValue(item.planned),
+      0
+    );
+    const committed = budgetItems.reduce(
+      (sum, item) => sum + numberValue(item.committed),
+      0
+    );
+    const spent = budgetItems.reduce(
+      (sum, item) => sum + numberValue(item.spent),
+      0
+    );
+    const remaining = planned - spent;
+    const availableCash =
+      numberValue(budgetCashOnHand) - committed;
+    const fundingGap = Math.max(
+      0,
+      planned - numberValue(budgetRevenueGoal)
+    );
+
+    return {
+      planned,
+      committed,
+      spent,
+      remaining,
+      availableCash,
+      fundingGap,
+      spendPercentage: planned
+        ? Math.round((spent / planned) * 100)
+        : 0,
+      committedPercentage: planned
+        ? Math.round((committed / planned) * 100)
+        : 0,
+    };
+  }, [budgetItems, budgetCashOnHand, budgetRevenueGoal]);
+
+  const budgetPeriodDays = useMemo(() => {
+    const start = new Date(budgetStartDate);
+    const end = new Date(budgetEndDate);
+
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime())
+    ) {
+      return 1;
+    }
+
+    return Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / 86400000)
+    );
+  }, [budgetStartDate, budgetEndDate]);
+
+  const dailyBurnRate = useMemo(
+    () => budgetTotals.planned / budgetPeriodDays,
+    [budgetTotals.planned, budgetPeriodDays]
+  );
+
+  const monthlyBurnRate = dailyBurnRate * 30.4375;
+
+  const budgetRiskLevel = useMemo(() => {
+    if (
+      budgetTotals.fundingGap > 0 ||
+      budgetTotals.committed > budgetCashOnHand
+    ) {
+      return "High";
+    }
+
+    if (
+      budgetTotals.spendPercentage > 75 ||
+      budgetTotals.committedPercentage > 85
+    ) {
+      return "Elevated";
+    }
+
+    return "Controlled";
+  }, [budgetTotals, budgetCashOnHand]);
+
   const stats = useMemo(() => ({
     threads: threads.length,
     messages: messages.length,
@@ -1290,7 +1685,18 @@ export default function CampaignOperationsStudioAI() {
     completeChecklist: checklist.filter((item) => item.complete).length,
     timelineItems: timelineItems.length,
     timelineProgress,
-  }), [threads, messages, deliverables, checklist, timelineItems, timelineProgress]);
+    budgetPlanned: budgetTotals.planned,
+    budgetSpent: budgetTotals.spent,
+  }), [
+    threads,
+    messages,
+    deliverables,
+    checklist,
+    timelineItems,
+    timelineProgress,
+    budgetTotals.planned,
+    budgetTotals.spent,
+  ]);
 
   const navSections = [
     { id: "studio-overview", label: "Overview" },
@@ -1300,6 +1706,7 @@ export default function CampaignOperationsStudioAI() {
     { id: "studio-deliverables", label: "Deliverables", badge: stats.deliverables },
     { id: "studio-documents", label: "Document Generator" },
     { id: "studio-timeline", label: "Timeline Builder", badge: stats.timelineItems },
+    { id: "studio-budget", label: "Budget Planner" },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -1391,8 +1798,36 @@ export default function CampaignOperationsStudioAI() {
         .studio-timeline-item-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:9px;cursor:pointer}
         .studio-timeline-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
 
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary{grid-template-columns:1fr}.studio-timeline-item{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
-        @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item{grid-template-columns:1fr}}
+
+        .studio-budget-shell{display:grid;gap:14px}
+        .studio-budget-controls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+        .studio-budget-controls label{display:grid;gap:6px}
+        .studio-budget-controls span,.studio-budget-summary span,.studio-budget-row label span{color:rgba(147,197,253,.84);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-budget-controls input,.studio-budget-controls select,.studio-budget-row input,.studio-budget-row select{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:11px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-budget-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .studio-budget-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-budget-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-budget-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+        .studio-budget-summary>div{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(15,23,42,.46);padding:12px}
+        .studio-budget-summary strong{display:block;margin-top:6px;color:white;font-size:16px;overflow-wrap:anywhere}
+        .studio-budget-summary small{display:block;margin-top:4px;color:rgba(148,163,184,.7);font-size:9px}
+        .studio-budget-risk.high{border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08)}
+        .studio-budget-risk.elevated{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08)}
+        .studio-budget-risk.controlled{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.08)}
+        .studio-budget-table{display:grid;gap:9px}
+        .studio-budget-row{border:1px solid rgba(148,163,184,.13);border-radius:17px;background:rgba(15,23,42,.46);padding:12px;display:grid;grid-template-columns:minmax(160px,1fr) repeat(3,minmax(120px,.65fr)) minmax(120px,.65fr) minmax(180px,1fr) auto;gap:9px;align-items:end}
+        .studio-budget-row label{display:grid;gap:5px}
+        .studio-budget-remaining{border:1px solid rgba(148,163,184,.12);border-radius:10px;background:rgba(2,6,23,.34);padding:9px}
+        .studio-budget-remaining strong{display:block;color:white;font-size:12px}
+        .studio-budget-remaining small{display:block;margin-top:3px;color:rgba(148,163,184,.7);font-size:9px}
+        .studio-budget-row-actions{display:flex;align-items:center}
+        .studio-budget-row-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:9px;cursor:pointer}
+        .studio-budget-progress{height:9px;border-radius:999px;background:rgba(148,163,184,.13);overflow:hidden;margin-top:7px}
+        .studio-budget-progress>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,rgba(59,130,246,.9),rgba(34,197,94,.85))}
+        .studio-budget-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
+
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary{grid-template-columns:1fr}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+        @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr}}
       `}</style>
 
       <div className="studio-stack">
@@ -1907,6 +2342,329 @@ export default function CampaignOperationsStudioAI() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-budget"
+        title="Campaign Budget Planner"
+        subtitle="Plan category allocations, track committed and actual spend, monitor burn rate, model funding scenarios, and export the campaign budget."
+        defaultOpen
+        right={
+          <Badge
+            tone={
+              budgetRiskLevel === "High"
+                ? "danger"
+                : budgetRiskLevel === "Elevated"
+                  ? "warning"
+                  : "active"
+            }
+          >
+            {budgetRiskLevel} Risk
+          </Badge>
+        }
+      >
+        <div className="studio-budget-shell">
+          <div className="studio-budget-controls">
+            <label>
+              <span>Revenue Goal</span>
+              <input
+                type="number"
+                min="0"
+                value={budgetRevenueGoal}
+                onChange={(event) =>
+                  setBudgetRevenueGoal(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Cash on Hand</span>
+              <input
+                type="number"
+                min="0"
+                value={budgetCashOnHand}
+                onChange={(event) =>
+                  setBudgetCashOnHand(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Budget Start</span>
+              <input
+                type="date"
+                value={budgetStartDate}
+                onChange={(event) =>
+                  setBudgetStartDate(event.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              <span>Budget End</span>
+              <input
+                type="date"
+                value={budgetEndDate}
+                onChange={(event) =>
+                  setBudgetEndDate(event.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              <span>Scenario</span>
+              <select
+                value={budgetScenario}
+                onChange={(event) =>
+                  setBudgetScenario(event.target.value)
+                }
+              >
+                {BUDGET_SCENARIOS.map((scenario) => (
+                  <option
+                    key={scenario.key}
+                    value={scenario.key}
+                  >
+                    {scenario.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="studio-budget-actions">
+            <button
+              type="button"
+              onClick={generateBudgetWithAI}
+              disabled={asking}
+            >
+              Generate Budget with AI
+            </button>
+
+            <button
+              type="button"
+              onClick={applyBudgetScenario}
+            >
+              Apply Scenario
+            </button>
+
+            <button type="button" onClick={addBudgetItem}>
+              Add Budget Category
+            </button>
+
+            <button type="button" onClick={exportBudgetCsv}>
+              Export CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                convertLastAnswerToDeliverable(
+                  "Campaign Budget Plan"
+                )
+              }
+            >
+              Save Latest as Deliverable
+            </button>
+
+            <button
+              type="button"
+              onClick={resetBudgetPlanner}
+            >
+              Clear Budget
+            </button>
+          </div>
+
+          <div className="studio-budget-summary">
+            <div>
+              <span>Total Planned</span>
+              <strong>{money(budgetTotals.planned)}</strong>
+              <small>Category budget total</small>
+            </div>
+
+            <div>
+              <span>Committed</span>
+              <strong>{money(budgetTotals.committed)}</strong>
+              <small>
+                {budgetTotals.committedPercentage}% of plan
+              </small>
+            </div>
+
+            <div>
+              <span>Spent</span>
+              <strong>{money(budgetTotals.spent)}</strong>
+              <small>{budgetTotals.spendPercentage}% of plan</small>
+            </div>
+
+            <div>
+              <span>Remaining</span>
+              <strong>{money(budgetTotals.remaining)}</strong>
+              <small>Planned less actual spend</small>
+            </div>
+
+            <div>
+              <span>Monthly Burn</span>
+              <strong>{money(monthlyBurnRate)}</strong>
+              <small>{budgetPeriodDays}-day budget period</small>
+            </div>
+
+            <div
+              className={`studio-budget-risk ${budgetRiskLevel.toLowerCase()}`}
+            >
+              <span>Budget Risk</span>
+              <strong>{budgetRiskLevel}</strong>
+              <small>
+                Funding gap: {money(budgetTotals.fundingGap)}
+              </small>
+            </div>
+          </div>
+
+          <div className="studio-budget-progress">
+            <span
+              style={{
+                width: `${Math.min(
+                  100,
+                  budgetTotals.spendPercentage
+                )}%`,
+              }}
+            />
+          </div>
+
+          {budgetMessage ? (
+            <div className="studio-budget-message">
+              {budgetMessage}
+            </div>
+          ) : null}
+
+          {!budgetItems.length ? (
+            <EmptyState text="No budget categories yet. Add a category or generate a campaign budget with AI." />
+          ) : (
+            <div className="studio-budget-table">
+              {budgetItems.map((item) => {
+                const remaining =
+                  numberValue(item.planned) -
+                  numberValue(item.spent);
+
+                const spendPercentage = item.planned
+                  ? Math.round(
+                      (numberValue(item.spent) /
+                        numberValue(item.planned)) *
+                        100
+                    )
+                  : 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="studio-budget-row"
+                  >
+                    <label>
+                      <span>Category</span>
+                      <select
+                        value={item.category}
+                        onChange={(event) =>
+                          updateBudgetItem(
+                            item.id,
+                            "category",
+                            event.target.value
+                          )
+                        }
+                      >
+                        {BUDGET_CATEGORIES.map((category) => (
+                          <option key={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Planned</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.planned}
+                        onChange={(event) =>
+                          updateBudgetItem(
+                            item.id,
+                            "planned",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>Committed</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.committed}
+                        onChange={(event) =>
+                          updateBudgetItem(
+                            item.id,
+                            "committed",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>Spent</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.spent}
+                        onChange={(event) =>
+                          updateBudgetItem(
+                            item.id,
+                            "spent",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <div className="studio-budget-remaining">
+                      <strong>{money(remaining)}</strong>
+                      <small>{spendPercentage}% spent</small>
+                    </div>
+
+                    <label>
+                      <span>Notes</span>
+                      <input
+                        value={item.notes}
+                        onChange={(event) =>
+                          updateBudgetItem(
+                            item.id,
+                            "notes",
+                            event.target.value
+                          )
+                        }
+                        placeholder="Purpose, vendor, timing, or risk"
+                      />
+                    </label>
+
+                    <div className="studio-budget-row-actions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeBudgetItem(item.id)
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
