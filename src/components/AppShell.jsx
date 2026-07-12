@@ -519,8 +519,8 @@ export default function AppShell() {
             <Link className="vs-pill" to="/notifications" onClick={closeMenus}>
               Alerts
             </Link>
-            <Link className="vs-pill" to="/campaign-copilot" onClick={closeMenus}>
-              AI Co-Pilot
+            <Link className="vs-pill"to="/campaign-operations-studio"onClick={closeMenus}>
+              AI Studio
             </Link>
             <button
               type="button"
