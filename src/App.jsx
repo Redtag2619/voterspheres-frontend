@@ -313,6 +313,7 @@ function AppRoutes() {
               <Route path="/autonomous-campaign-operations" element={<AutonomousCampaignOperations />} />
               <Route path="/strategy-recommendation-dashboard" element={<StrategyRecommendationDashboard />} />
               <Route path="/executive-ai-command-platform" element={<ExecutiveAICommandPlatform />} />
+              <Route path="/campaign-copilot" element={<Navigate to="/campaign-operations-studio"replace />} />
               <Route path="/campaign-operations-studio" element={<CampaignOperationsStudioAI />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
