@@ -643,7 +643,7 @@ export default function NationalElectionCommandCenter() {
                 <Link className="vs-button" to="/war-room">War Room</Link>
                 <Link className="vs-button vs-button-secondary" to="/mission-control">Mission Control</Link>
                 <Link className="vs-button vs-button-secondary" to="/strategic-advisor">Strategic Advisor</Link>
-                <Link className="vs-button vs-button-secondary" to="/campaign-copilot">Co-Pilot</Link>
+                <Link className="vs-button vs-button-secondary" to="/campaign-operations-studio">AI Studio</Link>
                 <Link className="vs-button vs-button-secondary" to="/political-intelligence">
                   Intelligence Graph
                 </Link>
