@@ -159,6 +159,95 @@ const DOCUMENT_TEMPLATES = [
 
 
 
+
+const ASSET_TYPES = [
+  {
+    key: "email",
+    label: "Campaign Email",
+    description: "Fundraising, persuasion, mobilization, announcement, and rapid-response email.",
+    fields: ["Subject line", "Preview text", "Body copy", "Call to action"],
+  },
+  {
+    key: "sms",
+    label: "SMS / Text Message",
+    description: "Short-form fundraising, volunteer, event, persuasion, and GOTV text messages.",
+    fields: ["Primary text", "Short variant", "Call to action"],
+  },
+  {
+    key: "social",
+    label: "Social Media Post",
+    description: "Platform-ready copy for Facebook, Instagram, X, LinkedIn, and campaign channels.",
+    fields: ["Primary post", "Short post", "Hashtags", "Visual direction"],
+  },
+  {
+    key: "digital-ad",
+    label: "Digital Advertisement",
+    description: "Paid social, display, search, video, and retargeting ad copy.",
+    fields: ["Headline", "Primary text", "Description", "CTA"],
+  },
+  {
+    key: "direct-mail",
+    label: "Direct Mail Copy",
+    description: "Front-panel, letter, persuasion, contrast, and response-device copy.",
+    fields: ["Front headline", "Body copy", "Proof points", "Response line"],
+  },
+  {
+    key: "volunteer-script",
+    label: "Volunteer Script",
+    description: "Canvass, event, recruitment, and volunteer activation scripts.",
+    fields: ["Opening", "Conversation flow", "Objection handling", "Closing ask"],
+  },
+  {
+    key: "phone-bank",
+    label: "Phone-Bank Script",
+    description: "Persuasion, ID, fundraising, volunteer, and GOTV call scripts.",
+    fields: ["Opening", "Question flow", "Response branches", "Closing"],
+  },
+  {
+    key: "press",
+    label: "Press Content",
+    description: "Press releases, statements, quotes, advisories, and media responses.",
+    fields: ["Headline", "Lead", "Body", "Quote", "Boilerplate"],
+  },
+];
+
+const ASSET_TONES = [
+  "Executive",
+  "Persuasive",
+  "Urgent",
+  "Optimistic",
+  "Conversational",
+  "Grassroots",
+  "Authoritative",
+  "Contrast",
+];
+
+const ASSET_AUDIENCES = [
+  "General Electorate",
+  "Base Voters",
+  "Persuadable Voters",
+  "Donors",
+  "Volunteers",
+  "Media",
+  "Community Leaders",
+  "Undecided Voters",
+];
+
+const ASSET_GOALS = [
+  "Persuasion",
+  "Fundraising",
+  "Volunteer Recruitment",
+  "Event Promotion",
+  "Rapid Response",
+  "GOTV",
+  "Name Recognition",
+  "Issue Education",
+];
+
+function assetTypeByKey(key) {
+  return ASSET_TYPES.find((item) => item.key === key) || ASSET_TYPES[0];
+}
+
 const BUDGET_CATEGORIES = [
   "Television",
   "Digital",
@@ -477,6 +566,17 @@ export default function CampaignOperationsStudioAI() {
     addDays(toIsoDate(new Date()), 180)
   );
   const [budgetMessage, setBudgetMessage] = useState("");
+  const [assetType, setAssetType] = useState("email");
+  const [assetTone, setAssetTone] = useState("Persuasive");
+  const [assetAudience, setAssetAudience] = useState("General Electorate");
+  const [assetGoal, setAssetGoal] = useState("Persuasion");
+  const [assetTopic, setAssetTopic] = useState("");
+  const [assetCallToAction, setAssetCallToAction] = useState("");
+  const [assetLength, setAssetLength] = useState("Standard");
+  const [assetVariants, setAssetVariants] = useState(3);
+  const [assetOutput, setAssetOutput] = useState("");
+  const [assetHistory, setAssetHistory] = useState([]);
+  const [assetMessage, setAssetMessage] = useState("");
   const [budgetItems, setBudgetItems] = useState([
     {
       id: "budget-tv",
@@ -1424,6 +1524,216 @@ export default function CampaignOperationsStudioAI() {
   }, [timelineItems]);
 
 
+
+  function buildAssetPrompt() {
+    const type = assetTypeByKey(assetType);
+
+    return `
+Create ${assetVariants} polished variants of a ${type.label}.
+
+Campaign / Client: ${project.campaign || "Not specified"}
+Office: ${project.office || "Not specified"}
+Geography: ${project.state || "National"}
+Election Cycle: ${project.cycle || "2026"}
+Audience: ${assetAudience}
+Goal: ${assetGoal}
+Tone: ${assetTone}
+Length: ${assetLength}
+Topic / Issue / Event: ${assetTopic || "Not specified"}
+Call to Action: ${assetCallToAction || "Not specified"}
+Campaign Notes: ${project.notes || "None"}
+
+Required fields:
+${type.fields.map((field) => `- ${field}`).join("\n")}
+
+Requirements:
+- Label each variant clearly.
+- Keep the copy campaign-ready and editable.
+- Distinguish assumptions from verified facts.
+- Avoid inventing polling, legal requirements, endorsements, or statistics.
+- Include a concise compliance-review note when appropriate.
+    `.trim();
+  }
+
+  async function generateAsset() {
+    if (!assetTopic.trim()) {
+      setAssetMessage("Add a topic, issue, event, or campaign objective before generating assets.");
+      return;
+    }
+
+    setAssetMessage("");
+    setAsking(true);
+    setError("");
+
+    try {
+      const result = await api.askAiCampaignCopilot({
+        prompt: buildStudioPrompt(buildAssetPrompt()),
+        thread_id: threadId || null,
+        agent:
+          assetType === "press"
+            ? "communications_director"
+            : assetType === "direct-mail"
+              ? "mailops_director"
+              : assetType === "phone-bank" ||
+                  assetType === "volunteer-script"
+                ? "field_operations_director"
+                : "digital_advertising_advisor",
+      });
+
+      setThreadId(result?.thread_id || threadId);
+
+      const answer =
+        result?.message?.content ||
+        result?.answer ||
+        "No asset content returned.";
+
+      setAssetOutput(answer);
+
+      const historyItem = {
+        id: `asset-${Date.now()}`,
+        type: assetType,
+        typeLabel: assetTypeByKey(assetType).label,
+        tone: assetTone,
+        audience: assetAudience,
+        goal: assetGoal,
+        topic: assetTopic,
+        content: answer,
+        createdAt: new Date().toISOString(),
+      };
+
+      setAssetHistory((current) => [historyItem, ...current]);
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: `asset-user-${Date.now()}`,
+          role: "user",
+          content: `Generate ${assetVariants} ${assetTypeByKey(assetType).label} variants for: ${assetTopic}`,
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: `asset-assistant-${Date.now()}`,
+          role: "assistant",
+          content: answer,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      setAssetMessage("Campaign asset variants generated.");
+      await loadThreads();
+    } catch (err) {
+      setError(
+        err?.response?.data?.error ||
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to generate campaign assets."
+      );
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  async function copyAssetOutput() {
+    if (!assetOutput) {
+      setAssetMessage("Generate an asset before copying.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(assetOutput);
+      setAssetMessage("Asset output copied.");
+    } catch {
+      setAssetMessage("Unable to copy the asset output.");
+    }
+  }
+
+  function clearAssetStudio() {
+    setAssetOutput("");
+    setAssetTopic("");
+    setAssetCallToAction("");
+    setAssetMessage("Asset Studio cleared.");
+  }
+
+  function saveAssetToDeliverables() {
+    if (!assetOutput) {
+      setAssetMessage("Generate an asset before saving.");
+      return;
+    }
+
+    const type = assetTypeByKey(assetType);
+
+    const item = {
+      id: `deliverable-${Date.now()}`,
+      title: `${type.label} Asset Pack`,
+      module: "asset-generator",
+      moduleLabel: "AI Asset Generator",
+      content: assetOutput,
+      summary: `${assetVariants} ${type.label.toLowerCase()} variants for ${assetTopic || "the active campaign"}.`,
+      status: "Draft",
+      createdAt: new Date().toISOString(),
+    };
+
+    setDeliverables((current) => [item, ...current]);
+    setSelectedDeliverable(item);
+    setAssetMessage("Asset pack saved to the Deliverable Library.");
+  }
+
+  function loadAssetFromHistory(item) {
+    setAssetType(item.type);
+    setAssetTone(item.tone);
+    setAssetAudience(item.audience);
+    setAssetGoal(item.goal);
+    setAssetTopic(item.topic);
+    setAssetOutput(item.content);
+    setAssetMessage("Saved asset loaded into the generator.");
+  }
+
+  function removeAssetHistory(id) {
+    setAssetHistory((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  function exportAssetText() {
+    if (!assetOutput) {
+      setAssetMessage("Generate an asset before exporting.");
+      return;
+    }
+
+    const type = assetTypeByKey(assetType);
+    const text = [
+      "VoterSpheres Campaign Operations Studio AI",
+      type.label,
+      "",
+      `Campaign: ${project.campaign || "Not specified"}`,
+      `Geography: ${project.state || "National"}`,
+      `Audience: ${assetAudience}`,
+      `Goal: ${assetGoal}`,
+      `Tone: ${assetTone}`,
+      `Topic: ${assetTopic || "Not specified"}`,
+      "",
+      assetOutput,
+    ].join("\n");
+
+    const blob = new Blob([text], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(
+      project.campaign || "campaign"
+    )}-${assetType}.txt`;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setAssetMessage("Campaign asset exported as text.");
+  }
+
   function updateBudgetItem(id, field, value) {
     setBudgetItems((current) =>
       current.map((item) =>
@@ -1707,6 +2017,7 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
     { id: "studio-documents", label: "Document Generator" },
     { id: "studio-timeline", label: "Timeline Builder", badge: stats.timelineItems },
     { id: "studio-budget", label: "Budget Planner" },
+    { id: "studio-assets", label: "Asset Generator", badge: assetHistory.length },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -1826,7 +2137,33 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
         .studio-budget-progress>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,rgba(59,130,246,.9),rgba(34,197,94,.85))}
         .studio-budget-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
 
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary{grid-template-columns:1fr}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+
+        .studio-asset-shell{display:grid;grid-template-columns:minmax(260px,.34fr) minmax(0,1fr);gap:16px}
+        .studio-asset-types{display:grid;gap:9px;align-content:start}
+        .studio-asset-type{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(15,23,42,.46);color:rgba(226,232,240,.9);padding:12px;text-align:left;cursor:pointer}
+        .studio-asset-type.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.14)}
+        .studio-asset-type strong{display:block;color:white;font-size:12px}
+        .studio-asset-type small{display:block;margin-top:5px;color:rgba(148,163,184,.75);font-size:10px;line-height:1.45}
+        .studio-asset-workspace{display:grid;gap:14px}
+        .studio-asset-config{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border:1px solid rgba(148,163,184,.13);border-radius:20px;background:rgba(15,23,42,.46);padding:15px}
+        .studio-asset-config label{display:grid;gap:6px}
+        .studio-asset-config label>span{color:rgba(147,197,253,.86);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-asset-config input,.studio-asset-config select,.studio-asset-config textarea{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-asset-wide{grid-column:1/-1}
+        .studio-asset-config textarea{min-height:90px;resize:vertical}
+        .studio-asset-actions{display:flex;gap:8px;flex-wrap:wrap;grid-column:1/-1;border-top:1px solid rgba(148,163,184,.12);padding-top:12px}
+        .studio-asset-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-asset-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-asset-output{border:1px solid rgba(96,165,250,.2);border-radius:20px;background:radial-gradient(circle at top right,rgba(59,130,246,.1),transparent 36%),rgba(2,6,23,.34);padding:16px;white-space:pre-wrap;color:rgba(226,232,240,.94);line-height:1.65;min-height:240px}
+        .studio-asset-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
+        .studio-asset-history{display:grid;gap:9px}
+        .studio-asset-history-item{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(15,23,42,.46);padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+        .studio-asset-history-item strong{display:block;color:white;font-size:12px}
+        .studio-asset-history-item small{display:block;margin-top:4px;color:rgba(148,163,184,.72);font-size:9px}
+        .studio-asset-history-actions{display:flex;gap:6px}
+        .studio-asset-history-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:8px;cursor:pointer}
+
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config{grid-template-columns:1fr}.studio-asset-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
         @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr}}
       `}</style>
 
@@ -2667,6 +3004,208 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
               })}
             </div>
           )}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-assets"
+        title="AI Asset Generator"
+        subtitle="Generate campaign-ready emails, texts, social posts, ads, mail copy, volunteer scripts, phone-bank scripts, and press content."
+        defaultOpen
+        right={<Badge tone="active">{assetHistory.length} Saved</Badge>}
+      >
+        <div className="studio-asset-shell">
+          <div className="studio-asset-types">
+            {ASSET_TYPES.map((type) => (
+              <button
+                key={type.key}
+                type="button"
+                className={`studio-asset-type ${
+                  assetType === type.key ? "is-active" : ""
+                }`}
+                onClick={() => setAssetType(type.key)}
+              >
+                <strong>{type.label}</strong>
+                <small>{type.description}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="studio-asset-workspace">
+            <div className="studio-asset-config">
+              <label>
+                <span>Audience</span>
+                <select
+                  value={assetAudience}
+                  onChange={(event) =>
+                    setAssetAudience(event.target.value)
+                  }
+                >
+                  {ASSET_AUDIENCES.map((audience) => (
+                    <option key={audience}>{audience}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Goal</span>
+                <select
+                  value={assetGoal}
+                  onChange={(event) =>
+                    setAssetGoal(event.target.value)
+                  }
+                >
+                  {ASSET_GOALS.map((goal) => (
+                    <option key={goal}>{goal}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Tone</span>
+                <select
+                  value={assetTone}
+                  onChange={(event) =>
+                    setAssetTone(event.target.value)
+                  }
+                >
+                  {ASSET_TONES.map((tone) => (
+                    <option key={tone}>{tone}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Length</span>
+                <select
+                  value={assetLength}
+                  onChange={(event) =>
+                    setAssetLength(event.target.value)
+                  }
+                >
+                  <option>Short</option>
+                  <option>Standard</option>
+                  <option>Long</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Variants</span>
+                <select
+                  value={assetVariants}
+                  onChange={(event) =>
+                    setAssetVariants(Number(event.target.value))
+                  }
+                >
+                  <option value={1}>1 Variant</option>
+                  <option value={2}>2 Variants</option>
+                  <option value={3}>3 Variants</option>
+                  <option value={5}>5 Variants</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Call to Action</span>
+                <input
+                  value={assetCallToAction}
+                  onChange={(event) =>
+                    setAssetCallToAction(event.target.value)
+                  }
+                  placeholder="Donate, RSVP, volunteer, vote..."
+                />
+              </label>
+
+              <label className="studio-asset-wide">
+                <span>Topic / Issue / Event</span>
+                <textarea
+                  value={assetTopic}
+                  onChange={(event) =>
+                    setAssetTopic(event.target.value)
+                  }
+                  placeholder="Describe the issue, event, announcement, attack, fundraising need, volunteer drive, or voter message."
+                />
+              </label>
+
+              <div className="studio-asset-actions">
+                <button
+                  type="button"
+                  onClick={generateAsset}
+                  disabled={asking}
+                >
+                  {asking ? "Generating..." : "Generate Asset Variants"}
+                </button>
+
+                <button type="button" onClick={copyAssetOutput}>
+                  Copy Output
+                </button>
+
+                <button type="button" onClick={saveAssetToDeliverables}>
+                  Save to Deliverables
+                </button>
+
+                <button type="button" onClick={exportAssetText}>
+                  Export Text
+                </button>
+
+                <button type="button" onClick={clearAssetStudio}>
+                  Clear Asset Studio
+                </button>
+              </div>
+            </div>
+
+            {assetMessage ? (
+              <div className="studio-asset-message">
+                {assetMessage}
+              </div>
+            ) : null}
+
+            <div className="studio-asset-output">
+              {assetOutput ||
+                `Select an asset type and generate campaign-ready ${assetTypeByKey(
+                  assetType
+                ).label.toLowerCase()} variants.`}
+            </div>
+
+            <div className="studio-asset-history">
+              {assetHistory.length ? (
+                assetHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="studio-asset-history-item"
+                  >
+                    <div>
+                      <strong>
+                        {item.typeLabel}: {item.topic}
+                      </strong>
+                      <small>
+                        {item.audience} • {item.goal} • {item.tone} •{" "}
+                        {fmtDate(item.createdAt)}
+                      </small>
+                    </div>
+
+                    <div className="studio-asset-history-actions">
+                      <button
+                        type="button"
+                        onClick={() => loadAssetFromHistory(item)}
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeAssetHistory(item.id)
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No generated campaign assets yet." />
+              )}
+            </div>
+          </div>
         </div>
       </CollapsibleSection>
 
