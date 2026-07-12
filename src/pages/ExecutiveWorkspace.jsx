@@ -875,8 +875,8 @@ export default function ExecutiveWorkspace() {
                       </Badge>
                     </Link>
 
-                    <Link className="workspace-module-card" to="/database-stability">
-                      <h3>Database Stability</h3>
+                    <Link className="workspace-module-card" to="/campaign-operations-studio">
+                      <h3>AI Studio</h3>
                       <p>{dbStatus.status || "Database stability not loaded."}</p>
                       <Badge tone={scoreTone(dbStatus.readiness_score)}>
                         {dbStatus.readiness_score || 0}%
