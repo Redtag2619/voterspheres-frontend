@@ -4,6 +4,7 @@ export const navigationSections = [
     featured: true,
     items: [
       { label: "Executive Workspace", to: "/executive-workspace" },
+      { label: "Unified Executive Intelligence", to: "/executive-intelligence" },
       { label: "Executive AI Command Platform", to: "/executive-ai-command-platform" },
       { label: "National Political Digital Twin", to: "/national-political-digital-twin" }, 
       { label: "Autonomous Campaign Operations", to: "/autonomous-campaign-operations" },
