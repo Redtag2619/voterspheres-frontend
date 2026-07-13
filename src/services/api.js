@@ -1293,7 +1293,7 @@ export const api = {
     tryGet(["/production-hardening"]), 
 
   executiveKpis: () =>
-    tryGet(["/executive-kpi"]),
+  tryGet(["/executive-kpis","/executive-kpi"]),
 
   launchQa: () =>
     tryGet(["/launch-qa"]),
