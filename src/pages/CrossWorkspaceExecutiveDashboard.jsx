@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard"; 
+import SectionCard from "../components/ui/SectionCard";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
@@ -62,6 +62,58 @@ function formatTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function decodeHtmlEntities(value = "") {
+  if (!value) return "";
+  if (typeof document === "undefined") return String(value);
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(value);
+  return textarea.value;
+}
+
+function cleanPoliticalIntelligenceText(value = "") {
+  if (!value) return "";
+
+  const decoded = decodeHtmlEntities(value);
+
+  if (typeof document === "undefined") {
+    return decoded
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  const container = document.createElement("div");
+  container.innerHTML = decoded;
+
+  const anchor = container.querySelector("a");
+  const publisherNode = container.querySelector("font");
+  const headline =
+    anchor?.textContent?.trim() ||
+    container.textContent?.trim() ||
+    "";
+  const publisher = publisherNode?.textContent?.trim() || "";
+
+  const cleanHeadline = headline
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (publisher && !cleanHeadline.includes(publisher)) {
+    return `${cleanHeadline} — ${publisher}`;
+  }
+
+  return cleanHeadline;
+}
+
+function cleanPoliticalIntelligenceTitle(value = "") {
+  return cleanPoliticalIntelligenceText(value)
+    .replace(/^Narrative signal:\s*/i, "")
+    .replace(/^Political signal:\s*/i, "")
+    .replace(/^Election signal:\s*/i, "")
+    .trim();
 }
 
 function WorkspaceRow({ item }) {
@@ -726,28 +778,64 @@ export default function CrossWorkspaceExecutiveDashboard() {
               right={<Badge tone="accent">{signals.length}</Badge>}
             >
               <div className="uei-stack">
-                {signals.slice(0, 6).map((signal) => (
-                  <div key={signal.id} className="uei-row">
-                    <ResponsiveRow
-                      title={signal.title || "Political Intelligence Event"}
-                      subtitle={
-                        signal.executive_summary ||
-                        signal.summary ||
-                        signal.description ||
-                        signal.detail ||
-                        "Executive intelligence details are not yet available."
-                      }
-                      meta={[
-                        { label: "State", value: signal.state || "National" },
-                        {
-                          label: "Risk",
-                          value: signal.risk || signal.severity || "Stable",
-                        },
-                        { label: "Score", value: signal.signal_score || 0 },
-                      ]}
-                    />
-                  </div>
-                ))}
+                {signals.slice(0, 6).map((signal) => {
+                  const intelligenceTitle = cleanPoliticalIntelligenceTitle(
+                    signal.title ||
+                      signal.headline ||
+                      signal.name ||
+                      ""
+                  );
+
+                  const intelligenceSummary = cleanPoliticalIntelligenceText(
+                    signal.executive_summary ||
+                      signal.summary ||
+                      signal.description ||
+                      signal.detail ||
+                      signal.content ||
+                      ""
+                  );
+
+                  return (
+                    <div key={signal.id} className="uei-row">
+                      <ResponsiveRow
+                        title={
+                          intelligenceTitle ||
+                          "Political Intelligence Event"
+                        }
+                        subtitle={
+                          intelligenceSummary ||
+                          "Executive intelligence details are not yet available."
+                        }
+                        meta={[
+                          {
+                            label: "Geography",
+                            value:
+                              signal.state ||
+                              signal.state_code ||
+                              "National",
+                          },
+                          {
+                            label: "Strategic Priority",
+                            value:
+                              signal.risk ||
+                              signal.severity ||
+                              signal.priority ||
+                              "Monitor",
+                          },
+                          {
+                            label: "Intelligence Score",
+                            value:
+                              signal.signal_score ??
+                              signal.confidence_score ??
+                              signal.score ??
+                              0,
+                          },
+                        ]}
+                      />
+                    </div>
+                  );
+                })}
+
                 {!signals.length ? (
                   <EmptyState text="No political intelligence events detected in the current executive scope." />
                 ) : null}
@@ -770,25 +858,10 @@ export default function CrossWorkspaceExecutiveDashboard() {
                         "Alert details unavailable."
                       }
                       meta={[
-                        {
-                          label: "Geography",
-                          value: signal.state || "National",
-                        },
-                        {
-                          label: "Strategic Priority",
-                          value:
-                            signal.risk ||
-                            signal.severity ||
-                            "Monitor",
-                        },
-                       {
-                           label: "Intelligence Score",
-                           value:
-                             signal.signal_score ??
-                             signal.confidence_score ??
-                             0,
-                         },
-                       ]}
+                        { label: "Level", value: alert.level || "Info" },
+                        { label: "Source", value: alert.source || "Platform" },
+                        { label: "State", value: alert.state || "National" },
+                      ]}
                     />
                   </div>
                 ))}
@@ -803,4 +876,3 @@ export default function CrossWorkspaceExecutiveDashboard() {
     </PageShell>
   );
 }
-
