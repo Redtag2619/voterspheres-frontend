@@ -162,6 +162,45 @@ const DOCUMENT_TEMPLATES = [
 
 
 
+
+const INTELLIGENCE_TABS = [
+  { key: "health", label: "Campaign Health" },
+  { key: "opponent", label: "Opponent Intelligence" },
+  { key: "district", label: "District Intelligence" },
+  { key: "media", label: "Media Monitoring" },
+  { key: "polling", label: "Polling Intelligence" },
+  { key: "fundraising", label: "Fundraising Intelligence" },
+  { key: "volunteers", label: "Volunteer Intelligence" },
+  { key: "recommendations", label: "AI Recommendations" },
+];
+
+const INTELLIGENCE_RISK_LEVELS = [
+  "Low",
+  "Moderate",
+  "Elevated",
+  "High",
+  "Critical",
+];
+
+function intelligenceTone(value = "") {
+  const normalized = String(value || "").toLowerCase();
+
+  if (["critical", "high", "danger"].includes(normalized)) return "danger";
+  if (["elevated", "moderate", "warning"].includes(normalized)) return "warning";
+  if (["active", "strong", "healthy", "low"].includes(normalized)) return "active";
+
+  return "info";
+}
+
+function scoreBand(score) {
+  const value = Number(score || 0);
+  if (value >= 85) return "Strong";
+  if (value >= 70) return "Healthy";
+  if (value >= 55) return "Watch";
+  if (value >= 40) return "Elevated";
+  return "Critical";
+}
+
 const PRESENTATION_TEMPLATES = [
   {
     key: "strategy-review",
@@ -721,6 +760,100 @@ export default function CampaignOperationsStudioAI() {
   const [presentationSlides, setPresentationSlides] = useState([]);
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [presentationMessage, setPresentationMessage] = useState("");
+  const [intelligenceTab, setIntelligenceTab] = useState("health");
+  const [intelligenceLastUpdated, setIntelligenceLastUpdated] = useState("");
+  const [intelligenceMessage, setIntelligenceMessage] = useState("");
+  const [opponentName, setOpponentName] = useState("Primary Opponent");
+  const [opponentStrengths, setOpponentStrengths] = useState([
+    "Strong name recognition",
+    "Established donor network",
+    "Consistent media presence",
+  ]);
+  const [opponentVulnerabilities, setOpponentVulnerabilities] = useState([
+    "Weak field organization",
+    "Message inconsistency",
+    "Limited local coalition depth",
+  ]);
+  const [districtMetrics, setDistrictMetrics] = useState({
+    turnoutIndex: 68,
+    persuasionIndex: 61,
+    baseIntensity: 74,
+    demographicFit: 66,
+    geographicCoverage: 58,
+  });
+  const [mediaSignals, setMediaSignals] = useState([
+    {
+      id: "media-1",
+      source: "Local News",
+      title: "Candidate economic message gains traction",
+      sentiment: "Positive",
+      impact: "Medium",
+      status: "Monitor",
+    },
+    {
+      id: "media-2",
+      source: "Social Media",
+      title: "Opponent attack narrative increasing",
+      sentiment: "Negative",
+      impact: "High",
+      status: "Respond",
+    },
+    {
+      id: "media-3",
+      source: "Regional Press",
+      title: "Volunteer turnout receives favorable coverage",
+      sentiment: "Positive",
+      impact: "Low",
+      status: "Amplify",
+    },
+  ]);
+  const [pollingMetrics, setPollingMetrics] = useState({
+    candidate: 47,
+    opponent: 46,
+    undecided: 7,
+    trend: 1.4,
+    confidence: 72,
+  });
+  const [fundraisingMetrics, setFundraisingMetrics] = useState({
+    goal: 2500000,
+    raised: 1450000,
+    cashOnHand: 750000,
+    donorGrowth: 18,
+    averageGift: 142,
+  });
+  const [volunteerMetrics, setVolunteerMetrics] = useState({
+    activeVolunteers: 428,
+    weeklyGrowth: 12,
+    doorsKnocked: 18250,
+    callsCompleted: 27600,
+    eventsScheduled: 14,
+  });
+  const [intelligenceRecommendations, setIntelligenceRecommendations] = useState([
+    {
+      id: "rec-1",
+      title: "Increase field coverage in weak counties",
+      priority: "High",
+      owner: "Field Director",
+      status: "Open",
+      rationale: "Geographic coverage trails turnout opportunity.",
+    },
+    {
+      id: "rec-2",
+      title: "Accelerate donor follow-up",
+      priority: "Elevated",
+      owner: "Finance Director",
+      status: "Open",
+      rationale: "Fundraising growth is positive but below the campaign goal pace.",
+    },
+    {
+      id: "rec-3",
+      title: "Counter opponent attack narrative",
+      priority: "High",
+      owner: "Communications Director",
+      status: "Open",
+      rationale: "Negative media pressure is increasing.",
+    },
+  ]);
   const [budgetItems, setBudgetItems] = useState([
     {
       id: "budget-tv",
@@ -1670,6 +1803,269 @@ export default function CampaignOperationsStudioAI() {
 
 
 
+
+
+  const campaignHealthScore = useMemo(() => {
+    const timelineScore = timelineItems.length
+      ? timelineProgress
+      : 55;
+
+    const budgetScore = clamp(
+      100 -
+        Math.max(0, budgetTotals.spendPercentage - 75) * 1.2 -
+        (budgetRiskLevel === "High"
+          ? 25
+          : budgetRiskLevel === "Elevated"
+            ? 12
+            : 0),
+      0,
+      100
+    );
+
+    const simulationScore = simulationResult
+      ? simulationResult.executionScore
+      : 62;
+
+    const fundraisingScore = clamp(
+      fundraisingMetrics.goal
+        ? (fundraisingMetrics.raised / fundraisingMetrics.goal) * 100
+        : 0,
+      0,
+      100
+    );
+
+    const districtScore =
+      Object.values(districtMetrics).reduce(
+        (sum, value) => sum + Number(value || 0),
+        0
+      ) / Object.keys(districtMetrics).length;
+
+    return Math.round(
+      timelineScore * 0.18 +
+        budgetScore * 0.18 +
+        simulationScore * 0.18 +
+        fundraisingScore * 0.18 +
+        districtScore * 0.18 +
+        Math.min(100, volunteerMetrics.weeklyGrowth * 4) * 0.1
+    );
+  }, [
+    timelineItems,
+    timelineProgress,
+    budgetTotals.spendPercentage,
+    budgetRiskLevel,
+    simulationResult,
+    fundraisingMetrics,
+    districtMetrics,
+    volunteerMetrics.weeklyGrowth,
+  ]);
+
+  const intelligenceRiskCount = useMemo(() => {
+    return intelligenceRecommendations.filter((item) =>
+      ["High", "Critical"].includes(item.priority)
+    ).length;
+  }, [intelligenceRecommendations]);
+
+  const pollingLead = useMemo(
+    () =>
+      roundOne(
+        numberValue(pollingMetrics.candidate) -
+          numberValue(pollingMetrics.opponent)
+      ),
+    [pollingMetrics]
+  );
+
+  function refreshCampaignIntelligence() {
+    setIntelligenceLastUpdated(
+      new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    );
+
+    setIntelligenceMessage(
+      "Campaign Intelligence Center refreshed using current Studio data."
+    );
+  }
+
+  function updateDistrictMetric(field, value) {
+    setDistrictMetrics((current) => ({
+      ...current,
+      [field]: clamp(numberValue(value), 0, 100),
+    }));
+  }
+
+  function updatePollingMetric(field, value) {
+    setPollingMetrics((current) => ({
+      ...current,
+      [field]: numberValue(value),
+    }));
+  }
+
+  function updateFundraisingMetric(field, value) {
+    setFundraisingMetrics((current) => ({
+      ...current,
+      [field]: numberValue(value),
+    }));
+  }
+
+  function updateVolunteerMetric(field, value) {
+    setVolunteerMetrics((current) => ({
+      ...current,
+      [field]: numberValue(value),
+    }));
+  }
+
+  function addMediaSignal() {
+    setMediaSignals((current) => [
+      {
+        id: `media-${Date.now()}`,
+        source: "New Source",
+        title: "New media signal",
+        sentiment: "Neutral",
+        impact: "Medium",
+        status: "Monitor",
+      },
+      ...current,
+    ]);
+  }
+
+  function updateMediaSignal(id, field, value) {
+    setMediaSignals((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    );
+  }
+
+  function removeMediaSignal(id) {
+    setMediaSignals((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  function addIntelligenceRecommendation() {
+    setIntelligenceRecommendations((current) => [
+      {
+        id: `rec-${Date.now()}`,
+        title: "New executive recommendation",
+        priority: "Moderate",
+        owner: "Campaign Manager",
+        status: "Open",
+        rationale: "Add the recommendation rationale.",
+      },
+      ...current,
+    ]);
+  }
+
+  function updateIntelligenceRecommendation(id, field, value) {
+    setIntelligenceRecommendations((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    );
+  }
+
+  function removeIntelligenceRecommendation(id) {
+    setIntelligenceRecommendations((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  function generateIntelligenceBriefWithAI() {
+    const summary = `
+Campaign health score: ${campaignHealthScore}
+Health band: ${scoreBand(campaignHealthScore)}
+Polling: ${pollingMetrics.candidate}% candidate, ${pollingMetrics.opponent}% opponent, ${pollingMetrics.undecided}% undecided
+Polling lead: ${pollingLead}
+Fundraising: ${money(fundraisingMetrics.raised)} raised against ${money(fundraisingMetrics.goal)} goal
+Cash on hand: ${money(fundraisingMetrics.cashOnHand)}
+Active volunteers: ${volunteerMetrics.activeVolunteers}
+Doors knocked: ${volunteerMetrics.doorsKnocked}
+Calls completed: ${volunteerMetrics.callsCompleted}
+High-priority recommendations: ${intelligenceRiskCount}
+Media signals: ${mediaSignals.length}
+Opponent: ${opponentName}
+Opponent strengths: ${opponentStrengths.join("; ")}
+Opponent vulnerabilities: ${opponentVulnerabilities.join("; ")}
+    `.trim();
+
+    ask(
+      `Create an executive campaign intelligence briefing using the following current data. Include campaign health, opponent posture, district opportunity, media narrative, polling trend, fundraising health, volunteer capacity, key risks, top opportunities, and five recommended actions.
+
+${summary}`,
+      {
+        createDeliverable: true,
+        title: "Campaign Intelligence Executive Brief",
+        summary:
+          "Integrated campaign health, opponent, polling, fundraising, volunteer, and media intelligence.",
+      }
+    );
+
+    setIntelligenceMessage(
+      "Campaign intelligence sent to AI Studio for executive analysis."
+    );
+  }
+
+  function sendRecommendationToMissionControl(item) {
+    ask(
+      `Convert this executive recommendation into a Mission Control task with owner, due date, priority, dependencies, acceptance criteria, and status:
+
+Recommendation: ${item.title}
+Priority: ${item.priority}
+Owner: ${item.owner}
+Rationale: ${item.rationale}`
+    );
+
+    setIntelligenceMessage(
+      `${item.title} sent to Mission Control task planning.`
+    );
+  }
+
+  function exportIntelligenceCsv() {
+    const rows = [
+      ["Metric", "Value"],
+      ["Campaign Health Score", campaignHealthScore],
+      ["Health Band", scoreBand(campaignHealthScore)],
+      ["Polling Candidate", pollingMetrics.candidate],
+      ["Polling Opponent", pollingMetrics.opponent],
+      ["Polling Undecided", pollingMetrics.undecided],
+      ["Polling Lead", pollingLead],
+      ["Fundraising Goal", fundraisingMetrics.goal],
+      ["Fundraising Raised", fundraisingMetrics.raised],
+      ["Cash On Hand", fundraisingMetrics.cashOnHand],
+      ["Active Volunteers", volunteerMetrics.activeVolunteers],
+      ["Doors Knocked", volunteerMetrics.doorsKnocked],
+      ["Calls Completed", volunteerMetrics.callsCompleted],
+      ["Media Signals", mediaSignals.length],
+      ["High Priority Recommendations", intelligenceRiskCount],
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(
+      project.campaign || "campaign"
+    )}-intelligence.csv`;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setIntelligenceMessage("Campaign intelligence exported as CSV.");
+  }
 
   const selectedPresentationSlide = useMemo(() => {
     return (
@@ -2929,6 +3325,7 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
     { id: "studio-assets", label: "Asset Generator", badge: assetHistory.length },
     { id: "studio-simulation", label: "Simulation Engine", badge: simulationHistory.length },
     { id: "studio-presentation", label: "Presentation Builder", badge: presentationSlides.length },
+    { id: "studio-intelligence", label: "Intelligence Center", badge: intelligenceRiskCount },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -3130,8 +3527,42 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
         .studio-slide-editor-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:9px 11px;font-size:11px;font-weight:850;cursor:pointer}
         .studio-presentation-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
 
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config,.studio-simulation-controls,.studio-simulation-results,.studio-presentation-shell,.studio-slide-grid{grid-template-columns:1fr}.studio-asset-wide,.studio-simulation-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
-        @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr}}
+
+        .studio-intelligence-shell{display:grid;gap:14px}
+        .studio-intelligence-topbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .studio-intelligence-topbar button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-intelligence-topbar button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-intelligence-tabs{display:flex;gap:8px;flex-wrap:wrap}
+        .studio-intelligence-tabs button{border:1px solid rgba(148,163,184,.13);border-radius:999px;background:rgba(15,23,42,.46);color:rgba(226,232,240,.85);padding:9px 12px;font-size:10px;font-weight:850;cursor:pointer}
+        .studio-intelligence-tabs button.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.16);color:white}
+        .studio-health-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+        .studio-health-card{border:1px solid rgba(148,163,184,.13);border-radius:16px;background:rgba(15,23,42,.46);padding:13px}
+        .studio-health-card span{display:block;color:rgba(147,197,253,.82);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-health-card strong{display:block;margin-top:6px;color:white;font-size:20px}
+        .studio-health-card small{display:block;margin-top:4px;color:rgba(148,163,184,.72);font-size:9px}
+        .studio-intelligence-panel{border:1px solid rgba(148,163,184,.13);border-radius:20px;background:rgba(15,23,42,.46);padding:15px}
+        .studio-intelligence-panel h3{margin:0;color:white;font-size:18px}
+        .studio-intelligence-panel p{color:rgba(203,213,225,.74);line-height:1.55;font-size:12px}
+        .studio-intelligence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+        .studio-intelligence-form{display:grid;gap:10px}
+        .studio-intelligence-form label{display:grid;gap:6px}
+        .studio-intelligence-form label>span{color:rgba(147,197,253,.86);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-intelligence-form input,.studio-intelligence-form select,.studio-intelligence-form textarea{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-intelligence-form textarea{min-height:90px;resize:vertical}
+        .studio-list-stack{display:grid;gap:9px}
+        .studio-list-item{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(2,6,23,.28);padding:12px}
+        .studio-list-item strong{display:block;color:white;font-size:12px}
+        .studio-list-item p{margin:5px 0 0;color:rgba(203,213,225,.72);font-size:10px;line-height:1.45}
+        .studio-list-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+        .studio-list-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:8px;cursor:pointer;font-size:10px}
+        .studio-media-row,.studio-recommendation-row{display:grid;grid-template-columns:minmax(180px,1.3fr) repeat(4,minmax(110px,.65fr)) auto;gap:8px;align-items:end;border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(2,6,23,.28);padding:11px}
+        .studio-media-row label,.studio-recommendation-row label{display:grid;gap:5px}
+        .studio-media-row label span,.studio-recommendation-row label span{color:rgba(148,163,184,.72);font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.07em}
+        .studio-media-row input,.studio-media-row select,.studio-recommendation-row input,.studio-recommendation-row select{width:100%;border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.38);color:white;padding:9px;font-size:10px}
+        .studio-intelligence-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
+
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config,.studio-simulation-controls,.studio-simulation-results,.studio-presentation-shell,.studio-slide-grid,.studio-health-grid,.studio-intelligence-grid{grid-template-columns:1fr}.studio-asset-wide,.studio-simulation-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row,.studio-media-row,.studio-recommendation-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+        @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item,.studio-budget-row,.studio-media-row,.studio-recommendation-row{grid-template-columns:1fr}}
       `}</style>
 
       <div className="studio-stack">
@@ -4799,6 +5230,583 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
               )}
             </div>
           </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-intelligence"
+        title="Campaign Intelligence Center"
+        subtitle="Monitor campaign health, opponent posture, district opportunity, media narratives, polling, fundraising, volunteer capacity, risks, and AI recommendations."
+        defaultOpen
+        right={
+          <Badge tone={intelligenceTone(scoreBand(campaignHealthScore))}>
+            Health {campaignHealthScore}
+          </Badge>
+        }
+      >
+        <div className="studio-intelligence-shell">
+          <div className="studio-intelligence-topbar">
+            <button
+              type="button"
+              onClick={refreshCampaignIntelligence}
+            >
+              Refresh Intelligence
+            </button>
+            <button
+              type="button"
+              onClick={generateIntelligenceBriefWithAI}
+              disabled={asking}
+            >
+              Generate AI Intelligence Brief
+            </button>
+            <button
+              type="button"
+              onClick={exportIntelligenceCsv}
+            >
+              Export Intelligence CSV
+            </button>
+            <Badge tone="info">
+              Updated {intelligenceLastUpdated || "Ready"}
+            </Badge>
+            <Badge tone={intelligenceRiskCount ? "warning" : "active"}>
+              {intelligenceRiskCount} High Priority
+            </Badge>
+          </div>
+
+          <div className="studio-intelligence-tabs">
+            {INTELLIGENCE_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={
+                  intelligenceTab === tab.key ? "is-active" : ""
+                }
+                onClick={() => setIntelligenceTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {intelligenceMessage ? (
+            <div className="studio-intelligence-message">
+              {intelligenceMessage}
+            </div>
+          ) : null}
+
+          {intelligenceTab === "health" ? (
+            <>
+              <div className="studio-health-grid">
+                <div className="studio-health-card">
+                  <span>Campaign Health</span>
+                  <strong>{campaignHealthScore}</strong>
+                  <small>{scoreBand(campaignHealthScore)}</small>
+                </div>
+                <div className="studio-health-card">
+                  <span>Polling Lead</span>
+                  <strong>
+                    {pollingLead >= 0 ? "+" : ""}
+                    {pollingLead}
+                  </strong>
+                  <small>Candidate vs opponent</small>
+                </div>
+                <div className="studio-health-card">
+                  <span>Fundraising Progress</span>
+                  <strong>
+                    {fundraisingMetrics.goal
+                      ? Math.round(
+                          (fundraisingMetrics.raised /
+                            fundraisingMetrics.goal) *
+                            100
+                        )
+                      : 0}
+                    %
+                  </strong>
+                  <small>{money(fundraisingMetrics.raised)} raised</small>
+                </div>
+                <div className="studio-health-card">
+                  <span>Volunteer Growth</span>
+                  <strong>{volunteerMetrics.weeklyGrowth}%</strong>
+                  <small>{volunteerMetrics.activeVolunteers} active</small>
+                </div>
+                <div className="studio-health-card">
+                  <span>Priority Risks</span>
+                  <strong>{intelligenceRiskCount}</strong>
+                  <small>High or critical</small>
+                </div>
+              </div>
+
+              <div className="studio-intelligence-panel">
+                <h3>Executive Campaign Posture</h3>
+                <p>
+                  Campaign health combines timeline progress, budget control,
+                  simulation execution score, fundraising progress, district
+                  opportunity, and volunteer growth.
+                </p>
+              </div>
+            </>
+          ) : null}
+
+          {intelligenceTab === "opponent" ? (
+            <div className="studio-intelligence-grid">
+              <div className="studio-intelligence-panel studio-intelligence-form">
+                <label>
+                  <span>Opponent Name</span>
+                  <input
+                    value={opponentName}
+                    onChange={(event) =>
+                      setOpponentName(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label>
+                  <span>Opponent Strengths</span>
+                  <textarea
+                    value={opponentStrengths.join("\n")}
+                    onChange={(event) =>
+                      setOpponentStrengths(
+                        event.target.value
+                          .split("\n")
+                          .map((item) => item.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                  />
+                </label>
+
+                <label>
+                  <span>Opponent Vulnerabilities</span>
+                  <textarea
+                    value={opponentVulnerabilities.join("\n")}
+                    onChange={(event) =>
+                      setOpponentVulnerabilities(
+                        event.target.value
+                          .split("\n")
+                          .map((item) => item.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="studio-intelligence-panel">
+                <h3>Comparative Positioning</h3>
+                <div className="studio-list-stack">
+                  {opponentStrengths.map((item) => (
+                    <div key={item} className="studio-list-item">
+                      <strong>Strength</strong>
+                      <p>{item}</p>
+                    </div>
+                  ))}
+                  {opponentVulnerabilities.map((item) => (
+                    <div key={item} className="studio-list-item">
+                      <strong>Vulnerability</strong>
+                      <p>{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {intelligenceTab === "district" ? (
+            <div className="studio-intelligence-grid">
+              <div className="studio-intelligence-panel studio-intelligence-form">
+                {Object.entries(districtMetrics).map(([field, value]) => (
+                  <label key={field}>
+                    <span>{field.replace(/([A-Z])/g, " $1")}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={value}
+                      onChange={(event) =>
+                        updateDistrictMetric(
+                          field,
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="studio-intelligence-panel">
+                <h3>District Opportunity</h3>
+                <div className="studio-list-stack">
+                  {Object.entries(districtMetrics).map(([field, value]) => (
+                    <div key={field} className="studio-list-item">
+                      <strong>{field.replace(/([A-Z])/g, " $1")}</strong>
+                      <p>{value}% modeled strength</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {intelligenceTab === "media" ? (
+            <div className="studio-intelligence-panel">
+              <div className="studio-list-actions">
+                <button type="button" onClick={addMediaSignal}>
+                  Add Media Signal
+                </button>
+              </div>
+
+              <div className="studio-list-stack">
+                {mediaSignals.map((item) => (
+                  <div key={item.id} className="studio-media-row">
+                    <label>
+                      <span>Title</span>
+                      <input
+                        value={item.title}
+                        onChange={(event) =>
+                          updateMediaSignal(
+                            item.id,
+                            "title",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Source</span>
+                      <input
+                        value={item.source}
+                        onChange={(event) =>
+                          updateMediaSignal(
+                            item.id,
+                            "source",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Sentiment</span>
+                      <select
+                        value={item.sentiment}
+                        onChange={(event) =>
+                          updateMediaSignal(
+                            item.id,
+                            "sentiment",
+                            event.target.value
+                          )
+                        }
+                      >
+                        <option>Positive</option>
+                        <option>Neutral</option>
+                        <option>Negative</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Impact</span>
+                      <select
+                        value={item.impact}
+                        onChange={(event) =>
+                          updateMediaSignal(
+                            item.id,
+                            "impact",
+                            event.target.value
+                          )
+                        }
+                      >
+                        <option>Low</option>
+                        <option>Medium</option>
+                        <option>High</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select
+                        value={item.status}
+                        onChange={(event) =>
+                          updateMediaSignal(
+                            item.id,
+                            "status",
+                            event.target.value
+                          )
+                        }
+                      >
+                        <option>Monitor</option>
+                        <option>Amplify</option>
+                        <option>Respond</option>
+                        <option>Resolved</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeMediaSignal(item.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {intelligenceTab === "polling" ? (
+            <div className="studio-intelligence-grid">
+              <div className="studio-intelligence-panel studio-intelligence-form">
+                {Object.entries(pollingMetrics).map(([field, value]) => (
+                  <label key={field}>
+                    <span>{field.replace(/([A-Z])/g, " $1")}</span>
+                    <input
+                      type="number"
+                      value={value}
+                      onChange={(event) =>
+                        updatePollingMetric(
+                          field,
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="studio-intelligence-panel">
+                <h3>Polling Posture</h3>
+                <div className="studio-health-grid">
+                  <div className="studio-health-card">
+                    <span>Candidate</span>
+                    <strong>{pollingMetrics.candidate}%</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Opponent</span>
+                    <strong>{pollingMetrics.opponent}%</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Undecided</span>
+                    <strong>{pollingMetrics.undecided}%</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Trend</span>
+                    <strong>{pollingMetrics.trend}</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Confidence</span>
+                    <strong>{pollingMetrics.confidence}%</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {intelligenceTab === "fundraising" ? (
+            <div className="studio-intelligence-grid">
+              <div className="studio-intelligence-panel studio-intelligence-form">
+                {Object.entries(fundraisingMetrics).map(([field, value]) => (
+                  <label key={field}>
+                    <span>{field.replace(/([A-Z])/g, " $1")}</span>
+                    <input
+                      type="number"
+                      value={value}
+                      onChange={(event) =>
+                        updateFundraisingMetric(
+                          field,
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="studio-intelligence-panel">
+                <h3>Fundraising Intelligence</h3>
+                <div className="studio-list-stack">
+                  <div className="studio-list-item">
+                    <strong>Goal Progress</strong>
+                    <p>
+                      {fundraisingMetrics.goal
+                        ? Math.round(
+                            (fundraisingMetrics.raised /
+                              fundraisingMetrics.goal) *
+                              100
+                          )
+                        : 0}
+                      %
+                    </p>
+                  </div>
+                  <div className="studio-list-item">
+                    <strong>Cash on Hand</strong>
+                    <p>{money(fundraisingMetrics.cashOnHand)}</p>
+                  </div>
+                  <div className="studio-list-item">
+                    <strong>Donor Growth</strong>
+                    <p>{fundraisingMetrics.donorGrowth}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {intelligenceTab === "volunteers" ? (
+            <div className="studio-intelligence-grid">
+              <div className="studio-intelligence-panel studio-intelligence-form">
+                {Object.entries(volunteerMetrics).map(([field, value]) => (
+                  <label key={field}>
+                    <span>{field.replace(/([A-Z])/g, " $1")}</span>
+                    <input
+                      type="number"
+                      value={value}
+                      onChange={(event) =>
+                        updateVolunteerMetric(
+                          field,
+                          event.target.value
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="studio-intelligence-panel">
+                <h3>Volunteer Capacity</h3>
+                <div className="studio-health-grid">
+                  <div className="studio-health-card">
+                    <span>Active Volunteers</span>
+                    <strong>{volunteerMetrics.activeVolunteers}</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Weekly Growth</span>
+                    <strong>{volunteerMetrics.weeklyGrowth}%</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Doors Knocked</span>
+                    <strong>{volunteerMetrics.doorsKnocked}</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Calls Completed</span>
+                    <strong>{volunteerMetrics.callsCompleted}</strong>
+                  </div>
+                  <div className="studio-health-card">
+                    <span>Events</span>
+                    <strong>{volunteerMetrics.eventsScheduled}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {intelligenceTab === "recommendations" ? (
+            <div className="studio-intelligence-panel">
+              <div className="studio-list-actions">
+                <button
+                  type="button"
+                  onClick={addIntelligenceRecommendation}
+                >
+                  Add Recommendation
+                </button>
+              </div>
+
+              <div className="studio-list-stack">
+                {intelligenceRecommendations.map((item) => (
+                  <div
+                    key={item.id}
+                    className="studio-recommendation-row"
+                  >
+                    <label>
+                      <span>Recommendation</span>
+                      <input
+                        value={item.title}
+                        onChange={(event) =>
+                          updateIntelligenceRecommendation(
+                            item.id,
+                            "title",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Priority</span>
+                      <select
+                        value={item.priority}
+                        onChange={(event) =>
+                          updateIntelligenceRecommendation(
+                            item.id,
+                            "priority",
+                            event.target.value
+                          )
+                        }
+                      >
+                        {INTELLIGENCE_RISK_LEVELS.map((level) => (
+                          <option key={level}>{level}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Owner</span>
+                      <input
+                        value={item.owner}
+                        onChange={(event) =>
+                          updateIntelligenceRecommendation(
+                            item.id,
+                            "owner",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select
+                        value={item.status}
+                        onChange={(event) =>
+                          updateIntelligenceRecommendation(
+                            item.id,
+                            "status",
+                            event.target.value
+                          )
+                        }
+                      >
+                        <option>Open</option>
+                        <option>In Progress</option>
+                        <option>Complete</option>
+                        <option>Deferred</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Rationale</span>
+                      <input
+                        value={item.rationale}
+                        onChange={(event) =>
+                          updateIntelligenceRecommendation(
+                            item.id,
+                            "rationale",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <div className="studio-list-actions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          sendRecommendationToMissionControl(item)
+                        }
+                      >
+                        Send to Mission Control
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeIntelligenceRecommendation(item.id)
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </CollapsibleSection>
 
