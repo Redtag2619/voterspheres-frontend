@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
+import SectionCard from "../components/ui/SectionCard"; 
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
