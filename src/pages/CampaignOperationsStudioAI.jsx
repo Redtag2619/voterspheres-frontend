@@ -161,6 +161,74 @@ const DOCUMENT_TEMPLATES = [
 
 
 
+
+const PRESENTATION_TEMPLATES = [
+  {
+    key: "strategy-review",
+    label: "Campaign Strategy Review",
+    description: "Executive client deck covering posture, strategy, risks, and recommendations.",
+  },
+  {
+    key: "budget-review",
+    label: "Budget + Resource Review",
+    description: "Finance and spend allocation presentation with budget, pacing, and risks.",
+  },
+  {
+    key: "timeline-review",
+    label: "Campaign Timeline Review",
+    description: "Milestone, owner, dependency, and launch-readiness presentation.",
+  },
+  {
+    key: "simulation-review",
+    label: "Scenario Simulation Review",
+    description: "What-if modeling deck with projected impact and recommended action.",
+  },
+  {
+    key: "full-client-briefing",
+    label: "Full Client Briefing",
+    description: "Comprehensive presentation covering strategy, budget, timeline, assets, and simulation.",
+  },
+];
+
+const PRESENTATION_THEME_OPTIONS = [
+  "Executive Blue",
+  "Campaign Dark",
+  "Clean White",
+  "War Room",
+];
+
+function createSlide({ title, kicker = "", body = "", bullets = [], notes = "" }) {
+  return {
+    id: `slide-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    title,
+    kicker,
+    body,
+    bullets,
+    notes,
+  };
+}
+
+function slideContentToHtml(slide) {
+  const bullets = Array.isArray(slide.bullets) ? slide.bullets : [];
+
+  return `
+    <section class="slide">
+      ${slide.kicker ? `<div class="kicker">${escapeHtml(slide.kicker)}</div>` : ""}
+      <h1>${escapeHtml(slide.title || "Untitled Slide")}</h1>
+      ${slide.body ? `<p class="body">${escapeHtml(slide.body).replace(/\n/g, "<br />")}</p>` : ""}
+      ${
+        bullets.length
+          ? `<ul>${bullets
+              .filter(Boolean)
+              .map((item) => `<li>${escapeHtml(item)}</li>`)
+              .join("")}</ul>`
+          : ""
+      }
+      ${slide.notes ? `<aside class="notes"><strong>Speaker Notes:</strong> ${escapeHtml(slide.notes)}</aside>` : ""}
+    </section>
+  `;
+}
+
 const SIMULATION_SCENARIOS = [
   {
     key: "baseline",
@@ -646,6 +714,13 @@ export default function CampaignOperationsStudioAI() {
   const [simulationResult, setSimulationResult] = useState(null);
   const [simulationHistory, setSimulationHistory] = useState([]);
   const [simulationMessage, setSimulationMessage] = useState("");
+  const [presentationTemplate, setPresentationTemplate] = useState("strategy-review");
+  const [presentationTitle, setPresentationTitle] = useState("");
+  const [presentationAudience, setPresentationAudience] = useState("Client Leadership");
+  const [presentationTheme, setPresentationTheme] = useState("Executive Blue");
+  const [presentationSlides, setPresentationSlides] = useState([]);
+  const [selectedSlideId, setSelectedSlideId] = useState(null);
+  const [presentationMessage, setPresentationMessage] = useState("");
   const [budgetItems, setBudgetItems] = useState([
     {
       id: "budget-tv",
@@ -1595,6 +1670,430 @@ export default function CampaignOperationsStudioAI() {
 
 
 
+
+  const selectedPresentationSlide = useMemo(() => {
+    return (
+      presentationSlides.find((slide) => slide.id === selectedSlideId) ||
+      presentationSlides[0] ||
+      null
+    );
+  }, [presentationSlides, selectedSlideId]);
+
+  function getPresentationTitle() {
+    return (
+      presentationTitle.trim() ||
+      PRESENTATION_TEMPLATES.find(
+        (item) => item.key === presentationTemplate
+      )?.label ||
+      "Campaign Presentation"
+    );
+  }
+
+  function buildDefaultPresentationSlides() {
+    const campaign = project.campaign || "Campaign";
+    const geography = project.state || "National";
+    const template =
+      PRESENTATION_TEMPLATES.find(
+        (item) => item.key === presentationTemplate
+      ) || PRESENTATION_TEMPLATES[0];
+
+    const common = [
+      createSlide({
+        kicker: "VoterSpheres Campaign Operations Studio AI",
+        title: getPresentationTitle(),
+        body: `${campaign} • ${geography} • ${project.cycle || "2026"} Cycle`,
+        bullets: [
+          `Prepared for: ${presentationAudience}`,
+          `Build phase: ${project.phase}`,
+          `Primary goal: ${project.goal || "Win the campaign"}`,
+        ],
+        notes: "Open the meeting by grounding the client in the campaign objective and decision agenda.",
+      }),
+      createSlide({
+        kicker: "Executive Summary",
+        title: "What Leadership Needs to Know",
+        body: "This briefing summarizes current strategy, operating posture, priority decisions, and recommended next actions.",
+        bullets: [
+          `${deliverables.length} saved Studio deliverables available`,
+          `${timelineItems.length} timeline milestones currently modeled`,
+          `${money(budgetTotals.planned)} planned campaign budget`,
+          simulationResult
+            ? `${percent(simulationResult.winProbability)} modeled win probability in latest scenario`
+            : "No active simulation selected",
+        ],
+        notes: "Keep this slide concise and decision-focused.",
+      }),
+    ];
+
+    const strategySlides = [
+      createSlide({
+        kicker: "Campaign Strategy",
+        title: "Path to Victory",
+        body: "The campaign should align resources around the most important geography, audiences, and message opportunities.",
+        bullets: [
+          "Define persuasion, turnout, and fundraising priorities",
+          "Sequence message and field investments by phase",
+          "Escalate decisions that affect budget, timing, or risk",
+        ],
+        notes: "Use this slide to frame the core operating thesis.",
+      }),
+      createSlide({
+        kicker: "Recommendations",
+        title: "Executive Decisions",
+        body: "Leadership should resolve the highest-impact decisions before additional production work begins.",
+        bullets: [
+          "Approve the campaign operating plan",
+          "Confirm budget allocation and pacing",
+          "Lock message architecture",
+          "Assign timeline owners and deadlines",
+        ],
+        notes: "Close this section with clear asks.",
+      }),
+    ];
+
+    const budgetSlides = [
+      createSlide({
+        kicker: "Budget",
+        title: "Campaign Resource Plan",
+        body: "The current budget model tracks planned, committed, and actual spending across core campaign functions.",
+        bullets: [
+          `Revenue goal: ${money(budgetRevenueGoal)}`,
+          `Cash on hand: ${money(budgetCashOnHand)}`,
+          `Planned budget: ${money(budgetTotals.planned)}`,
+          `Monthly burn rate: ${money(monthlyBurnRate)}`,
+        ],
+        notes: "Discuss whether resource allocation matches the campaign's strategic priorities.",
+      }),
+    ];
+
+    const timelineSlides = [
+      createSlide({
+        kicker: "Execution Timeline",
+        title: "Milestones and Owners",
+        body: "The campaign timeline translates strategy into accountable workstreams with owners, dates, and statuses.",
+        bullets: [
+          `${timelineItems.length} active milestones`,
+          `${timelineProgress}% completion across tracked milestones`,
+          `${timelineItems.filter((item) => item.status === "Blocked").length} blocked items`,
+          "Mission Control handoff is available for task execution",
+        ],
+        notes: "Highlight blocked milestones and owner accountability.",
+      }),
+    ];
+
+    const simulationSlides = [
+      createSlide({
+        kicker: "Scenario Modeling",
+        title: "What-If Simulation Results",
+        body: simulationResult
+          ? "The latest scenario provides directional estimates for polling, turnout, fundraising, and execution impact."
+          : "Run a simulation to populate modeled campaign impact.",
+        bullets: simulationResult
+          ? [
+              `Polling movement: ${simulationResult.pollingMovement >= 0 ? "+" : ""}${simulationResult.pollingMovement}`,
+              `Turnout movement: ${simulationResult.turnoutMovement >= 0 ? "+" : ""}${simulationResult.turnoutMovement}`,
+              `Projected fundraising: ${money(simulationResult.projectedFundraising)}`,
+              `Win probability: ${percent(simulationResult.winProbability)}`,
+            ]
+          : [
+              "No active scenario result",
+              "Use the Simulation Engine to model media, field, fundraising, and risk",
+            ],
+        notes: "Emphasize that simulation outputs are modeled estimates, not verified forecasts.",
+      }),
+    ];
+
+    const closeSlides = [
+      createSlide({
+        kicker: "Next Actions",
+        title: "Recommended Operating Sequence",
+        body: "Move from strategic approval into execution using Mission Control and Studio deliverables.",
+        bullets: [
+          "Approve or revise this presentation",
+          "Convert recommendations into Mission Control tasks",
+          "Assign owners and deadlines",
+          "Schedule the next executive review",
+        ],
+        notes: "End with clear accountability and timing.",
+      }),
+    ];
+
+    if (template.key === "budget-review") {
+      return [...common, ...budgetSlides, ...timelineSlides, ...closeSlides];
+    }
+
+    if (template.key === "timeline-review") {
+      return [...common, ...timelineSlides, ...budgetSlides, ...closeSlides];
+    }
+
+    if (template.key === "simulation-review") {
+      return [...common, ...simulationSlides, ...budgetSlides, ...closeSlides];
+    }
+
+    if (template.key === "full-client-briefing") {
+      return [
+        ...common,
+        ...strategySlides,
+        ...budgetSlides,
+        ...timelineSlides,
+        ...simulationSlides,
+        ...closeSlides,
+      ];
+    }
+
+    return [...common, ...strategySlides, ...budgetSlides, ...timelineSlides, ...closeSlides];
+  }
+
+  function generatePresentationDeck() {
+    const slides = buildDefaultPresentationSlides();
+    setPresentationSlides(slides);
+    setSelectedSlideId(slides[0]?.id || null);
+    setPresentationMessage(`${slides.length} presentation slides generated.`);
+  }
+
+  function generatePresentationWithAI() {
+    const template =
+      PRESENTATION_TEMPLATES.find(
+        (item) => item.key === presentationTemplate
+      ) || PRESENTATION_TEMPLATES[0];
+
+    ask(
+      `Create a client-ready presentation outline for "${template.label}". Include slide titles, slide summaries, speaker notes, and recommendations. Use these campaign inputs:
+Campaign: ${project.campaign || "Not specified"}
+Office: ${project.office || "Not specified"}
+Geography: ${project.state || "National"}
+Cycle: ${project.cycle || "2026"}
+Phase: ${project.phase}
+Goal: ${project.goal || "Not specified"}
+Planned budget: ${money(budgetTotals.planned)}
+Timeline milestones: ${timelineItems.length}
+Simulation result: ${
+        simulationResult
+          ? `${simulationResult.winProbability}% win probability, ${simulationResult.pollingMovement} polling movement`
+          : "No active simulation"
+      }`,
+      {
+        createDeliverable: true,
+        title: `${template.label} Presentation Outline`,
+        summary: template.description,
+      }
+    );
+
+    generatePresentationDeck();
+  }
+
+  function updatePresentationSlide(id, field, value) {
+    setPresentationSlides((current) =>
+      current.map((slide) =>
+        slide.id === id
+          ? {
+              ...slide,
+              [field]:
+                field === "bullets"
+                  ? value.split("\n").map((item) => item.trim())
+                  : value,
+            }
+          : slide
+      )
+    );
+  }
+
+  function addPresentationSlide() {
+    const slide = createSlide({
+      kicker: "New Slide",
+      title: "Untitled Campaign Slide",
+      body: "Add the slide summary here.",
+      bullets: ["Add a key point", "Add a supporting point"],
+      notes: "Add speaker notes.",
+    });
+
+    setPresentationSlides((current) => [...current, slide]);
+    setSelectedSlideId(slide.id);
+  }
+
+  function duplicatePresentationSlide(slide) {
+    const copy = createSlide({
+      kicker: slide.kicker,
+      title: `${slide.title} Copy`,
+      body: slide.body,
+      bullets: slide.bullets,
+      notes: slide.notes,
+    });
+
+    setPresentationSlides((current) => [...current, copy]);
+    setSelectedSlideId(copy.id);
+  }
+
+  function removePresentationSlide(id) {
+    setPresentationSlides((current) => {
+      const next = current.filter((slide) => slide.id !== id);
+      if (selectedSlideId === id) {
+        setSelectedSlideId(next[0]?.id || null);
+      }
+      return next;
+    });
+  }
+
+  function clearPresentationDeck() {
+    setPresentationSlides([]);
+    setSelectedSlideId(null);
+    setPresentationMessage("Presentation deck cleared.");
+  }
+
+  function buildPresentationHtml() {
+    const title = getPresentationTitle();
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: landscape; margin: 0.35in; }
+    body {
+      margin: 0;
+      background: #0f172a;
+      color: white;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .slide {
+      box-sizing: border-box;
+      width: 10.6in;
+      min-height: 6.2in;
+      page-break-after: always;
+      padding: 0.55in;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,.28), transparent 38%),
+        linear-gradient(145deg, #020617, #0f172a 58%, #172554);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .kicker {
+      color: #93c5fd;
+      font-size: 13px;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-size: 44px;
+      line-height: 1.02;
+      margin: 0 0 20px;
+      letter-spacing: -0.04em;
+    }
+    .body {
+      color: #dbeafe;
+      font-size: 18px;
+      line-height: 1.5;
+      max-width: 8.5in;
+    }
+    ul {
+      margin-top: 20px;
+      font-size: 20px;
+      line-height: 1.45;
+      color: #f8fafc;
+    }
+    li { margin-bottom: 10px; }
+    .notes {
+      margin-top: 28px;
+      border-top: 1px solid rgba(255,255,255,.16);
+      padding-top: 12px;
+      color: #cbd5e1;
+      font-size: 12px;
+    }
+    @media print {
+      body { background: white; }
+      .slide { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  ${presentationSlides.map(slideContentToHtml).join("\n")}
+</body>
+</html>`;
+  }
+
+  function exportPresentationHtml() {
+    if (!presentationSlides.length) {
+      setPresentationMessage("Generate slides before exporting.");
+      return;
+    }
+
+    const blob = new Blob([buildPresentationHtml()], {
+      type: "text/html;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(getPresentationTitle())}-presentation.html`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setPresentationMessage("Presentation exported as HTML.");
+  }
+
+  function exportPresentationPdf() {
+    if (!presentationSlides.length) {
+      setPresentationMessage("Generate slides before exporting.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      setPresentationMessage("The browser blocked the presentation window. Allow pop-ups and try again.");
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(buildPresentationHtml());
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+
+    setPresentationMessage("Presentation opened for PDF export. Choose Save as PDF.");
+  }
+
+  function savePresentationToDeliverables() {
+    if (!presentationSlides.length) {
+      setPresentationMessage("Generate slides before saving.");
+      return;
+    }
+
+    const content = presentationSlides
+      .map(
+        (slide, index) =>
+          `SLIDE ${index + 1}: ${slide.title}\n${slide.body}\n\n${(slide.bullets || [])
+            .map((bullet) => `- ${bullet}`)
+            .join("\n")}\n\nSpeaker Notes: ${slide.notes}`
+      )
+      .join("\n\n---\n\n");
+
+    const item = {
+      id: `deliverable-${Date.now()}`,
+      title: getPresentationTitle(),
+      module: "presentation-builder",
+      moduleLabel: "Client Presentation Builder",
+      content,
+      summary: `${presentationSlides.length} client-ready presentation slides.`,
+      status: "Draft",
+      createdAt: new Date().toISOString(),
+    };
+
+    setDeliverables((current) => [item, ...current]);
+    setSelectedDeliverable(item);
+    setPresentationMessage("Presentation saved to the Deliverable Library.");
+  }
+
   function applySimulationPreset(key) {
     setSimulationScenario(key);
 
@@ -2429,6 +2928,7 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
     { id: "studio-budget", label: "Budget Planner" },
     { id: "studio-assets", label: "Asset Generator", badge: assetHistory.length },
     { id: "studio-simulation", label: "Simulation Engine", badge: simulationHistory.length },
+    { id: "studio-presentation", label: "Presentation Builder", badge: presentationSlides.length },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -2604,7 +3104,33 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
         .studio-simulation-history-actions{display:flex;gap:6px}
         .studio-simulation-history-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:8px;cursor:pointer}
 
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config,.studio-simulation-controls,.studio-simulation-results{grid-template-columns:1fr}.studio-asset-wide,.studio-simulation-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+
+        .studio-presentation-shell{display:grid;grid-template-columns:minmax(260px,.32fr) minmax(0,1fr);gap:16px}
+        .studio-presentation-controls{display:grid;gap:10px;align-content:start;border:1px solid rgba(148,163,184,.13);border-radius:20px;background:rgba(15,23,42,.46);padding:14px}
+        .studio-presentation-controls label{display:grid;gap:6px}
+        .studio-presentation-controls label>span,.studio-slide-editor label>span{color:rgba(147,197,253,.86);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-presentation-controls input,.studio-presentation-controls select,.studio-slide-editor input,.studio-slide-editor textarea{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-presentation-actions{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid rgba(148,163,184,.12);padding-top:12px}
+        .studio-presentation-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-presentation-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-slide-grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px}
+        .studio-slide-list{display:grid;gap:8px;align-content:start;max-height:680px;overflow:auto}
+        .studio-slide-thumb{border:1px solid rgba(148,163,184,.13);border-radius:14px;background:rgba(15,23,42,.46);color:rgba(226,232,240,.9);padding:11px;text-align:left;cursor:pointer}
+        .studio-slide-thumb.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.14)}
+        .studio-slide-thumb strong{display:block;color:white;font-size:12px}
+        .studio-slide-thumb small{display:block;margin-top:5px;color:rgba(148,163,184,.72);font-size:9px}
+        .studio-slide-preview{border:1px solid rgba(96,165,250,.22);border-radius:22px;background:radial-gradient(circle at top right,rgba(59,130,246,.16),transparent 38%),linear-gradient(145deg,rgba(2,6,23,.96),rgba(15,23,42,.9));padding:24px;min-height:320px;display:grid;align-content:center}
+        .studio-slide-preview span{color:rgba(147,197,253,.88);font-size:10px;font-weight:950;letter-spacing:.1em;text-transform:uppercase}
+        .studio-slide-preview h3{margin:10px 0 12px;color:white;font-size:32px;letter-spacing:-.04em;line-height:1.05}
+        .studio-slide-preview p{color:rgba(219,234,254,.86);line-height:1.55}
+        .studio-slide-preview ul{color:white;line-height:1.55}
+        .studio-slide-editor{display:grid;gap:10px;margin-top:12px;border:1px solid rgba(148,163,184,.13);border-radius:20px;background:rgba(15,23,42,.46);padding:14px}
+        .studio-slide-editor textarea{min-height:90px;resize:vertical}
+        .studio-slide-editor-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .studio-slide-editor-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:9px 11px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-presentation-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
+
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config,.studio-simulation-controls,.studio-simulation-results,.studio-presentation-shell,.studio-slide-grid{grid-template-columns:1fr}.studio-asset-wide,.studio-simulation-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
         @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr}}
       `}</style>
 
@@ -4028,6 +4554,250 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
             ) : (
               <EmptyState text="No campaign simulations have been run yet." />
             )}
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-presentation"
+        title="Client Presentation Builder"
+        subtitle="Turn Studio plans, budgets, timelines, simulations, and recommendations into a polished client presentation."
+        defaultOpen
+        right={<Badge tone="active">{presentationSlides.length} Slides</Badge>}
+      >
+        <div className="studio-presentation-shell">
+          <aside className="studio-presentation-controls">
+            <label>
+              <span>Presentation Template</span>
+              <select
+                value={presentationTemplate}
+                onChange={(event) =>
+                  setPresentationTemplate(event.target.value)
+                }
+              >
+                {PRESENTATION_TEMPLATES.map((template) => (
+                  <option key={template.key} value={template.key}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Presentation Title</span>
+              <input
+                value={presentationTitle}
+                onChange={(event) =>
+                  setPresentationTitle(event.target.value)
+                }
+                placeholder="Campaign Strategy Review"
+              />
+            </label>
+
+            <label>
+              <span>Audience</span>
+              <input
+                value={presentationAudience}
+                onChange={(event) =>
+                  setPresentationAudience(event.target.value)
+                }
+                placeholder="Client Leadership"
+              />
+            </label>
+
+            <label>
+              <span>Theme</span>
+              <select
+                value={presentationTheme}
+                onChange={(event) =>
+                  setPresentationTheme(event.target.value)
+                }
+              >
+                {PRESENTATION_THEME_OPTIONS.map((theme) => (
+                  <option key={theme}>{theme}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="studio-presentation-actions">
+              <button type="button" onClick={generatePresentationDeck}>
+                Generate Slides
+              </button>
+              <button
+                type="button"
+                onClick={generatePresentationWithAI}
+                disabled={asking}
+              >
+                Generate with AI
+              </button>
+              <button type="button" onClick={addPresentationSlide}>
+                Add Slide
+              </button>
+              <button type="button" onClick={savePresentationToDeliverables}>
+                Save to Deliverables
+              </button>
+              <button type="button" onClick={exportPresentationHtml}>
+                Export HTML
+              </button>
+              <button type="button" onClick={exportPresentationPdf}>
+                Export PDF
+              </button>
+              <button type="button" onClick={clearPresentationDeck}>
+                Clear Deck
+              </button>
+            </div>
+
+            {presentationMessage ? (
+              <div className="studio-presentation-message">
+                {presentationMessage}
+              </div>
+            ) : null}
+          </aside>
+
+          <div className="studio-slide-grid">
+            <div className="studio-slide-list">
+              {presentationSlides.length ? (
+                presentationSlides.map((slide, index) => (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    className={`studio-slide-thumb ${
+                      selectedPresentationSlide?.id === slide.id
+                        ? "is-active"
+                        : ""
+                    }`}
+                    onClick={() => setSelectedSlideId(slide.id)}
+                  >
+                    <strong>
+                      {index + 1}. {slide.title}
+                    </strong>
+                    <small>{slide.kicker || "Presentation Slide"}</small>
+                  </button>
+                ))
+              ) : (
+                <EmptyState text="Generate a presentation deck to begin." />
+              )}
+            </div>
+
+            <div>
+              {selectedPresentationSlide ? (
+                <>
+                  <div className="studio-slide-preview">
+                    <span>{selectedPresentationSlide.kicker}</span>
+                    <h3>{selectedPresentationSlide.title}</h3>
+                    <p>{selectedPresentationSlide.body}</p>
+                    {selectedPresentationSlide.bullets?.length ? (
+                      <ul>
+                        {selectedPresentationSlide.bullets.map(
+                          (bullet, index) => (
+                            <li key={`${bullet}-${index}`}>{bullet}</li>
+                          )
+                        )}
+                      </ul>
+                    ) : null}
+                  </div>
+
+                  <div className="studio-slide-editor">
+                    <label>
+                      <span>Kicker</span>
+                      <input
+                        value={selectedPresentationSlide.kicker}
+                        onChange={(event) =>
+                          updatePresentationSlide(
+                            selectedPresentationSlide.id,
+                            "kicker",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>Slide Title</span>
+                      <input
+                        value={selectedPresentationSlide.title}
+                        onChange={(event) =>
+                          updatePresentationSlide(
+                            selectedPresentationSlide.id,
+                            "title",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>Body</span>
+                      <textarea
+                        value={selectedPresentationSlide.body}
+                        onChange={(event) =>
+                          updatePresentationSlide(
+                            selectedPresentationSlide.id,
+                            "body",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>Bullets</span>
+                      <textarea
+                        value={(selectedPresentationSlide.bullets || []).join(
+                          "\n"
+                        )}
+                        onChange={(event) =>
+                          updatePresentationSlide(
+                            selectedPresentationSlide.id,
+                            "bullets",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>Speaker Notes</span>
+                      <textarea
+                        value={selectedPresentationSlide.notes}
+                        onChange={(event) =>
+                          updatePresentationSlide(
+                            selectedPresentationSlide.id,
+                            "notes",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+
+                    <div className="studio-slide-editor-actions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          duplicatePresentationSlide(
+                            selectedPresentationSlide
+                          )
+                        }
+                      >
+                        Duplicate Slide
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removePresentationSlide(
+                            selectedPresentationSlide.id
+                          )
+                        }
+                      >
+                        Remove Slide
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <EmptyState text="No slide selected." />
+              )}
+            </div>
           </div>
         </div>
       </CollapsibleSection>
