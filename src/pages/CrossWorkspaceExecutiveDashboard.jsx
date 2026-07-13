@@ -532,9 +532,9 @@ export default function CrossWorkspaceExecutiveDashboard() {
           tone={summary.blocked_tasks ? "down" : "neutral"}
         />
         <StatCard
-          label="Political Signals"
+          label="Political Intelligence"
           value={fmt(kpis.total_signals || signals.length)}
-          delta={`${fmt(kpis.critical_signals)} critical`}
+          delta={`${fmt(kpis.critical_signals)} high priority`}
           tone={kpis.critical_signals ? "down" : "up"}
         />
         <StatCard
@@ -721,19 +721,21 @@ export default function CrossWorkspaceExecutiveDashboard() {
             </SectionCard>
 
             <SectionCard
-              title="Political Signals"
-              subtitle="Highest-impact signals informing the executive picture."
+              title="Political Intelligence"
+              subtitle="High-impact political developments, narrative shifts, risks, and opportunities informing the executive operating picture."
               right={<Badge tone="accent">{signals.length}</Badge>}
             >
               <div className="uei-stack">
                 {signals.slice(0, 6).map((signal) => (
                   <div key={signal.id} className="uei-row">
                     <ResponsiveRow
-                      title={signal.title || "Political Signal"}
+                      title={signal.title || "Political Intelligence Event"}
                       subtitle={
+                        signal.executive_summary ||
                         signal.summary ||
                         signal.description ||
-                        "Signal detail unavailable."
+                        signal.detail ||
+                        "Executive intelligence details are not yet available."
                       }
                       meta={[
                         { label: "State", value: signal.state || "National" },
@@ -747,7 +749,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
                   </div>
                 ))}
                 {!signals.length ? (
-                  <EmptyState text="No political signals in scope." />
+                  <EmptyState text="No political intelligence events detected in the current executive scope." />
                 ) : null}
               </div>
             </SectionCard>
@@ -768,10 +770,25 @@ export default function CrossWorkspaceExecutiveDashboard() {
                         "Alert details unavailable."
                       }
                       meta={[
-                        { label: "Level", value: alert.level || "Info" },
-                        { label: "Source", value: alert.source || "Platform" },
-                        { label: "State", value: alert.state || "National" },
-                      ]}
+                        {
+                          label: "Geography",
+                          value: signal.state || "National",
+                        },
+                        {
+                          label: "Strategic Priority",
+                          value:
+                            signal.risk ||
+                            signal.severity ||
+                            "Monitor",
+                        },
+                       {
+                           label: "Intelligence Score",
+                           value:
+                             signal.signal_score ??
+                             signal.confidence_score ??
+                             0,
+                         },
+                       ]}
                     />
                   </div>
                 ))}
