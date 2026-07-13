@@ -1810,12 +1810,43 @@ export default function CampaignOperationsStudioAI() {
       ? timelineProgress
       : 55;
 
+    const plannedBudget = budgetItems.reduce(
+      (sum, item) => sum + numberValue(item.planned),
+      0
+    );
+
+    const committedBudget = budgetItems.reduce(
+      (sum, item) => sum + numberValue(item.committed),
+      0
+    );
+
+    const spentBudget = budgetItems.reduce(
+      (sum, item) => sum + numberValue(item.spent),
+      0
+    );
+
+    const spendPercentage = plannedBudget
+      ? (spentBudget / plannedBudget) * 100
+      : 0;
+
+    const committedPercentage = plannedBudget
+      ? (committedBudget / plannedBudget) * 100
+      : 0;
+
+    const derivedBudgetRisk =
+      plannedBudget > numberValue(budgetRevenueGoal) ||
+      committedBudget > numberValue(budgetCashOnHand)
+        ? "High"
+        : spendPercentage > 75 || committedPercentage > 85
+          ? "Elevated"
+          : "Controlled";
+
     const budgetScore = clamp(
       100 -
-        Math.max(0, budgetTotals.spendPercentage - 75) * 1.2 -
-        (budgetRiskLevel === "High"
+        Math.max(0, spendPercentage - 75) * 1.2 -
+        (derivedBudgetRisk === "High"
           ? 25
-          : budgetRiskLevel === "Elevated"
+          : derivedBudgetRisk === "Elevated"
             ? 12
             : 0),
       0,
@@ -1834,11 +1865,13 @@ export default function CampaignOperationsStudioAI() {
       100
     );
 
-    const districtScore =
-      Object.values(districtMetrics).reduce(
-        (sum, value) => sum + Number(value || 0),
-        0
-      ) / Object.keys(districtMetrics).length;
+    const districtValues = Object.values(districtMetrics);
+    const districtScore = districtValues.length
+      ? districtValues.reduce(
+          (sum, value) => sum + Number(value || 0),
+          0
+        ) / districtValues.length
+      : 0;
 
     return Math.round(
       timelineScore * 0.18 +
@@ -1851,8 +1884,9 @@ export default function CampaignOperationsStudioAI() {
   }, [
     timelineItems,
     timelineProgress,
-    budgetTotals.spendPercentage,
-    budgetRiskLevel,
+    budgetItems,
+    budgetRevenueGoal,
+    budgetCashOnHand,
     simulationResult,
     fundraisingMetrics,
     districtMetrics,
