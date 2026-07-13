@@ -160,6 +160,60 @@ const DOCUMENT_TEMPLATES = [
 
 
 
+
+const SIMULATION_SCENARIOS = [
+  {
+    key: "baseline",
+    label: "Baseline",
+    description: "Current campaign posture with no major intervention.",
+  },
+  {
+    key: "media-surge",
+    label: "Media Surge",
+    description: "Increase paid media and message frequency.",
+  },
+  {
+    key: "field-surge",
+    label: "Field Surge",
+    description: "Increase canvassing, volunteer deployment, and GOTV.",
+  },
+  {
+    key: "fundraising-acceleration",
+    label: "Fundraising Acceleration",
+    description: "Increase donor outreach, call time, and acquisition.",
+  },
+  {
+    key: "balanced-growth",
+    label: "Balanced Growth",
+    description: "Apply moderate increases across media, field, and fundraising.",
+  },
+  {
+    key: "defensive",
+    label: "Defensive",
+    description: "Protect cash, stabilize risk, and prioritize critical operations.",
+  },
+];
+
+const SIMULATION_RISK_LEVELS = [
+  "Low",
+  "Moderate",
+  "Elevated",
+  "High",
+  "Critical",
+];
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundOne(value) {
+  return Math.round(Number(value || 0) * 10) / 10;
+}
+
+function percent(value) {
+  return `${roundOne(value)}%`;
+}
+
 const ASSET_TYPES = [
   {
     key: "email",
@@ -577,6 +631,21 @@ export default function CampaignOperationsStudioAI() {
   const [assetOutput, setAssetOutput] = useState("");
   const [assetHistory, setAssetHistory] = useState([]);
   const [assetMessage, setAssetMessage] = useState("");
+  const [simulationScenario, setSimulationScenario] = useState("baseline");
+  const [simulationName, setSimulationName] = useState("Current Campaign Scenario");
+  const [simulationBudgetIncrease, setSimulationBudgetIncrease] = useState(0);
+  const [simulationMediaIncrease, setSimulationMediaIncrease] = useState(0);
+  const [simulationFieldIncrease, setSimulationFieldIncrease] = useState(0);
+  const [simulationFundraisingIncrease, setSimulationFundraisingIncrease] = useState(0);
+  const [simulationTurnoutBaseline, setSimulationTurnoutBaseline] = useState(52);
+  const [simulationPollingBaseline, setSimulationPollingBaseline] = useState(47);
+  const [simulationFundraisingBaseline, setSimulationFundraisingBaseline] = useState(750000);
+  const [simulationMediaPressure, setSimulationMediaPressure] = useState(45);
+  const [simulationFieldStrength, setSimulationFieldStrength] = useState(55);
+  const [simulationRisk, setSimulationRisk] = useState("Moderate");
+  const [simulationResult, setSimulationResult] = useState(null);
+  const [simulationHistory, setSimulationHistory] = useState([]);
+  const [simulationMessage, setSimulationMessage] = useState("");
   const [budgetItems, setBudgetItems] = useState([
     {
       id: "budget-tv",
@@ -1525,6 +1594,347 @@ export default function CampaignOperationsStudioAI() {
 
 
 
+
+  function applySimulationPreset(key) {
+    setSimulationScenario(key);
+
+    const presets = {
+      baseline: {
+        budget: 0,
+        media: 0,
+        field: 0,
+        fundraising: 0,
+        pressure: 45,
+        strength: 55,
+        risk: "Moderate",
+      },
+      "media-surge": {
+        budget: 18,
+        media: 35,
+        field: 5,
+        fundraising: 8,
+        pressure: 68,
+        strength: 58,
+        risk: "Elevated",
+      },
+      "field-surge": {
+        budget: 16,
+        media: 5,
+        field: 40,
+        fundraising: 8,
+        pressure: 48,
+        strength: 78,
+        risk: "Moderate",
+      },
+      "fundraising-acceleration": {
+        budget: 10,
+        media: 6,
+        field: 8,
+        fundraising: 35,
+        pressure: 42,
+        strength: 58,
+        risk: "Moderate",
+      },
+      "balanced-growth": {
+        budget: 22,
+        media: 22,
+        field: 22,
+        fundraising: 22,
+        pressure: 60,
+        strength: 70,
+        risk: "Elevated",
+      },
+      defensive: {
+        budget: -12,
+        media: -10,
+        field: -5,
+        fundraising: 12,
+        pressure: 35,
+        strength: 52,
+        risk: "High",
+      },
+    };
+
+    const preset = presets[key] || presets.baseline;
+
+    setSimulationBudgetIncrease(preset.budget);
+    setSimulationMediaIncrease(preset.media);
+    setSimulationFieldIncrease(preset.field);
+    setSimulationFundraisingIncrease(preset.fundraising);
+    setSimulationMediaPressure(preset.pressure);
+    setSimulationFieldStrength(preset.strength);
+    setSimulationRisk(preset.risk);
+    setSimulationMessage(
+      `${SIMULATION_SCENARIOS.find((item) => item.key === key)?.label || "Scenario"} preset applied.`
+    );
+  }
+
+  function calculateSimulation() {
+    const budgetEffect = simulationBudgetIncrease * 0.025;
+    const mediaEffect =
+      simulationMediaIncrease * 0.035 +
+      (simulationMediaPressure - 50) * 0.018;
+    const fieldEffect =
+      simulationFieldIncrease * 0.03 +
+      (simulationFieldStrength - 50) * 0.02;
+    const fundraisingEffect =
+      simulationFundraisingIncrease * 0.022;
+    const riskPenalty = {
+      Low: 0,
+      Moderate: 0.3,
+      Elevated: 0.8,
+      High: 1.5,
+      Critical: 2.4,
+    }[simulationRisk] || 0;
+
+    const pollingMovement = clamp(
+      budgetEffect + mediaEffect + fieldEffect + fundraisingEffect - riskPenalty,
+      -8,
+      8
+    );
+
+    const turnoutMovement = clamp(
+      simulationFieldIncrease * 0.045 +
+        (simulationFieldStrength - 50) * 0.03 +
+        simulationMediaIncrease * 0.008 -
+        riskPenalty * 0.4,
+      -10,
+      12
+    );
+
+    const projectedPolling = clamp(
+      simulationPollingBaseline + pollingMovement,
+      0,
+      100
+    );
+
+    const projectedTurnout = clamp(
+      simulationTurnoutBaseline + turnoutMovement,
+      0,
+      100
+    );
+
+    const projectedFundraising =
+      simulationFundraisingBaseline *
+      (1 + simulationFundraisingIncrease / 100) *
+      (1 + Math.max(0, pollingMovement) / 200);
+
+    const winProbability = clamp(
+      50 +
+        (projectedPolling - 50) * 4 +
+        (projectedTurnout - simulationTurnoutBaseline) * 1.2 -
+        riskPenalty * 4,
+      2,
+      98
+    );
+
+    const executionScore = clamp(
+      50 +
+        simulationFieldStrength * 0.25 +
+        simulationMediaPressure * 0.12 +
+        simulationFundraisingIncrease * 0.22 +
+        simulationBudgetIncrease * 0.18 -
+        riskPenalty * 6,
+      0,
+      100
+    );
+
+    const cashImpact =
+      budgetTotals.planned * (simulationBudgetIncrease / 100);
+
+    const result = {
+      id: `simulation-${Date.now()}`,
+      name: simulationName || "Campaign Scenario",
+      scenario: simulationScenario,
+      createdAt: new Date().toISOString(),
+      pollingMovement: roundOne(pollingMovement),
+      turnoutMovement: roundOne(turnoutMovement),
+      projectedPolling: roundOne(projectedPolling),
+      projectedTurnout: roundOne(projectedTurnout),
+      projectedFundraising: Math.round(projectedFundraising),
+      winProbability: roundOne(winProbability),
+      executionScore: roundOne(executionScore),
+      cashImpact: Math.round(cashImpact),
+      risk: simulationRisk,
+      inputs: {
+        budgetIncrease: simulationBudgetIncrease,
+        mediaIncrease: simulationMediaIncrease,
+        fieldIncrease: simulationFieldIncrease,
+        fundraisingIncrease: simulationFundraisingIncrease,
+        turnoutBaseline: simulationTurnoutBaseline,
+        pollingBaseline: simulationPollingBaseline,
+        fundraisingBaseline: simulationFundraisingBaseline,
+        mediaPressure: simulationMediaPressure,
+        fieldStrength: simulationFieldStrength,
+      },
+    };
+
+    setSimulationResult(result);
+    setSimulationHistory((current) => [result, ...current]);
+    setSimulationMessage("Campaign simulation completed.");
+  }
+
+  function clearSimulation() {
+    setSimulationResult(null);
+    setSimulationMessage("Simulation results cleared.");
+  }
+
+  function removeSimulationHistory(id) {
+    setSimulationHistory((current) =>
+      current.filter((item) => item.id !== id)
+    );
+  }
+
+  function loadSimulationHistory(item) {
+    setSimulationName(item.name);
+    setSimulationScenario(item.scenario);
+    setSimulationBudgetIncrease(item.inputs.budgetIncrease);
+    setSimulationMediaIncrease(item.inputs.mediaIncrease);
+    setSimulationFieldIncrease(item.inputs.fieldIncrease);
+    setSimulationFundraisingIncrease(item.inputs.fundraisingIncrease);
+    setSimulationTurnoutBaseline(item.inputs.turnoutBaseline);
+    setSimulationPollingBaseline(item.inputs.pollingBaseline);
+    setSimulationFundraisingBaseline(item.inputs.fundraisingBaseline);
+    setSimulationMediaPressure(item.inputs.mediaPressure);
+    setSimulationFieldStrength(item.inputs.fieldStrength);
+    setSimulationRisk(item.risk);
+    setSimulationResult(item);
+    setSimulationMessage("Saved simulation loaded.");
+  }
+
+  function compareSimulationWithAI() {
+    if (!simulationResult) {
+      setSimulationMessage("Run a simulation before requesting AI analysis.");
+      return;
+    }
+
+    const summary = `
+Scenario: ${simulationResult.name}
+Scenario Type: ${simulationResult.scenario}
+Projected polling: ${simulationResult.projectedPolling}%
+Polling movement: ${simulationResult.pollingMovement} points
+Projected turnout: ${simulationResult.projectedTurnout}%
+Turnout movement: ${simulationResult.turnoutMovement} points
+Projected fundraising: ${money(simulationResult.projectedFundraising)}
+Win probability: ${simulationResult.winProbability}%
+Execution score: ${simulationResult.executionScore}%
+Cash impact: ${money(simulationResult.cashImpact)}
+Risk level: ${simulationResult.risk}
+    `.trim();
+
+    ask(
+      `Analyze this campaign simulation. Explain the most important assumptions, likely upside, downside risks, operational dependencies, and recommended executive decisions.
+
+${summary}`,
+      {
+        createDeliverable: true,
+        title: `${simulationResult.name} Simulation Analysis`,
+        summary: "AI analysis of campaign what-if scenario results.",
+      }
+    );
+
+    setSimulationMessage("Simulation sent to AI Studio for executive analysis.");
+  }
+
+  function saveSimulationToDeliverables() {
+    if (!simulationResult) {
+      setSimulationMessage("Run a simulation before saving.");
+      return;
+    }
+
+    const content = `
+CAMPAIGN SIMULATION: ${simulationResult.name}
+
+Scenario: ${simulationResult.scenario}
+Projected polling: ${simulationResult.projectedPolling}%
+Polling movement: ${simulationResult.pollingMovement} points
+Projected turnout: ${simulationResult.projectedTurnout}%
+Turnout movement: ${simulationResult.turnoutMovement} points
+Projected fundraising: ${money(simulationResult.projectedFundraising)}
+Win probability: ${simulationResult.winProbability}%
+Execution score: ${simulationResult.executionScore}%
+Cash impact: ${money(simulationResult.cashImpact)}
+Risk level: ${simulationResult.risk}
+
+Inputs
+Budget change: ${simulationResult.inputs.budgetIncrease}%
+Media change: ${simulationResult.inputs.mediaIncrease}%
+Field change: ${simulationResult.inputs.fieldIncrease}%
+Fundraising change: ${simulationResult.inputs.fundraisingIncrease}%
+Media pressure: ${simulationResult.inputs.mediaPressure}%
+Field strength: ${simulationResult.inputs.fieldStrength}%
+    `.trim();
+
+    const item = {
+      id: `deliverable-${Date.now()}`,
+      title: `${simulationResult.name} Simulation`,
+      module: "simulation-engine",
+      moduleLabel: "Campaign Simulation Engine",
+      content,
+      summary: "Campaign what-if scenario and projected impact.",
+      status: "Draft",
+      createdAt: new Date().toISOString(),
+    };
+
+    setDeliverables((current) => [item, ...current]);
+    setSelectedDeliverable(item);
+    setSimulationMessage("Simulation saved to the Deliverable Library.");
+  }
+
+  function exportSimulationCsv() {
+    if (!simulationResult) {
+      setSimulationMessage("Run a simulation before exporting.");
+      return;
+    }
+
+    const rows = [
+      ["Metric", "Value"],
+      ["Scenario Name", simulationResult.name],
+      ["Scenario Type", simulationResult.scenario],
+      ["Polling Movement", simulationResult.pollingMovement],
+      ["Projected Polling", simulationResult.projectedPolling],
+      ["Turnout Movement", simulationResult.turnoutMovement],
+      ["Projected Turnout", simulationResult.projectedTurnout],
+      ["Projected Fundraising", simulationResult.projectedFundraising],
+      ["Win Probability", simulationResult.winProbability],
+      ["Execution Score", simulationResult.executionScore],
+      ["Cash Impact", simulationResult.cashImpact],
+      ["Risk", simulationResult.risk],
+      ["Budget Change", simulationResult.inputs.budgetIncrease],
+      ["Media Change", simulationResult.inputs.mediaIncrease],
+      ["Field Change", simulationResult.inputs.fieldIncrease],
+      ["Fundraising Change", simulationResult.inputs.fundraisingIncrease],
+      ["Media Pressure", simulationResult.inputs.mediaPressure],
+      ["Field Strength", simulationResult.inputs.fieldStrength],
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${filenameSafe(
+      simulationResult.name
+    )}-simulation.csv`;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setSimulationMessage("Simulation exported as CSV.");
+  }
+
   function buildAssetPrompt() {
     const type = assetTypeByKey(assetType);
 
@@ -2018,6 +2428,7 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
     { id: "studio-timeline", label: "Timeline Builder", badge: stats.timelineItems },
     { id: "studio-budget", label: "Budget Planner" },
     { id: "studio-assets", label: "Asset Generator", badge: assetHistory.length },
+    { id: "studio-simulation", label: "Simulation Engine", badge: simulationHistory.length },
     { id: "studio-launch", label: "Launch Checklist" },
     { id: "studio-history", label: "Studio History" },
   ];
@@ -2163,7 +2574,37 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
         .studio-asset-history-actions{display:flex;gap:6px}
         .studio-asset-history-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:8px;cursor:pointer}
 
-        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config{grid-template-columns:1fr}.studio-asset-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
+
+        .studio-simulation-shell{display:grid;gap:14px}
+        .studio-simulation-presets{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+        .studio-simulation-preset{border:1px solid rgba(148,163,184,.13);border-radius:16px;background:rgba(15,23,42,.46);color:rgba(226,232,240,.9);padding:12px;text-align:left;cursor:pointer}
+        .studio-simulation-preset.is-active{border-color:rgba(96,165,250,.58);background:rgba(37,99,235,.14)}
+        .studio-simulation-preset strong{display:block;color:white;font-size:12px}
+        .studio-simulation-preset small{display:block;margin-top:5px;color:rgba(148,163,184,.75);font-size:10px;line-height:1.45}
+        .studio-simulation-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;border:1px solid rgba(148,163,184,.13);border-radius:20px;background:rgba(15,23,42,.46);padding:15px}
+        .studio-simulation-controls label{display:grid;gap:6px}
+        .studio-simulation-controls label>span{color:rgba(147,197,253,.86);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-simulation-controls input,.studio-simulation-controls select{width:100%;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(2,6,23,.42);color:white;padding:10px}
+        .studio-simulation-wide{grid-column:1/-1}
+        .studio-simulation-actions{display:flex;gap:8px;flex-wrap:wrap;grid-column:1/-1;border-top:1px solid rgba(148,163,184,.12);padding-top:12px}
+        .studio-simulation-actions button{border:1px solid rgba(148,163,184,.17);border-radius:13px;background:rgba(2,6,23,.48);color:white;padding:10px 12px;font-size:11px;font-weight:850;cursor:pointer}
+        .studio-simulation-actions button:hover{border-color:rgba(96,165,250,.48);background:rgba(37,99,235,.18)}
+        .studio-simulation-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+        .studio-simulation-results>div{border:1px solid rgba(148,163,184,.13);border-radius:16px;background:rgba(15,23,42,.46);padding:13px}
+        .studio-simulation-results span{display:block;color:rgba(147,197,253,.82);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+        .studio-simulation-results strong{display:block;margin-top:6px;color:white;font-size:19px}
+        .studio-simulation-results small{display:block;margin-top:4px;color:rgba(148,163,184,.7);font-size:9px}
+        .studio-simulation-positive{border-color:rgba(34,197,94,.3)!important;background:rgba(34,197,94,.07)!important}
+        .studio-simulation-negative{border-color:rgba(239,68,68,.3)!important;background:rgba(239,68,68,.07)!important}
+        .studio-simulation-message{border:1px solid rgba(96,165,250,.22);border-radius:13px;background:rgba(37,99,235,.1);color:rgba(219,234,254,.92);padding:11px;font-size:11px}
+        .studio-simulation-history{display:grid;gap:9px}
+        .studio-simulation-history-item{border:1px solid rgba(148,163,184,.13);border-radius:15px;background:rgba(15,23,42,.46);padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+        .studio-simulation-history-item strong{display:block;color:white;font-size:12px}
+        .studio-simulation-history-item small{display:block;margin-top:4px;color:rgba(148,163,184,.72);font-size:9px}
+        .studio-simulation-history-actions{display:flex;gap:6px}
+        .studio-simulation-history-actions button{border:1px solid rgba(148,163,184,.14);border-radius:10px;background:rgba(2,6,23,.4);color:white;padding:8px;cursor:pointer}
+
+        @media(max-width:1100px){.studio-hero,.studio-workspace-grid,.studio-project-grid,.studio-document-shell,.studio-timeline-controls,.studio-timeline-summary,.studio-budget-controls,.studio-budget-summary,.studio-asset-shell,.studio-asset-config,.studio-simulation-controls,.studio-simulation-results{grid-template-columns:1fr}.studio-asset-wide,.studio-simulation-wide{grid-column:auto}.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr 1fr}.studio-project-wide{grid-column:auto}.studio-message.user,.studio-message.assistant{margin-left:0;margin-right:0}}
         @media(max-width:700px){.studio-hero-metrics,.studio-composer,.studio-timeline-item,.studio-budget-row{grid-template-columns:1fr}}
       `}</style>
 
@@ -3205,6 +3646,388 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
                 <EmptyState text="No generated campaign assets yet." />
               )}
             </div>
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="studio-simulation"
+        title="Campaign Simulation Engine"
+        subtitle="Model what-if scenarios involving budget, paid media, field strength, fundraising, turnout, polling movement, execution risk, and projected electoral impact."
+        defaultOpen
+        right={
+          <Badge tone={simulationResult ? "active" : "warning"}>
+            {simulationResult
+              ? `${simulationResult.winProbability}% Win Probability`
+              : "Run Scenario"}
+          </Badge>
+        }
+      >
+        <div className="studio-simulation-shell">
+          <div className="studio-simulation-presets">
+            {SIMULATION_SCENARIOS.map((scenario) => (
+              <button
+                key={scenario.key}
+                type="button"
+                className={`studio-simulation-preset ${
+                  simulationScenario === scenario.key
+                    ? "is-active"
+                    : ""
+                }`}
+                onClick={() =>
+                  applySimulationPreset(scenario.key)
+                }
+              >
+                <strong>{scenario.label}</strong>
+                <small>{scenario.description}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="studio-simulation-controls">
+            <label className="studio-simulation-wide">
+              <span>Scenario Name</span>
+              <input
+                value={simulationName}
+                onChange={(event) =>
+                  setSimulationName(event.target.value)
+                }
+                placeholder="Georgia media and field surge"
+              />
+            </label>
+
+            <label>
+              <span>Budget Change %</span>
+              <input
+                type="number"
+                min="-50"
+                max="200"
+                value={simulationBudgetIncrease}
+                onChange={(event) =>
+                  setSimulationBudgetIncrease(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Media Change %</span>
+              <input
+                type="number"
+                min="-100"
+                max="300"
+                value={simulationMediaIncrease}
+                onChange={(event) =>
+                  setSimulationMediaIncrease(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Field Change %</span>
+              <input
+                type="number"
+                min="-100"
+                max="300"
+                value={simulationFieldIncrease}
+                onChange={(event) =>
+                  setSimulationFieldIncrease(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Fundraising Change %</span>
+              <input
+                type="number"
+                min="-100"
+                max="300"
+                value={simulationFundraisingIncrease}
+                onChange={(event) =>
+                  setSimulationFundraisingIncrease(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Polling Baseline %</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={simulationPollingBaseline}
+                onChange={(event) =>
+                  setSimulationPollingBaseline(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Turnout Baseline %</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={simulationTurnoutBaseline}
+                onChange={(event) =>
+                  setSimulationTurnoutBaseline(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Fundraising Baseline</span>
+              <input
+                type="number"
+                min="0"
+                value={simulationFundraisingBaseline}
+                onChange={(event) =>
+                  setSimulationFundraisingBaseline(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Media Pressure %</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={simulationMediaPressure}
+                onChange={(event) =>
+                  setSimulationMediaPressure(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Field Strength %</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={simulationFieldStrength}
+                onChange={(event) =>
+                  setSimulationFieldStrength(
+                    numberValue(event.target.value)
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>Execution Risk</span>
+              <select
+                value={simulationRisk}
+                onChange={(event) =>
+                  setSimulationRisk(event.target.value)
+                }
+              >
+                {SIMULATION_RISK_LEVELS.map((risk) => (
+                  <option key={risk}>{risk}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="studio-simulation-actions">
+              <button type="button" onClick={calculateSimulation}>
+                Run Simulation
+              </button>
+
+              <button
+                type="button"
+                onClick={compareSimulationWithAI}
+                disabled={!simulationResult || asking}
+              >
+                Analyze with AI
+              </button>
+
+              <button
+                type="button"
+                onClick={saveSimulationToDeliverables}
+                disabled={!simulationResult}
+              >
+                Save to Deliverables
+              </button>
+
+              <button
+                type="button"
+                onClick={exportSimulationCsv}
+                disabled={!simulationResult}
+              >
+                Export CSV
+              </button>
+
+              <button type="button" onClick={clearSimulation}>
+                Clear Results
+              </button>
+            </div>
+          </div>
+
+          {simulationMessage ? (
+            <div className="studio-simulation-message">
+              {simulationMessage}
+            </div>
+          ) : null}
+
+          {simulationResult ? (
+            <div className="studio-simulation-results">
+              <div
+                className={
+                  simulationResult.pollingMovement >= 0
+                    ? "studio-simulation-positive"
+                    : "studio-simulation-negative"
+                }
+              >
+                <span>Polling Movement</span>
+                <strong>
+                  {simulationResult.pollingMovement >= 0 ? "+" : ""}
+                  {simulationResult.pollingMovement}
+                </strong>
+                <small>
+                  Projected polling:{" "}
+                  {percent(simulationResult.projectedPolling)}
+                </small>
+              </div>
+
+              <div
+                className={
+                  simulationResult.turnoutMovement >= 0
+                    ? "studio-simulation-positive"
+                    : "studio-simulation-negative"
+                }
+              >
+                <span>Turnout Movement</span>
+                <strong>
+                  {simulationResult.turnoutMovement >= 0 ? "+" : ""}
+                  {simulationResult.turnoutMovement}
+                </strong>
+                <small>
+                  Projected turnout:{" "}
+                  {percent(simulationResult.projectedTurnout)}
+                </small>
+              </div>
+
+              <div>
+                <span>Projected Fundraising</span>
+                <strong>
+                  {money(simulationResult.projectedFundraising)}
+                </strong>
+                <small>
+                  Baseline: {money(simulationFundraisingBaseline)}
+                </small>
+              </div>
+
+              <div
+                className={
+                  simulationResult.winProbability >= 50
+                    ? "studio-simulation-positive"
+                    : "studio-simulation-negative"
+                }
+              >
+                <span>Win Probability</span>
+                <strong>
+                  {percent(simulationResult.winProbability)}
+                </strong>
+                <small>Modeled scenario output</small>
+              </div>
+
+              <div>
+                <span>Execution Score</span>
+                <strong>
+                  {percent(simulationResult.executionScore)}
+                </strong>
+                <small>Operational readiness estimate</small>
+              </div>
+
+              <div>
+                <span>Cash Impact</span>
+                <strong>
+                  {money(simulationResult.cashImpact)}
+                </strong>
+                <small>Additional planned investment</small>
+              </div>
+
+              <div>
+                <span>Risk Level</span>
+                <strong>{simulationResult.risk}</strong>
+                <small>Selected execution posture</small>
+              </div>
+
+              <div>
+                <span>Scenario</span>
+                <strong>
+                  {
+                    SIMULATION_SCENARIOS.find(
+                      (item) =>
+                        item.key === simulationResult.scenario
+                    )?.label
+                  }
+                </strong>
+                <small>{simulationResult.name}</small>
+              </div>
+            </div>
+          ) : (
+            <EmptyState text="Configure a scenario and run the Campaign Simulation Engine." />
+          )}
+
+          <div className="studio-simulation-history">
+            {simulationHistory.length ? (
+              simulationHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="studio-simulation-history-item"
+                >
+                  <div>
+                    <strong>{item.name}</strong>
+                    <small>
+                      Win {percent(item.winProbability)} • Polling{" "}
+                      {item.pollingMovement >= 0 ? "+" : ""}
+                      {item.pollingMovement} • Turnout{" "}
+                      {item.turnoutMovement >= 0 ? "+" : ""}
+                      {item.turnoutMovement} •{" "}
+                      {fmtDate(item.createdAt)}
+                    </small>
+                  </div>
+
+                  <div className="studio-simulation-history-actions">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        loadSimulationHistory(item)
+                      }
+                    >
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeSimulationHistory(item.id)
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <EmptyState text="No campaign simulations have been run yet." />
+            )}
           </div>
         </div>
       </CollapsibleSection>
