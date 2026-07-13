@@ -18,7 +18,7 @@ import PredictiveCampaignSimulation from "./pages/PredictiveCampaignSimulation";
 import NationalPoliticalDigitalTwin from "./pages/NationalPoliticalDigitalTwin";
 import AutonomousCampaignOperations from "./pages/AutonomousCampaignOperations";
 import ExecutiveAICommandPlatform from "./pages/ExecutiveAICommandPlatform";
-import UnifiedExecutiveIntelligenceProvider, from "./context/UnifiedExecutiveIntelligenceContext.jsx";
+import { UnifiedExecutiveIntelligenceProvider,} from "./context/UnifiedExecutiveIntelligenceContext.jsx";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
@@ -122,8 +122,10 @@ function ShellLayout() {
     <DemoModeProvider>
       <ExecutiveFiltersProvider>
         <WorkspaceProvider>
-          <AppShell />
-          <VirtualTour />
+          <UnifiedExecutiveIntelligenceProvider>
+            <AppShell />
+            <VirtualTour />
+          </UnifiedExecutiveIntelligenceProvider>
         </WorkspaceProvider>
       </ExecutiveFiltersProvider>
     </DemoModeProvider>
@@ -316,7 +318,6 @@ function AppRoutes() {
               <Route path="/executive-ai-command-platform" element={<ExecutiveAICommandPlatform />} />
               <Route path="/campaign-copilot" element={<Navigate to="/campaign-operations-studio"replace />} />
               <Route path="/campaign-operations-studio" element={<CampaignOperationsStudioAI />} />
-              <Route path="/executive-intelligence" element={<CrossWorkspaceExecutiveDashboard />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
