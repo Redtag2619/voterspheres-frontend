@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useUnifiedExecutiveIntelligence } from "../context/UnifiedExecutiveIntelligenceContext";
 
 function number(value = 0) {
-  return Number.isFinite(Number(value)) ? Number(value) : 0;
+  return Number.isFinite(Number(value)) ? Number(value) : 0; 
 }
 
 function percent(value = 0) {
