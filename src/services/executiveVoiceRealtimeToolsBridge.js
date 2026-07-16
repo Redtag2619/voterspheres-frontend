@@ -1,4 +1,4 @@
-import {
+﻿import {
   getExecutiveVoiceToolDefinitions,
   handleRealtimeExecutiveVoiceToolCall,
 } from "./executiveVoiceToolsApi";
@@ -320,8 +320,6 @@ export function createExecutiveVoiceLiveToolsBridge({
   };
 }
 
-<<<<<<< HEAD
 export default createExecutiveVoiceLiveToolsBridge;
-=======
-export default createExecutiveVoiceLiveToolsBridge;
->>>>>>> 9f9f13e (Connect Executive Voice Realtime to live data tools)
+
+
