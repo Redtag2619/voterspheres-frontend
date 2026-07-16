@@ -570,13 +570,17 @@ export class ExecutiveVoiceRealtimeClient {
            * Preserve the existing backend-generated
            * Realtime session configuration.
            */
-          if (
-            session.session_update
-          ) {
-            this.sendEvent(
-              session.session_update
-            );
-          }
+          if (session.session_update) {
+            this.sendEvent({
+              ...session.session_update,
+
+             session: {
+               type: "realtime",
+
+               ...(session.session_update.session || {}),
+            },
+          });
+        }
 
           /*
            * Register the VoterSpheres live-data tool
