@@ -1,4 +1,5 @@
 import { api } from "./api";
+import createExecutiveVoiceLiveToolsBridge from "./executiveVoiceRealtimeToolsBridge";
 
 function unwrapResponse(value) {
   return value?.data || value || {};
@@ -56,6 +57,13 @@ export class ExecutiveVoiceRealtimeClient {
     this.connected = false;
     this.destroyed = false;
     this.assistantTranscript = "";
+
+    /*
+     * Executive Voice Live Data Tools
+     */
+    this.liveToolsBridge = null;
+    this.liveToolsStatus = "idle";
+    this.lastLiveTool = null;
   }
 
   setStatus(status, detail = null) {
@@ -70,11 +78,249 @@ export class ExecutiveVoiceRealtimeClient {
       error instanceof Error
         ? error
         : new Error(
-            String(error || "Unknown realtime voice error.")
+            String(
+              error ||
+                "Unknown realtime voice error."
+            )
           );
 
     this.onError?.(normalized);
-    this.setStatus("error", normalized.message);
+    this.setStatus(
+      "error",
+      normalized.message
+    );
+  }
+
+  initializeLiveToolsBridge() {
+    if (this.liveToolsBridge) {
+      return this.liveToolsBridge;
+    }
+
+    this.liveToolsBridge =
+      createExecutiveVoiceLiveToolsBridge({
+        sendEvent: (event) =>
+          this.sendEvent(event),
+
+        onStatus: ({
+          status,
+          detail,
+        }) => {
+          this.liveToolsStatus =
+            status || "idle";
+
+          this.onEvent?.({
+            type:
+              "executive_voice_live_tools_status",
+
+            status:
+              this.liveToolsStatus,
+
+            detail:
+              detail || null,
+          });
+        },
+
+        onToolStarted: (call) => {
+          this.lastLiveTool = {
+            name:
+              call.name,
+
+            call_id:
+              call.callId,
+
+            status:
+              "running",
+          };
+
+          this.onEvent?.({
+            type:
+              "executive_voice_live_tool_started",
+
+            tool:
+              call.name,
+
+            call_id:
+              call.callId,
+          });
+        },
+
+        onToolCompleted: ({
+          name,
+          callId,
+          result,
+        }) => {
+          this.lastLiveTool = {
+            name,
+
+            call_id:
+              callId,
+
+            status:
+              "complete",
+          };
+
+          this.onEvent?.({
+            type:
+              "executive_voice_live_tool_completed",
+
+            tool:
+              name,
+
+            call_id:
+              callId,
+
+            result:
+              result || null,
+          });
+        },
+
+        onToolError: ({
+          name,
+          callId,
+          error,
+        }) => {
+          this.lastLiveTool = {
+            name,
+
+            call_id:
+              callId,
+
+            status:
+              "error",
+          };
+
+          this.onEvent?.({
+            type:
+              "executive_voice_live_tool_error",
+
+            tool:
+              name,
+
+            call_id:
+              callId,
+
+            error:
+              error?.message ||
+              "Live-data tool execution failed.",
+          });
+        },
+      });
+
+    return this.liveToolsBridge;
+  }
+
+  async registerLiveTools() {
+    try {
+      const bridge =
+        this.initializeLiveToolsBridge();
+
+      this.liveToolsStatus =
+        "registering";
+
+      this.onEvent?.({
+        type:
+          "executive_voice_live_tools_registering",
+      });
+
+      const registration =
+        await bridge.registerTools();
+
+      this.liveToolsStatus =
+        "ready";
+
+      this.onEvent?.({
+        type:
+          "executive_voice_live_tools_ready",
+
+        tool_count:
+          registration?.tool_count ||
+          registration?.tools?.length ||
+          0,
+      });
+
+      return registration;
+    } catch (error) {
+      this.liveToolsStatus =
+        "degraded";
+
+      console.error(
+        "[Executive Voice] Live tool registration failed:",
+        error
+      );
+
+      this.onEvent?.({
+        type:
+          "executive_voice_live_tools_error",
+
+        error:
+          error?.message ||
+          "Live tool registration failed.",
+      });
+
+      /*
+       * Live-data tools are optional. The Realtime
+       * conversation must remain available even when
+       * the live-data layer cannot register.
+       */
+      return {
+        ok: false,
+
+        error:
+          error?.message ||
+          "Live tool registration failed.",
+      };
+    }
+  }
+
+  async handleLiveToolsEvent(event) {
+    if (!event) {
+      return {
+        handled: false,
+      };
+    }
+
+    try {
+      const bridge =
+        this.initializeLiveToolsBridge();
+
+      return await bridge.handleServerEvent(
+        event
+      );
+    } catch (error) {
+      console.error(
+        "[Executive Voice] Live tool event failed:",
+        error
+      );
+
+      this.liveToolsStatus =
+        "degraded";
+
+      this.onEvent?.({
+        type:
+          "executive_voice_live_tools_error",
+
+        error:
+          error?.message ||
+          "Live tool event handling failed.",
+      });
+
+      return {
+        handled: false,
+        error,
+      };
+    }
+  }
+
+  resetLiveTools() {
+    try {
+      this.liveToolsBridge?.reset?.();
+    } catch {
+      // Ignore optional live-tools cleanup errors.
+    }
+
+    this.liveToolsBridge = null;
+    this.liveToolsStatus = "idle";
+    this.lastLiveTool = null;
   }
 
   async createSession({
@@ -88,12 +334,15 @@ export class ExecutiveVoiceRealtimeClient {
       {
         voice,
         agent,
-        workspace_id: workspaceId,
-        executive_context: executiveContext,
+        workspace_id:
+          workspaceId,
+        executive_context:
+          executiveContext,
       }
     );
 
-    const payload = unwrapResponse(response);
+    const payload =
+      unwrapResponse(response);
 
     if (!payload.client_secret) {
       throw new Error(
@@ -117,22 +366,29 @@ export class ExecutiveVoiceRealtimeClient {
     }
 
     this.destroyed = false;
-    this.setStatus("requesting_session");
+
+    this.setStatus(
+      "requesting_session"
+    );
 
     try {
-      const session = await this.createSession({
-        voice,
-        agent,
-        workspaceId,
-        executiveContext,
-      });
+      const session =
+        await this.createSession({
+          voice,
+          agent,
+          workspaceId,
+          executiveContext,
+        });
 
       this.session = session;
 
-      this.setStatus("requesting_microphone");
+      this.setStatus(
+        "requesting_microphone"
+      );
 
       if (
-        !navigator?.mediaDevices?.getUserMedia
+        !navigator?.mediaDevices
+          ?.getUserMedia
       ) {
         throw new Error(
           "This browser does not support microphone access."
@@ -142,30 +398,42 @@ export class ExecutiveVoiceRealtimeClient {
       const localStream =
         await navigator.mediaDevices.getUserMedia({
           audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
+            echoCancellation:
+              true,
+
+            noiseSuppression:
+              true,
+
+            autoGainControl:
+              true,
+
+            channelCount:
+              1,
           },
+
           video: false,
         });
 
       if (this.destroyed) {
         localStream
           .getTracks()
-          .forEach((track) => track.stop());
+          .forEach((track) =>
+            track.stop()
+          );
 
         throw new Error(
           "Realtime voice connection was cancelled."
         );
       }
 
-      this.localStream = localStream;
+      this.localStream =
+        localStream;
 
       const peerConnection =
         new RTCPeerConnection();
 
-      this.peerConnection = peerConnection;
+      this.peerConnection =
+        peerConnection;
 
       localStream
         .getAudioTracks()
@@ -179,44 +447,68 @@ export class ExecutiveVoiceRealtimeClient {
       this.audioElement =
         audioElement ||
         Object.assign(
-          document.createElement("audio"),
+          document.createElement(
+            "audio"
+          ),
           {
             autoplay: true,
           }
         );
 
-      this.audioElement.autoplay = true;
-      this.audioElement.playsInline = true;
+      this.audioElement.autoplay =
+        true;
 
-      peerConnection.ontrack = (event) => {
-        const [stream] = event.streams;
+      this.audioElement.playsInline =
+        true;
 
-        if (!stream) return;
+      peerConnection.ontrack =
+        (event) => {
+          const [stream] =
+            event.streams;
 
-        this.remoteStream = stream;
-        this.audioElement.srcObject = stream;
+          if (!stream) {
+            return;
+          }
 
-        const playPromise =
-          this.audioElement.play?.();
+          this.remoteStream =
+            stream;
 
-        playPromise?.catch?.(() => {
-          this.setStatus(
-            "audio_blocked",
-            "Browser interaction may be required before audio can play."
+          this.audioElement.srcObject =
+            stream;
+
+          const playPromise =
+            this.audioElement.play?.();
+
+          playPromise?.catch?.(
+            () => {
+              this.setStatus(
+                "audio_blocked",
+
+                "Browser interaction may be required before audio can play."
+              );
+            }
           );
-        });
-      };
+        };
 
       peerConnection.onconnectionstatechange =
         () => {
           const state =
             peerConnection.connectionState;
 
-          this.setStatus(`peer_${state}`);
+          this.setStatus(
+            `peer_${state}`
+          );
 
-          if (state === "connected") {
-            this.connected = true;
-            this.setStatus("connected");
+          if (
+            state ===
+            "connected"
+          ) {
+            this.connected =
+              true;
+
+            this.setStatus(
+              "connected"
+            );
           }
 
           if (
@@ -226,26 +518,37 @@ export class ExecutiveVoiceRealtimeClient {
               "disconnected",
             ].includes(state)
           ) {
-            this.connected = false;
+            this.connected =
+              false;
           }
         };
 
       peerConnection.oniceconnectionstatechange =
         () => {
           this.onEvent?.({
-            type: "client.ice_state",
+            type:
+              "client.ice_state",
+
             state:
-              peerConnection.iceConnectionState,
+              peerConnection
+                .iceConnectionState,
           });
         };
 
       peerConnection.onicecandidateerror =
         (event) => {
           this.onEvent?.({
-            type: "client.ice_candidate_error",
-            errorCode: event.errorCode,
-            errorText: event.errorText,
-            url: event.url,
+            type:
+              "client.ice_candidate_error",
+
+            errorCode:
+              event.errorCode,
+
+            errorText:
+              event.errorText,
+
+            url:
+              event.url,
           });
         };
 
@@ -254,42 +557,90 @@ export class ExecutiveVoiceRealtimeClient {
           "oai-events"
         );
 
-      this.dataChannel = dataChannel;
+      this.dataChannel =
+        dataChannel;
 
-      dataChannel.onopen = () => {
-        this.setStatus("data_channel_open");
-
-        if (session.session_update) {
-          this.sendEvent(
-            session.session_update
+      dataChannel.onopen =
+        async () => {
+          this.setStatus(
+            "data_channel_open"
           );
-        }
-      };
 
-      dataChannel.onmessage = (event) => {
-        const parsed =
-          safeJsonParse(event.data);
+          /*
+           * Preserve the existing backend-generated
+           * Realtime session configuration.
+           */
+          if (
+            session.session_update
+          ) {
+            this.sendEvent(
+              session.session_update
+            );
+          }
 
-        if (parsed) {
-          this.handleRealtimeEvent(parsed);
-        }
-      };
+          /*
+           * Register the VoterSpheres live-data tool
+           * definitions after the channel is open.
+           */
+          await this.registerLiveTools();
+        };
 
-      dataChannel.onerror = () => {
-        this.emitError(
-          new Error(
-            "Realtime data channel failed."
-          )
-        );
-      };
+      dataChannel.onmessage =
+        async (event) => {
+          const parsed =
+            safeJsonParse(
+              event.data
+            );
 
-      dataChannel.onclose = () => {
-        this.setStatus(
-          "data_channel_closed"
-        );
-      };
+          if (!parsed) {
+            return;
+          }
 
-      this.setStatus("creating_offer");
+          /*
+           * Let the live-data bridge intercept completed
+           * function calls and return function outputs.
+           */
+          const liveToolResult =
+            await this.handleLiveToolsEvent(
+              parsed
+            );
+
+          if (
+            liveToolResult?.handled
+          ) {
+            return;
+          }
+
+          /*
+           * Preserve all existing transcript, speech,
+           * session, status, and error handling.
+           */
+          this.handleRealtimeEvent(
+            parsed
+          );
+        };
+
+      dataChannel.onerror =
+        () => {
+          this.emitError(
+            new Error(
+              "Realtime data channel failed."
+            )
+          );
+        };
+
+      dataChannel.onclose =
+        () => {
+          this.resetLiveTools();
+
+          this.setStatus(
+            "data_channel_closed"
+          );
+        };
+
+      this.setStatus(
+        "creating_offer"
+      );
 
       const offer =
         await peerConnection.createOffer();
@@ -306,18 +657,25 @@ export class ExecutiveVoiceRealtimeClient {
         session.realtime_calls_url ||
         "https://api.openai.com/v1/realtime/calls";
 
-      const answerResponse = await fetch(
-        callsUrl,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.client_secret}`,
-            "Content-Type":
-              "application/sdp",
-          },
-          body: offer.sdp,
-        }
-      );
+      const answerResponse =
+        await fetch(
+          callsUrl,
+          {
+            method:
+              "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${session.client_secret}`,
+
+              "Content-Type":
+                "application/sdp",
+            },
+
+            body:
+              offer.sdp,
+          }
+        );
 
       const answerSdp =
         await answerResponse.text();
@@ -330,11 +688,16 @@ export class ExecutiveVoiceRealtimeClient {
       }
 
       await peerConnection.setRemoteDescription({
-        type: "answer",
-        sdp: answerSdp,
+        type:
+          "answer",
+
+        sdp:
+          answerSdp,
       });
 
-      this.setStatus("negotiating");
+      this.setStatus(
+        "negotiating"
+      );
 
       return session;
     } catch (error) {
@@ -352,25 +715,43 @@ export class ExecutiveVoiceRealtimeClient {
     switch (event.type) {
       case "session.created":
       case "session.updated":
-        this.setStatus("session_ready");
+        this.setStatus(
+          "session_ready"
+        );
         break;
 
       case "input_audio_buffer.speech_started":
-        this.onSpeechStarted?.(event);
-        this.setStatus("listening");
+        this.onSpeechStarted?.(
+          event
+        );
+
+        this.setStatus(
+          "listening"
+        );
         break;
 
       case "input_audio_buffer.speech_stopped":
-        this.onSpeechStopped?.(event);
-        this.setStatus("thinking");
+        this.onSpeechStopped?.(
+          event
+        );
+
+        this.setStatus(
+          "thinking"
+        );
         break;
 
       case "conversation.item.input_audio_transcription.delta":
         if (event.delta) {
           this.onUserTranscript?.({
-            text: event.delta,
-            delta: true,
-            itemId: event.item_id,
+            text:
+              event.delta,
+
+            delta:
+              true,
+
+            itemId:
+              event.item_id,
+
             event,
           });
         }
@@ -378,9 +759,16 @@ export class ExecutiveVoiceRealtimeClient {
 
       case "conversation.item.input_audio_transcription.completed":
         this.onUserTranscript?.({
-          text: event.transcript || "",
-          delta: false,
-          itemId: event.item_id,
+          text:
+            event.transcript ||
+            "",
+
+          delta:
+            false,
+
+          itemId:
+            event.item_id,
+
           event,
         });
         break;
@@ -394,14 +782,22 @@ export class ExecutiveVoiceRealtimeClient {
           this.onAssistantTranscriptDelta?.({
             text:
               this.assistantTranscript,
-            delta: event.delta,
-            itemId: event.item_id,
+
+            delta:
+              event.delta,
+
+            itemId:
+              event.item_id,
+
             responseId:
               event.response_id,
+
             event,
           });
 
-          this.setStatus("speaking");
+          this.setStatus(
+            "speaking"
+          );
         }
         break;
 
@@ -414,29 +810,46 @@ export class ExecutiveVoiceRealtimeClient {
           "";
 
         this.onAssistantTranscript?.({
-          text: finalText,
-          itemId: event.item_id,
+          text:
+            finalText,
+
+          itemId:
+            event.item_id,
+
           responseId:
             event.response_id,
+
           event,
         });
 
-        this.assistantTranscript = "";
+        this.assistantTranscript =
+          "";
+
         break;
       }
 
       case "response.created":
-        this.assistantTranscript = "";
-        this.setStatus("responding");
+        this.assistantTranscript =
+          "";
+
+        this.setStatus(
+          "responding"
+        );
         break;
 
       case "response.done":
-        this.setStatus("ready");
+        this.setStatus(
+          "ready"
+        );
         break;
 
       case "response.cancelled":
-        this.assistantTranscript = "";
-        this.setStatus("interrupted");
+        this.assistantTranscript =
+          "";
+
+        this.setStatus(
+          "interrupted"
+        );
         break;
 
       case "error":
@@ -457,7 +870,8 @@ export class ExecutiveVoiceRealtimeClient {
   sendEvent(event) {
     if (
       !this.dataChannel ||
-      this.dataChannel.readyState !== "open"
+      this.dataChannel.readyState !==
+        "open"
     ) {
       return false;
     }
@@ -466,11 +880,14 @@ export class ExecutiveVoiceRealtimeClient {
       event_id:
         event.event_id ||
         createEventId(),
+
       ...event,
     };
 
     this.dataChannel.send(
-      JSON.stringify(payload)
+      JSON.stringify(
+        payload
+      )
     );
 
     return true;
@@ -483,55 +900,73 @@ export class ExecutiveVoiceRealtimeClient {
       metadata = null,
     } = {}
   ) {
-    const cleanText = String(
-      text || ""
-    ).trim();
+    const cleanText =
+      String(
+        text || ""
+      ).trim();
 
     if (!cleanText) {
       return false;
     }
 
-    const itemCreated = this.sendEvent({
-      type: "conversation.item.create",
+    const itemCreated =
+      this.sendEvent({
+        type:
+          "conversation.item.create",
 
-      item: {
-        type: "message",
-        role: "user",
+        item: {
+          type:
+            "message",
 
-        content: [
-          {
-            type: "input_text",
-            text: cleanText,
-          },
-        ],
+          role:
+            "user",
 
-        ...(metadata
-          ? { metadata }
-          : {}),
-      },
-    });
+          content: [
+            {
+              type:
+                "input_text",
+
+              text:
+                cleanText,
+            },
+          ],
+
+          ...(metadata
+            ? {
+                metadata,
+              }
+            : {}),
+        },
+      });
 
     if (!itemCreated) {
       return false;
     }
 
     return this.sendEvent({
-      type: "response.create",
+      type:
+        "response.create",
 
-      response: instructions
-        ? {
-            instructions,
-          }
-        : {},
+      response:
+        instructions
+          ? {
+              instructions,
+            }
+          : {},
     });
   }
 
-  updateSession(sessionPatch = {}) {
+  updateSession(
+    sessionPatch = {}
+  ) {
     return this.sendEvent({
-      type: "session.update",
+      type:
+        "session.update",
 
       session: {
-        type: "realtime",
+        type:
+          "realtime",
+
         ...sessionPatch,
       },
     });
@@ -539,34 +974,55 @@ export class ExecutiveVoiceRealtimeClient {
 
   interrupt() {
     this.sendEvent({
-      type: "response.cancel",
+      type:
+        "response.cancel",
     });
 
     this.sendEvent({
-      type: "output_audio_buffer.clear",
+      type:
+        "output_audio_buffer.clear",
     });
 
-    if (this.audioElement) {
-      this.audioElement.muted = true;
+    if (
+      this.audioElement
+    ) {
+      this.audioElement.muted =
+        true;
 
-      window.setTimeout(() => {
-        if (this.audioElement) {
-          this.audioElement.muted = false;
-        }
-      }, 60);
+      window.setTimeout(
+        () => {
+          if (
+            this.audioElement
+          ) {
+            this.audioElement.muted =
+              false;
+          }
+        },
+        60
+      );
     }
 
-    this.assistantTranscript = "";
+    this.assistantTranscript =
+      "";
 
-    this.setStatus("interrupted");
+    this.setStatus(
+      "interrupted"
+    );
   }
 
-  setMicrophoneEnabled(enabled) {
+  setMicrophoneEnabled(
+    enabled
+  ) {
     this.localStream
       ?.getAudioTracks()
-      .forEach((track) => {
-        track.enabled = Boolean(enabled);
-      });
+      .forEach(
+        (track) => {
+          track.enabled =
+            Boolean(
+              enabled
+            );
+        }
+      );
 
     this.setStatus(
       enabled
@@ -576,18 +1032,27 @@ export class ExecutiveVoiceRealtimeClient {
   }
 
   async resumeAudio() {
-    if (!this.audioElement) {
+    if (
+      !this.audioElement
+    ) {
       return;
     }
 
-    this.audioElement.muted = false;
+    this.audioElement.muted =
+      false;
 
     await this.audioElement.play?.();
   }
 
-  async disconnect() {
+    async disconnect() {
     this.destroyed = true;
     this.connected = false;
+
+    /*
+     * Reset Executive Voice live-data tools before closing
+     * the WebRTC data channel.
+     */
+    this.resetLiveTools();
 
     try {
       this.dataChannel?.close?.();
@@ -603,15 +1068,11 @@ export class ExecutiveVoiceRealtimeClient {
 
     this.localStream
       ?.getTracks?.()
-      .forEach((track) =>
-        track.stop()
-      );
+      .forEach((track) => track.stop());
 
     this.remoteStream
       ?.getTracks?.()
-      .forEach((track) =>
-        track.stop()
-      );
+      .forEach((track) => track.stop());
 
     if (this.audioElement) {
       this.audioElement.pause?.();
@@ -623,7 +1084,15 @@ export class ExecutiveVoiceRealtimeClient {
     this.localStream = null;
     this.remoteStream = null;
     this.session = null;
+
     this.assistantTranscript = "";
+
+    /*
+     * Executive Voice Live Data state
+     */
+    this.liveToolsBridge = null;
+    this.liveToolsStatus = "idle";
+    this.lastLiveTool = null;
 
     this.setStatus("disconnected");
   }
@@ -636,3 +1105,7 @@ export function createExecutiveVoiceRealtimeClient(
     options
   );
 }
+
+export default ExecutiveVoiceRealtimeClient;
+
+
