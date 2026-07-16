@@ -116,9 +116,14 @@ export function createExecutiveVoiceLiveToolsBridge({
 
         sendEvent({
           type: "session.update",
+
           session: {
+            type: "realtime",
+
             tools,
+
             tool_choice: "auto",
+
             instructions,
           },
         });
