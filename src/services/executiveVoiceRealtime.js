@@ -26,6 +26,51 @@ function createEventId(prefix = "evt") {
     .slice(2)}`;
 }
 
+/*
+ * Every outgoing session.update must contain:
+ *
+ * session: {
+ *   type: "realtime"
+ * }
+ *
+ * Placing type after the session spread prevents an undefined,
+ * null, or stale value from overwriting the required value.
+ */
+function normalizeOutgoingEvent(event = {}) {
+  if (
+    !event ||
+    typeof event !== "object"
+  ) {
+    return event;
+  }
+
+  if (
+    event.type !== "session.update"
+  ) {
+    return event;
+  }
+
+  const existingSession =
+    event.session &&
+    typeof event.session === "object"
+      ? event.session
+      : {};
+
+  return {
+    ...event,
+
+    type:
+      "session.update",
+
+    session: {
+      ...existingSession,
+
+      type:
+        "realtime",
+    },
+  };
+}
+
 export class ExecutiveVoiceRealtimeClient {
   constructor({
     onStatus,
@@ -37,36 +82,74 @@ export class ExecutiveVoiceRealtimeClient {
     onSpeechStopped,
     onError,
   } = {}) {
-    this.onStatus = onStatus;
-    this.onEvent = onEvent;
-    this.onUserTranscript = onUserTranscript;
-    this.onAssistantTranscript = onAssistantTranscript;
+    this.onStatus =
+      onStatus;
+
+    this.onEvent =
+      onEvent;
+
+    this.onUserTranscript =
+      onUserTranscript;
+
+    this.onAssistantTranscript =
+      onAssistantTranscript;
+
     this.onAssistantTranscriptDelta =
       onAssistantTranscriptDelta;
-    this.onSpeechStarted = onSpeechStarted;
-    this.onSpeechStopped = onSpeechStopped;
-    this.onError = onError;
 
-    this.peerConnection = null;
-    this.dataChannel = null;
-    this.localStream = null;
-    this.remoteStream = null;
-    this.audioElement = null;
-    this.session = null;
+    this.onSpeechStarted =
+      onSpeechStarted;
 
-    this.connected = false;
-    this.destroyed = false;
-    this.assistantTranscript = "";
+    this.onSpeechStopped =
+      onSpeechStopped;
+
+    this.onError =
+      onError;
+
+    this.peerConnection =
+      null;
+
+    this.dataChannel =
+      null;
+
+    this.localStream =
+      null;
+
+    this.remoteStream =
+      null;
+
+    this.audioElement =
+      null;
+
+    this.session =
+      null;
+
+    this.connected =
+      false;
+
+    this.destroyed =
+      false;
+
+    this.assistantTranscript =
+      "";
 
     /*
      * Executive Voice Live Data Tools
      */
-    this.liveToolsBridge = null;
-    this.liveToolsStatus = "idle";
-    this.lastLiveTool = null;
+    this.liveToolsBridge =
+      null;
+
+    this.liveToolsStatus =
+      "idle";
+
+    this.lastLiveTool =
+      null;
   }
 
-  setStatus(status, detail = null) {
+  setStatus(
+    status,
+    detail = null
+  ) {
     this.onStatus?.({
       status,
       detail,
@@ -84,7 +167,10 @@ export class ExecutiveVoiceRealtimeClient {
             )
           );
 
-    this.onError?.(normalized);
+    this.onError?.(
+      normalized
+    );
+
     this.setStatus(
       "error",
       normalized.message
@@ -92,21 +178,31 @@ export class ExecutiveVoiceRealtimeClient {
   }
 
   initializeLiveToolsBridge() {
-    if (this.liveToolsBridge) {
+    if (
+      this.liveToolsBridge
+    ) {
       return this.liveToolsBridge;
     }
 
     this.liveToolsBridge =
       createExecutiveVoiceLiveToolsBridge({
+        /*
+         * All bridge events pass through this.sendEvent().
+         * That means any session.update created by the
+         * tools bridge is automatically normalized.
+         */
         sendEvent: (event) =>
-          this.sendEvent(event),
+          this.sendEvent(
+            event
+          ),
 
         onStatus: ({
           status,
           detail,
         }) => {
           this.liveToolsStatus =
-            status || "idle";
+            status ||
+            "idle";
 
           this.onEvent?.({
             type:
@@ -116,11 +212,14 @@ export class ExecutiveVoiceRealtimeClient {
               this.liveToolsStatus,
 
             detail:
-              detail || null,
+              detail ||
+              null,
           });
         },
 
-        onToolStarted: (call) => {
+        onToolStarted: (
+          call
+        ) => {
           this.lastLiveTool = {
             name:
               call.name,
@@ -170,7 +269,8 @@ export class ExecutiveVoiceRealtimeClient {
               callId,
 
             result:
-              result || null,
+              result ||
+              null,
           });
         },
 
@@ -258,12 +358,12 @@ export class ExecutiveVoiceRealtimeClient {
       });
 
       /*
-       * Live-data tools are optional. The Realtime
-       * conversation must remain available even when
-       * the live-data layer cannot register.
+       * Live-data tools are optional. Voice conversation
+       * remains available when registration fails.
        */
       return {
-        ok: false,
+        ok:
+          false,
 
         error:
           error?.message ||
@@ -272,10 +372,13 @@ export class ExecutiveVoiceRealtimeClient {
     }
   }
 
-  async handleLiveToolsEvent(event) {
+  async handleLiveToolsEvent(
+    event
+  ) {
     if (!event) {
       return {
-        handled: false,
+        handled:
+          false,
       };
     }
 
@@ -305,7 +408,9 @@ export class ExecutiveVoiceRealtimeClient {
       });
 
       return {
-        handled: false,
+        handled:
+          false,
+
         error,
       };
     }
@@ -315,12 +420,19 @@ export class ExecutiveVoiceRealtimeClient {
     try {
       this.liveToolsBridge?.reset?.();
     } catch {
-      // Ignore optional live-tools cleanup errors.
+      /*
+       * Ignore optional live-tools cleanup errors.
+       */
     }
 
-    this.liveToolsBridge = null;
-    this.liveToolsStatus = "idle";
-    this.lastLiveTool = null;
+    this.liveToolsBridge =
+      null;
+
+    this.liveToolsStatus =
+      "idle";
+
+    this.lastLiveTool =
+      null;
   }
 
   async createSession({
@@ -329,22 +441,29 @@ export class ExecutiveVoiceRealtimeClient {
     workspaceId = 1,
     executiveContext = {},
   } = {}) {
-    const response = await api.post(
-      "/executive-voice/session",
-      {
-        voice,
-        agent,
-        workspace_id:
-          workspaceId,
-        executive_context:
-          executiveContext,
-      }
-    );
+    const response =
+      await api.post(
+        "/executive-voice/session",
+        {
+          voice,
+          agent,
+
+          workspace_id:
+            workspaceId,
+
+          executive_context:
+            executiveContext,
+        }
+      );
 
     const payload =
-      unwrapResponse(response);
+      unwrapResponse(
+        response
+      );
 
-    if (!payload.client_secret) {
+    if (
+      !payload.client_secret
+    ) {
       throw new Error(
         payload.error ||
           "Executive Voice session endpoint did not return a client secret."
@@ -361,11 +480,14 @@ export class ExecutiveVoiceRealtimeClient {
     executiveContext = {},
     audioElement = null,
   } = {}) {
-    if (this.connected) {
+    if (
+      this.connected
+    ) {
       return this.session;
     }
 
-    this.destroyed = false;
+    this.destroyed =
+      false;
 
     this.setStatus(
       "requesting_session"
@@ -380,7 +502,8 @@ export class ExecutiveVoiceRealtimeClient {
           executiveContext,
         });
 
-      this.session = session;
+      this.session =
+        session;
 
       this.setStatus(
         "requesting_microphone"
@@ -411,14 +534,18 @@ export class ExecutiveVoiceRealtimeClient {
               1,
           },
 
-          video: false,
+          video:
+            false,
         });
 
-      if (this.destroyed) {
+      if (
+        this.destroyed
+      ) {
         localStream
           .getTracks()
-          .forEach((track) =>
-            track.stop()
+          .forEach(
+            (track) =>
+              track.stop()
           );
 
         throw new Error(
@@ -437,12 +564,14 @@ export class ExecutiveVoiceRealtimeClient {
 
       localStream
         .getAudioTracks()
-        .forEach((track) => {
-          peerConnection.addTrack(
-            track,
-            localStream
-          );
-        });
+        .forEach(
+          (track) => {
+            peerConnection.addTrack(
+              track,
+              localStream
+            );
+          }
+        );
 
       this.audioElement =
         audioElement ||
@@ -451,7 +580,8 @@ export class ExecutiveVoiceRealtimeClient {
             "audio"
           ),
           {
-            autoplay: true,
+            autoplay:
+              true,
           }
         );
 
@@ -483,7 +613,6 @@ export class ExecutiveVoiceRealtimeClient {
             () => {
               this.setStatus(
                 "audio_blocked",
-
                 "Browser interaction may be required before audio can play."
               );
             }
@@ -516,7 +645,9 @@ export class ExecutiveVoiceRealtimeClient {
               "failed",
               "closed",
               "disconnected",
-            ].includes(state)
+            ].includes(
+              state
+            )
           ) {
             this.connected =
               false;
@@ -567,24 +698,39 @@ export class ExecutiveVoiceRealtimeClient {
           );
 
           /*
-           * Preserve the existing backend-generated
-           * Realtime session configuration.
+           * Preserve the backend-generated session
+           * configuration while forcing the required
+           * Realtime session type.
            */
-          if (session.session_update) {
-            this.sendEvent({
-              ...session.session_update,
+          if (
+            session.session_update
+          ) {
+            const initialUpdate =
+              normalizeOutgoingEvent({
+                ...session.session_update,
 
-             session: {
-               type: "realtime",
+                type:
+                  "session.update",
 
-               ...(session.session_update.session || {}),
-            },
-          });
-        }
+                session: {
+                  ...(session
+                    .session_update
+                    .session ||
+                    {}),
+
+                  type:
+                    "realtime",
+                },
+              });
+
+            this.sendEvent(
+              initialUpdate
+            );
+          }
 
           /*
-           * Register the VoterSpheres live-data tool
-           * definitions after the channel is open.
+           * Register the VoterSpheres live-data tools only
+           * after the Realtime data channel is open.
            */
           await this.registerLiveTools();
         };
@@ -616,8 +762,8 @@ export class ExecutiveVoiceRealtimeClient {
           }
 
           /*
-           * Preserve all existing transcript, speech,
-           * session, status, and error handling.
+           * Preserve transcript, speech, session,
+           * status, and error handling.
            */
           this.handleRealtimeEvent(
             parsed
@@ -684,7 +830,9 @@ export class ExecutiveVoiceRealtimeClient {
       const answerSdp =
         await answerResponse.text();
 
-      if (!answerResponse.ok) {
+      if (
+        !answerResponse.ok
+      ) {
         throw new Error(
           answerSdp ||
             `Realtime WebRTC handshake failed with status ${answerResponse.status}.`
@@ -705,7 +853,9 @@ export class ExecutiveVoiceRealtimeClient {
 
       return session;
     } catch (error) {
-      this.emitError(error);
+      this.emitError(
+        error
+      );
 
       await this.disconnect();
 
@@ -714,9 +864,13 @@ export class ExecutiveVoiceRealtimeClient {
   }
 
   handleRealtimeEvent(event) {
-    this.onEvent?.(event);
+    this.onEvent?.(
+      event
+    );
 
-    switch (event.type) {
+    switch (
+      event.type
+    ) {
       case "session.created":
       case "session.updated":
         this.setStatus(
@@ -745,7 +899,9 @@ export class ExecutiveVoiceRealtimeClient {
         break;
 
       case "conversation.item.input_audio_transcription.delta":
-        if (event.delta) {
+        if (
+          event.delta
+        ) {
           this.onUserTranscript?.({
             text:
               event.delta,
@@ -779,7 +935,9 @@ export class ExecutiveVoiceRealtimeClient {
 
       case "response.output_audio_transcript.delta":
       case "response.output_text.delta":
-        if (event.delta) {
+        if (
+          event.delta
+        ) {
           this.assistantTranscript +=
             event.delta;
 
@@ -880,21 +1038,37 @@ export class ExecutiveVoiceRealtimeClient {
       return false;
     }
 
-    const payload = {
-      event_id:
-        event.event_id ||
-        createEventId(),
+    const normalizedEvent =
+      normalizeOutgoingEvent(
+        event
+      );
 
-      ...event,
+    const payload = {
+      ...normalizedEvent,
+
+      event_id:
+        normalizedEvent?.event_id ||
+        createEventId(),
     };
 
-    this.dataChannel.send(
-      JSON.stringify(
-        payload
-      )
-    );
+    try {
+      this.dataChannel.send(
+        JSON.stringify(
+          payload
+        )
+      );
 
-    return true;
+      return true;
+    } catch (error) {
+      this.emitError(
+        new Error(
+          error?.message ||
+            "Failed to send a Realtime event."
+        )
+      );
+
+      return false;
+    }
   }
 
   sendText(
@@ -906,10 +1080,13 @@ export class ExecutiveVoiceRealtimeClient {
   ) {
     const cleanText =
       String(
-        text || ""
+        text ||
+          ""
       ).trim();
 
-    if (!cleanText) {
+    if (
+      !cleanText
+    ) {
       return false;
     }
 
@@ -943,7 +1120,9 @@ export class ExecutiveVoiceRealtimeClient {
         },
       });
 
-    if (!itemCreated) {
+    if (
+      !itemCreated
+    ) {
       return false;
     }
 
@@ -968,10 +1147,15 @@ export class ExecutiveVoiceRealtimeClient {
         "session.update",
 
       session: {
+        ...sessionPatch,
+
+        /*
+         * Keep the required type after the spread so a
+         * caller cannot overwrite it with null, undefined,
+         * or a stale session value.
+         */
         type:
           "realtime",
-
-        ...sessionPatch,
       },
     });
   }
@@ -1048,13 +1232,16 @@ export class ExecutiveVoiceRealtimeClient {
     await this.audioElement.play?.();
   }
 
-    async disconnect() {
-    this.destroyed = true;
-    this.connected = false;
+  async disconnect() {
+    this.destroyed =
+      true;
+
+    this.connected =
+      false;
 
     /*
-     * Reset Executive Voice live-data tools before closing
-     * the WebRTC data channel.
+     * Shut down the live-data bridge before closing
+     * the Realtime transport.
      */
     this.resetLiveTools();
 
@@ -1072,33 +1259,59 @@ export class ExecutiveVoiceRealtimeClient {
 
     this.localStream
       ?.getTracks?.()
-      .forEach((track) => track.stop());
+      .forEach((track) =>
+        track.stop()
+      );
 
     this.remoteStream
       ?.getTracks?.()
-      .forEach((track) => track.stop());
+      .forEach((track) =>
+        track.stop()
+      );
 
-    if (this.audioElement) {
-      this.audioElement.pause?.();
-      this.audioElement.srcObject = null;
+    if (
+      this.audioElement
+    ) {
+      try {
+        this.audioElement.pause?.();
+      } catch {
+        // Ignore.
+      }
+
+      this.audioElement.srcObject =
+        null;
     }
 
-    this.dataChannel = null;
-    this.peerConnection = null;
-    this.localStream = null;
-    this.remoteStream = null;
-    this.session = null;
+    this.dataChannel =
+      null;
 
-    this.assistantTranscript = "";
+    this.peerConnection =
+      null;
 
-    /*
-     * Executive Voice Live Data state
-     */
-    this.liveToolsBridge = null;
-    this.liveToolsStatus = "idle";
-    this.lastLiveTool = null;
+    this.localStream =
+      null;
 
-    this.setStatus("disconnected");
+    this.remoteStream =
+      null;
+
+    this.session =
+      null;
+
+    this.assistantTranscript =
+      "";
+
+    this.liveToolsBridge =
+      null;
+
+    this.liveToolsStatus =
+      "idle";
+
+    this.lastLiveTool =
+      null;
+
+    this.setStatus(
+      "disconnected"
+    );
   }
 }
 
@@ -1111,4 +1324,3 @@ export function createExecutiveVoiceRealtimeClient(
 }
 
 export default ExecutiveVoiceRealtimeClient;
-
