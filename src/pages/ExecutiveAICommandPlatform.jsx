@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import {
+  askExecutiveIntelligence,
+} from "../api/executiveIntelligenceOrchestratorApi";
+import {
   ComposableMap,
   Geographies,
   Geography,
@@ -787,24 +790,77 @@ function normalizeAgentKey(agent = {}) {
   );
 }
 
-async function askExecutiveAgent(payload) {
-  if (typeof api?.askAiCampaignCopilot === "function") {
-    return api.askAiCampaignCopilot(payload);
+async function askExecutiveAgent(payload = {}) {
+  const question = String(
+    payload.question || payload.prompt || ""
+  ).trim();
+
+  if (!question) {
+    throw new Error("An executive intelligence question is required.");
   }
 
-  const response = await api.post("/ai-campaign-copilot/ask", payload);
-  return response?.data || response;
+  const result = await askExecutiveIntelligence({
+    ...payload,
+    question,
+    prompt: payload.prompt || question,
+  });
+
+  return result?.data || result;
 }
 
 function extractAgentAnswer(result) {
+  const briefing = result?.briefing || result?.data?.briefing || {};
+
   return (
     result?.answer ||
+    result?.executive_summary ||
+    result?.strategic_summary ||
+    result?.summary ||
+    briefing?.answer ||
+    briefing?.executive_summary ||
+    briefing?.strategic_summary ||
+    briefing?.summary ||
     result?.message?.content ||
     result?.message ||
     result?.data?.answer ||
+    result?.data?.executive_summary ||
+    result?.data?.strategic_summary ||
+    result?.data?.summary ||
     result?.data?.message?.content ||
-    "The AI agent returned no readable response."
+    "The Executive Intelligence Orchestrator returned no readable response."
   );
+}
+
+function extractAgentSources(result) {
+  const sources =
+    result?.sources ||
+    result?.evidence ||
+    result?.citations ||
+    result?.briefing?.sources ||
+    result?.briefing?.evidence ||
+    result?.data?.sources ||
+    result?.data?.evidence ||
+    result?.data?.citations ||
+    result?.data?.briefing?.sources ||
+    result?.data?.briefing?.evidence ||
+    [];
+
+  return Array.isArray(sources) ? sources : [];
+}
+
+function extractAgentConfidence(result, fallback = 0) {
+  const value =
+    result?.confidence_percentage ??
+    result?.confidence ??
+    result?.briefing?.confidence_percentage ??
+    result?.briefing?.confidence ??
+    result?.data?.confidence_percentage ??
+    result?.data?.confidence ??
+    result?.data?.briefing?.confidence_percentage ??
+    result?.data?.briefing?.confidence ??
+    fallback;
+
+  return clamp(value);
 }
 
 
@@ -1546,10 +1602,21 @@ function ExecutiveAgentWorkspace({
         : question;
 
       const result = await askExecutiveAgent({
+        question: requestPrompt,
         prompt: requestPrompt,
         thread_id: threadId || null,
         agent: teamMode ? "executive_chief_of_staff" : selectedKey.replace(/-/g, "_"),
         workspace_id: activeMission?.workspace_id || 1,
+        candidate: activeMission?.candidate_name || null,
+        state:
+          executiveContext?.selected_state ||
+          activeMission?.state_code ||
+          activeMission?.state_name ||
+          null,
+        office: activeMission?.office || activeMission?.office_name || null,
+        cycle: activeMission?.cycle || null,
+        locality: activeMission?.locality || activeMission?.county_name || null,
+        limit: 12,
         executive_context: {
           mission_id: activeMission?.id || null,
           mission_title: activeMission?.title || null,
@@ -1590,15 +1657,11 @@ function ExecutiveAgentWorkspace({
                 selectedAgent?.label ||
                 "Executive AI Agent",
             content: assistantAnswer,
-            sources:
-              result?.sources ||
-              result?.data?.sources ||
-              [],
-            confidence:
-              result?.confidence ??
-              result?.data?.confidence ??
-              selectedAgent?.confidence_percentage ??
-              0,
+            sources: extractAgentSources(result),
+            confidence: extractAgentConfidence(
+              result,
+              selectedAgent?.confidence_percentage ?? 0
+            ),
             created_at: new Date().toISOString(),
           },
         ]);
@@ -1620,7 +1683,7 @@ function ExecutiveAgentWorkspace({
           role: "assistant",
           agent: "Executive AI System",
           content:
-            "I could not complete the consultation. Confirm the AI Campaign Co-Pilot backend is online and that your OpenAI key is configured.",
+            "I could not complete the consultation. Confirm the Build 4 Executive Intelligence Orchestrator route is online, authentication is valid, and the configured intelligence providers are available.",
           created_at: new Date().toISOString(),
         },
       ]);
