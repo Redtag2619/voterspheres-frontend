@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import {
   askExecutiveIntelligence,
-} from "../api/executiveIntelligenceOrchestratorApi";
+} from "../api/executiveIntelligenceOrchestratorApi"; 
 import {
   ComposableMap,
   Geographies,
