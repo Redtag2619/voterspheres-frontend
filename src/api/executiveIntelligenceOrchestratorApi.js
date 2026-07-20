@@ -1,8 +1,15 @@
 import { api } from "../services/api";
 
-export async function getExecutiveIntelligenceConfig() {
-  const response = await api.get("/executive-intelligence-orchestrator/config");
+function unwrapResponse(response) {
   return response?.data || response;
+}
+
+export async function getExecutiveIntelligenceConfig() {
+  const response = await api.get(
+    "/executive-intelligence-orchestrator/config"
+  );
+
+  return unwrapResponse(response);
 }
 
 export async function planExecutiveIntelligence(payload = {}) {
@@ -10,15 +17,38 @@ export async function planExecutiveIntelligence(payload = {}) {
     "/executive-intelligence-orchestrator/plan",
     payload
   );
-  return response?.data || response;
+
+  return unwrapResponse(response);
 }
 
 export async function askExecutiveIntelligence(payload = {}) {
+  const question = String(
+    payload.question ||
+      payload.query ||
+      payload.prompt ||
+      ""
+  ).trim();
+
+  if (!question) {
+    throw new Error(
+      "An executive intelligence question is required."
+    );
+  }
+
   const response = await api.post(
     "/executive-intelligence-orchestrator/brief",
-    payload
+    {
+      ...payload,
+      question,
+      prompt: payload.prompt || question,
+      workspace_id:
+        payload.workspace_id ||
+        payload.workspaceId ||
+        1,
+    }
   );
-  return response?.data || response;
+
+  return unwrapResponse(response);
 }
 
 export default {
