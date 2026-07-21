@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import {
   askExecutiveIntelligence,
-} from "../api/executiveIntelligenceOrchestratorApi"; 
+} from "../api/executiveIntelligenceOrchestratorApi";
 import {
   ComposableMap,
   Geographies,
@@ -25,7 +25,6 @@ import ExecutivePageNav from "../components/ui/ExecutivePageNav";
 import CollapsibleSection from "../components/ui/CollapsibleSection";
 import BackToTopButton from "../components/ui/BackToTopButton";
 import ExecutiveRealtimeVoicePanel from "../components/executive-ai/ExecutiveRealtimeVoicePanel";
-import ExecutiveIntelligenceResultPanel from "../components/executive-ai/ExecutiveIntelligenceResultPanel";
 
 
 const US_TOPO_JSON =
@@ -1663,7 +1662,6 @@ function ExecutiveAgentWorkspace({
               result,
               selectedAgent?.confidence_percentage ?? 0
             ),
-            intelligence: result,
             created_at: new Date().toISOString(),
           },
         ]);
@@ -2121,10 +2119,6 @@ function ExecutiveAgentWorkspace({
               </div>
 
               <p>{message.content}</p>
-
-              {message.role === "assistant" && message.intelligence ? (
-                <ExecutiveIntelligenceResultPanel result={message.intelligence} />
-              ) : null}
 
               {message.role === "assistant" ? (
                 <div className="cmd-consult-message-meta">
@@ -2799,8 +2793,6 @@ export default function ExecutiveAICommandPlatform() {
           .cmd-consult-main{min-height:680px}
         }
         @media(max-width:900px){.cmd-consult-header-tools{justify-items:start}.cmd-conversation-toolbar{justify-content:flex-start}.cmd-history-item{grid-template-columns:1fr}.cmd-voice-toolbar{justify-items:start}.cmd-voice-controls{justify-content:flex-start}.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
-
-        .cmd-intelligence-proof{margin-top:14px;border:1px solid rgba(148,163,184,.18);border-radius:16px;background:rgba(2,6,23,.38);padding:13px;display:grid;gap:10px}.cmd-intelligence-proof.is-live{border-color:rgba(34,197,94,.35)}.cmd-intelligence-proof.is-partial{border-color:rgba(245,158,11,.38)}.cmd-intelligence-proof.is-unavailable{border-color:rgba(239,68,68,.38)}.cmd-intelligence-proof-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.cmd-intelligence-proof-head>div>span{display:block;color:rgba(147,197,253,.82);font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}.cmd-intelligence-proof-head>div>strong{display:block;margin-top:4px;color:white;font-size:13px}.cmd-intelligence-proof-metrics{display:flex;gap:7px;flex-wrap:wrap}.cmd-intelligence-proof-metrics span{border:1px solid rgba(148,163,184,.14);border-radius:999px;padding:6px 8px;color:rgba(203,213,225,.78);font-size:9px}.cmd-intelligence-proof details{border-top:1px solid rgba(148,163,184,.12);padding-top:9px}.cmd-intelligence-proof summary{cursor:pointer;color:rgba(226,232,240,.86);font-size:10px;font-weight:850}.cmd-intelligence-source-list,.cmd-intelligence-tool-list{display:grid;gap:8px;margin-top:9px}.cmd-intelligence-source-list>div,.cmd-intelligence-tool-list>div{border:1px solid rgba(148,163,184,.11);border-radius:11px;padding:9px;background:rgba(15,23,42,.42)}.cmd-intelligence-source-list strong,.cmd-intelligence-tool-list strong{display:block;color:white;font-size:10px}.cmd-intelligence-source-list small,.cmd-intelligence-tool-list small{display:block;margin-top:3px;color:rgba(148,163,184,.72);font-size:9px}.cmd-intelligence-source-list a{display:inline-block;margin-top:5px;color:#93c5fd;font-size:9px}.cmd-intelligence-tool-list p{margin:5px 0 0!important;font-size:10px!important;line-height:1.45!important}.cmd-intelligence-tool-list .is-empty{border-color:rgba(239,68,68,.2)}.cmd-intelligence-proof ul{margin:8px 0 0;padding-left:18px;color:rgba(203,213,225,.76);font-size:10px;line-height:1.5}
       `}</style>
 
       <div id="cmd-overview" className="cmd-command-ribbon">
