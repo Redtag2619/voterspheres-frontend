@@ -6,19 +6,18 @@ import { api } from "../services/api";
  * Executive Intelligence Orchestrator API
  * =========================================================
  *
- * Purpose:
- * - Connect the Executive AI Command Platform to the
- *   grounded Executive Intelligence Orchestrator.
- * - Normalize backend responses into one predictable shape.
- * - Preserve live sources, warnings, provider diagnostics,
- *   coverage, confidence, and evidence status.
- * - Prevent unavailable live intelligence from appearing
- *   as a successful or authoritative political answer.
+ * Supports:
+ * - ExecutiveAICommandPlatform.jsx
+ * - Grounded intelligence responses
+ * - Live evidence status
+ * - Provider diagnostics
+ * - Source extraction
+ * - Backward-compatible API aliases
  */
 
 const BUILD = "4.1.0";
 
-const EXECUTIVE_INTELLIGENCE_ENDPOINT =
+const BASE_ENDPOINT =
   "/executive-intelligence-orchestrator";
 
 const DEFAULT_WORKSPACE_ID = 1;
@@ -26,7 +25,7 @@ const DEFAULT_LIMIT = 12;
 
 /*
  * ---------------------------------------------------------
- * Basic helpers
+ * General helpers
  * ---------------------------------------------------------
  */
 
@@ -35,7 +34,9 @@ function clean(value = "") {
 }
 
 function asArray(value) {
-  return Array.isArray(value) ? value : [];
+  return Array.isArray(value)
+    ? value
+    : [];
 }
 
 function asObject(value) {
@@ -54,16 +55,14 @@ function asNumber(value, fallback = 0) {
     : fallback;
 }
 
-function clampNumber(
+function clamp(
   value,
   fallback = 0,
   min = 0,
   max = 100
 ) {
-  const parsed = asNumber(
-    value,
-    fallback
-  );
+  const parsed =
+    asNumber(value, fallback);
 
   return Math.min(
     max,
@@ -74,7 +73,7 @@ function clampNumber(
   );
 }
 
-function firstValue(...values) {
+function firstDefined(...values) {
   return values.find(
     (value) =>
       value !== undefined &&
@@ -95,7 +94,7 @@ function unwrapResponse(response) {
 function uniqueStrings(values = []) {
   return [
     ...new Set(
-      values
+      asArray(values)
         .flat()
         .map((value) =>
           clean(value)
@@ -113,53 +112,57 @@ function normalizeDate(value) {
   const date =
     new Date(value);
 
-  return Number.isNaN(
-    date.getTime()
-  )
-    ? value
-    : date.toISOString();
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toISOString();
 }
 
 /*
  * ---------------------------------------------------------
- * Error handling
+ * Error normalization
  * ---------------------------------------------------------
  */
 
-function extractApiError(error) {
+function normalizeApiError(error) {
   const responseData =
-    error?.response?.data;
+    error?.response?.data ||
+    {};
 
   const message =
     clean(
-      responseData?.error ||
-      responseData?.detail ||
-      responseData?.message ||
+      responseData.error ||
+      responseData.detail ||
+      responseData.message ||
       error?.message
     ) ||
     "Executive Intelligence request failed.";
 
-  const normalizedError =
+  const normalized =
     new Error(message);
 
-  normalizedError.status =
+  normalized.status =
     error?.response?.status ||
     error?.status ||
     500;
 
-  normalizedError.code =
-    responseData?.code ||
+  normalized.code =
+    responseData.code ||
     error?.code ||
     "EXECUTIVE_INTELLIGENCE_REQUEST_FAILED";
 
-  normalizedError.details =
-    responseData ||
-    null;
+  normalized.details =
+    responseData;
 
-  normalizedError.originalError =
+  normalized.originalError =
     error;
 
-  return normalizedError;
+  return normalized;
 }
 
 /*
@@ -169,7 +172,7 @@ function extractApiError(error) {
  */
 
 function normalizeSource(
-  source = {},
+  source,
   index = 0
 ) {
   if (
@@ -183,8 +186,7 @@ function normalizeSource(
       name:
         source,
 
-      source:
-        source,
+      source,
 
       provider:
         null,
@@ -284,7 +286,7 @@ function normalizeSource(
       ),
 
     reporting_period:
-      firstValue(
+      firstDefined(
         item.reporting_period,
         item.coverage_through_date,
         item.coverage_end_date,
@@ -292,7 +294,7 @@ function normalizeSource(
       ),
 
     freshness:
-      firstValue(
+      firstDefined(
         item.freshness,
         item.source_freshness,
         null
@@ -302,7 +304,7 @@ function normalizeSource(
       item.confidence ===
       undefined
         ? null
-        : clampNumber(
+        : clamp(
             item.confidence,
             0
           ),
@@ -315,9 +317,7 @@ function normalizeSource(
   };
 }
 
-function normalizeSources(
-  value
-) {
+function normalizeSources(value) {
   return asArray(value)
     .map(
       normalizeSource
@@ -331,12 +331,12 @@ function normalizeSources(
 
 /*
  * ---------------------------------------------------------
- * Diagnostics normalization
+ * Diagnostic normalization
  * ---------------------------------------------------------
  */
 
 function normalizeDiagnostic(
-  diagnostic = {},
+  diagnostic,
   index = 0
 ) {
   const item =
@@ -354,8 +354,8 @@ function normalizeDiagnostic(
     provider:
       clean(
         item.provider ||
-        item.tool ||
-        item.service
+        item.service ||
+        item.tool
       ) ||
       "Unknown provider",
 
@@ -375,11 +375,6 @@ function normalizeDiagnostic(
         item.degraded
       ),
 
-    timed_out:
-      Boolean(
-        item.timed_out
-      ),
-
     cached:
       Boolean(
         item.cached
@@ -388,6 +383,11 @@ function normalizeDiagnostic(
     stale:
       Boolean(
         item.stale
+      ),
+
+    timed_out:
+      Boolean(
+        item.timed_out
       ),
 
     latency_ms:
@@ -417,9 +417,7 @@ function normalizeDiagnostic(
   };
 }
 
-function normalizeDiagnostics(
-  value
-) {
+function normalizeDiagnostics(value) {
   return asArray(value)
     .map(
       normalizeDiagnostic
@@ -428,12 +426,57 @@ function normalizeDiagnostics(
 
 /*
  * ---------------------------------------------------------
- * Tool result normalization
+ * Tool-result normalization
  * ---------------------------------------------------------
  */
 
+function hasMeaningfulData(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return false;
+  }
+
+  if (
+    Array.isArray(value)
+  ) {
+    return value.length > 0;
+  }
+
+  if (
+    typeof value ===
+    "string"
+  ) {
+    return Boolean(
+      clean(value)
+    );
+  }
+
+  if (
+    typeof value ===
+    "number" ||
+    typeof value ===
+    "boolean"
+  ) {
+    return true;
+  }
+
+  if (
+    typeof value ===
+    "object"
+  ) {
+    return Object.values(value)
+      .some(
+        hasMeaningfulData
+      );
+  }
+
+  return false;
+}
+
 function normalizeToolResult(
-  result = {},
+  result,
   index = 0
 ) {
   const item =
@@ -444,20 +487,39 @@ function normalizeToolResult(
       item.sources
     );
 
-  const warnings =
-    uniqueStrings(
-      item.warnings
-    );
-
   const diagnostics =
     normalizeDiagnostics(
       item.diagnostics
+    );
+
+  const warnings =
+    uniqueStrings(
+      item.warnings
     );
 
   const data =
     item.data === undefined
       ? null
       : item.data;
+
+  const meaningful =
+    item.meaningful !==
+    undefined
+      ? Boolean(
+          item.meaningful
+        )
+      : Boolean(
+          item.ok &&
+          (
+            sources.length ||
+            clean(
+              item.summary
+            ) ||
+            hasMeaningfulData(
+              data
+            )
+          )
+        );
 
   return {
     ...item,
@@ -484,6 +546,8 @@ function normalizeToolResult(
         item.ok
       ),
 
+    meaningful,
+
     degraded:
       Boolean(
         item.degraded
@@ -498,23 +562,6 @@ function normalizeToolResult(
       Boolean(
         item.stale
       ),
-
-    meaningful:
-      item.meaningful !==
-      undefined
-        ? Boolean(
-            item.meaningful
-          )
-        : Boolean(
-            item.ok &&
-            (
-              sources.length ||
-              data ||
-              clean(
-                item.summary
-              )
-            )
-          ),
 
     summary:
       clean(
@@ -543,127 +590,11 @@ function normalizeToolResult(
   };
 }
 
-function normalizeToolResults(
-  value
-) {
+function normalizeToolResults(value) {
   return asArray(value)
     .map(
       normalizeToolResult
     );
-}
-
-/*
- * ---------------------------------------------------------
- * Coverage and confidence
- * ---------------------------------------------------------
- */
-
-function normalizeCoverage(
-  value = {},
-  toolResults = []
-) {
-  const coverage =
-    asObject(value);
-
-  const attemptedTools =
-    asNumber(
-      firstValue(
-        coverage.attempted_tools,
-        coverage.attemptedTools,
-        toolResults.length
-      ),
-      toolResults.length
-    );
-
-  const successfulTools =
-    asNumber(
-      firstValue(
-        coverage.successful_tools,
-        coverage.successfulTools,
-        toolResults.filter(
-          (tool) =>
-            tool.ok
-        ).length
-      ),
-      0
-    );
-
-  const usefulTools =
-    asNumber(
-      firstValue(
-        coverage.useful_tools,
-        coverage.meaningful_tools,
-        coverage.usefulTools,
-        toolResults.filter(
-          (tool) =>
-            tool.meaningful
-        ).length
-      ),
-      0
-    );
-
-  const degradedTools =
-    asNumber(
-      firstValue(
-        coverage.degraded_tools,
-        coverage.degradedTools,
-        toolResults.filter(
-          (tool) =>
-            tool.degraded
-        ).length
-      ),
-      0
-    );
-
-  const failedTools =
-    Math.max(
-      0,
-      attemptedTools -
-        successfulTools
-    );
-
-  const calculatedScore =
-    attemptedTools
-      ? Math.round(
-          (
-            usefulTools /
-            attemptedTools
-          ) *
-            100
-        )
-      : 0;
-
-  return {
-    ...coverage,
-
-    attempted_tools:
-      attemptedTools,
-
-    successful_tools:
-      successfulTools,
-
-    useful_tools:
-      usefulTools,
-
-    meaningful_tools:
-      usefulTools,
-
-    degraded_tools:
-      degradedTools,
-
-    failed_tools:
-      failedTools,
-
-    coverage_score:
-      clampNumber(
-        firstValue(
-          coverage.coverage_score,
-          coverage.score,
-          calculatedScore
-        ),
-        calculatedScore
-      ),
-  };
 }
 
 /*
@@ -673,7 +604,7 @@ function normalizeCoverage(
  */
 
 function normalizeFinding(
-  finding = {},
+  finding,
   index = 0
 ) {
   if (
@@ -723,7 +654,7 @@ function normalizeFinding(
 }
 
 function normalizeRisk(
-  risk = {},
+  risk,
   index = 0
 ) {
   if (
@@ -743,9 +674,7 @@ function normalizeRisk(
   }
 
   const item =
-    asObject(
-      risk
-    );
+    asObject(risk);
 
   return {
     ...item,
@@ -772,21 +701,25 @@ function normalizeRisk(
 }
 
 function normalizeBriefing(
-  value = {},
-  fallback = {}
+  briefingValue,
+  fallbackValue = {}
 ) {
   const briefing =
-    asObject(value);
+    asObject(
+      briefingValue
+    );
 
-  const fallbackData =
-    asObject(fallback);
+  const fallback =
+    asObject(
+      fallbackValue
+    );
 
   const keyFindings =
     asArray(
-      firstValue(
+      firstDefined(
         briefing.key_findings,
         briefing.findings,
-        fallbackData.key_findings,
+        fallback.key_findings,
         []
       )
     )
@@ -800,11 +733,11 @@ function normalizeBriefing(
 
   const risksAndGaps =
     asArray(
-      firstValue(
+      firstDefined(
         briefing.risks_and_gaps,
         briefing.risks,
         briefing.gaps,
-        fallbackData.risks_and_gaps,
+        fallback.risks_and_gaps,
         []
       )
     )
@@ -818,10 +751,10 @@ function normalizeBriefing(
 
   const recommendedActions =
     uniqueStrings(
-      firstValue(
+      firstDefined(
         briefing.recommended_actions,
         briefing.actions,
-        fallbackData.recommended_actions,
+        fallback.recommended_actions,
         []
       )
     );
@@ -831,20 +764,20 @@ function normalizeBriefing(
 
     headline:
       clean(
-        firstValue(
+        firstDefined(
           briefing.headline,
-          fallbackData.headline,
+          fallback.headline,
           ""
         )
       ),
 
     executive_summary:
       clean(
-        firstValue(
+        firstDefined(
           briefing.executive_summary,
           briefing.strategic_summary,
           briefing.summary,
-          fallbackData.executive_summary,
+          fallback.executive_summary,
           ""
         )
       ),
@@ -860,10 +793,11 @@ function normalizeBriefing(
 
     answer:
       clean(
-        firstValue(
+        firstDefined(
           briefing.answer,
-          fallbackData.answer,
+          fallback.answer,
           briefing.executive_summary,
+          briefing.strategic_summary,
           briefing.summary,
           ""
         )
@@ -873,100 +807,186 @@ function normalizeBriefing(
 
 /*
  * ---------------------------------------------------------
- * Evidence-state logic
+ * Coverage normalization
  * ---------------------------------------------------------
  */
 
-function determineEvidenceStatus({
-  backendStatus,
-  liveDataAvailable,
-  coverage,
-  sources,
-  toolResults,
-}) {
-  const explicitStatus =
-    clean(
-      backendStatus
-    ).toLowerCase();
+function normalizeCoverage(
+  coverageValue,
+  toolResults
+) {
+  const coverage =
+    asObject(
+      coverageValue
+    );
 
-  if (
-    [
-      "live",
-      "partial",
-      "unavailable",
-      "degraded",
-    ].includes(
-      explicitStatus
-    )
-  ) {
-    return explicitStatus;
-  }
+  const attemptedTools =
+    asNumber(
+      firstDefined(
+        coverage.attempted_tools,
+        coverage.attemptedTools,
+        toolResults.length
+      ),
+      toolResults.length
+    );
 
-  const meaningfulTools =
-    toolResults.filter(
-      (tool) =>
-        tool.meaningful
-    ).length;
-
-  if (
-    !liveDataAvailable &&
-    meaningfulTools === 0 &&
-    sources.length === 0
-  ) {
-    return "unavailable";
-  }
-
-  if (
-    coverage.successful_tools <
-      coverage.attempted_tools ||
-    coverage.degraded_tools >
+  const successfulTools =
+    asNumber(
+      firstDefined(
+        coverage.successful_tools,
+        coverage.successfulTools,
+        toolResults.filter(
+          (tool) =>
+            tool.ok
+        ).length
+      ),
       0
-  ) {
-    return "partial";
-  }
+    );
 
-  if (
-    liveDataAvailable &&
-    meaningfulTools >
+  const usefulTools =
+    asNumber(
+      firstDefined(
+        coverage.useful_tools,
+        coverage.meaningful_tools,
+        coverage.usefulTools,
+        toolResults.filter(
+          (tool) =>
+            tool.meaningful
+        ).length
+      ),
       0
-  ) {
-    return "live";
-  }
+    );
 
-  return "unavailable";
+  const degradedTools =
+    asNumber(
+      firstDefined(
+        coverage.degraded_tools,
+        coverage.degradedTools,
+        toolResults.filter(
+          (tool) =>
+            tool.degraded
+        ).length
+      ),
+      0
+    );
+
+  const failedTools =
+    Math.max(
+      0,
+      attemptedTools -
+      successfulTools
+    );
+
+  const calculatedScore =
+    attemptedTools
+      ? Math.round(
+          (
+            usefulTools /
+            attemptedTools
+          ) *
+          100
+        )
+      : 0;
+
+  return {
+    ...coverage,
+
+    attempted_tools:
+      attemptedTools,
+
+    successful_tools:
+      successfulTools,
+
+    useful_tools:
+      usefulTools,
+
+    meaningful_tools:
+      usefulTools,
+
+    degraded_tools:
+      degradedTools,
+
+    failed_tools:
+      failedTools,
+
+    coverage_score:
+      clamp(
+        firstDefined(
+          coverage.coverage_score,
+          coverage.score,
+          calculatedScore
+        ),
+        calculatedScore
+      ),
+  };
 }
 
 /*
  * ---------------------------------------------------------
- * Full response normalization
+ * Response extraction helpers required by the page
  * ---------------------------------------------------------
  */
 
-export function normalizeExecutiveIntelligenceResponse(
-  payload = {}
+export function extractExecutiveAnswer(
+  result = {}
 ) {
   const data =
+    asObject(result);
+
+  const briefing =
     asObject(
-      payload
+      data.briefing ||
+      data.data?.briefing
     );
+
+  return clean(
+    firstDefined(
+      data.answer,
+      data.executive_summary,
+      data.strategic_summary,
+      data.summary,
+      briefing.answer,
+      briefing.executive_summary,
+      briefing.strategic_summary,
+      briefing.summary,
+      data.message?.content,
+      data.message,
+      data.data?.answer,
+      data.data?.executive_summary,
+      data.data?.strategic_summary,
+      data.data?.summary,
+      data.data?.message?.content,
+      ""
+    )
+  ) ||
+  "The Executive Intelligence Orchestrator returned no readable response.";
+}
+
+export function extractExecutiveEvidence(
+  result = {}
+) {
+  const data =
+    asObject(result);
 
   const toolResults =
     normalizeToolResults(
-      firstValue(
+      firstDefined(
         data.tool_results,
-        data.results,
         data.evidence,
+        data.results,
         data.data?.tool_results,
+        data.data?.evidence,
         []
       )
     );
 
   const sources =
     normalizeSources(
-      firstValue(
+      firstDefined(
         data.sources,
         data.citations,
         data.data?.sources,
+        data.data?.citations,
         toolResults.flatMap(
           (tool) =>
             tool.sources
@@ -977,10 +997,11 @@ export function normalizeExecutiveIntelligenceResponse(
 
   const diagnostics =
     normalizeDiagnostics(
-      firstValue(
+      firstDefined(
         data.diagnostics,
         data.provider_diagnostics,
         data.data?.diagnostics,
+        data.data?.provider_diagnostics,
         toolResults.flatMap(
           (tool) =>
             tool.diagnostics
@@ -1007,7 +1028,7 @@ export function normalizeExecutiveIntelligenceResponse(
 
   const coverage =
     normalizeCoverage(
-      firstValue(
+      firstDefined(
         data.coverage,
         data.data?.coverage,
         {}
@@ -1022,7 +1043,7 @@ export function normalizeExecutiveIntelligenceResponse(
     );
 
   const explicitLiveData =
-    firstValue(
+    firstDefined(
       data.live_data_available,
       data.data?.live_data_available
     );
@@ -1038,144 +1059,46 @@ export function normalizeExecutiveIntelligenceResponse(
           sources.length
         );
 
-  const evidenceStatus =
-    determineEvidenceStatus({
-      backendStatus:
-        firstValue(
-          data.evidence_status,
-          data.data?.evidence_status
-        ),
-
-      liveDataAvailable,
-
-      coverage,
-
-      sources,
-
-      toolResults,
-    });
-
-  const briefing =
-    normalizeBriefing(
-      firstValue(
-        data.briefing,
-        data.data?.briefing,
-        {}
-      ),
-      data
-    );
-
-  const confidence =
-    clampNumber(
-      firstValue(
-        data.confidence,
-        data.confidence_percentage,
-        data.data?.confidence,
-        data.data?.confidence_percentage,
-        briefing.confidence,
-        0
-      ),
-      0
-    );
-
-  const answer =
+  let evidenceStatus =
     clean(
-      firstValue(
-        data.answer,
-        briefing.answer,
-        data.executive_summary,
-        briefing.executive_summary,
-        data.summary,
+      firstDefined(
+        data.evidence_status,
+        data.data?.evidence_status,
         ""
       )
-    );
+    ).toLowerCase();
 
-  const generatedAt =
-    normalizeDate(
-      firstValue(
-        data.generated_at,
-        data.data?.generated_at,
-        new Date().toISOString()
-      )
-    );
+  if (
+    ![
+      "live",
+      "partial",
+      "degraded",
+      "unavailable",
+    ].includes(
+      evidenceStatus
+    )
+  ) {
+    if (
+      !liveDataAvailable &&
+      !meaningfulTools.length &&
+      !sources.length
+    ) {
+      evidenceStatus =
+        "unavailable";
+    } else if (
+      coverage.degraded_tools > 0 ||
+      coverage.successful_tools <
+      coverage.attempted_tools
+    ) {
+      evidenceStatus =
+        "partial";
+    } else {
+      evidenceStatus =
+        "live";
+    }
+  }
 
   return {
-    ...data,
-
-    ok:
-      Boolean(
-        data.ok
-      ),
-
-    build:
-      clean(
-        data.build ||
-        BUILD
-      ),
-
-    service:
-      clean(
-        data.service ||
-        "executive-intelligence-orchestrator"
-      ),
-
-    question:
-      clean(
-        firstValue(
-          data.question,
-          data.context?.question,
-          data.data?.question,
-          ""
-        )
-      ),
-
-    workspace_id:
-      asNumber(
-        firstValue(
-          data.workspace_id,
-          data.workspaceId,
-          data.data?.workspace_id,
-          DEFAULT_WORKSPACE_ID
-        ),
-        DEFAULT_WORKSPACE_ID
-      ),
-
-    context:
-      asObject(
-        firstValue(
-          data.context,
-          data.data?.context,
-          {}
-        )
-      ),
-
-    briefing,
-
-    answer,
-
-    executive_summary:
-      clean(
-        firstValue(
-          data.executive_summary,
-          briefing.executive_summary,
-          ""
-        )
-      ),
-
-    headline:
-      clean(
-        firstValue(
-          data.headline,
-          briefing.headline,
-          ""
-        )
-      ),
-
-    confidence,
-
-    confidence_percentage:
-      confidence,
-
     live_data_available:
       liveDataAvailable,
 
@@ -1184,22 +1107,21 @@ export function normalizeExecutiveIntelligenceResponse(
 
     grounded:
       liveDataAvailable &&
-      meaningfulTools.length >
-        0,
-
-    coverage,
+      meaningfulTools.length > 0,
 
     sources,
 
     citations:
       sources,
 
-    warnings,
-
     diagnostics,
 
     provider_diagnostics:
       diagnostics,
+
+    warnings,
+
+    coverage,
 
     tool_results:
       toolResults,
@@ -1224,34 +1146,162 @@ export function normalizeExecutiveIntelligenceResponse(
 
     degraded:
       evidenceStatus ===
-        "partial" ||
+      "partial" ||
       evidenceStatus ===
-        "degraded" ||
-      coverage.degraded_tools >
-        0,
-
-    generated_at:
-      generatedAt,
+      "degraded" ||
+      coverage.degraded_tools > 0,
   };
 }
 
 /*
  * ---------------------------------------------------------
- * Request payload normalization
+ * Complete response normalization
  * ---------------------------------------------------------
  */
 
-function normalizeExecutiveRequest(
+export function normalizeExecutiveIntelligenceResponse(
   payload = {}
 ) {
   const data =
-    asObject(
-      payload
+    asObject(payload);
+
+  const evidence =
+    extractExecutiveEvidence(
+      data
     );
+
+  const briefing =
+    normalizeBriefing(
+      firstDefined(
+        data.briefing,
+        data.data?.briefing,
+        {}
+      ),
+      data
+    );
+
+  const confidence =
+    clamp(
+      firstDefined(
+        data.confidence,
+        data.confidence_percentage,
+        data.data?.confidence,
+        data.data?.confidence_percentage,
+        briefing.confidence,
+        0
+      ),
+      0
+    );
+
+  const answer =
+    extractExecutiveAnswer({
+      ...data,
+      briefing,
+    });
+
+  return {
+    ...data,
+
+    ok:
+      data.ok !== false,
+
+    build:
+      clean(
+        data.build ||
+        BUILD
+      ),
+
+    service:
+      clean(
+        data.service ||
+        "executive-intelligence-orchestrator"
+      ),
+
+    question:
+      clean(
+        firstDefined(
+          data.question,
+          data.context?.question,
+          data.data?.question,
+          ""
+        )
+      ),
+
+    workspace_id:
+      asNumber(
+        firstDefined(
+          data.workspace_id,
+          data.workspaceId,
+          data.data?.workspace_id,
+          DEFAULT_WORKSPACE_ID
+        ),
+        DEFAULT_WORKSPACE_ID
+      ),
+
+    context:
+      asObject(
+        firstDefined(
+          data.context,
+          data.data?.context,
+          {}
+        )
+      ),
+
+    briefing,
+
+    answer,
+
+    headline:
+      clean(
+        firstDefined(
+          data.headline,
+          briefing.headline,
+          ""
+        )
+      ),
+
+    executive_summary:
+      clean(
+        firstDefined(
+          data.executive_summary,
+          briefing.executive_summary,
+          ""
+        )
+      ),
+
+    confidence,
+
+    confidence_percentage:
+      confidence,
+
+    ...evidence,
+
+    generated_at:
+      normalizeDate(
+        firstDefined(
+          data.generated_at,
+          data.data?.generated_at,
+          new Date().toISOString()
+        )
+      ),
+  };
+}
+
+/*
+ * ---------------------------------------------------------
+ * Request normalization
+ * ---------------------------------------------------------
+ */
+
+function normalizeRequest(
+  payload = {}
+) {
+  const data =
+    asObject(payload);
 
   const question =
     clean(
-      firstValue(
+      firstDefined(
         data.question,
         data.query,
         data.prompt,
@@ -1267,7 +1317,7 @@ function normalizeExecutiveRequest(
 
   const workspaceId =
     asNumber(
-      firstValue(
+      firstDefined(
         data.workspace_id,
         data.workspaceId,
         DEFAULT_WORKSPACE_ID
@@ -1329,14 +1379,14 @@ function normalizeExecutiveRequest(
       null,
 
     candidate_id:
-      firstValue(
+      firstDefined(
         data.candidate_id,
         data.fec_candidate_id,
         null
       ),
 
     committee_id:
-      firstValue(
+      firstDefined(
         data.committee_id,
         null
       ),
@@ -1359,7 +1409,7 @@ function normalizeExecutiveRequest(
 
 /*
  * ---------------------------------------------------------
- * Public API methods
+ * Public endpoint methods
  * ---------------------------------------------------------
  */
 
@@ -1367,7 +1417,7 @@ export async function getExecutiveIntelligenceConfig() {
   try {
     const response =
       await api.get(
-        `${EXECUTIVE_INTELLIGENCE_ENDPOINT}/config`
+        `${BASE_ENDPOINT}/config`
       );
 
     const result =
@@ -1379,8 +1429,7 @@ export async function getExecutiveIntelligenceConfig() {
       ...asObject(result),
 
       ok:
-        result?.ok !==
-        false,
+        result?.ok !== false,
 
       build:
         clean(
@@ -1426,7 +1475,7 @@ export async function getExecutiveIntelligenceConfig() {
         ),
     };
   } catch (error) {
-    throw extractApiError(
+    throw normalizeApiError(
       error
     );
   }
@@ -1437,13 +1486,13 @@ export async function planExecutiveIntelligence(
 ) {
   try {
     const request =
-      normalizeExecutiveRequest(
+      normalizeRequest(
         payload
       );
 
     const response =
       await api.post(
-        `${EXECUTIVE_INTELLIGENCE_ENDPOINT}/plan`,
+        `${BASE_ENDPOINT}/plan`,
         request
       );
 
@@ -1456,8 +1505,7 @@ export async function planExecutiveIntelligence(
       ...asObject(result),
 
       ok:
-        result?.ok !==
-        false,
+        result?.ok !== false,
 
       build:
         clean(
@@ -1500,7 +1548,7 @@ export async function planExecutiveIntelligence(
       throw error;
     }
 
-    throw extractApiError(
+    throw normalizeApiError(
       error
     );
   }
@@ -1511,49 +1559,34 @@ export async function askExecutiveIntelligence(
 ) {
   try {
     const request =
-      normalizeExecutiveRequest(
+      normalizeRequest(
         payload
       );
 
     const response =
       await api.post(
-        `${EXECUTIVE_INTELLIGENCE_ENDPOINT}/brief`,
+        `${BASE_ENDPOINT}/brief`,
         request
       );
 
-    const result =
-      normalizeExecutiveIntelligenceResponse(
-        unwrapResponse(
-          response
-        )
-      );
-
-    /*
-     * A successful HTTP response does not automatically
-     * mean that live political evidence was available.
-     *
-     * The UI should inspect:
-     *
-     * result.live_data_available
-     * result.evidence_status
-     * result.grounded
-     * result.coverage
-     * result.sources
-     * result.diagnostics
-     */
-    return result;
+    return normalizeExecutiveIntelligenceResponse(
+      unwrapResponse(
+        response
+      )
+    );
   } catch (error) {
-    throw extractApiError(
+    throw normalizeApiError(
       error
     );
   }
 }
 
 /*
- * Alias retained for compatibility with older Executive AI
- * components that use "run" instead of "ask".
+ * Build 4.1 page-compatible method.
+ *
+ * ExecutiveAICommandPlatform.jsx imports this name.
  */
-export async function runExecutiveIntelligenceBrief(
+export async function requestExecutiveIntelligenceBrief(
   payload = {}
 ) {
   return askExecutiveIntelligence(
@@ -1562,14 +1595,22 @@ export async function runExecutiveIntelligenceBrief(
 }
 
 /*
- * Optional helper for screens that need to test the complete
- * request flow without manually calling plan and brief.
+ * Compatibility aliases.
  */
+
+export async function runExecutiveIntelligenceBrief(
+  payload = {}
+) {
+  return askExecutiveIntelligence(
+    payload
+  );
+}
+
 export async function inspectExecutiveIntelligence(
   payload = {}
 ) {
   const request =
-    normalizeExecutiveRequest(
+    normalizeRequest(
       payload
     );
 
@@ -1580,9 +1621,11 @@ export async function inspectExecutiveIntelligence(
   ] =
     await Promise.all([
       getExecutiveIntelligenceConfig(),
+
       planExecutiveIntelligence(
         request
       ),
+
       askExecutiveIntelligence(
         request
       ),
@@ -1620,8 +1663,11 @@ export default {
   getExecutiveIntelligenceConfig,
   planExecutiveIntelligence,
   askExecutiveIntelligence,
+  requestExecutiveIntelligenceBrief,
   runExecutiveIntelligenceBrief,
   inspectExecutiveIntelligence,
+  extractExecutiveAnswer,
+  extractExecutiveEvidence,
   normalizeExecutiveIntelligenceResponse,
 };
 
