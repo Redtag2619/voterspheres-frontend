@@ -2,7 +2,7 @@ import ExecutiveKpiRibbon from "./ExecutiveKpiRibbon.jsx";
 import UnifiedExecutiveStatusBar from "./UnifiedExecutiveStatusBar.jsx";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { flattenedNavigation, navigationSections } from "../config/navigation";
+import { flattenedNavigation, navigationSections } from "../config/navigation"; 
 import { useAuth } from "../context/AuthContext.jsx";
 
 function cx(...classes) {
