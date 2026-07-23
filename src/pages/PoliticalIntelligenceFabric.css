@@ -732,3 +732,379 @@
     transition: none;
   }
 }
+
+/* =========================================================
+   Political Intelligence Fabric — National Heatmap
+   Append this block to PoliticalIntelligenceFabric.css
+   ========================================================= */
+
+.pif-heatmap-panel {
+  margin-top: 22px;
+  overflow: hidden;
+}
+
+.pif-heatmap-header {
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.pif-heatmap-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(86px, 1fr));
+  gap: 10px;
+}
+
+.pif-heatmap-stats > div {
+  min-width: 86px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.pif-heatmap-stats strong,
+.pif-heatmap-stats span {
+  display: block;
+}
+
+.pif-heatmap-stats strong {
+  font-size: 1.15rem;
+  color: #f8fafc;
+}
+
+.pif-heatmap-stats span {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pif-heatmap-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.7fr);
+  gap: 22px;
+  padding: 18px;
+}
+
+.pif-state-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(34px, 1fr));
+  grid-template-rows: repeat(8, minmax(42px, auto));
+  gap: 7px;
+  min-height: 392px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(30, 64, 175, 0.09), transparent 45%),
+    rgba(2, 6, 23, 0.38);
+}
+
+.pif-state-tile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 9px;
+  background: rgba(30, 41, 59, 0.58);
+  color: #cbd5e1;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.pif-state-tile:hover {
+  z-index: 2;
+  transform: translateY(-2px);
+  border-color: rgba(125, 211, 252, 0.7);
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.34);
+}
+
+.pif-state-tile:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.pif-state-tile strong {
+  font-size: 0.77rem;
+  letter-spacing: 0.05em;
+}
+
+.pif-state-tile small {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.58rem;
+}
+
+.pif-state-tile.is-none {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.pif-state-tile.is-low {
+  border-color: rgba(56, 189, 248, 0.28);
+  background: rgba(14, 116, 144, 0.26);
+  color: #bae6fd;
+}
+
+.pif-state-tile.is-medium {
+  border-color: rgba(250, 204, 21, 0.38);
+  background: rgba(161, 98, 7, 0.32);
+  color: #fef08a;
+}
+
+.pif-state-tile.is-high {
+  border-color: rgba(251, 146, 60, 0.52);
+  background: rgba(194, 65, 12, 0.38);
+  color: #fed7aa;
+}
+
+.pif-state-tile.is-critical {
+  border-color: rgba(248, 113, 113, 0.66);
+  background: rgba(153, 27, 27, 0.5);
+  color: #fecaca;
+  box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.14);
+}
+
+.pif-state-tile.is-selected {
+  border-color: #7dd3fc;
+  box-shadow:
+    0 0 0 2px rgba(56, 189, 248, 0.22),
+    0 10px 24px rgba(2, 6, 23, 0.34);
+}
+
+.pif-heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 14px;
+  color: #94a3b8;
+  font-size: 0.76rem;
+}
+
+.pif-heatmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pif-heatmap-legend i {
+  width: 11px;
+  height: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 3px;
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.pif-heatmap-legend i.is-low {
+  background: rgba(14, 116, 144, 0.72);
+}
+
+.pif-heatmap-legend i.is-medium {
+  background: rgba(161, 98, 7, 0.82);
+}
+
+.pif-heatmap-legend i.is-high {
+  background: rgba(194, 65, 12, 0.84);
+}
+
+.pif-heatmap-legend i.is-critical {
+  background: rgba(153, 27, 27, 0.92);
+}
+
+.pif-heatmap-ranking {
+  min-width: 0;
+  padding: 4px 0 0;
+}
+
+.pif-heatmap-ranking-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.pif-heatmap-ranking-title strong {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-radius: 9px;
+  background: rgba(14, 116, 144, 0.14);
+  color: #bae6fd;
+}
+
+.pif-heatmap-ranking-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pif-heatmap-ranking-list > button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.34);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.pif-heatmap-ranking-list > button:hover,
+.pif-heatmap-ranking-list > button.is-active {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(14, 116, 144, 0.11);
+}
+
+.pif-heatmap-ranking-list > button > div {
+  min-width: 0;
+}
+
+.pif-heatmap-ranking-list strong,
+.pif-heatmap-ranking-list small {
+  display: block;
+}
+
+.pif-heatmap-ranking-list strong {
+  overflow: hidden;
+  color: #e2e8f0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pif-heatmap-ranking-list small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pif-heatmap-ranking-list b {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.pif-heat-rank {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 9px;
+  background: rgba(30, 41, 59, 0.65);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+}
+
+.pif-heat-rank.is-low {
+  border-color: rgba(56, 189, 248, 0.36);
+  color: #7dd3fc;
+}
+
+.pif-heat-rank.is-medium {
+  border-color: rgba(250, 204, 21, 0.42);
+  color: #fde047;
+}
+
+.pif-heat-rank.is-high {
+  border-color: rgba(251, 146, 60, 0.5);
+  color: #fb923c;
+}
+
+.pif-heat-rank.is-critical {
+  border-color: rgba(248, 113, 113, 0.56);
+  color: #f87171;
+}
+
+@media (max-width: 1080px) {
+  .pif-heatmap-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pif-heatmap-ranking-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pif-heatmap-header {
+    display: grid;
+  }
+
+  .pif-heatmap-stats {
+    width: 100%;
+  }
+
+  .pif-heatmap-layout {
+    padding: 12px;
+  }
+
+  .pif-state-grid {
+    grid-template-columns: repeat(12, minmax(25px, 1fr));
+    grid-template-rows: repeat(8, minmax(36px, auto));
+    gap: 4px;
+    min-height: 330px;
+    padding: 10px;
+  }
+
+  .pif-state-tile {
+    min-height: 36px;
+    border-radius: 7px;
+  }
+
+  .pif-state-tile strong {
+    font-size: 0.65rem;
+  }
+
+  .pif-state-tile small {
+    display: none;
+  }
+
+  .pif-heatmap-ranking-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .pif-heatmap-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .pif-state-grid {
+    grid-template-columns: repeat(12, minmax(19px, 1fr));
+    grid-template-rows: repeat(8, minmax(30px, auto));
+    gap: 3px;
+    min-height: 270px;
+    padding: 7px;
+  }
+
+  .pif-state-tile {
+    min-height: 30px;
+  }
+
+  .pif-state-tile strong {
+    font-size: 0.54rem;
+  }
+}
