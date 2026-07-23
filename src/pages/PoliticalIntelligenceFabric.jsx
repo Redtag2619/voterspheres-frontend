@@ -320,7 +320,7 @@ export default function PoliticalIntelligenceFabric() {
 
         <div>
 
-          <p className="pif-eyebrow">BUILD 5.0 / EXECUTIVE INTELLIGENCE</p>
+          <p className="pif-eyebrow">Unified Executive Intelligence</p>
 
           <h1>Political Intelligence Fabric</h1>
 
