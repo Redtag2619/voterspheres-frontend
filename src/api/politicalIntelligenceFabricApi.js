@@ -22,13 +22,102 @@ console.log(
   API_BASE
 );
 
+function cleanToken(value) {
+  if (!value) return "";
+
+  const token = String(value)
+    .trim()
+    .replace(/^Bearer\s+/i, "")
+    .replace(/^"(.*)"$/, "$1");
+
+  return token;
+}
+
+function extractTokenFromJson(value) {
+  if (!value) return "";
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!parsed || typeof parsed !== "object") {
+      return "";
+    }
+
+    return cleanToken(
+      parsed.token ||
+        parsed.authToken ||
+        parsed.accessToken ||
+        parsed.access_token ||
+        parsed.jwt ||
+        parsed?.auth?.token ||
+        parsed?.auth?.accessToken ||
+        parsed?.session?.token ||
+        parsed?.session?.accessToken ||
+        parsed?.user?.token
+    );
+  } catch {
+    return "";
+  }
+}
+
 function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    sessionStorage.getItem("token") ||
-    ""
-  );
+  const directKeys = [
+    "token",
+    "authToken",
+    "accessToken",
+    "access_token",
+    "jwt",
+    "voterspheres_token",
+    "vs_token",
+  ];
+
+  for (const key of directKeys) {
+    const localValue = cleanToken(
+      localStorage.getItem(key)
+    );
+
+    if (localValue) {
+      return localValue;
+    }
+
+    const sessionValue = cleanToken(
+      sessionStorage.getItem(key)
+    );
+
+    if (sessionValue) {
+      return sessionValue;
+    }
+  }
+
+  const objectKeys = [
+    "auth",
+    "user",
+    "session",
+    "authState",
+    "auth-storage",
+    "voterspheres-auth",
+    "voterspheres_auth",
+  ];
+
+  for (const key of objectKeys) {
+    const localToken = extractTokenFromJson(
+      localStorage.getItem(key)
+    );
+
+    if (localToken) {
+      return localToken;
+    }
+
+    const sessionToken = extractTokenFromJson(
+      sessionStorage.getItem(key)
+    );
+
+    if (sessionToken) {
+      return sessionToken;
+    }
+  }
+
+  return "";
 }
 
 function buildUrl(path) {
@@ -43,14 +132,20 @@ async function request(path, options = {}) {
   const token = getToken();
   const url = buildUrl(path);
 
+  console.log("[Political Intelligence Fabric Auth]", {
+    tokenFound: Boolean(token),
+    tokenLength: token?.length || 0,
+    url,
+  });
+
   let response;
 
   try {
     response = await fetch(url, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
         Accept: "application/json",
+        "Content-Type": "application/json",
         ...(token
           ? {
               Authorization: `Bearer ${token}`,
@@ -76,14 +171,36 @@ async function request(path, options = {}) {
   const contentType =
     response.headers.get("content-type") || "";
 
-  const payload = contentType.includes("application/json")
-    ? await response.json()
-    : await response.text();
+  let payload;
+
+  try {
+    payload = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
+  } catch {
+    payload = null;
+  }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      console.error(
+        "[Political Intelligence Fabric] Authentication failed:",
+        {
+          tokenFound: Boolean(token),
+          tokenLength: token?.length || 0,
+          payload,
+        }
+      );
+
+      throw new Error(
+        token
+          ? "Your session is invalid or expired. Sign out and sign back in."
+          : "No authentication token was found. Sign out and sign back in."
+      );
+    }
+
     const message =
-      payload &&
-      typeof payload === "object"
+      payload && typeof payload === "object"
         ? payload.error ||
           payload.message ||
           `Request failed with status ${response.status}`
