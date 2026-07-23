@@ -1,7 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { geoPath } from "d3-geo";
-import { feature, mesh } from "topojson-client";
-import statesTopology from "us-atlas/states-albers-10m.json";
 
 import {
 
@@ -21,19 +18,20 @@ import "./PoliticalIntelligenceFabric.css";
 
 const WORKSPACE_ID = 1;
 
-const FIPS_TO_STATE = {
-  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
-  "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
-  "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
-  "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
-  "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
-  "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
-  "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
-  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
-  "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
-  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
-  "56": "WY",
-};
+const STATE_GRID = [
+  ["AK", 0, 0], ["ME", 11, 0],
+  ["WI", 6, 1], ["VT", 10, 1], ["NH", 11, 1],
+  ["WA", 1, 2], ["ID", 2, 2], ["MT", 3, 2], ["ND", 4, 2], ["MN", 5, 2],
+  ["IL", 6, 2], ["MI", 7, 2], ["NY", 9, 2], ["MA", 10, 2], ["RI", 11, 2],
+  ["OR", 1, 3], ["NV", 2, 3], ["WY", 3, 3], ["SD", 4, 3], ["IA", 5, 3],
+  ["IN", 6, 3], ["OH", 7, 3], ["PA", 8, 3], ["NJ", 9, 3], ["CT", 10, 3],
+  ["CA", 1, 4], ["UT", 2, 4], ["CO", 3, 4], ["NE", 4, 4], ["MO", 5, 4],
+  ["KY", 6, 4], ["WV", 7, 4], ["VA", 8, 4], ["MD", 9, 4], ["DE", 10, 4],
+  ["AZ", 2, 5], ["NM", 3, 5], ["KS", 4, 5], ["AR", 5, 5], ["TN", 6, 5],
+  ["NC", 7, 5], ["SC", 8, 5], ["DC", 9, 5],
+  ["OK", 4, 6], ["LA", 5, 6], ["MS", 6, 6], ["AL", 7, 6], ["GA", 8, 6],
+  ["HI", 1, 7], ["TX", 4, 7], ["FL", 8, 7],
+];
 
 const STATE_NAMES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas",
@@ -68,7 +66,7 @@ function normalizeSeverity(value = "") {
 
 function buildStateHeatmap(findings = []) {
   const stateData = Object.fromEntries(
-    Object.keys(STATE_NAMES).map((code) => [
+    STATE_GRID.map(([code]) => [
       code,
       {
         code,
@@ -127,21 +125,6 @@ function NationalHeatmap({
   onSelectState,
 }) {
   const stateData = useMemo(() => buildStateHeatmap(findings), [findings]);
-  const stateFeatures = useMemo(
-    () => feature(statesTopology, statesTopology.objects.states).features,
-    []
-  );
-  const stateBorders = useMemo(
-    () =>
-      mesh(
-        statesTopology,
-        statesTopology.objects.states,
-        (left, right) => left !== right
-      ),
-    []
-  );
-  const path = useMemo(() => geoPath(), []);
-
   const rankedStates = useMemo(
     () =>
       Object.values(stateData)
@@ -170,73 +153,61 @@ function NationalHeatmap({
         </div>
 
         <div className="pif-heatmap-stats">
-          <div><strong>{activeStates}</strong><span>Active states</span></div>
-          <div><strong>{criticalStates}</strong><span>Critical</span></div>
-          <div><strong>{highStates}</strong><span>High</span></div>
+          <div>
+            <strong>{activeStates}</strong>
+            <span>Active states</span>
+          </div>
+          <div>
+            <strong>{criticalStates}</strong>
+            <span>Critical</span>
+          </div>
+          <div>
+            <strong>{highStates}</strong>
+            <span>High</span>
+          </div>
         </div>
       </header>
 
       <div className="pif-heatmap-layout">
-        <div className="pif-us-map-column">
-          <div className="pif-us-map-frame">
-            <svg
-              className="pif-us-map"
-              viewBox="0 0 975 610"
-              role="img"
-              aria-label="United States political intelligence heatmap by state"
-            >
-              <title>United States political intelligence heatmap</title>
-              <desc>
-                States are shaded by the highest political intelligence score
-                found in the current scan. Select a state for focused analysis.
-              </desc>
+        <div>
+          <div
+            className="pif-state-grid"
+            role="img"
+            aria-label="United States political intelligence heatmap by state"
+          >
+            {STATE_GRID.map(([code, column, row]) => {
+              const state = stateData[code];
+              const level = heatLevel(state.score);
+              const isSelected = selectedState === code;
 
-              <g className="pif-us-map-states">
-                {stateFeatures.map((stateFeature) => {
-                  const fips = String(stateFeature.id).padStart(2, "0");
-                  const code = FIPS_TO_STATE[fips];
-                  const state = stateData[code];
-                  if (!code || !state) return null;
-
-                  const level = heatLevel(state.score);
-                  const isSelected = selectedState === code;
-
-                  return (
-                    <path
-                      key={fips}
-                      d={path(stateFeature) || ""}
-                      className={[
-                        "pif-us-state",
-                        `is-${level}`,
-                        isSelected ? "is-selected" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      tabIndex="0"
-                      role="button"
-                      aria-label={`${state.name}, ${state.findingCount} findings, intelligence score ${Math.round(state.score)}`}
-                      onClick={() => onSelectState(code)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          onSelectState(code);
-                        }
-                      }}
-                    >
-                      <title>
-                        {state.name}: {state.findingCount} findings, score {Math.round(state.score)}
-                      </title>
-                    </path>
-                  );
-                })}
-              </g>
-
-              <path className="pif-us-state-borders" d={path(stateBorders) || ""} />
-            </svg>
-
-            <div className="pif-map-instruction">
-              Select a state to switch into focused state intelligence.
-            </div>
+              return (
+                <button
+                  type="button"
+                  key={code}
+                  className={[
+                    "pif-state-tile",
+                    `is-${level}`,
+                    isSelected ? "is-selected" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  style={{
+                    gridColumn: column + 1,
+                    gridRow: row + 1,
+                  }}
+                  onClick={() => onSelectState(code)}
+                  title={`${state.name}: ${state.findingCount} findings, score ${Math.round(
+                    state.score
+                  )}`}
+                  aria-label={`${state.name}, ${state.findingCount} findings, intelligence score ${Math.round(
+                    state.score
+                  )}`}
+                >
+                  <strong>{code}</strong>
+                  <small>{state.findingCount || "—"}</small>
+                </button>
+              );
+            })}
           </div>
 
           <div className="pif-heatmap-legend" aria-label="Heatmap legend">
@@ -268,7 +239,8 @@ function NationalHeatmap({
                 <div>
                   <strong>{state.name}</strong>
                   <small>
-                    {state.findingCount} finding{state.findingCount === 1 ? "" : "s"}
+                    {state.findingCount} finding
+                    {state.findingCount === 1 ? "" : "s"}
                     {state.criticalCount
                       ? ` • ${state.criticalCount} critical`
                       : state.highCount
@@ -282,7 +254,7 @@ function NationalHeatmap({
 
             {!rankedStates.length && (
               <div className="pif-empty">
-                Run a national scan to populate the geographic heatmap.
+                Run a national scan to populate the heatmap.
               </div>
             )}
           </div>
@@ -292,380 +264,73 @@ function NationalHeatmap({
   );
 }
 
-function findingLocality(finding = {}) {
-  return (
-    finding.county_name ||
-    finding.parish_name ||
-    finding.locality_name ||
-    finding.county ||
-    finding.jurisdiction_name ||
-    finding.locality ||
-    ""
-  );
+ 
+
+function severityClass(value = "") {
+
+  return `pif-severity pif-severity--${String(value).toLowerCase()}`;
+
 }
 
-function priorityScore(finding = {}) {
-  const severity = SEVERITY_WEIGHT[normalizeSeverity(finding.severity)] || 0;
-  const signal = Math.max(0, Math.min(100, Number(finding.score) || 0));
-  const confidence = Math.max(
-    0,
-    Math.min(100, Number(finding.confidence) || 0)
-  );
+ 
 
-  return Math.round(severity * 0.45 + signal * 0.35 + confidence * 0.2);
-}
-
-function actionWindow(score = 0) {
-  if (score >= 85) return "Immediate";
-  if (score >= 70) return "24 hours";
-  if (score >= 55) return "72 hours";
-  return "Monitor";
-}
-
-function recommendedAction(finding = {}) {
-  const category = String(finding.category || "").toLowerCase();
-
-  if (normalizeSeverity(finding.severity) === "critical") {
-    return "Escalate to executive review and assign an owner immediately.";
-  }
-
-  if (category.includes("donor") || category.includes("fund")) {
-    return "Validate the financial signal and prepare a funding response.";
-  }
-
-  if (category.includes("coalition") || category.includes("influence")) {
-    return "Map affected relationships and begin stakeholder outreach.";
-  }
-
-  if (category.includes("vendor") || category.includes("execution")) {
-    return "Review execution capacity, ownership, and vendor coverage.";
-  }
-
-  if (category.includes("poll") || category.includes("forecast")) {
-    return "Revalidate model assumptions and compare adjacent signals.";
-  }
-
-  return "Assign for analyst review and define the next operational action.";
-}
-
-function AiPriorityQueue({
-  findings = [],
-  selectedFinding,
-  onSelectFinding,
-  onWatch,
-}) {
-  const queue = useMemo(
-    () =>
-      findings
-        .map((finding, index) => ({
-          ...finding,
-          queueKey:
-            finding.id ||
-            finding.entity_id ||
-            `${finding.category || "finding"}-${finding.rank || index}`,
-          priorityScore: priorityScore(finding),
-        }))
-        .sort(
-          (a, b) =>
-            b.priorityScore - a.priorityScore ||
-            (Number(a.rank) || 999) - (Number(b.rank) || 999)
-        ),
-    [findings]
-  );
+function MetricCard({ label, value, detail }) {
 
   return (
-    <section className="pif-panel pif-priority-panel">
-      <header className="pif-priority-header">
-        <div>
-          <span>AI-ranked executive workflow</span>
-          <h2>Priority Action Queue</h2>
-        </div>
 
-        <div className="pif-priority-summary">
-          <div><strong>{queue.length}</strong><span>Queued</span></div>
+    <article className="pif-metric-card">
+
+      <span>{label}</span>
+
+      <strong>{value ?? 0}</strong>
+
+      <small>{detail}</small>
+
+    </article>
+
+  );
+
+}
+
+ 
+
+function SourceHealth({ sourceHealth = {} }) {
+
+  return (
+
+    <div className="pif-source-grid">
+
+      {Object.entries(sourceHealth).map(([source, health]) => (
+
+        <div className="pif-source" key={source}>
+
+          <span className={health.ok ? "pif-dot is-online" : "pif-dot is-offline"} />
+
           <div>
-            <strong>{queue.filter((item) => item.priorityScore >= 85).length}</strong>
-            <span>Immediate</span>
+
+            <strong>{source.replaceAll("_", " ")}</strong>
+
+            <small>{health.ok ? `${health.count} records` : "Unavailable"}</small>
+
           </div>
-          <div>
-            <strong>{queue.filter((item) => item.priorityScore >= 55).length}</strong>
-            <span>Actionable</span>
-          </div>
+
         </div>
-      </header>
 
-      <div className="pif-priority-list">
-        {queue.slice(0, 10).map((item, index) => {
-          const isActive =
-            selectedFinding?.rank === item.rank &&
-            selectedFinding?.entity_id === item.entity_id;
+      ))}
 
-          return (
-            <article
-              key={item.queueKey}
-              className={
-                isActive
-                  ? "pif-priority-item is-active"
-                  : "pif-priority-item"
-              }
-            >
-              <button
-                type="button"
-                className="pif-priority-main"
-                onClick={() => onSelectFinding(item)}
-              >
-                <span
-                  className={`pif-priority-rank is-${heatLevel(
-                    item.priorityScore
-                  )}`}
-                >
-                  {index + 1}
-                </span>
+    </div>
 
-                <div className="pif-priority-copy">
-                  <div className="pif-priority-topline">
-                    <span className={severityClass(item.severity)}>
-                      {item.severity || "watch"}
-                    </span>
-                    <small>{actionWindow(item.priorityScore)}</small>
-                    <small>
-                      {item.state_code || "US"}
-                      {findingLocality(item)
-                        ? ` • ${findingLocality(item)}`
-                        : ""}
-                    </small>
-                  </div>
-
-                  <strong>{item.title || item.entity_name}</strong>
-                  <p>{recommendedAction(item)}</p>
-                </div>
-
-                <div className="pif-priority-score">
-                  <strong>{item.priorityScore}</strong>
-                  <span>priority</span>
-                </div>
-              </button>
-
-              <div className="pif-priority-actions">
-                <button type="button" onClick={() => onSelectFinding(item)}>
-                  Inspect
-                </button>
-                <button
-                  type="button"
-                  className="is-primary"
-                  onClick={() => onWatch(item)}
-                >
-                  Watch
-                </button>
-              </div>
-            </article>
-          );
-        })}
-
-        {!queue.length && (
-          <div className="pif-empty">
-            Run a scan to generate the AI priority queue.
-          </div>
-        )}
-      </div>
-    </section>
   );
+
 }
 
-function CountyParishDrilldown({
-  findings = [],
-  stateCode = "",
-  selectedLocality = "",
-  onSelectLocality,
-  onSelectFinding,
-}) {
-  const localities = useMemo(() => {
-    const localityIndex = new Map();
-
-    findings
-      .filter(
-        (finding) =>
-          String(finding?.state_code || "").toUpperCase() ===
-          String(stateCode || "").toUpperCase()
-      )
-      .forEach((finding) => {
-        const name = findingLocality(finding);
-        if (!name) return;
-
-        const key = String(name).trim().toLowerCase();
-        const current = localityIndex.get(key) || {
-          name,
-          findingCount: 0,
-          score: 0,
-          criticalCount: 0,
-          highCount: 0,
-          topFinding: null,
-        };
-
-        const severity = normalizeSeverity(finding.severity);
-        const score = Math.max(
-          Number(finding.score) || 0,
-          SEVERITY_WEIGHT[severity] || 0
-        );
-
-        current.findingCount += 1;
-        current.score = Math.max(current.score, score);
-        if (severity === "critical") current.criticalCount += 1;
-        if (severity === "high") current.highCount += 1;
-
-        if (
-          !current.topFinding ||
-          score > Math.max(
-            Number(current.topFinding.score) || 0,
-            SEVERITY_WEIGHT[
-              normalizeSeverity(current.topFinding.severity)
-            ] || 0
-          )
-        ) {
-          current.topFinding = finding;
-        }
-
-        localityIndex.set(key, current);
-      });
-
-    return [...localityIndex.values()].sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.findingCount - a.findingCount ||
-        a.name.localeCompare(b.name)
-    );
-  }, [findings, stateCode]);
-
-  const selectedRecord = localities.find(
-    (locality) => locality.name === selectedLocality
-  );
-
-  return (
-    <section className="pif-panel pif-locality-panel">
-      <header className="pif-locality-header">
-        <div>
-          <span>Sub-state intelligence</span>
-          <h2>County / Parish Drill-Down</h2>
-        </div>
-
-        <div className="pif-locality-controls">
-          <strong>
-            {stateCode ? STATE_NAMES[stateCode] || stateCode : "Select state"}
-          </strong>
-          <span>{localities.length} active localities</span>
-        </div>
-      </header>
-
-      {!stateCode ? (
-        <div className="pif-empty pif-locality-empty">
-          Select a state on the heatmap to inspect county or parish intelligence.
-        </div>
-      ) : localities.length ? (
-        <div className="pif-locality-layout">
-          <div className="pif-locality-list">
-            {localities.slice(0, 18).map((locality, index) => (
-              <button
-                type="button"
-                key={locality.name}
-                className={
-                  selectedLocality === locality.name ? "is-active" : ""
-                }
-                onClick={() => {
-                  onSelectLocality(locality.name);
-                  if (locality.topFinding) onSelectFinding(locality.topFinding);
-                }}
-              >
-                <span
-                  className={`pif-locality-rank is-${heatLevel(
-                    locality.score
-                  )}`}
-                >
-                  {index + 1}
-                </span>
-
-                <div>
-                  <strong>{locality.name}</strong>
-                  <small>
-                    {locality.findingCount} finding
-                    {locality.findingCount === 1 ? "" : "s"}
-                    {locality.criticalCount
-                      ? ` • ${locality.criticalCount} critical`
-                      : locality.highCount
-                        ? ` • ${locality.highCount} high`
-                        : ""}
-                  </small>
-                </div>
-
-                <b>{Math.round(locality.score)}</b>
-              </button>
-            ))}
-          </div>
-
-          <aside className="pif-locality-detail">
-            {selectedRecord ? (
-              <>
-                <span>Selected locality</span>
-                <h3>{selectedRecord.name}</h3>
-
-                <div className="pif-locality-metrics">
-                  <div>
-                    <strong>{selectedRecord.findingCount}</strong>
-                    <span>Findings</span>
-                  </div>
-                  <div>
-                    <strong>{Math.round(selectedRecord.score)}</strong>
-                    <span>Risk score</span>
-                  </div>
-                  <div>
-                    <strong>
-                      {selectedRecord.criticalCount + selectedRecord.highCount}
-                    </strong>
-                    <span>Elevated</span>
-                  </div>
-                </div>
-
-                <h4>Leading signal</h4>
-                <strong>
-                  {selectedRecord.topFinding?.title ||
-                    selectedRecord.topFinding?.entity_name}
-                </strong>
-                <p>
-                  {selectedRecord.topFinding?.summary ||
-                    "No leading signal summary is available."}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => onSelectFinding(selectedRecord.topFinding)}
-                  disabled={!selectedRecord.topFinding}
-                >
-                  Open Finding
-                </button>
-              </>
-            ) : (
-              <div className="pif-empty">
-                Select a county or parish to inspect its leading signal.
-              </div>
-            )}
-          </aside>
-        </div>
-      ) : (
-        <div className="pif-empty pif-locality-empty">
-          No county or parish fields were returned for{" "}
-          {STATE_NAMES[stateCode] || stateCode}. This panel populates from
-          county_name, parish_name, locality_name, county, or jurisdiction_name.
-        </div>
-      )}
-    </section>
-  );
-}
+ 
 
 export default function PoliticalIntelligenceFabric() {
 
   const [data, setData] = useState(null);
 
   const [selected, setSelected] = useState(null);
-  const [selectedLocality, setSelectedLocality] = useState("");
 
   const [stateCode, setStateCode] = useState("");
 
@@ -737,7 +402,6 @@ export default function PoliticalIntelligenceFabric() {
   function handleHeatmapStateSelect(code) {
     setScopeType("state");
     setStateCode(code);
-    setSelectedLocality("");
     setMessage(
       `${STATE_NAMES[code] || code} selected. Run the state scan for focused intelligence.`
     );
@@ -1025,27 +689,6 @@ export default function PoliticalIntelligenceFabric() {
       </section>
 
  
-
-      <NationalHeatmap
-        findings={findings}
-        selectedState={scopeType === "state" ? stateCode : ""}
-        onSelectState={handleHeatmapStateSelect}
-      />
-
-      <AiPriorityQueue
-        findings={findings}
-        selectedFinding={selected}
-        onSelectFinding={setSelected}
-        onWatch={handleWatch}
-      />
-
-      <CountyParishDrilldown
-        findings={findings}
-        stateCode={scopeType === "state" ? stateCode : ""}
-        selectedLocality={selectedLocality}
-        onSelectLocality={setSelectedLocality}
-        onSelectFinding={setSelected}
-      />
 
       <section className="pif-layout">
 
