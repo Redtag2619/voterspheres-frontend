@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { geoPath } from "d3-geo";
+import { feature, mesh } from "topojson-client";
+import statesTopology from "us-atlas/states-albers-10m.json";
 
 import {
 
@@ -18,20 +21,19 @@ import "./PoliticalIntelligenceFabric.css";
 
 const WORKSPACE_ID = 1;
 
-const STATE_GRID = [
-  ["AK", 0, 0], ["ME", 11, 0],
-  ["WI", 6, 1], ["VT", 10, 1], ["NH", 11, 1],
-  ["WA", 1, 2], ["ID", 2, 2], ["MT", 3, 2], ["ND", 4, 2], ["MN", 5, 2],
-  ["IL", 6, 2], ["MI", 7, 2], ["NY", 9, 2], ["MA", 10, 2], ["RI", 11, 2],
-  ["OR", 1, 3], ["NV", 2, 3], ["WY", 3, 3], ["SD", 4, 3], ["IA", 5, 3],
-  ["IN", 6, 3], ["OH", 7, 3], ["PA", 8, 3], ["NJ", 9, 3], ["CT", 10, 3],
-  ["CA", 1, 4], ["UT", 2, 4], ["CO", 3, 4], ["NE", 4, 4], ["MO", 5, 4],
-  ["KY", 6, 4], ["WV", 7, 4], ["VA", 8, 4], ["MD", 9, 4], ["DE", 10, 4],
-  ["AZ", 2, 5], ["NM", 3, 5], ["KS", 4, 5], ["AR", 5, 5], ["TN", 6, 5],
-  ["NC", 7, 5], ["SC", 8, 5], ["DC", 9, 5],
-  ["OK", 4, 6], ["LA", 5, 6], ["MS", 6, 6], ["AL", 7, 6], ["GA", 8, 6],
-  ["HI", 1, 7], ["TX", 4, 7], ["FL", 8, 7],
-];
+const FIPS_TO_STATE = {
+  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
+  "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
+  "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
+  "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+  "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
+  "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
+  "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
+  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+  "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+  "56": "WY",
+};
 
 const STATE_NAMES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas",
@@ -66,7 +68,7 @@ function normalizeSeverity(value = "") {
 
 function buildStateHeatmap(findings = []) {
   const stateData = Object.fromEntries(
-    STATE_GRID.map(([code]) => [
+    Object.keys(STATE_NAMES).map((code) => [
       code,
       {
         code,
@@ -125,6 +127,21 @@ function NationalHeatmap({
   onSelectState,
 }) {
   const stateData = useMemo(() => buildStateHeatmap(findings), [findings]);
+  const stateFeatures = useMemo(
+    () => feature(statesTopology, statesTopology.objects.states).features,
+    []
+  );
+  const stateBorders = useMemo(
+    () =>
+      mesh(
+        statesTopology,
+        statesTopology.objects.states,
+        (left, right) => left !== right
+      ),
+    []
+  );
+  const path = useMemo(() => geoPath(), []);
+
   const rankedStates = useMemo(
     () =>
       Object.values(stateData)
@@ -153,61 +170,73 @@ function NationalHeatmap({
         </div>
 
         <div className="pif-heatmap-stats">
-          <div>
-            <strong>{activeStates}</strong>
-            <span>Active states</span>
-          </div>
-          <div>
-            <strong>{criticalStates}</strong>
-            <span>Critical</span>
-          </div>
-          <div>
-            <strong>{highStates}</strong>
-            <span>High</span>
-          </div>
+          <div><strong>{activeStates}</strong><span>Active states</span></div>
+          <div><strong>{criticalStates}</strong><span>Critical</span></div>
+          <div><strong>{highStates}</strong><span>High</span></div>
         </div>
       </header>
 
       <div className="pif-heatmap-layout">
-        <div>
-          <div
-            className="pif-state-grid"
-            role="img"
-            aria-label="United States political intelligence heatmap by state"
-          >
-            {STATE_GRID.map(([code, column, row]) => {
-              const state = stateData[code];
-              const level = heatLevel(state.score);
-              const isSelected = selectedState === code;
+        <div className="pif-us-map-column">
+          <div className="pif-us-map-frame">
+            <svg
+              className="pif-us-map"
+              viewBox="0 0 975 610"
+              role="img"
+              aria-label="United States political intelligence heatmap by state"
+            >
+              <title>United States political intelligence heatmap</title>
+              <desc>
+                States are shaded by the highest political intelligence score
+                found in the current scan. Select a state for focused analysis.
+              </desc>
 
-              return (
-                <button
-                  type="button"
-                  key={code}
-                  className={[
-                    "pif-state-tile",
-                    `is-${level}`,
-                    isSelected ? "is-selected" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  style={{
-                    gridColumn: column + 1,
-                    gridRow: row + 1,
-                  }}
-                  onClick={() => onSelectState(code)}
-                  title={`${state.name}: ${state.findingCount} findings, score ${Math.round(
-                    state.score
-                  )}`}
-                  aria-label={`${state.name}, ${state.findingCount} findings, intelligence score ${Math.round(
-                    state.score
-                  )}`}
-                >
-                  <strong>{code}</strong>
-                  <small>{state.findingCount || "—"}</small>
-                </button>
-              );
-            })}
+              <g className="pif-us-map-states">
+                {stateFeatures.map((stateFeature) => {
+                  const fips = String(stateFeature.id).padStart(2, "0");
+                  const code = FIPS_TO_STATE[fips];
+                  const state = stateData[code];
+                  if (!code || !state) return null;
+
+                  const level = heatLevel(state.score);
+                  const isSelected = selectedState === code;
+
+                  return (
+                    <path
+                      key={fips}
+                      d={path(stateFeature) || ""}
+                      className={[
+                        "pif-us-state",
+                        `is-${level}`,
+                        isSelected ? "is-selected" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      tabIndex="0"
+                      role="button"
+                      aria-label={`${state.name}, ${state.findingCount} findings, intelligence score ${Math.round(state.score)}`}
+                      onClick={() => onSelectState(code)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectState(code);
+                        }
+                      }}
+                    >
+                      <title>
+                        {state.name}: {state.findingCount} findings, score {Math.round(state.score)}
+                      </title>
+                    </path>
+                  );
+                })}
+              </g>
+
+              <path className="pif-us-state-borders" d={path(stateBorders) || ""} />
+            </svg>
+
+            <div className="pif-map-instruction">
+              Select a state to switch into focused state intelligence.
+            </div>
           </div>
 
           <div className="pif-heatmap-legend" aria-label="Heatmap legend">
@@ -239,8 +268,7 @@ function NationalHeatmap({
                 <div>
                   <strong>{state.name}</strong>
                   <small>
-                    {state.findingCount} finding
-                    {state.findingCount === 1 ? "" : "s"}
+                    {state.findingCount} finding{state.findingCount === 1 ? "" : "s"}
                     {state.criticalCount
                       ? ` • ${state.criticalCount} critical`
                       : state.highCount
@@ -254,7 +282,7 @@ function NationalHeatmap({
 
             {!rankedStates.length && (
               <div className="pif-empty">
-                Run a national scan to populate the heatmap.
+                Run a national scan to populate the geographic heatmap.
               </div>
             )}
           </div>
@@ -263,69 +291,6 @@ function NationalHeatmap({
     </section>
   );
 }
-
- 
-
-function severityClass(value = "") {
-
-  return `pif-severity pif-severity--${String(value).toLowerCase()}`;
-
-}
-
- 
-
-function MetricCard({ label, value, detail }) {
-
-  return (
-
-    <article className="pif-metric-card">
-
-      <span>{label}</span>
-
-      <strong>{value ?? 0}</strong>
-
-      <small>{detail}</small>
-
-    </article>
-
-  );
-
-}
-
- 
-
-function SourceHealth({ sourceHealth = {} }) {
-
-  return (
-
-    <div className="pif-source-grid">
-
-      {Object.entries(sourceHealth).map(([source, health]) => (
-
-        <div className="pif-source" key={source}>
-
-          <span className={health.ok ? "pif-dot is-online" : "pif-dot is-offline"} />
-
-          <div>
-
-            <strong>{source.replaceAll("_", " ")}</strong>
-
-            <small>{health.ok ? `${health.count} records` : "Unavailable"}</small>
-
-          </div>
-
-        </div>
-
-      ))}
-
-    </div>
-
-  );
-
-}
-
- 
-
 
 function findingLocality(finding = {}) {
   return (
