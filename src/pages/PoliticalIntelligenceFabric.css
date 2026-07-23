@@ -1489,3 +1489,118 @@
     display: none;
   }
 }
+
+/* =========================================================
+   Geographic U.S. Intelligence Choropleth
+   Replaces the former state-tile grid presentation
+   ========================================================= */
+
+.pif-us-map-column {
+  min-width: 0;
+}
+
+.pif-us-map-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(30, 64, 175, 0.11), transparent 48%),
+    rgba(2, 6, 23, 0.42);
+}
+
+.pif-us-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 410px;
+}
+
+.pif-us-state {
+  stroke: rgba(226, 232, 240, 0.18);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  transition:
+    fill 150ms ease,
+    stroke 150ms ease,
+    filter 150ms ease,
+    opacity 150ms ease;
+}
+
+.pif-us-state.is-none {
+  fill: rgba(51, 65, 85, 0.64);
+}
+
+.pif-us-state.is-low {
+  fill: rgba(14, 116, 144, 0.72);
+}
+
+.pif-us-state.is-medium {
+  fill: rgba(161, 98, 7, 0.82);
+}
+
+.pif-us-state.is-high {
+  fill: rgba(194, 65, 12, 0.86);
+}
+
+.pif-us-state.is-critical {
+  fill: rgba(153, 27, 27, 0.94);
+}
+
+.pif-us-state:hover,
+.pif-us-state:focus-visible {
+  stroke: #e0f2fe;
+  stroke-width: 2;
+  filter: brightness(1.18);
+  outline: none;
+}
+
+.pif-us-state.is-selected {
+  stroke: #7dd3fc;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.65));
+}
+
+.pif-us-state-borders {
+  fill: none;
+  stroke: rgba(226, 232, 240, 0.34);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.pif-map-instruction {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 9px;
+  background: rgba(2, 6, 23, 0.76);
+  color: #94a3b8;
+  font-size: 0.7rem;
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 760px) {
+  .pif-us-map {
+    min-height: 300px;
+  }
+
+  .pif-map-instruction {
+    position: static;
+    max-width: none;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .pif-us-map {
+    min-height: 235px;
+  }
+}
