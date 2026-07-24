@@ -1,20 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-
 import {
-
   fetchPoliticalFabricOverview,
-
   runPoliticalFabricScan,
-
   createPoliticalFabricBrief,
-
-  savePoliticalFabricWatchlist
-
+  savePoliticalFabricWatchlist,
 } from "../api/politicalIntelligenceFabricApi";
 
-import "./PoliticalIntelligenceFabric.css";
-
- 
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
+import ResponsiveRow from "../components/ui/ResponsiveRow";
 
 const WORKSPACE_ID = 1;
 
@@ -46,22 +43,37 @@ const STATE_NAMES = {
   OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
   SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah",
   VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia",
-  WI: "Wisconsin", WY: "Wyoming", DC: "Washington, D.C.",
+  WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
 };
 
-const SEVERITY_WEIGHT = {
-  critical: 100,
-  high: 75,
-  medium: 50,
-  low: 25,
-  watch: 15,
-};
+const SEVERITY_WEIGHT = { critical: 100, high: 75, medium: 50, low: 25, watch: 15 };
+
+function arr(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function number(value, fallback = 0) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
 
 function normalizeSeverity(value = "") {
-  const severity = String(value).toLowerCase();
-  return Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, severity)
-    ? severity
-    : "watch";
+  const next = String(value || "").toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, next) ? next : "watch";
+}
+
+function tone(value = "") {
+  const next = normalizeSeverity(value);
+  if (next === "critical" || next === "high") return "danger";
+  if (next === "medium" || next === "watch") return "demo";
+  if (next === "low") return "info";
+  return "default";
+}
+
+function labelize(value = "") {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function buildStateHeatmap(findings = []) {
@@ -75,7 +87,6 @@ function buildStateHeatmap(findings = []) {
         findingCount: 0,
         criticalCount: 0,
         highCount: 0,
-        topFinding: null,
       },
     ])
   );
@@ -85,27 +96,13 @@ function buildStateHeatmap(findings = []) {
     if (!stateData[code]) return;
 
     const severity = normalizeSeverity(finding?.severity);
-    const score = Math.max(
-      Number(finding?.score) || 0,
-      SEVERITY_WEIGHT[severity] || 0
-    );
-
+    const score = Math.max(number(finding?.score), SEVERITY_WEIGHT[severity] || 0);
     const current = stateData[code];
+
     current.findingCount += 1;
     current.score = Math.max(current.score, score);
-
     if (severity === "critical") current.criticalCount += 1;
     if (severity === "high") current.highCount += 1;
-
-    if (
-      !current.topFinding ||
-      score > Math.max(
-        Number(current.topFinding?.score) || 0,
-        SEVERITY_WEIGHT[normalizeSeverity(current.topFinding?.severity)] || 0
-      )
-    ) {
-      current.topFinding = finding;
-    }
   });
 
   return stateData;
@@ -119,89 +116,37 @@ function heatLevel(score = 0) {
   return "none";
 }
 
-function NationalHeatmap({
-  findings = [],
-  selectedState = "",
-  onSelectState,
-}) {
+function NationalHeatmap({ findings, selectedState, onSelectState }) {
   const stateData = useMemo(() => buildStateHeatmap(findings), [findings]);
   const rankedStates = useMemo(
     () =>
       Object.values(stateData)
         .filter((state) => state.findingCount > 0)
-        .sort(
-          (a, b) =>
-            b.score - a.score ||
-            b.findingCount - a.findingCount ||
-            a.code.localeCompare(b.code)
-        ),
+        .sort((a, b) => b.score - a.score || b.findingCount - a.findingCount),
     [stateData]
   );
 
-  const activeStates = rankedStates.length;
-  const criticalStates = rankedStates.filter((state) => state.score >= 85).length;
-  const highStates = rankedStates.filter(
-    (state) => state.score >= 65 && state.score < 85
-  ).length;
-
   return (
-    <section className="pif-panel pif-heatmap-panel">
-      <header className="pif-heatmap-header">
+    <SectionCard
+      title="Executive Intelligence Heatmap"
+      subtitle="National signal distribution by state."
+      right={<Badge tone="accent">{rankedStates.length} Active States</Badge>}
+    >
+      <div className="pif-map-layout">
         <div>
-          <span>National signal distribution</span>
-          <h2>Executive Intelligence Heatmap</h2>
-        </div>
-
-        <div className="pif-heatmap-stats">
-          <div>
-            <strong>{activeStates}</strong>
-            <span>Active states</span>
-          </div>
-          <div>
-            <strong>{criticalStates}</strong>
-            <span>Critical</span>
-          </div>
-          <div>
-            <strong>{highStates}</strong>
-            <span>High</span>
-          </div>
-        </div>
-      </header>
-
-      <div className="pif-heatmap-layout">
-        <div>
-          <div
-            className="pif-state-grid"
-            role="img"
-            aria-label="United States political intelligence heatmap by state"
-          >
+          <div className="pif-state-grid" aria-label="United States political intelligence heatmap">
             {STATE_GRID.map(([code, column, row]) => {
               const state = stateData[code];
-              const level = heatLevel(state.score);
-              const isSelected = selectedState === code;
-
               return (
                 <button
                   type="button"
                   key={code}
-                  className={[
-                    "pif-state-tile",
-                    `is-${level}`,
-                    isSelected ? "is-selected" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  style={{
-                    gridColumn: column + 1,
-                    gridRow: row + 1,
-                  }}
+                  className={`pif-state-tile is-${heatLevel(state.score)} ${
+                    selectedState === code ? "is-selected" : ""
+                  }`}
+                  style={{ gridColumn: column + 1, gridRow: row + 1 }}
                   onClick={() => onSelectState(code)}
-                  title={`${state.name}: ${state.findingCount} findings, score ${Math.round(
-                    state.score
-                  )}`}
-                  aria-label={`${state.name}, ${state.findingCount} findings, intelligence score ${Math.round(
-                    state.score
-                  )}`}
+                  title={`${state.name}: ${state.findingCount} findings`}
                 >
                   <strong>{code}</strong>
                   <small>{state.findingCount || "—"}</small>
@@ -210,728 +155,413 @@ function NationalHeatmap({
             })}
           </div>
 
-          <div className="pif-heatmap-legend" aria-label="Heatmap legend">
-            <span><i className="is-none" /> No signal</span>
-            <span><i className="is-low" /> Low</span>
-            <span><i className="is-medium" /> Medium</span>
-            <span><i className="is-high" /> High</span>
-            <span><i className="is-critical" /> Critical</span>
+          <div className="pif-legend">
+            <span><i className="none" />No signal</span>
+            <span><i className="low" />Low</span>
+            <span><i className="medium" />Medium</span>
+            <span><i className="high" />High</span>
+            <span><i className="critical" />Critical</span>
           </div>
         </div>
 
-        <aside className="pif-heatmap-ranking">
-          <div className="pif-heatmap-ranking-title">
-            <span>Highest-priority states</span>
-            <strong>{rankedStates.length}</strong>
-          </div>
-
-          <div className="pif-heatmap-ranking-list">
-            {rankedStates.slice(0, 8).map((state, index) => (
+        <div className="pif-ranking">
+          {rankedStates.length ? (
+            rankedStates.slice(0, 8).map((state, index) => (
               <button
                 type="button"
                 key={state.code}
+                className={selectedState === state.code ? "pif-rank-row is-active" : "pif-rank-row"}
                 onClick={() => onSelectState(state.code)}
-                className={selectedState === state.code ? "is-active" : ""}
               >
-                <span className={`pif-heat-rank is-${heatLevel(state.score)}`}>
-                  {index + 1}
-                </span>
+                <span>{index + 1}</span>
                 <div>
                   <strong>{state.name}</strong>
-                  <small>
-                    {state.findingCount} finding
-                    {state.findingCount === 1 ? "" : "s"}
-                    {state.criticalCount
-                      ? ` • ${state.criticalCount} critical`
-                      : state.highCount
-                        ? ` • ${state.highCount} high`
-                        : ""}
-                  </small>
+                  <small>{state.findingCount} findings</small>
                 </div>
-                <b>{Math.round(state.score)}</b>
+                <Badge tone={tone(heatLevel(state.score))}>{Math.round(state.score)}</Badge>
               </button>
-            ))}
-
-            {!rankedStates.length && (
-              <div className="pif-empty">
-                Run a national scan to populate the heatmap.
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
-    </section>
-  );
-}
-
- 
-
-function severityClass(value = "") {
-
-  return `pif-severity pif-severity--${String(value).toLowerCase()}`;
-
-}
-
- 
-
-function MetricCard({ label, value, detail }) {
-
-  return (
-
-    <article className="pif-metric-card">
-
-      <span>{label}</span>
-
-      <strong>{value ?? 0}</strong>
-
-      <small>{detail}</small>
-
-    </article>
-
-  );
-
-}
-
- 
-
-function SourceHealth({ sourceHealth = {} }) {
-
-  return (
-
-    <div className="pif-source-grid">
-
-      {Object.entries(sourceHealth).map(([source, health]) => (
-
-        <div className="pif-source" key={source}>
-
-          <span className={health.ok ? "pif-dot is-online" : "pif-dot is-offline"} />
-
-          <div>
-
-            <strong>{source.replaceAll("_", " ")}</strong>
-
-            <small>{health.ok ? `${health.count} records` : "Unavailable"}</small>
-
-          </div>
-
+            ))
+          ) : (
+            <EmptyState text="Run a national scan to populate the heatmap." />
+          )}
         </div>
-
-      ))}
-
-    </div>
-
+      </div>
+    </SectionCard>
   );
-
 }
-
- 
 
 export default function PoliticalIntelligenceFabric() {
-
   const [data, setData] = useState(null);
-
   const [selected, setSelected] = useState(null);
-
   const [stateCode, setStateCode] = useState("");
-
   const [scopeType, setScopeType] = useState("national");
-
   const [loading, setLoading] = useState(true);
-
   const [message, setMessage] = useState("");
-
   const [error, setError] = useState("");
 
- 
-
   async function loadOverview() {
-
-    setLoading(true);
-
-    setError("");
-
     try {
-
+      setLoading(true);
+      setError("");
       const result = await fetchPoliticalFabricOverview(WORKSPACE_ID);
-
       setData(result);
-
-      setSelected(result.findings?.[0] || null);
-
+      setSelected(arr(result?.findings)[0] || null);
     } catch (err) {
-
-      setError(err.message || "Unable to load Political Intelligence Fabric.");
-
+      setError(err?.message || "Unable to load Political Intelligence Fabric.");
     } finally {
-
       setLoading(false);
-
     }
-
   }
-
- 
 
   useEffect(() => {
-
     loadOverview();
-
   }, []);
 
- 
-
-  const findings = data?.findings || [];
-
+  const findings = arr(data?.findings);
   const metrics = data?.metrics || {};
-
-  const sortedWatchlist = useMemo(
-
-    () => [...(data?.watchlist || [])].sort((a, b) =>
-
-      String(a.priority).localeCompare(String(b.priority))
-
-    ),
-
+  const watchlist = useMemo(
+    () => [...arr(data?.watchlist)].sort((a, b) => String(a.priority).localeCompare(String(b.priority))),
     [data]
-
   );
-
- 
-
-
-  function handleHeatmapStateSelect(code) {
-    setScopeType("state");
-    setStateCode(code);
-    setMessage(
-      `${STATE_NAMES[code] || code} selected. Run the state scan for focused intelligence.`
-    );
-
-    window.requestAnimationFrame(() => {
-      document
-        .querySelector(".pif-hero-actions")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-  }
 
   async function handleScan() {
-
-    setLoading(true);
-
-    setMessage("");
-
-    setError("");
-
     try {
+      setLoading(true);
+      setMessage("");
+      setError("");
 
       const result = await runPoliticalFabricScan({
-
         workspace_id: WORKSPACE_ID,
-
         scope_type: scopeType,
-
         scope_value: scopeType === "state" ? stateCode : null,
-
         state_code: scopeType === "state" ? stateCode : null,
-
         time_horizon: "30d",
-
-        limit: 75
-
+        limit: 75,
       });
 
       setData((current) => ({
-
         ...(current || {}),
-
         ...result,
-
         watchlist: current?.watchlist || [],
-
-        recent_briefs: current?.recent_briefs || []
-
+        recent_briefs: current?.recent_briefs || [],
       }));
-
-      setSelected(result.findings?.[0] || null);
-
+      setSelected(arr(result?.findings)[0] || null);
       setMessage("Political intelligence scan completed.");
-
     } catch (err) {
-
-      setError(err.message || "Unable to run scan.");
-
+      setError(err?.message || "Unable to run scan.");
     } finally {
-
       setLoading(false);
-
     }
-
   }
-
- 
 
   async function handleCreateBrief() {
-
-    setMessage("");
-
-    setError("");
-
     try {
+      setMessage("");
+      setError("");
 
       const brief = await createPoliticalFabricBrief({
-
         workspace_id: WORKSPACE_ID,
-
         title:
-
           scopeType === "state" && stateCode
-
-            ? `${stateCode} Political Intelligence Brief`
-
+            ? `${STATE_NAMES[stateCode] || stateCode} Political Intelligence Brief`
             : "National Political Intelligence Brief",
-
         scope_type: scopeType,
-
         scope_value: scopeType === "state" ? stateCode : null,
-
         state_code: scopeType === "state" ? stateCode : null,
-
-        time_horizon: "30d"
-
+        time_horizon: "30d",
       });
 
       setData((current) => ({
-
         ...current,
-
-        recent_briefs: [brief, ...(current?.recent_briefs || [])]
-
+        recent_briefs: [brief, ...arr(current?.recent_briefs)],
       }));
-
       setMessage(`Brief #${brief.id} created.`);
-
     } catch (err) {
-
-      setError(err.message || "Unable to create brief.");
-
+      setError(err?.message || "Unable to create brief.");
     }
-
   }
-
- 
 
   async function handleWatch(finding) {
-
-    setMessage("");
-
-    setError("");
-
     try {
+      setMessage("");
+      setError("");
 
       const item = await savePoliticalFabricWatchlist({
-
         workspace_id: WORKSPACE_ID,
-
         entity_type: finding.entity_type,
-
         entity_id: String(finding.entity_id || finding.entity_name),
-
         entity_name: finding.entity_name,
-
         state_code: finding.state_code,
-
         priority: finding.severity,
-
         rationale: finding.summary,
-
-        tags: [finding.category]
-
+        tags: [finding.category],
       });
 
       setData((current) => ({
-
         ...current,
-
-        watchlist: [
-
-          item,
-
-          ...(current?.watchlist || []).filter((existing) => existing.id !== item.id)
-
-        ]
-
+        watchlist: [item, ...arr(current?.watchlist).filter((existing) => existing.id !== item.id)],
       }));
-
       setMessage(`${finding.entity_name} added to watchlist.`);
-
     } catch (err) {
-
-      setError(err.message || "Unable to update watchlist.");
-
+      setError(err?.message || "Unable to update watchlist.");
     }
-
   }
 
- 
+  const tickerItems = [
+    { label: "Findings", value: `${metrics.finding_count || findings.length || 0}`, dotClass: "vs-live-dot-success" },
+    { label: "Critical", value: `${metrics.critical_count || 0}`, dotClass: metrics.critical_count ? "vs-live-dot-warning" : "vs-live-dot-success" },
+    { label: "High", value: `${metrics.high_count || 0}`, dotClass: metrics.high_count ? "vs-live-dot-warning" : "vs-live-dot-success" },
+    { label: "Sources", value: `${metrics.healthy_source_count || 0}/${metrics.source_count || 0}`, dotClass: "vs-live-dot-success" },
+  ];
 
   return (
+    <PageShell
+      eyebrow="Unified Executive Intelligence"
+      title="Political Intelligence Fabric"
+      description="Unified national, state, candidate, coalition, vendor, finance, influence, execution, and decision intelligence."
+      tickerItems={tickerItems}
+    >
+      <style>{`
+        .pif-toolbar{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+        .pif-toolbar-copy{max-width:760px}
+        .pif-toolbar-copy h2{margin:0;color:var(--vs-text,#f8fafc);font-size:1.1rem}
+        .pif-toolbar-copy p{margin:7px 0 0;color:var(--vs-muted,#94a3b8);line-height:1.6}
+        .pif-toolbar-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+        .pif-toolbar-actions select{min-height:42px;border-radius:12px;border:1px solid var(--vs-border,rgba(148,163,184,.18));background:rgba(15,23,42,.78);color:var(--vs-text,#f8fafc);padding:0 12px}
+        .pif-grid-2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);gap:18px;align-items:start}
+        .pif-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+        .pif-stack{display:grid;gap:14px}
+        .pif-map-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr);gap:18px;align-items:start}
+        .pif-state-grid{display:grid;grid-template-columns:repeat(12,minmax(34px,1fr));grid-template-rows:repeat(8,52px);gap:7px}
+        .pif-state-tile{border:1px solid rgba(148,163,184,.16);border-radius:11px;background:rgba(15,23,42,.7);color:#cbd5e1;display:grid;place-items:center;padding:4px;cursor:pointer;transition:.18s ease}
+        .pif-state-tile strong{font-size:.78rem}.pif-state-tile small{font-size:.65rem;color:#94a3b8}
+        .pif-state-tile:hover,.pif-state-tile.is-selected{transform:translateY(-1px);border-color:rgba(96,165,250,.7);box-shadow:0 0 0 2px rgba(59,130,246,.16)}
+        .pif-state-tile.is-low{background:rgba(37,99,235,.16)}
+        .pif-state-tile.is-medium{background:rgba(245,158,11,.18)}
+        .pif-state-tile.is-high{background:rgba(249,115,22,.2)}
+        .pif-state-tile.is-critical{background:rgba(239,68,68,.22)}
+        .pif-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;color:#94a3b8;font-size:.78rem}
+        .pif-legend span{display:flex;align-items:center;gap:6px}.pif-legend i{width:9px;height:9px;border-radius:50%;background:#334155}
+        .pif-legend i.low{background:#2563eb}.pif-legend i.medium{background:#d97706}.pif-legend i.high{background:#ea580c}.pif-legend i.critical{background:#dc2626}
+        .pif-ranking{display:grid;gap:9px}
+        .pif-rank-row{width:100%;display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;text-align:left;border:1px solid rgba(148,163,184,.14);border-radius:14px;background:rgba(15,23,42,.52);padding:11px;color:#f8fafc;cursor:pointer}
+        .pif-rank-row.is-active{border-color:rgba(96,165,250,.62);background:rgba(37,99,235,.12)}
+        .pif-rank-row>span{display:grid;place-items:center;width:26px;height:26px;border-radius:9px;background:rgba(59,130,246,.14);font-weight:800}
+        .pif-rank-row strong,.pif-rank-row small{display:block}.pif-rank-row small{margin-top:3px;color:#94a3b8}
+        .pif-finding{width:100%;border:1px solid rgba(148,163,184,.14);border-radius:16px;background:rgba(15,23,42,.52);padding:0;text-align:left;color:inherit;cursor:pointer;overflow:hidden}
+        .pif-finding.is-active{border-color:rgba(96,165,250,.65);box-shadow:0 0 0 2px rgba(59,130,246,.12)}
+        .pif-detail-block{border:1px solid rgba(148,163,184,.14);border-radius:16px;background:rgba(15,23,42,.52);padding:16px}
+        .pif-detail-block h3{margin:10px 0 8px;color:#fff}.pif-detail-block p{margin:0;color:#cbd5e1;line-height:1.65}
+        .pif-score-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+        .pif-score-grid>div{border:1px solid rgba(148,163,184,.12);border-radius:13px;padding:12px;background:rgba(2,6,23,.35)}
+        .pif-score-grid span,.pif-score-grid strong{display:block}.pif-score-grid span{font-size:.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em}.pif-score-grid strong{margin-top:5px;color:#fff;font-size:1.15rem}
+        .pif-json{max-height:220px;overflow:auto;border-radius:14px;background:rgba(2,6,23,.55);padding:14px;color:#cbd5e1;font-size:.75rem}
+        .pif-source-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        .pif-source{display:flex;gap:10px;align-items:center;border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px;background:rgba(15,23,42,.5)}
+        .pif-dot{width:9px;height:9px;border-radius:50%;background:#64748b}.pif-dot.is-online{background:#22c55e}.pif-dot.is-offline{background:#ef4444}
+        .pif-source strong,.pif-source small{display:block}.pif-source strong{color:#f8fafc;text-transform:capitalize}.pif-source small{margin-top:3px;color:#94a3b8}
+        .pif-list-card{border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px;background:rgba(15,23,42,.5)}
+        .pif-list-card strong,.pif-list-card small,.pif-list-card p{display:block}.pif-list-card small{margin-top:4px;color:#94a3b8}.pif-list-card p{margin:8px 0 0;color:#cbd5e1;line-height:1.5}
+        @media(max-width:1100px){.pif-grid-2,.pif-map-layout{grid-template-columns:1fr}.pif-grid-3{grid-template-columns:1fr 1fr}}
+        @media(max-width:760px){.pif-grid-3,.pif-source-grid,.pif-score-grid{grid-template-columns:1fr}.pif-toolbar-actions{width:100%}.pif-toolbar-actions>*{flex:1 1 180px}.pif-state-grid{grid-template-columns:repeat(12,32px);overflow-x:auto;padding-bottom:8px}}
+      `}</style>
 
-    <main className="pif-page">
+      <div className="pif-stack">
+        <SectionCard
+          title="Political Intelligence Command"
+          subtitle="Run scoped scans, generate executive briefs, and direct the intelligence fabric."
+          right={<Badge tone={loading ? "demo" : "active"}>{loading ? "Scanning" : "Live"}</Badge>}
+        >
+          <div className="pif-toolbar">
+            <div className="pif-toolbar-copy">
+              <h2>{data?.executive_summary || "Executive political intelligence is ready for review."}</h2>
+              <p>{data?.generated_at ? `Last generated ${new Date(data.generated_at).toLocaleString()}` : "Run a scan to refresh the executive intelligence layer."}</p>
+            </div>
 
-      <section className="pif-hero">
+            <div className="pif-toolbar-actions">
+              <select value={scopeType} onChange={(event) => setScopeType(event.target.value)}>
+                <option value="national">National</option>
+                <option value="state">State</option>
+              </select>
 
-        <div>
+              {scopeType === "state" ? (
+                <select value={stateCode} onChange={(event) => setStateCode(event.target.value)}>
+                  <option value="">Select state</option>
+                  {Object.entries(STATE_NAMES).map(([code, name]) => (
+                    <option key={code} value={code}>{name}</option>
+                  ))}
+                </select>
+              ) : null}
 
-          <p className="pif-eyebrow">Unified Executive Intelligence</p>
+              <button type="button" className="vs-button vs-button-primary" onClick={handleScan} disabled={loading || (scopeType === "state" && !stateCode)}>
+                {loading ? "Scanning Intelligence..." : "Run Intelligence Scan"}
+              </button>
 
-          <h1>Political Intelligence Fabric</h1>
+              <button type="button" className="vs-button vs-button-secondary" onClick={handleCreateBrief}>
+                Create Executive Brief
+              </button>
+            </div>
+          </div>
+        </SectionCard>
 
-          <p>
+        {message ? <div className="vs-banner">{message}</div> : null}
+        {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
-            Unified national, state, candidate, coalition, vendor, finance,
-
-            influence, execution, and decision intelligence.
-
-          </p>
-
+        <div className="vs-grid-4">
+          <StatCard label="Material Findings" value={metrics.finding_count || findings.length || 0} subtext="Ranked executive intelligence signals" />
+          <StatCard label="Critical Findings" value={metrics.critical_count || 0} subtext="Immediate executive review required" />
+          <StatCard label="High Priority Findings" value={metrics.high_count || 0} subtext="Action recommended within 72 hours" />
+          <StatCard label="Connected Source Health" value={`${metrics.healthy_source_count || 0}/${metrics.source_count || 0}`} subtext="Operational intelligence sources online" />
         </div>
 
- 
-
-        <div className="pif-hero-actions">
-
-          <select value={scopeType} onChange={(e) => setScopeType(e.target.value)}>
-
-            <option value="national">National</option>
-
-            <option value="state">State</option>
-
-          </select>
-
-          {scopeType === "state" && (
-            <select
-              value={stateCode}
-              onChange={(event) => setStateCode(event.target.value)}
-              aria-label="Select state"
-            >
-              <option value="">Select state</option>
-              {Object.entries(STATE_NAMES).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {name} ({code})
-                </option>
-              ))}
-            </select>
-          )}
-
-          <button onClick={handleScan} disabled={loading}>
-
-            {loading ? "Scanning..." : "Run Scan"}
-
-          </button>
-
-          <button className="is-secondary" onClick={handleCreateBrief}>
-
-            Create Brief
-
-          </button>
-
-        </div>
-
-      </section>
-
- 
-
-      {(message || error) && (
-
-        <div className={error ? "pif-alert is-error" : "pif-alert is-success"}>
-
-          {error || message}
-
-        </div>
-
-      )}
-
- 
-
-      <section className="pif-metrics">
-
-        <MetricCard label="Material Findings" value={metrics.finding_count} detail="Ranked signals" />
-
-        <MetricCard label="Critical" value={metrics.critical_count} detail="Immediate review" />
-
-        <MetricCard label="High" value={metrics.high_count} detail="72-hour window" />
-
-        <MetricCard
-
-          label="Source Health"
-
-          value={`${metrics.healthy_source_count || 0}/${metrics.source_count || 0}`}
-
-          detail="Connected intelligence sources"
-
+        <NationalHeatmap
+          findings={findings}
+          selectedState={scopeType === "state" ? stateCode : ""}
+          onSelectState={(code) => {
+            setScopeType("state");
+            setStateCode(code);
+            setMessage(`${STATE_NAMES[code]} selected for focused intelligence review.`);
+          }}
         />
 
-      </section>
-
- 
-
-      <section className="pif-summary">
-
-        <div>
-
-          <span>Executive synthesis</span>
-
-          <h2>{data?.executive_summary || "Loading intelligence fabric..."}</h2>
-
-        </div>
-
-        <small>{data?.generated_at ? new Date(data.generated_at).toLocaleString() : ""}</small>
-
-      </section>
-
- 
-
-      <section className="pif-layout">
-
-        <div className="pif-panel pif-findings-panel">
-
-          <header>
-
-            <div>
-
-              <span>Ranked intelligence</span>
-
-              <h2>Political Findings</h2>
-
+        <div className="pif-grid-2">
+          <SectionCard
+            title="Political Intelligence Findings"
+            subtitle="Ranked cross-module findings requiring executive attention."
+            right={<Badge tone="info">{findings.length} Findings</Badge>}
+          >
+            <div className="pif-stack">
+              {loading ? (
+                <EmptyState text="Loading political intelligence findings..." />
+              ) : findings.length ? (
+                findings.map((finding) => (
+                  <button
+                    type="button"
+                    key={`${finding.category}-${finding.rank}-${finding.entity_id}`}
+                    className={selected?.rank === finding.rank ? "pif-finding is-active" : "pif-finding"}
+                    onClick={() => setSelected(finding)}
+                  >
+                    <ResponsiveRow
+                      title={finding.title}
+                      subtitle={finding.summary}
+                      meta={[
+                        { label: "Rank", value: finding.rank },
+                        { label: "Category", value: labelize(finding.category) },
+                        { label: "State", value: finding.state_code || "National" },
+                        { label: "Score", value: Math.round(number(finding.score)) },
+                      ]}
+                      right={<Badge tone={tone(finding.severity)}>{labelize(finding.severity)}</Badge>}
+                    />
+                  </button>
+                ))
+              ) : (
+                <EmptyState text="No material findings detected." />
+              )}
             </div>
+          </SectionCard>
 
-            <strong>{findings.length}</strong>
+          <SectionCard
+            title="Executive Finding Detail"
+            subtitle="Evidence, confidence, metrics, and the recommended monitoring action."
+            right={selected ? <Badge tone={tone(selected.severity)}>{labelize(selected.severity)}</Badge> : null}
+          >
+            {selected ? (
+              <div className="pif-stack">
+                <div className="pif-detail-block">
+                  <h3>{selected.title}</h3>
+                  <p>{selected.summary}</p>
 
-          </header>
-
- 
-
-          <div className="pif-findings-list">
-
-            {findings.map((finding) => (
-
-              <button
-
-                key={`${finding.category}-${finding.rank}-${finding.entity_id}`}
-
-                className={selected?.rank === finding.rank ? "pif-finding is-active" : "pif-finding"}
-
-                onClick={() => setSelected(finding)}
-
-              >
-
-                <div className="pif-finding-rank">{finding.rank}</div>
-
-                <div>
-
-                  <div className="pif-finding-topline">
-
-                    <span className={severityClass(finding.severity)}>
-
-                      {finding.severity}
-
-                    </span>
-
-                    <small>{finding.category.replaceAll("_", " ")}</small>
-
+                  <div className="pif-score-grid">
+                    <div><span>Risk Score</span><strong>{Math.round(number(selected.score))}</strong></div>
+                    <div><span>Confidence</span><strong>{Math.round(number(selected.confidence))}%</strong></div>
+                    <div><span>State</span><strong>{selected.state_code || "US"}</strong></div>
                   </div>
-
-                  <strong>{finding.title}</strong>
-
-                  <p>{finding.summary}</p>
-
                 </div>
 
-                <b>{Math.round(finding.score)}</b>
+                <div>
+                  <div className="vs-page-eyebrow">Finding Metrics</div>
+                  <pre className="pif-json">{JSON.stringify(selected.metrics || {}, null, 2)}</pre>
+                </div>
 
-              </button>
+                <div className="pif-stack">
+                  {arr(selected.evidence).map((item, index) => (
+                    <div className="pif-list-card" key={`${item.source}-${index}`}>
+                      <strong>{item.label || "Supporting Evidence"}</strong>
+                      <small>{item.source || "Political Intelligence Fabric"}</small>
+                    </div>
+                  ))}
+                </div>
 
-            ))}
-
-            {!loading && findings.length === 0 && (
-
-              <div className="pif-empty">No material findings detected.</div>
-
+                <button type="button" className="vs-button vs-button-primary" onClick={() => handleWatch(selected)}>
+                  Add to Executive Watchlist
+                </button>
+              </div>
+            ) : (
+              <EmptyState text="Select a finding to inspect its executive context." />
             )}
-
-          </div>
-
+          </SectionCard>
         </div>
 
- 
-
-        <aside className="pif-panel pif-detail-panel">
-
-          <header>
-
-            <div>
-
-              <span>Evidence and action</span>
-
-              <h2>Finding Detail</h2>
-
-            </div>
-
-          </header>
-
- 
-
-          {selected ? (
-
-            <>
-
-              <div className="pif-detail-heading">
-
-                <span className={severityClass(selected.severity)}>
-
-                  {selected.severity}
-
-                </span>
-
-                <h3>{selected.title}</h3>
-
-                <p>{selected.summary}</p>
-
-              </div>
-
- 
-
-              <div className="pif-score-row">
-
-                <div><span>Risk score</span><strong>{Math.round(selected.score)}</strong></div>
-
-                <div><span>Confidence</span><strong>{Math.round(selected.confidence)}%</strong></div>
-
-                <div><span>State</span><strong>{selected.state_code || "US"}</strong></div>
-
-              </div>
-
- 
-
-              <h4>Metrics</h4>
-
-              <pre>{JSON.stringify(selected.metrics || {}, null, 2)}</pre>
-
- 
-
-              <h4>Evidence</h4>
-
-              <div className="pif-evidence-list">
-
-                {(selected.evidence || []).map((item, index) => (
-
-                  <div key={`${item.source}-${index}`}>
-
-                    <strong>{item.label}</strong>
-
-                    <span>{item.source}</span>
-
+        <div className="pif-grid-3">
+          <SectionCard
+            title="Source Health"
+            subtitle="Connected intelligence systems supporting this fabric."
+            right={<Badge tone="active">{Object.keys(data?.source_health || {}).length} Sources</Badge>}
+          >
+            <div className="pif-source-grid">
+              {Object.entries(data?.source_health || {}).map(([source, health]) => (
+                <div className="pif-source" key={source}>
+                  <span className={health.ok ? "pif-dot is-online" : "pif-dot is-offline"} />
+                  <div>
+                    <strong>{labelize(source)}</strong>
+                    <small>{health.ok ? `${health.count || 0} records` : "Unavailable"}</small>
                   </div>
-
-                ))}
-
-              </div>
-
- 
-
-              <button className="pif-watch-button" onClick={() => handleWatch(selected)}>
-
-                Add to Executive Watchlist
-
-              </button>
-
-            </>
-
-          ) : (
-
-            <div className="pif-empty">Select a finding to inspect its evidence.</div>
-
-          )}
-
-        </aside>
-
-      </section>
-
- 
-
-      <section className="pif-lower-grid">
-
-        <article className="pif-panel">
-
-          <header><div><span>Connected systems</span><h2>Source Health</h2></div></header>
-
-          <SourceHealth sourceHealth={data?.source_health} />
-
-        </article>
-
- 
-
-        <article className="pif-panel">
-
-          <header><div><span>Persistent monitoring</span><h2>Watchlist</h2></div></header>
-
-          <div className="pif-watchlist">
-
-            {sortedWatchlist.slice(0, 8).map((item) => (
-
-              <div key={item.id}>
-
-                <span className={severityClass(item.priority)}>{item.priority}</span>
-
-                <div>
-
-                  <strong>{item.entity_name}</strong>
-
-                  <small>{item.entity_type} • {item.state_code || "National"}</small>
-
                 </div>
+              ))}
+            </div>
+          </SectionCard>
 
-              </div>
+          <SectionCard
+            title="Executive Watchlist"
+            subtitle="Persistent monitoring across political entities and states."
+            right={<Badge tone="accent">{watchlist.length} Entries</Badge>}
+          >
+            <div className="pif-stack">
+              {watchlist.length ? (
+                watchlist.slice(0, 8).map((item) => (
+                  <div className="pif-list-card" key={item.id}>
+                    <Badge tone={tone(item.priority)}>{labelize(item.priority)}</Badge>
+                    <strong style={{ marginTop: 8 }}>{item.entity_name}</strong>
+                    <small>{labelize(item.entity_type)} · {item.state_code || "National"}</small>
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No executive watchlist entries." />
+              )}
+            </div>
+          </SectionCard>
 
-            ))}
-
-            {!sortedWatchlist.length && <div className="pif-empty">No watchlist entries.</div>}
-
-          </div>
-
-        </article>
-
- 
-
-        <article className="pif-panel">
-
-          <header><div><span>Generated intelligence</span><h2>Recent Briefs</h2></div></header>
-
-          <div className="pif-briefs">
-
-            {(data?.recent_briefs || []).slice(0, 8).map((brief) => (
-
-              <div key={brief.id}>
-
-                <strong>{brief.title}</strong>
-
-                <small>{brief.scope_type} • {new Date(brief.created_at).toLocaleDateString()}</small>
-
-                <p>{brief.executive_summary}</p>
-
-              </div>
-
-            ))}
-
-            {!data?.recent_briefs?.length && <div className="pif-empty">No saved briefs.</div>}
-
-          </div>
-
-        </article>
-
-      </section>
-
-    </main>
-
+          <SectionCard
+            title="Recent Executive Briefs"
+            subtitle="Generated political intelligence summaries for leadership."
+            right={<Badge tone="info">{arr(data?.recent_briefs).length} Briefs</Badge>}
+          >
+            <div className="pif-stack">
+              {arr(data?.recent_briefs).length ? (
+                arr(data.recent_briefs).slice(0, 8).map((brief) => (
+                  <div className="pif-list-card" key={brief.id}>
+                    <strong>{brief.title}</strong>
+                    <small>{labelize(brief.scope_type)} · {new Date(brief.created_at).toLocaleDateString()}</small>
+                    <p>{brief.executive_summary}</p>
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="No saved executive briefs." />
+              )}
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+    </PageShell>
   );
-
 }
