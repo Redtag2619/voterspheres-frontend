@@ -83,14 +83,38 @@ function resolveFindingStateCode(finding = {}) {
     finding.state_code,
     finding.state,
     finding.scope_value,
+    finding.jurisdiction,
+    finding.region,
     finding?.metadata?.state_code,
+    finding?.metadata?.state,
     finding?.metrics?.state_code,
+    finding?.metrics?.state,
     finding?.entity?.state_code,
+    finding?.entity?.state,
   ];
 
   for (const value of candidates) {
     const code = String(value || "").trim().toUpperCase();
     if (STATE_NAMES[code]) return code;
+  }
+
+  const searchableText = [
+    finding.title,
+    finding.summary,
+    finding.entity_name,
+    finding.description,
+    finding.category,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
+
+  for (const [code, name] of Object.entries(STATE_NAMES)) {
+    const stateName = String(name).toUpperCase();
+    const codePattern = new RegExp(`(^|[^A-Z])${code}([^A-Z]|$)`);
+    if (searchableText.includes(stateName) || codePattern.test(searchableText)) {
+      return code;
+    }
   }
 
   return "";
@@ -162,6 +186,13 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
     [stateData]
   );
 
+  const matchedFindingCount = useMemo(
+    () => findings.filter((finding) => Boolean(resolveFindingStateCode(finding))).length,
+    [findings]
+  );
+
+  const unmatchedFindingCount = Math.max(0, findings.length - matchedFindingCount);
+
   const mapFill = (level) => {
     if (level === "critical") return "#ef4444";
     if (level === "high") return "#f97316";
@@ -174,7 +205,14 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
     <SectionCard
       title="Executive Intelligence Heatmap"
       subtitle="Live national political signal distribution by state. Select any state for focused intelligence."
-      right={<Badge tone="accent">{rankedStates.length} Active States</Badge>}
+      right={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Badge tone="accent">{rankedStates.length} Active States</Badge>
+          <Badge tone={matchedFindingCount ? "active" : "danger"}>
+            {matchedFindingCount}/{findings.length} Signals Mapped
+          </Badge>
+        </div>
+      }
     >
       <div className="pif-map-layout">
         <div className="pif-us-map-wrap">
@@ -233,6 +271,13 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
             <span><i className="high" />High</span>
             <span><i className="critical" />Critical</span>
           </div>
+
+          {unmatchedFindingCount > 0 ? (
+            <div className="pif-map-warning">
+              {unmatchedFindingCount} finding{unmatchedFindingCount === 1 ? "" : "s"} could not be matched to a state.
+              Check the returned state_code/state fields.
+            </div>
+          ) : null}
         </div>
 
         <div className="pif-ranking">
@@ -419,6 +464,7 @@ export default function PoliticalIntelligenceFabric() {
         .pif-map-state.is-selected{stroke:#f8fafc;stroke-width:3;filter:brightness(1.18)}
         .pif-map-borders{fill:none;stroke:rgba(226,232,240,.42);stroke-width:.8;pointer-events:none}
         .pif-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;color:#94a3b8;font-size:.78rem}
+        .pif-map-warning{margin-top:12px;border:1px solid rgba(245,158,11,.32);background:rgba(245,158,11,.10);color:#fbbf24;border-radius:12px;padding:10px 12px;font-size:.82rem}
         .pif-legend span{display:flex;align-items:center;gap:6px}.pif-legend i{width:9px;height:9px;border-radius:50%;background:#334155}
         .pif-legend i.low{background:#2563eb}.pif-legend i.medium{background:#d97706}.pif-legend i.high{background:#ea580c}.pif-legend i.critical{background:#dc2626}
         .pif-ranking{display:grid;gap:9px}
