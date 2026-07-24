@@ -896,3 +896,229 @@
     grid-column: 2;
   }
 }
+
+/* =========================================================
+   Executive Suite visual alignment overrides
+   ========================================================= */
+
+.pif-page {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 24px 28px 40px;
+  background: transparent;
+}
+
+.pif-hero,
+.pif-panel,
+.pif-summary,
+.pif-metric-card {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.94) 0%,
+    rgba(9, 15, 28, 0.96) 100%
+  );
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.pif-hero {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 32px;
+  padding: 28px 30px;
+  border-radius: 14px;
+  background:
+    linear-gradient(100deg, rgba(99, 102, 241, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(9, 15, 28, 0.98));
+}
+
+.pif-hero::before {
+  background: none;
+}
+
+.pif-eyebrow,
+.pif-heatmap-header > div > span,
+.pif-summary span,
+.pif-panel > header > div > span,
+.pif-heatmap-ranking-title > span {
+  color: #8b9bb2;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.pif-hero h1 {
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: #f8fafc;
+}
+
+.pif-hero > div:first-child > p:not(.pif-eyebrow) {
+  max-width: 820px;
+  margin-top: 14px;
+  color: #94a3b8;
+  font-size: 0.96rem;
+  line-height: 1.65;
+}
+
+.pif-hero-actions {
+  min-width: 360px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(2, 8, 23, 0.48);
+}
+
+.pif-hero-actions select,
+.pif-hero-actions button {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.pif-hero-actions button {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  box-shadow: none;
+}
+
+.pif-hero-actions button.is-secondary {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.pif-metrics {
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.pif-metric-card {
+  min-height: 112px;
+  padding: 17px 18px;
+  border-radius: 12px;
+}
+
+.pif-metric-card::after {
+  display: none;
+}
+
+.pif-metric-card > span {
+  color: #7f8da3;
+  font-size: 0.69rem;
+  font-weight: 700;
+}
+
+.pif-metric-card > strong {
+  margin: 10px 0 6px;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.pif-summary {
+  margin-top: 14px;
+  padding: 18px 20px;
+  border-radius: 12px;
+}
+
+.pif-summary h2 {
+  font-size: 0.94rem;
+  font-weight: 650;
+}
+
+.pif-panel {
+  margin-top: 14px;
+  border-radius: 14px;
+}
+
+.pif-panel > header,
+.pif-heatmap-header {
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.pif-panel > header h2,
+.pif-heatmap-header h2 {
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.012em;
+}
+
+.pif-heatmap-stats > div,
+.pif-score-row > div,
+.pif-heatmap-ranking-list button,
+.pif-finding {
+  border-radius: 9px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.pif-state-grid {
+  min-height: 450px;
+  padding: 20px;
+  border-radius: 12px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(8, 15, 28, 0.98));
+  background-size: 36px 36px, 36px 36px, auto;
+}
+
+.pif-state-tile {
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.pif-state-tile.is-none { background: #1e293b; }
+.pif-state-tile.is-low { background: #1e40af; }
+.pif-state-tile.is-medium { background: #92400e; }
+.pif-state-tile.is-high { background: #9a3412; }
+.pif-state-tile.is-critical { background: #991b1b; }
+
+.pif-state-tile.is-selected {
+  border-color: #c7d2fe;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.36);
+}
+
+.pif-heatmap-ranking {
+  background: rgba(2, 8, 23, 0.3);
+}
+
+.pif-heatmap-ranking-list button:hover,
+.pif-heatmap-ranking-list button.is-active,
+.pif-finding:hover,
+.pif-finding.is-active {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(79, 70, 229, 0.11);
+}
+
+.pif-heatmap-ranking-title > strong,
+.pif-watch-button {
+  border-radius: 8px;
+}
+
+.pif-detail-panel pre {
+  background: rgba(2, 8, 23, 0.72);
+}
+
+@media (max-width: 1180px) {
+  .pif-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .pif-hero-actions {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .pif-page {
+    padding: 16px;
+  }
+
+  .pif-hero {
+    padding: 22px 20px;
+    border-radius: 12px;
+  }
+
+  .pif-hero h1 {
+    font-size: 2rem;
+  }
+}
