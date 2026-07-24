@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { geoPath } from "d3-geo";
 import { feature, mesh } from "topojson-client";
 import statesTopology from "us-atlas/states-albers-10m.json";
@@ -240,7 +240,7 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
                 <path
                   key={fips}
                   d={path(stateFeature)}
-                  fill={mapFill(level)}
+                  fill={mapFill(level)} style={{ fill: mapFill(level) }}
                   style={{ fill: mapFill(level) }}
                   className={`pif-map-state is-${level} ${isSelected ? "is-selected" : ""}`}
                   onClick={() => code && onSelectState(code)}
@@ -656,7 +656,7 @@ export default function PoliticalIntelligenceFabric() {
                   <div className="pif-list-card" key={item.id}>
                     <Badge tone={tone(item.priority)}>{labelize(item.priority)}</Badge>
                     <strong style={{ marginTop: 8 }}>{item.entity_name}</strong>
-                    <small>{labelize(item.entity_type)} · {item.state_code || "National"}</small>
+                    <small>{labelize(item.entity_type)} Â· {item.state_code || "National"}</small>
                   </div>
                 ))
               ) : (
@@ -675,7 +675,7 @@ export default function PoliticalIntelligenceFabric() {
                 arr(data.recent_briefs).slice(0, 8).map((brief) => (
                   <div className="pif-list-card" key={brief.id}>
                     <strong>{brief.title}</strong>
-                    <small>{labelize(brief.scope_type)} · {new Date(brief.created_at).toLocaleDateString()}</small>
+                    <small>{labelize(brief.scope_type)} Â· {new Date(brief.created_at).toLocaleDateString()}</small>
                     <p>{brief.executive_summary}</p>
                   </div>
                 ))
@@ -689,3 +689,4 @@ export default function PoliticalIntelligenceFabric() {
     </PageShell>
   );
 }
+
