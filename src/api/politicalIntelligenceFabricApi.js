@@ -1,4 +1,4 @@
-const DEFAULT_API_ORIGIN =
+﻿const DEFAULT_API_ORIGIN =
   "https://voterspheres-backend-2pap.onrender.com";
 
 function normalizeApiBase(value = "") {
@@ -14,7 +14,9 @@ function normalizeApiBase(value = "") {
 }
 
 const API_BASE = normalizeApiBase(
-  import.meta.env.VITE_API_BASE_URL
+  import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_BASE ||
+    DEFAULT_API_ORIGIN
 );
 
 console.log(
@@ -25,12 +27,10 @@ console.log(
 function cleanToken(value) {
   if (!value) return "";
 
-  const token = String(value)
+  return String(value)
     .trim()
     .replace(/^Bearer\s+/i, "")
     .replace(/^"(.*)"$/, "$1");
-
-  return token;
 }
 
 function extractTokenFromJson(value) {
@@ -128,29 +128,159 @@ function buildUrl(path) {
   return `${API_BASE}${normalizedPath}`;
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function unwrapPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return {};
+  }
+
+  if (
+    payload.data &&
+    typeof payload.data === "object"
+  ) {
+    return payload.data;
+  }
+
+  if (
+    payload.result &&
+    typeof payload.result === "object"
+  ) {
+    return payload.result;
+  }
+
+  return payload;
+}
+
+function findFindings(payload = {}) {
+  const candidates = [
+    payload.findings,
+    payload.signals,
+    payload.items,
+    payload.results,
+    payload.alerts,
+    payload?.scan?.findings,
+    payload?.scan?.signals,
+    payload?.overview?.findings,
+    payload?.overview?.signals,
+    payload?.intelligence?.findings,
+    payload?.intelligence?.signals,
+    payload?.data?.findings,
+    payload?.data?.signals,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return [];
+}
+
+function normalizePoliticalFabricPayload(
+  rawPayload
+) {
+  const payload = unwrapPayload(rawPayload);
+
+  const scan =
+    payload?.scan &&
+    typeof payload.scan === "object"
+      ? payload.scan
+      : payload;
+
+  const findings = findFindings(payload);
+
+  const normalized = {
+    ...payload,
+    ...scan,
+
+    findings,
+
+    signals: findings,
+
+    metrics:
+      scan?.metrics ||
+      payload?.metrics ||
+      payload?.summary ||
+      {},
+
+    source_health:
+      scan?.source_health ||
+      payload?.source_health ||
+      payload?.sourceHealth ||
+      {},
+
+    watchlist: asArray(
+      payload?.watchlist ||
+        scan?.watchlist
+    ),
+
+    recent_briefs: asArray(
+      payload?.recent_briefs ||
+        payload?.briefs ||
+        scan?.recent_briefs ||
+        scan?.briefs
+    ),
+  };
+
+  console.log(
+    "[Political Intelligence Fabric] Normalized payload:",
+    {
+      rawKeys:
+        rawPayload &&
+        typeof rawPayload === "object"
+          ? Object.keys(rawPayload)
+          : [],
+
+      payloadKeys:
+        payload &&
+        typeof payload === "object"
+          ? Object.keys(payload)
+          : [],
+
+      findingCount:
+        normalized.findings.length,
+
+      firstFinding:
+        normalized.findings[0] || null,
+    }
+  );
+
+  return normalized;
+}
+
 async function request(path, options = {}) {
   const token = getToken();
   const url = buildUrl(path);
 
-  console.log("[Political Intelligence Fabric Auth]", {
-    tokenFound: Boolean(token),
-    tokenLength: token?.length || 0,
-    url,
-  });
+  console.log(
+    "[Political Intelligence Fabric Auth]",
+    {
+      tokenFound: Boolean(token),
+      tokenLength: token?.length || 0,
+      url,
+    }
+  );
 
   let response;
 
   try {
     response = await fetch(url, {
       ...options,
+
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+
         ...(token
           ? {
               Authorization: `Bearer ${token}`,
             }
           : {}),
+
         ...(options.headers || {}),
       },
     });
@@ -174,7 +304,9 @@ async function request(path, options = {}) {
   let payload;
 
   try {
-    payload = contentType.includes("application/json")
+    payload = contentType.includes(
+      "application/json"
+    )
       ? await response.json()
       : await response.text();
   } catch {
@@ -200,7 +332,8 @@ async function request(path, options = {}) {
     }
 
     const message =
-      payload && typeof payload === "object"
+      payload &&
+      typeof payload === "object"
         ? payload.error ||
           payload.message ||
           `Request failed with status ${response.status}`
@@ -219,10 +352,19 @@ async function request(path, options = {}) {
     throw new Error(message);
   }
 
+  console.log(
+    "[Political Intelligence Fabric] Raw response:",
+    {
+      url,
+      status: response.status,
+      payload,
+    }
+  );
+
   return payload;
 }
 
-export function fetchPoliticalFabricHealth(
+export async function fetchPoliticalFabricHealth(
   workspaceId = 1
 ) {
   return request(
@@ -232,29 +374,60 @@ export function fetchPoliticalFabricHealth(
   );
 }
 
-export function fetchPoliticalFabricOverview(
+export async function fetchPoliticalFabricOverview(
   workspaceId = 1
 ) {
-  return request(
+  const payload = await request(
     `/political-intelligence-fabric/overview?workspace_id=${encodeURIComponent(
       workspaceId
     )}`
   );
-}
 
-export function runPoliticalFabricScan(
-  payload = {}
-) {
-  return request(
-    "/political-intelligence-fabric/scan",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }
+  return normalizePoliticalFabricPayload(
+    payload
   );
 }
 
-export function createPoliticalFabricBrief(
+export async function runPoliticalFabricScan(
+  payload = {}
+) {
+  const response = await request(
+    "/political-intelligence-fabric/scan",
+    {
+      method: "POST",
+
+      body: JSON.stringify({
+        workspace_id: Number(
+          payload.workspace_id || 1
+        ),
+
+        scope_type:
+          payload.scope_type || "national",
+
+        scope_value:
+          payload.scope_value || null,
+
+        state_code:
+          payload.state_code || null,
+
+        time_horizon:
+          payload.time_horizon || "30d",
+
+        limit: Number(
+          payload.limit || 75
+        ),
+
+        ...payload,
+      }),
+    }
+  );
+
+  return normalizePoliticalFabricPayload(
+    response
+  );
+}
+
+export async function createPoliticalFabricBrief(
   payload = {}
 ) {
   return request(
@@ -266,27 +439,43 @@ export function createPoliticalFabricBrief(
   );
 }
 
-export function fetchPoliticalFabricBriefs(
+export async function fetchPoliticalFabricBriefs(
   workspaceId = 1
 ) {
-  return request(
+  const payload = await request(
     `/political-intelligence-fabric/briefs?workspace_id=${encodeURIComponent(
       workspaceId
     )}`
   );
+
+  const result = unwrapPayload(payload);
+
+  return asArray(
+    result?.briefs ||
+      result?.recent_briefs ||
+      result
+  );
 }
 
-export function fetchPoliticalFabricWatchlist(
+export async function fetchPoliticalFabricWatchlist(
   workspaceId = 1
 ) {
-  return request(
+  const payload = await request(
     `/political-intelligence-fabric/watchlist?workspace_id=${encodeURIComponent(
       workspaceId
     )}`
   );
+
+  const result = unwrapPayload(payload);
+
+  return asArray(
+    result?.watchlist ||
+      result?.items ||
+      result
+  );
 }
 
-export function savePoliticalFabricWatchlist(
+export async function savePoliticalFabricWatchlist(
   payload = {}
 ) {
   return request(
@@ -298,7 +487,7 @@ export function savePoliticalFabricWatchlist(
   );
 }
 
-export function removePoliticalFabricWatchlist(
+export async function removePoliticalFabricWatchlist(
   id,
   workspaceId = 1
 ) {
@@ -320,7 +509,7 @@ export function removePoliticalFabricWatchlist(
   );
 }
 
-export function runPoliticalFabricScenario(
+export async function runPoliticalFabricScenario(
   payload = {}
 ) {
   return request(
