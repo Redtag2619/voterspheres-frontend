@@ -408,9 +408,9 @@ function getHeatLevel(score = 0) {
 function getStateFill(level = "none") {
   if (level === "critical") return "#dc2626";
   if (level === "high") return "#f97316";
-  if (level === "medium") return "#eab308";
-  if (level === "low") return "#0284c7";
-  return "#334155";
+  if (level === "medium") return "#0284c7";
+  if (level === "low") return "#16a34a";
+  return "#1e293b";
 }
 
 function buildStateLookup(findings = []) {
@@ -916,7 +916,8 @@ export default function PoliticalIntelligenceFabric() {
           display: grid;
           gap: 18px;
           padding: 24px;
-          color: #e2e8f0;
+          color: rgba(226, 232, 240, 0.92);
+          background: transparent;
         }
 
         .pif-hero,
@@ -924,9 +925,10 @@ export default function PoliticalIntelligenceFabric() {
         .pif-metric {
           border: 1px solid rgba(148, 163, 184, 0.16);
           background:
-            radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.88));
-          border-radius: 24px;
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.08), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+          border-radius: 28px;
         }
 
         .pif-hero {
@@ -941,7 +943,7 @@ export default function PoliticalIntelligenceFabric() {
         .pif-heading span,
         .pif-metric span,
         .pif-detail > span {
-          color: #93c5fd;
+          color: rgba(147, 197, 253, 0.92);
           font-size: 11px;
           font-weight: 900;
           letter-spacing: 0.1em;
@@ -957,7 +959,7 @@ export default function PoliticalIntelligenceFabric() {
         .pif-hero p {
           max-width: 760px;
           margin: 0;
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
           line-height: 1.6;
         }
 
@@ -971,7 +973,7 @@ export default function PoliticalIntelligenceFabric() {
         .pif-actions label {
           display: grid;
           gap: 6px;
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
           font-size: 11px;
           font-weight: 800;
         }
@@ -981,8 +983,8 @@ export default function PoliticalIntelligenceFabric() {
         .pif-watch {
           border: 1px solid rgba(148, 163, 184, 0.22);
           border-radius: 12px;
-          background: #0f172a;
-          color: #e2e8f0;
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
           padding: 10px 12px;
         }
 
@@ -993,8 +995,8 @@ export default function PoliticalIntelligenceFabric() {
         }
 
         .pif-actions button.is-primary {
-          background: #2563eb;
-          border-color: #3b82f6;
+          background: rgba(37, 99, 235, 0.88);
+          border-color: rgba(96, 165, 250, 0.62);
           color: white;
         }
 
@@ -1004,7 +1006,7 @@ export default function PoliticalIntelligenceFabric() {
         }
 
         .pif-banner {
-          border-radius: 14px;
+          border-radius: 16px;
           padding: 12px 14px;
         }
 
@@ -1016,7 +1018,7 @@ export default function PoliticalIntelligenceFabric() {
 
         .pif-banner.is-message {
           border: 1px solid rgba(96, 165, 250, 0.3);
-          background: rgba(30, 64, 175, 0.2);
+          background: rgba(37, 99, 235, 0.18);
           color: #dbeafe;
         }
 
@@ -1038,7 +1040,7 @@ export default function PoliticalIntelligenceFabric() {
         }
 
         .pif-metric small {
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
         }
 
         .pif-panel {
@@ -1069,8 +1071,8 @@ export default function PoliticalIntelligenceFabric() {
           border: 1px solid rgba(148, 163, 184, 0.14);
           border-radius: 24px;
           background:
-            radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.1), transparent 42%),
-            #07111f;
+            radial-gradient(circle at 50% 52%, rgba(96, 165, 250, 0.09), transparent 40%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.34), rgba(2, 6, 23, 0.22));
           overflow: hidden;
         }
 
@@ -1091,11 +1093,11 @@ export default function PoliticalIntelligenceFabric() {
         }
 
         .pif-marker-low circle {
-          fill: #0284c7;
+          fill: #16a34a;
         }
 
         .pif-marker-medium circle {
-          fill: #eab308;
+          fill: #0284c7;
         }
 
         .pif-marker-high circle {
@@ -1125,7 +1127,7 @@ export default function PoliticalIntelligenceFabric() {
           gap: 12px;
           flex-wrap: wrap;
           margin-top: 13px;
-          color: #cbd5e1;
+          color: rgba(226, 232, 240, 0.82);
           font-size: 12px;
         }
 
@@ -1158,17 +1160,17 @@ export default function PoliticalIntelligenceFabric() {
           align-items: center;
           width: 100%;
           border: 1px solid rgba(148, 163, 184, 0.15);
-          border-radius: 14px;
-          background: rgba(15, 23, 42, 0.65);
-          color: #e2e8f0;
+          border-radius: 16px;
+          background: rgba(15, 23, 42, 0.74);
+          color: rgba(226, 232, 240, 0.92);
           padding: 10px;
           text-align: left;
           cursor: pointer;
         }
 
         .pif-ranking button.is-active {
-          border-color: #60a5fa;
-          background: rgba(37, 99, 235, 0.16);
+          border-color: rgba(96, 165, 250, 0.62);
+          background: rgba(37, 99, 235, 0.24);
         }
 
         .pif-ranking button > span {
@@ -1188,7 +1190,7 @@ export default function PoliticalIntelligenceFabric() {
 
         .pif-ranking small {
           margin-top: 2px;
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
         }
 
         .pif-content {
@@ -1208,12 +1210,12 @@ export default function PoliticalIntelligenceFabric() {
           gap: 12px;
           border: 1px solid rgba(148, 163, 184, 0.15);
           border-radius: 15px;
-          background: rgba(15, 23, 42, 0.56);
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.76), rgba(15, 23, 42, 0.44));
           padding: 14px;
         }
 
         .pif-finding.is-active {
-          border-color: #60a5fa;
+          border-color: rgba(96, 165, 250, 0.62);
         }
 
         .pif-finding-main {
@@ -1229,7 +1231,7 @@ export default function PoliticalIntelligenceFabric() {
 
         .pif-finding p {
           margin: 6px 0;
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
           line-height: 1.5;
         }
 
@@ -1259,7 +1261,7 @@ export default function PoliticalIntelligenceFabric() {
 
         .pif-detail p {
           margin: 0;
-          color: #cbd5e1;
+          color: rgba(226, 232, 240, 0.82);
           line-height: 1.6;
         }
 
@@ -1272,7 +1274,7 @@ export default function PoliticalIntelligenceFabric() {
         .pif-detail-grid div {
           border: 1px solid rgba(148, 163, 184, 0.14);
           border-radius: 12px;
-          background: rgba(15, 23, 42, 0.54);
+          background: rgba(2, 6, 23, 0.32);
           padding: 10px;
         }
 
@@ -1282,7 +1284,7 @@ export default function PoliticalIntelligenceFabric() {
         }
 
         .pif-detail-grid span {
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
           font-size: 11px;
         }
 
@@ -1293,9 +1295,9 @@ export default function PoliticalIntelligenceFabric() {
         .pif-warning,
         .pif-empty {
           border: 1px dashed rgba(148, 163, 184, 0.22);
-          border-radius: 14px;
+          border-radius: 16px;
           padding: 14px;
-          color: #94a3b8;
+          color: rgba(203, 213, 225, 0.68);
         }
 
         .pif-warning {
@@ -1303,7 +1305,7 @@ export default function PoliticalIntelligenceFabric() {
           border-style: solid;
           border-color: rgba(245, 158, 11, 0.34);
           background: rgba(120, 53, 15, 0.22);
-          color: #fde68a;
+          color: rgba(254, 240, 138, 0.95);
         }
 
         @media (max-width: 1100px) {
