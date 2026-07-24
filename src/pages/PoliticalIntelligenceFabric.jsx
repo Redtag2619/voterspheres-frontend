@@ -78,6 +78,24 @@ function labelize(value = "") {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function resolveFindingStateCode(finding = {}) {
+  const candidates = [
+    finding.state_code,
+    finding.state,
+    finding.scope_value,
+    finding?.metadata?.state_code,
+    finding?.metrics?.state_code,
+    finding?.entity?.state_code,
+  ];
+
+  for (const value of candidates) {
+    const code = String(value || "").trim().toUpperCase();
+    if (STATE_NAMES[code]) return code;
+  }
+
+  return "";
+}
+
 function buildStateHeatmap(findings = []) {
   const stateData = Object.fromEntries(
     Object.keys(STATE_NAMES).map((code) => [
@@ -94,15 +112,21 @@ function buildStateHeatmap(findings = []) {
   );
 
   findings.forEach((finding) => {
-    const code = String(finding?.state_code || "").toUpperCase();
-    if (!stateData[code]) return;
+    const code = resolveFindingStateCode(finding);
+    if (!code || !stateData[code]) return;
 
     const severity = normalizeSeverity(finding?.severity);
-    const score = Math.max(number(finding?.score), SEVERITY_WEIGHT[severity] || 0);
-    const current = stateData[code];
+    const score = Math.max(
+      number(finding?.score),
+      number(finding?.risk_score),
+      number(finding?.signal_score),
+      SEVERITY_WEIGHT[severity] || 0
+    );
 
+    const current = stateData[code];
     current.findingCount += 1;
     current.score = Math.max(current.score, score);
+
     if (severity === "critical") current.criticalCount += 1;
     if (severity === "high") current.highCount += 1;
   });
@@ -139,11 +163,11 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
   );
 
   const mapFill = (level) => {
-    if (level === "critical") return "#dc2626";
-    if (level === "high") return "#ea580c";
-    if (level === "medium") return "#d97706";
-    if (level === "low") return "#2563eb";
-    return "rgba(71, 85, 105, 0.42)";
+    if (level === "critical") return "#ef4444";
+    if (level === "high") return "#f97316";
+    if (level === "medium") return "#f59e0b";
+    if (level === "low") return "#3b82f6";
+    return "#263449";
   };
 
   return (
@@ -179,6 +203,7 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
                   key={fips}
                   d={path(stateFeature)}
                   fill={mapFill(level)}
+                  style={{ fill: mapFill(level) }}
                   className={`pif-map-state is-${level} ${isSelected ? "is-selected" : ""}`}
                   onClick={() => code && onSelectState(code)}
                   onKeyDown={(event) => {
@@ -383,7 +408,12 @@ export default function PoliticalIntelligenceFabric() {
         .pif-us-map-wrap{min-width:0}
         .pif-us-map{display:block;width:100%;height:auto;max-height:620px;border:1px solid rgba(148,163,184,.14);border-radius:18px;overflow:hidden}
         .pif-map-background{fill:rgba(2,6,23,.32)}
-        .pif-map-state{stroke:rgba(226,232,240,.28);stroke-width:.7;cursor:pointer;transition:opacity .16s ease,filter .16s ease,stroke-width .16s ease}
+        .pif-map-state{stroke:rgba(226,232,240,.5);stroke-width:.9;cursor:pointer;transition:opacity .16s ease,filter .16s ease,stroke-width .16s ease}
+        .pif-map-state.is-none{fill:#263449!important}
+        .pif-map-state.is-low{fill:#3b82f6!important}
+        .pif-map-state.is-medium{fill:#f59e0b!important}
+        .pif-map-state.is-high{fill:#f97316!important}
+        .pif-map-state.is-critical{fill:#ef4444!important}
         .pif-map-state:hover{opacity:.84;filter:brightness(1.16)}
         .pif-map-state:focus{outline:none;filter:brightness(1.2)}
         .pif-map-state.is-selected{stroke:#f8fafc;stroke-width:3;filter:brightness(1.18)}
