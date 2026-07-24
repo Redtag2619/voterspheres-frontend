@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { geoPath } from "d3-geo";
+import { feature, mesh } from "topojson-client";
+import statesTopology from "us-atlas/states-albers-10m.json";
 import {
   fetchPoliticalFabricOverview,
   runPoliticalFabricScan,
@@ -15,20 +18,19 @@ import ResponsiveRow from "../components/ui/ResponsiveRow";
 
 const WORKSPACE_ID = 1;
 
-const STATE_GRID = [
-  ["AK", 0, 0], ["ME", 11, 0],
-  ["WI", 6, 1], ["VT", 10, 1], ["NH", 11, 1],
-  ["WA", 1, 2], ["ID", 2, 2], ["MT", 3, 2], ["ND", 4, 2], ["MN", 5, 2],
-  ["IL", 6, 2], ["MI", 7, 2], ["NY", 9, 2], ["MA", 10, 2], ["RI", 11, 2],
-  ["OR", 1, 3], ["NV", 2, 3], ["WY", 3, 3], ["SD", 4, 3], ["IA", 5, 3],
-  ["IN", 6, 3], ["OH", 7, 3], ["PA", 8, 3], ["NJ", 9, 3], ["CT", 10, 3],
-  ["CA", 1, 4], ["UT", 2, 4], ["CO", 3, 4], ["NE", 4, 4], ["MO", 5, 4],
-  ["KY", 6, 4], ["WV", 7, 4], ["VA", 8, 4], ["MD", 9, 4], ["DE", 10, 4],
-  ["AZ", 2, 5], ["NM", 3, 5], ["KS", 4, 5], ["AR", 5, 5], ["TN", 6, 5],
-  ["NC", 7, 5], ["SC", 8, 5], ["DC", 9, 5],
-  ["OK", 4, 6], ["LA", 5, 6], ["MS", 6, 6], ["AL", 7, 6], ["GA", 8, 6],
-  ["HI", 1, 7], ["TX", 4, 7], ["FL", 8, 7],
-];
+const FIPS_TO_STATE = {
+  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
+  "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
+  "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
+  "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+  "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
+  "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
+  "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
+  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+  "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+  "56": "WY",
+};
 
 const STATE_NAMES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas",
@@ -78,7 +80,7 @@ function labelize(value = "") {
 
 function buildStateHeatmap(findings = []) {
   const stateData = Object.fromEntries(
-    STATE_GRID.map(([code]) => [
+    Object.keys(STATE_NAMES).map((code) => [
       code,
       {
         code,
@@ -118,6 +120,16 @@ function heatLevel(score = 0) {
 
 function NationalHeatmap({ findings, selectedState, onSelectState }) {
   const stateData = useMemo(() => buildStateHeatmap(findings), [findings]);
+  const stateFeatures = useMemo(
+    () => feature(statesTopology, statesTopology.objects.states).features,
+    []
+  );
+  const stateBorders = useMemo(
+    () => mesh(statesTopology, statesTopology.objects.states, (a, b) => a !== b),
+    []
+  );
+  const path = useMemo(() => geoPath(), []);
+
   const rankedStates = useMemo(
     () =>
       Object.values(stateData)
@@ -126,36 +138,70 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
     [stateData]
   );
 
+  const mapFill = (level) => {
+    if (level === "critical") return "#dc2626";
+    if (level === "high") return "#ea580c";
+    if (level === "medium") return "#d97706";
+    if (level === "low") return "#2563eb";
+    return "rgba(71, 85, 105, 0.42)";
+  };
+
   return (
     <SectionCard
       title="Executive Intelligence Heatmap"
-      subtitle="National signal distribution by state."
+      subtitle="Live national political signal distribution by state. Select any state for focused intelligence."
       right={<Badge tone="accent">{rankedStates.length} Active States</Badge>}
     >
       <div className="pif-map-layout">
-        <div>
-          <div className="pif-state-grid" aria-label="United States political intelligence heatmap">
-            {STATE_GRID.map(([code, column, row]) => {
-              const state = stateData[code];
+        <div className="pif-us-map-wrap">
+          <svg
+            className="pif-us-map"
+            viewBox="0 0 975 610"
+            role="img"
+            aria-label="Color-coded United States political intelligence signal map"
+          >
+            <rect width="975" height="610" rx="18" className="pif-map-background" />
+
+            {stateFeatures.map((stateFeature) => {
+              const fips = String(stateFeature.id).padStart(2, "0");
+              const code = FIPS_TO_STATE[fips];
+              const state = stateData[code] || {
+                code,
+                name: code || "Unknown state",
+                score: 0,
+                findingCount: 0,
+              };
+              const level = heatLevel(state.score);
+              const isSelected = selectedState === code;
+
               return (
-                <button
-                  type="button"
-                  key={code}
-                  className={`pif-state-tile is-${heatLevel(state.score)} ${
-                    selectedState === code ? "is-selected" : ""
-                  }`}
-                  style={{ gridColumn: column + 1, gridRow: row + 1 }}
-                  onClick={() => onSelectState(code)}
-                  title={`${state.name}: ${state.findingCount} findings`}
+                <path
+                  key={fips}
+                  d={path(stateFeature)}
+                  fill={mapFill(level)}
+                  className={`pif-map-state is-${level} ${isSelected ? "is-selected" : ""}`}
+                  onClick={() => code && onSelectState(code)}
+                  onKeyDown={(event) => {
+                    if ((event.key === "Enter" || event.key === " ") && code) {
+                      event.preventDefault();
+                      onSelectState(code);
+                    }
+                  }}
+                  tabIndex={code ? 0 : -1}
+                  role="button"
+                  aria-label={`${state.name}: ${state.findingCount} findings, signal score ${Math.round(state.score)}`}
                 >
-                  <strong>{code}</strong>
-                  <small>{state.findingCount || "—"}</small>
-                </button>
+                  <title>
+                    {`${state.name}: ${state.findingCount} finding${state.findingCount === 1 ? "" : "s"}, signal score ${Math.round(state.score)}`}
+                  </title>
+                </path>
               );
             })}
-          </div>
 
-          <div className="pif-legend">
+            <path d={path(stateBorders)} className="pif-map-borders" />
+          </svg>
+
+          <div className="pif-legend" aria-label="Signal severity legend">
             <span><i className="none" />No signal</span>
             <span><i className="low" />Low</span>
             <span><i className="medium" />Medium</span>
@@ -176,13 +222,15 @@ function NationalHeatmap({ findings, selectedState, onSelectState }) {
                 <span>{index + 1}</span>
                 <div>
                   <strong>{state.name}</strong>
-                  <small>{state.findingCount} findings</small>
+                  <small>
+                    {state.findingCount} finding{state.findingCount === 1 ? "" : "s"}
+                  </small>
                 </div>
                 <Badge tone={tone(heatLevel(state.score))}>{Math.round(state.score)}</Badge>
               </button>
             ))
           ) : (
-            <EmptyState text="Run a national scan to populate the heatmap." />
+            <EmptyState text="Run a national scan to populate the signal map." />
           )}
         </div>
       </div>
@@ -332,14 +380,14 @@ export default function PoliticalIntelligenceFabric() {
         .pif-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
         .pif-stack{display:grid;gap:14px}
         .pif-map-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr);gap:18px;align-items:start}
-        .pif-state-grid{display:grid;grid-template-columns:repeat(12,minmax(34px,1fr));grid-template-rows:repeat(8,52px);gap:7px}
-        .pif-state-tile{border:1px solid rgba(148,163,184,.16);border-radius:11px;background:rgba(15,23,42,.7);color:#cbd5e1;display:grid;place-items:center;padding:4px;cursor:pointer;transition:.18s ease}
-        .pif-state-tile strong{font-size:.78rem}.pif-state-tile small{font-size:.65rem;color:#94a3b8}
-        .pif-state-tile:hover,.pif-state-tile.is-selected{transform:translateY(-1px);border-color:rgba(96,165,250,.7);box-shadow:0 0 0 2px rgba(59,130,246,.16)}
-        .pif-state-tile.is-low{background:rgba(37,99,235,.16)}
-        .pif-state-tile.is-medium{background:rgba(245,158,11,.18)}
-        .pif-state-tile.is-high{background:rgba(249,115,22,.2)}
-        .pif-state-tile.is-critical{background:rgba(239,68,68,.22)}
+        .pif-us-map-wrap{min-width:0}
+        .pif-us-map{display:block;width:100%;height:auto;max-height:620px;border:1px solid rgba(148,163,184,.14);border-radius:18px;overflow:hidden}
+        .pif-map-background{fill:rgba(2,6,23,.32)}
+        .pif-map-state{stroke:rgba(226,232,240,.28);stroke-width:.7;cursor:pointer;transition:opacity .16s ease,filter .16s ease,stroke-width .16s ease}
+        .pif-map-state:hover{opacity:.84;filter:brightness(1.16)}
+        .pif-map-state:focus{outline:none;filter:brightness(1.2)}
+        .pif-map-state.is-selected{stroke:#f8fafc;stroke-width:3;filter:brightness(1.18)}
+        .pif-map-borders{fill:none;stroke:rgba(226,232,240,.42);stroke-width:.8;pointer-events:none}
         .pif-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;color:#94a3b8;font-size:.78rem}
         .pif-legend span{display:flex;align-items:center;gap:6px}.pif-legend i{width:9px;height:9px;border-radius:50%;background:#334155}
         .pif-legend i.low{background:#2563eb}.pif-legend i.medium{background:#d97706}.pif-legend i.high{background:#ea580c}.pif-legend i.critical{background:#dc2626}
@@ -363,7 +411,7 @@ export default function PoliticalIntelligenceFabric() {
         .pif-list-card{border:1px solid rgba(148,163,184,.12);border-radius:14px;padding:12px;background:rgba(15,23,42,.5)}
         .pif-list-card strong,.pif-list-card small,.pif-list-card p{display:block}.pif-list-card small{margin-top:4px;color:#94a3b8}.pif-list-card p{margin:8px 0 0;color:#cbd5e1;line-height:1.5}
         @media(max-width:1100px){.pif-grid-2,.pif-map-layout{grid-template-columns:1fr}.pif-grid-3{grid-template-columns:1fr 1fr}}
-        @media(max-width:760px){.pif-grid-3,.pif-source-grid,.pif-score-grid{grid-template-columns:1fr}.pif-toolbar-actions{width:100%}.pif-toolbar-actions>*{flex:1 1 180px}.pif-state-grid{grid-template-columns:repeat(12,32px);overflow-x:auto;padding-bottom:8px}}
+        @media(max-width:760px){.pif-grid-3,.pif-source-grid,.pif-score-grid{grid-template-columns:1fr}.pif-toolbar-actions{width:100%}.pif-toolbar-actions>*{flex:1 1 180px}.pif-us-map{border-radius:14px}}
       `}</style>
 
       <div className="pif-stack">
