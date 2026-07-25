@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 
 import {
   fetchPoliticalFabricOverview,
@@ -17,20 +18,38 @@ import "./PoliticalIntelligenceFabric.css";
 
 const WORKSPACE_ID = 1;
 
-const STATE_GRID = [
-  ["AK", 0, 0], ["ME", 11, 0],
-  ["WI", 6, 1], ["VT", 10, 1], ["NH", 11, 1],
-  ["WA", 1, 2], ["ID", 2, 2], ["MT", 3, 2], ["ND", 4, 2], ["MN", 5, 2],
-  ["IL", 6, 2], ["MI", 7, 2], ["NY", 9, 2], ["MA", 10, 2], ["RI", 11, 2],
-  ["OR", 1, 3], ["NV", 2, 3], ["WY", 3, 3], ["SD", 4, 3], ["IA", 5, 3],
-  ["IN", 6, 3], ["OH", 7, 3], ["PA", 8, 3], ["NJ", 9, 3], ["CT", 10, 3],
-  ["CA", 1, 4], ["UT", 2, 4], ["CO", 3, 4], ["NE", 4, 4], ["MO", 5, 4],
-  ["KY", 6, 4], ["WV", 7, 4], ["VA", 8, 4], ["MD", 9, 4], ["DE", 10, 4],
-  ["AZ", 2, 5], ["NM", 3, 5], ["KS", 4, 5], ["AR", 5, 5], ["TN", 6, 5],
-  ["NC", 7, 5], ["SC", 8, 5], ["DC", 9, 5],
-  ["OK", 4, 6], ["LA", 5, 6], ["MS", 6, 6], ["AL", 7, 6], ["GA", 8, 6],
-  ["HI", 1, 7], ["TX", 4, 7], ["FL", 8, 7],
-];
+const US_STATES_TOPOJSON =
+  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
+const FIPS_TO_STATE = {
+  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
+  "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
+  "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
+  "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+  "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
+  "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
+  "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
+  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+  "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+  "56": "WY",
+};
+
+const STATE_SIGNAL_CENTERS = {
+  AL: [-86.8, 32.8], AK: [-152.4, 64.2], AZ: [-111.9, 34.3], AR: [-92.4, 34.9],
+  CA: [-119.6, 37.2], CO: [-105.5, 39.0], CT: [-72.7, 41.6], DE: [-75.5, 39.0],
+  FL: [-82.5, 28.2], GA: [-83.4, 32.7], HI: [-157.5, 20.8], ID: [-114.6, 44.2],
+  IL: [-89.2, 40.0], IN: [-86.1, 40.0], IA: [-93.5, 42.1], KS: [-98.3, 38.5],
+  KY: [-84.9, 37.5], LA: [-92.0, 31.0], ME: [-69.2, 45.2], MD: [-76.7, 39.0],
+  MA: [-71.8, 42.3], MI: [-85.5, 44.3], MN: [-94.3, 46.0], MS: [-89.7, 32.7],
+  MO: [-92.5, 38.4], MT: [-109.6, 47.0], NE: [-99.8, 41.5], NV: [-116.7, 39.3],
+  NH: [-71.6, 43.8], NJ: [-74.5, 40.1], NM: [-106.0, 34.5], NY: [-75.0, 43.0],
+  NC: [-79.4, 35.5], ND: [-100.5, 47.5], OH: [-82.8, 40.3], OK: [-97.5, 35.6],
+  OR: [-120.6, 44.0], PA: [-77.7, 41.0], RI: [-71.5, 41.7], SC: [-80.9, 33.8],
+  SD: [-100.2, 44.5], TN: [-86.4, 35.8], TX: [-99.3, 31.3], UT: [-111.7, 39.3],
+  VT: [-72.7, 44.0], VA: [-78.6, 37.6], WA: [-120.7, 47.4], WV: [-80.6, 38.6],
+  WI: [-89.8, 44.6], WY: [-107.6, 43.0], DC: [-77.04, 38.91],
+};
 
 const STATE_NAMES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas",
@@ -103,7 +122,7 @@ function findingKey(finding, index) {
 
 function buildStateHeatmap(findings = []) {
   const stateData = Object.fromEntries(
-    STATE_GRID.map(([code]) => [
+    Object.keys(STATE_NAMES).map((code) => [
       code,
       {
         code,
@@ -203,47 +222,108 @@ function NationalHeatmap({
     (state) => state.score >= 65 && state.score < 85
   ).length;
 
+  function stateFill(state, selected = false) {
+    if (selected) return "#0ea5e9";
+    const level = heatLevel(state?.score || 0);
+    if (level === "critical") return "#b91c1c";
+    if (level === "high") return "#c2410c";
+    if (level === "medium") return "#a16207";
+    if (level === "low") return "#0e7490";
+    return "#1e293b";
+  }
+
   return (
     <div className="pif-map-layout">
       <div className="pif-map-shell">
-        <div
-          className="pif-state-grid"
-          role="img"
-          aria-label="United States political intelligence heatmap by state"
-        >
-          {STATE_GRID.map(([code, column, row]) => {
-            const state = stateData[code];
-            const level = heatLevel(state.score);
-            const isSelected = selectedState === code;
+        <div className="pif-geo-map" role="img" aria-label="United States political intelligence map by state and Washington, D.C.">
+          <ComposableMap
+            projection="geoAlbersUsa"
+            projectionConfig={{ scale: 1020 }}
+            width={980}
+            height={590}
+          >
+            <Geographies geography={US_STATES_TOPOJSON}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const fips = String(geo.id).padStart(2, "0");
+                  const code = FIPS_TO_STATE[fips];
+                  if (!code) return null;
 
-            return (
-              <button
-                type="button"
-                key={code}
-                className={[
-                  "pif-state-tile",
-                  `is-${level}`,
-                  isSelected ? "is-selected" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                style={{
-                  gridColumn: column + 1,
-                  gridRow: row + 1,
-                }}
-                onClick={() => onSelectState(code)}
-                title={`${state.name}: ${state.findingCount} findings, score ${Math.round(
-                  state.score
-                )}`}
-                aria-label={`${state.name}, ${state.findingCount} findings, intelligence score ${Math.round(
-                  state.score
-                )}`}
-              >
-                <strong>{code}</strong>
-                <small>{state.findingCount || "—"}</small>
-              </button>
-            );
-          })}
+                  const state = stateData[code];
+                  const selected = selectedState === code;
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onClick={() => onSelectState(code)}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`${STATE_NAMES[code]}, ${state?.findingCount || 0} signals, intelligence score ${Math.round(state?.score || 0)}`}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectState(code);
+                        }
+                      }}
+                      style={{
+                        default: {
+                          fill: stateFill(state, selected),
+                          stroke: selected ? "#f8fafc" : "#64748b",
+                          strokeWidth: selected ? 1.8 : 0.65,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        hover: {
+                          fill: selected ? "#38bdf8" : "#334155",
+                          stroke: "#e2e8f0",
+                          strokeWidth: 1.3,
+                          outline: "none",
+                          cursor: "pointer",
+                        },
+                        pressed: {
+                          fill: "#0284c7",
+                          stroke: "#f8fafc",
+                          strokeWidth: 1.4,
+                          outline: "none",
+                        },
+                      }}
+                    >
+                      <title>{`${STATE_NAMES[code]}: ${state?.findingCount || 0} signals, score ${Math.round(state?.score || 0)}`}</title>
+                    </Geography>
+                  );
+                })
+              }
+            </Geographies>
+
+            {Object.entries(STATE_SIGNAL_CENTERS).map(([code, coordinates]) => {
+              const state = stateData[code];
+              const isSelected = selectedState === code;
+              const count = state?.findingCount || 0;
+
+              return (
+                <Marker key={code} coordinates={coordinates}>
+                  <g
+                    className={`pif-map-signal ${count ? "has-signal" : "is-zero"} ${isSelected ? "is-selected" : ""}`}
+                    onClick={() => onSelectState(code)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${STATE_NAMES[code]}, ${count} political intelligence signals`}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onSelectState(code);
+                      }
+                    }}
+                  >
+                    <circle r={count ? 10 : 6} />
+                    <text textAnchor="middle" y={3.2}>{count}</text>
+                    <title>{`${STATE_NAMES[code]}: ${count} signals`}</title>
+                  </g>
+                </Marker>
+              );
+            })}
+          </ComposableMap>
         </div>
 
         <div className="pif-map-footer">
@@ -259,6 +339,7 @@ function NationalHeatmap({
             <span>{rankedStates.length} active states</span>
             <span>{criticalStates} critical</span>
             <span>{highStates} high</span>
+            <span>51 jurisdictions including D.C.</span>
           </div>
         </div>
       </div>
@@ -607,7 +688,6 @@ export default function PoliticalIntelligenceFabric() {
 
   return (
     <PageShell
-      eyebrow="Build 2D.1 · Executive Political Intelligence"
       title="Political Intelligence Fabric"
       description="Unify national, state, candidate, coalition, vendor, finance, influence, execution, and decision signals into one executive intelligence surface."
       actions={
