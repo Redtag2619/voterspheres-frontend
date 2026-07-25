@@ -2508,7 +2508,7 @@ export default function PoliticalIntelligenceFabric() {
 
                 <div>
                   <span>Severity</span>
-                  <strong>{selectedFinding.severity}</strong>
+                  <strong>{selectedFinding.severity}</strong> 
                 </div>
 
                 <div>
