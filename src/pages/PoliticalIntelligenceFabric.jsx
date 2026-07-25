@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-=======
 ﻿import { useEffect, useMemo, useState } from "react";
 import {
   ComposableMap,
@@ -7,7 +6,6 @@ import {
   Geography,
   Marker,
 } from "react-simple-maps";
->>>>>>> 9fb1b30 (Build 2D.1 modernize political intelligence fabric JSX)
 
 import {
 
@@ -21,7 +19,6 @@ import {
 
 } from "../api/politicalIntelligenceFabricApi";
 
-<<<<<<< HEAD
 import "./PoliticalIntelligenceFabric.css";
 
  
@@ -119,7 +116,7 @@ function buildStateHeatmap(findings = []) {
   });
 
   return stateData;
-=======
+
 const WORKSPACE_ID = 1;
 
 const US_TOPO_JSON =
@@ -440,7 +437,6 @@ function getFindingScore(finding = {}) {
     ...numericScores,
     0
   );
->>>>>>> 9fb1b30 (Build 2D.1 modernize political intelligence fabric JSX)
 }
 
 function normalizeFindings(payload = {}) {
@@ -513,7 +509,6 @@ function getHeatLevel(score = 0) {
   return "none";
 }
 
-<<<<<<< HEAD
 function NationalHeatmap({
   findings = [],
   selectedState = "",
@@ -662,7 +657,6 @@ function NationalHeatmap({
  
 
 function severityClass(value = "") {
-=======
 function getStateFill(level = "none") {
   if (level === "critical") return "#dc2626";
   if (level === "high") return "#f97316";
@@ -991,11 +985,9 @@ export default function PoliticalIntelligenceFabric() {
       setLoading(false);
     }
   }
->>>>>>> 9fb1b30 (Build 2D.1 modernize political intelligence fabric JSX)
 
   return `pif-severity pif-severity--${String(value).toLowerCase()}`;
 
-<<<<<<< HEAD
 }
 
  
@@ -1661,7 +1653,7 @@ export default function PoliticalIntelligenceFabric() {
   );
 
 }
-=======
+
   async function handleScan() {
     setLoading(true);
     setError("");
@@ -2550,3 +2542,4 @@ export default function PoliticalIntelligenceFabric() {
     </main>
   );
 }
+
