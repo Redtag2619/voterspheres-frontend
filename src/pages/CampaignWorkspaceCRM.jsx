@@ -805,6 +805,54 @@ export default function CampaignWorkspaceCRM() {
         .crm-row .vs-responsive-row {
           border: 0;
           background: transparent;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        /*
+         * Contact rows can contain long organization names, titles, and email
+         * addresses. Force every nested layout child to shrink inside the card
+         * and wrap instead of widening the workspace column.
+         */
+        .crm-contact-row,
+        .crm-contact-row .vs-responsive-row,
+        .crm-contact-row .vs-responsive-row > *,
+        .crm-contact-row [class*="responsive-row"],
+        .crm-contact-row [class*="responsive-row"] > * {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .crm-contact-row strong,
+        .crm-contact-row p,
+        .crm-contact-row span,
+        .crm-contact-row small,
+        .crm-contact-row a,
+        .crm-contact-row [class*="title"],
+        .crm-contact-row [class*="subtitle"],
+        .crm-contact-row [class*="meta"] {
+          white-space: normal;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          hyphens: auto;
+        }
+
+        .crm-contact-row a {
+          display: inline;
+          max-width: 100%;
+        }
+
+        .crm-contact-row .vs-badge,
+        .crm-contact-row [class*="badge"] {
+          flex: 0 0 auto;
+          width: fit-content;
+          max-width: 100%;
+          white-space: normal;
+          text-align: center;
+        }
+
+        .crm-contact-row .vs-responsive-row {
+          overflow: hidden;
         }
 
         .crm-workspace-box {
@@ -972,7 +1020,7 @@ export default function CampaignWorkspaceCRM() {
                   showAllLabel={(count) => `Show All ${count} Contacts`}
                   className="crm-stack"
                   renderItem={(contact) => (
-                    <div className="crm-row">
+                    <div className="crm-row crm-contact-row">
                       <ResponsiveRow
                         title={contact.full_name}
                         subtitle={`${contact.organization || "No organization"} • ${contact.title || contact.role_type || "Stakeholder"}`}
