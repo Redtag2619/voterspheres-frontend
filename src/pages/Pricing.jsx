@@ -355,30 +355,73 @@ export default function Pricing() {
         ))}
       </div>
 
-      <div className="vs-card" style={{ padding: "18px" }}>
-        <div
-          style={{
-            fontSize: "14px",
-            fontWeight: 700,
-            marginBottom: "8px",
-          }}
-        >
-          What subscribers receive
+      <section className="vs-card" style={{ padding: "22px", overflowX: "auto" }}>
+        <div style={{ maxWidth: "720px", marginBottom: "18px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--vs-text-muted)" }}>
+            Plan comparison
+          </div>
+          <h2 style={{ margin: "8px 0 0", fontSize: "24px", letterSpacing: "-0.03em" }}>
+            Choose by operating depth—not just team size.
+          </h2>
+          <p style={{ margin: "10px 0 0", fontSize: "12px", lineHeight: 1.7, color: "var(--vs-text-muted)" }}>
+            Start with the visibility your organization needs today, then add deeper command, automation, and enterprise control as your operation expands.
+          </p>
         </div>
 
-        <div
-          style={{
-            fontSize: "12px",
-            lineHeight: 1.7,
-            color: "var(--vs-text-muted)",
-          }}
-        >
-          Starter gives a firm a clean professional system for campaign visibility.
-          Pro adds serious execution workflows, scheduled reporting, and stronger
-          intelligence operations. Enterprise is built for top consulting organizations
-          that need the full platform as a live control surface across leadership,
-          operations, MailOps, fundraising, reporting, and campaign decision-making.
-        </div>
+        <table style={{ width: "100%", minWidth: "720px", borderCollapse: "collapse", fontSize: "12px" }}>
+          <thead>
+            <tr>
+              {["Capability", "Starter", "Pro", "Enterprise"].map((heading) => (
+                <th key={heading} style={{ padding: "13px 12px", textAlign: heading === "Capability" ? "left" : "center", borderBottom: "1px solid var(--vs-border)", color: "var(--vs-text-muted)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Executive dashboard and core campaign visibility", true, true, true],
+              ["Candidate, map, donor, vendor, and forecast workflows", true, true, true],
+              ["Command Center and AI War Room", false, true, true],
+              ["Scheduled workspace reporting", false, true, true],
+              ["Advanced MailOps and execution workflows", false, true, true],
+              ["Full intelligence fusion and executive control", false, false, true],
+              ["Unlimited scheduled reports", false, false, true],
+              ["White-glove enterprise onboarding", false, false, true],
+            ].map(([label, starter, pro, enterprise]) => (
+              <tr key={label}>
+                <td style={{ padding: "13px 12px", borderBottom: "1px solid var(--vs-border)", fontWeight: 650 }}>{label}</td>
+                {[starter, pro, enterprise].map((included, index) => (
+                  <td key={index} style={{ padding: "13px 12px", textAlign: "center", borderBottom: "1px solid var(--vs-border)", color: included ? "#16a34a" : "var(--vs-text-muted)", fontWeight: 900 }}>
+                    {included ? "Included" : "—"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <div className="vs-grid-3">
+        {[
+          ["Can we change plans later?", "Yes. Your organization can move to a higher operating tier as its reporting, intelligence, or execution needs expand."],
+          ["Is onboarding included?", "Every plan includes guided account setup. Enterprise adds a white-glove rollout for leadership, operations, command workflows, and MailOps."],
+          ["Is VoterSpheres secure?", "VoterSpheres uses authenticated workspaces and role-aware access. Confirm your production security, privacy, retention, and compliance terms before public launch."],
+        ].map(([question, answer]) => (
+          <div className="vs-card" key={question} style={{ padding: "18px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 800 }}>{question}</div>
+            <div style={{ marginTop: "8px", fontSize: "12px", lineHeight: 1.7, color: "var(--vs-text-muted)" }}>{answer}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="vs-card" style={{ padding: "22px", textAlign: "center", borderColor: "rgba(37,99,235,0.34)", background: "linear-gradient(135deg, rgba(37,99,235,0.10), rgba(15,23,42,0.04))" }}>
+        <div style={{ fontSize: "11px", fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--vs-text-muted)" }}>Need help choosing?</div>
+        <h2 style={{ margin: "8px 0 0", fontSize: "24px", letterSpacing: "-0.03em" }}>Match the plan to your operating model.</h2>
+        <p style={{ maxWidth: "680px", margin: "10px auto 18px", color: "var(--vs-text-muted)", fontSize: "12px", lineHeight: 1.7 }}>
+          We can walk through your campaigns, team structure, reporting requirements, and intelligence workflows before you select a plan.
+        </p>
+        <Link to="/#request-access" className="vs-button vs-button-primary">Request a product demo</Link>
       </div>
     </PublicPageShell>
   );
