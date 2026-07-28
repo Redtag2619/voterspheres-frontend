@@ -439,4 +439,3 @@ export default function ResetPassword() {
     </PublicPageShell>
   );
 }
-
