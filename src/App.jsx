@@ -20,6 +20,8 @@ import AutonomousCampaignOperations from "./pages/AutonomousCampaignOperations";
 import ExecutiveAICommandPlatform from "./pages/ExecutiveAICommandPlatform";
 import { UnifiedExecutiveIntelligenceProvider,} from "./context/UnifiedExecutiveIntelligenceContext.jsx";
 import PoliticalIntelligenceFabric from "./pages/PoliticalIntelligenceFabric";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import StateOperationsMap from "./pages/StateOperationsMap";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
@@ -320,6 +322,8 @@ function AppRoutes() {
               <Route path="/campaign-copilot" element={<Navigate to="/campaign-operations-studio"replace />} />
               <Route path="/campaign-operations-studio" element={<CampaignOperationsStudioAI />} />
               <Route path="/political-intelligence-fabric" element={<PoliticalIntelligenceFabric />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
               <Route path="/campaign-crm" element={<CampaignWorkspaceCRM />} />
             </Route>
 
