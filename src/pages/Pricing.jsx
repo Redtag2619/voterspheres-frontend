@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Badge from "../components/ui/Badge";
-import PublicPageShell from "../components/layout/PublicPageShell.jsx";
+import PublicPageShell from "../components/layout/PublicPageShell.jsx"; 
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
 
