@@ -84,46 +84,70 @@
   min-width: max-content;
 }
 
-.lp-brand-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
+.lp-official-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  min-width: max-content;
 }
 
-.lp-brand-mark.is-compact {
+.lp-official-brand.is-compact {
+  gap: 8px;
+}
+
+.lp-official-brand-badge {
+  width: 48px;
+  height: 48px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 48px;
+  border: 2px solid var(--lp-orange);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(249, 115, 22, 0.15), rgba(249, 115, 22, 0.035)),
+    #090d13;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 8px 22px rgba(249, 115, 22, 0.14);
+  color: var(--lp-orange);
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.08em;
+  line-height: 1;
+}
+
+.lp-official-brand.is-compact .lp-official-brand-badge {
   width: 34px;
   height: 34px;
   flex-basis: 34px;
+  border-radius: 9px;
+  font-size: 13px;
 }
 
-.lp-brand-mark svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+.lp-official-brand-copy {
+  display: grid;
+  gap: 3px;
+  line-height: 1;
 }
 
-.lp-logo-ring {
-  fill: rgba(249, 115, 22, 0.05);
-  stroke: var(--lp-orange);
-  stroke-width: 3;
-}
-
-.lp-logo-v,
-.lp-logo-s {
-  fill: var(--lp-orange);
-}
-
-.lp-brand-word {
-  font-size: 20px;
-  font-weight: 850;
-  letter-spacing: 0.02em;
+.lp-official-brand-copy strong {
   color: #ffffff;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
 }
 
-.lp-brand-word strong {
-  color: var(--lp-orange);
+.lp-official-brand-copy small {
+  color: var(--lp-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.lp-official-brand.is-compact .lp-official-brand-copy {
+  display: none;
 }
 
 .lp-nav {
@@ -1127,10 +1151,24 @@
   align-items: center;
 }
 
-.lp-demo-copy > .lp-brand-mark {
-  width: 92px;
-  height: 92px;
+.lp-demo-copy > .lp-official-brand {
   margin-bottom: 24px;
+}
+
+.lp-demo-copy > .lp-official-brand .lp-official-brand-badge {
+  width: 76px;
+  height: 76px;
+  flex-basis: 76px;
+  border-radius: 18px;
+  font-size: 27px;
+}
+
+.lp-demo-copy > .lp-official-brand .lp-official-brand-copy strong {
+  font-size: 26px;
+}
+
+.lp-demo-copy > .lp-official-brand .lp-official-brand-copy small {
+  font-size: 11px;
 }
 
 .lp-demo-copy h2 {
@@ -1552,14 +1590,19 @@
     gap: 10px;
   }
 
-  .lp-brand-mark {
+  .lp-official-brand-badge {
     width: 40px;
     height: 40px;
     flex-basis: 40px;
+    font-size: 15px;
   }
 
-  .lp-brand-word {
-    font-size: 15px;
+  .lp-official-brand-copy strong {
+    font-size: 16px;
+  }
+
+  .lp-official-brand-copy small {
+    font-size: 8px;
   }
 
   .lp-header-actions {
