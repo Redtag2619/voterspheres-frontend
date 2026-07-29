@@ -202,23 +202,19 @@ function stateClass(abbr) {
   return STATE_POSTURE[abbr] || "monitor";
 }
 
-function BrandMark({ compact = false }) {
+function BrandMark({ compact = false, showTagline = true }) {
   return (
-    <span
-      className={compact ? "lp-brand-mark is-compact" : "lp-brand-mark"}
-      aria-hidden="true"
-    >
-      <svg viewBox="0 0 64 64" role="img">
-        <circle cx="32" cy="32" r="28" className="lp-logo-ring" />
-        <path
-          className="lp-logo-v"
-          d="M15 19h8l9 24 9-24h8L36 50h-8L15 19Z"
-        />
-        <path
-          className="lp-logo-s"
-          d="M48 18H35c-5 0-9 3-9 8 0 5 4 7 9 8l5 1c2 0 3 1 3 3s-2 3-4 3H25v7h14c7 0 12-4 12-10 0-5-3-8-10-10l-5-1c-2 0-3-1-3-2 0-2 1-3 4-3h11v-4Z"
-        />
-      </svg>
+    <span className={compact ? "lp-official-brand is-compact" : "lp-official-brand"}>
+      <span className="lp-official-brand-badge" aria-hidden="true">
+        VS
+      </span>
+
+      <span className="lp-official-brand-copy">
+        <strong>VoterSpheres</strong>
+        {showTagline ? (
+          <small>Campaign intelligence operating system</small>
+        ) : null}
+      </span>
     </span>
   );
 }
@@ -337,8 +333,7 @@ function ProductPreview() {
     <div className="lp-product-preview" aria-label="VoterSpheres product preview">
       <aside className="lp-preview-sidebar">
         <div className="lp-preview-logo">
-          <BrandMark compact />
-          <span>VS</span>
+          <BrandMark compact showTagline={false} />
         </div>
 
         <nav>
@@ -562,9 +557,6 @@ export default function LandingPage() {
         <div className="lp-shell lp-header-inner">
           <Link className="lp-brand" to="/" aria-label="VoterSpheres home">
             <BrandMark />
-            <span className="lp-brand-word">
-              VOTER<strong>SPHERES</strong>
-            </span>
           </Link>
 
           <button
@@ -868,9 +860,6 @@ export default function LandingPage() {
             <div className="lp-footer-brand">
               <Link className="lp-brand" to="/">
                 <BrandMark />
-                <span className="lp-brand-word">
-                  VOTER<strong>SPHERES</strong>
-                </span>
               </Link>
               <p>
                 The political intelligence and campaign execution operating
