@@ -731,126 +731,157 @@ export default function LandingPage() {
       </section>
 
       <section className="lp-demo-section" id="request-demo">
-        <div className="lp-shell lp-demo-grid">
-          <div className="lp-demo-copy">
-            <BrandMark />
-            <span className="lp-eyebrow">See VoterSpheres in action</span>
-            <h2>
-              Turn political intelligence into{" "}
-              <strong>decisive action.</strong>
-            </h2>
-            <p>
-              Request a personalized walkthrough of the VoterSpheres platform
-              and see how your organization can improve visibility, coordination,
-              and execution.
-            </p>
-
-            <div className="lp-demo-points">
-              <span>✓ Personalized platform walkthrough</span>
-              <span>✓ Executive and operational use-case review</span>
-              <span>✓ No obligation and no generic sales presentation</span>
+        <div className="lp-shell">
+          <div className="lp-demo-intro">
+            <div className="lp-demo-brand">
+              <BrandMark />
             </div>
-          </div>
 
-          <form className="lp-demo-form" onSubmit={handleSubmit}>
-            <div className="lp-form-head">
-              <span className="lp-eyebrow">Request your demo</span>
-              <h3>Tell us about your organization.</h3>
+            <div className="lp-demo-heading">
+              <span className="lp-eyebrow">See VoterSpheres in action</span>
+              <h2>
+                Turn political intelligence into{" "}
+                <strong>decisive action.</strong>
+              </h2>
               <p>
-                We will tailor the walkthrough around your operating model and
-                priorities.
+                Request a personalized walkthrough of the VoterSpheres platform
+                and see how your organization can improve visibility,
+                coordination, and execution.
               </p>
             </div>
 
-            <div className="lp-form-grid">
-              <label>
-                <span>Full name</span>
-                <input
-                  name="full_name"
-                  value={form.full_name}
-                  onChange={updateField}
-                  placeholder="Your full name"
-                  autoComplete="name"
-                  required
-                />
-              </label>
+            <a className="lp-button lp-button-primary lp-button-large" href="#demo-form">
+              Request a Demo
+              <Icon name="arrow" />
+            </a>
+          </div>
 
-              <label>
-                <span>Organization</span>
-                <input
-                  name="firm_name"
-                  value={form.firm_name}
-                  onChange={updateField}
-                  placeholder="Campaign, firm, or committee"
-                  autoComplete="organization"
-                  required
-                />
-              </label>
+          <div className="lp-demo-content">
+            <aside className="lp-demo-value">
+              <span className="lp-eyebrow">A walkthrough built around you</span>
+              <h3>See the platform through your operating model.</h3>
+              <p>
+                We will focus the session on the workflows, teams, geography,
+                intelligence signals, and execution challenges that matter to
+                your organization.
+              </p>
 
-              <label>
-                <span>Work email</span>
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={updateField}
-                  placeholder="you@organization.com"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-
-              <label>
-                <span>Your role</span>
-                <select
-                  name="role"
-                  value={form.role}
-                  onChange={updateField}
-                  required
-                >
-                  <option value="">Select your role</option>
-                  <option value="Executive Leadership">Executive leadership</option>
-                  <option value="Political Consultant">Political consultant</option>
-                  <option value="Campaign Manager">Campaign manager</option>
-                  <option value="Operations Director">Operations director</option>
-                  <option value="Data or Intelligence">Data or intelligence</option>
-                  <option value="Vendor or Partner">Vendor or partner</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-
-              <label className="is-wide">
-                <span>What would you like to improve?</span>
-                <textarea
-                  name="notes"
-                  value={form.notes}
-                  onChange={updateField}
-                  rows={4}
-                  placeholder="Tell us about your current systems, priorities, or operating challenges."
-                />
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="lp-button lp-button-primary lp-button-submit"
-              disabled={!canSubmit || submitting}
-            >
-              {submitting ? "Submitting..." : "Request My Demo"}
-              {!submitting && <Icon name="arrow" />}
-            </button>
-
-            {message && (
-              <div className={`lp-form-message is-${messageTone}`} role="status">
-                {message}
+              <div className="lp-demo-points">
+                <span>✓ Personalized platform walkthrough</span>
+                <span>✓ Executive and operational use-case review</span>
+                <span>✓ National, state, and local operating views</span>
+                <span>✓ No obligation and no generic sales presentation</span>
               </div>
-            )}
 
-            <p className="lp-form-note">
-              By submitting this form, you agree that VoterSpheres may contact
-              you about the platform. We do not sell your contact information.
-            </p>
-          </form>
+              <div className="lp-demo-security">
+                <strong>Enterprise-ready conversation</strong>
+                <span>
+                  Your information is used only to respond to your request and
+                  coordinate the demonstration.
+                </span>
+              </div>
+            </aside>
+
+            <form className="lp-demo-form" id="demo-form" onSubmit={handleSubmit}>
+              <div className="lp-form-head">
+                <span className="lp-eyebrow">Request your demo</span>
+                <h3>Tell us about your organization.</h3>
+                <p>
+                  We will tailor the walkthrough around your operating model and
+                  priorities.
+                </p>
+              </div>
+
+              <div className="lp-form-grid">
+                <label>
+                  <span>Full name</span>
+                  <input
+                    name="full_name"
+                    value={form.full_name}
+                    onChange={updateField}
+                    placeholder="Your full name"
+                    autoComplete="name"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Organization</span>
+                  <input
+                    name="firm_name"
+                    value={form.firm_name}
+                    onChange={updateField}
+                    placeholder="Campaign, firm, or committee"
+                    autoComplete="organization"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Work email</span>
+                  <input
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={updateField}
+                    placeholder="you@organization.com"
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Your role</span>
+                  <select
+                    name="role"
+                    value={form.role}
+                    onChange={updateField}
+                    required
+                  >
+                    <option value="">Select your role</option>
+                    <option value="Executive Leadership">Executive leadership</option>
+                    <option value="Political Consultant">Political consultant</option>
+                    <option value="Campaign Manager">Campaign manager</option>
+                    <option value="Operations Director">Operations director</option>
+                    <option value="Data or Intelligence">Data or intelligence</option>
+                    <option value="Vendor or Partner">Vendor or partner</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+
+                <label className="is-wide">
+                  <span>What would you like to improve?</span>
+                  <textarea
+                    name="notes"
+                    value={form.notes}
+                    onChange={updateField}
+                    rows={4}
+                    placeholder="Tell us about your current systems, priorities, or operating challenges."
+                  />
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="lp-button lp-button-primary lp-button-submit"
+                disabled={!canSubmit || submitting}
+              >
+                {submitting ? "Submitting..." : "Request My Demo"}
+                {!submitting && <Icon name="arrow" />}
+              </button>
+
+              {message && (
+                <div className={`lp-form-message is-${messageTone}`} role="status">
+                  {message}
+                </div>
+              )}
+
+              <p className="lp-form-note">
+                By submitting this form, you agree that VoterSpheres may contact
+                you about the platform. We do not sell your contact information.
+              </p>
+            </form>
+          </div>
         </div>
       </section>
 
