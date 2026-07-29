@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import Badge from "../components/ui/Badge";
-import PublicPageShell from "../components/layout/PublicPageShell.jsx";
+import PublicPageShell from "../components/layout/PublicPageShell.jsx"; 
 
 function passwordScore(password = "") {
   let score = 0;
