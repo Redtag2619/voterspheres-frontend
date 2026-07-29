@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom"; 
+import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import "./LandingPage.css";
 
@@ -45,6 +45,68 @@ const audiences = [
   "Direct mail and political vendors",
   "Executive political operators",
 ];
+
+
+function VoterSpheresMark({ compact = false }) {
+  return (
+    <span className={`lp-vs-mark ${compact ? "is-compact" : ""}`} aria-hidden="true">
+      <svg viewBox="0 0 48 48" role="img">
+        <defs>
+          <linearGradient id={compact ? "vs-gradient-small" : "vs-gradient"} x1="8" y1="5" x2="39" y2="43" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#818cf8" />
+            <stop offset="1" stopColor="#4f46e5" />
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="44" height="44" rx="13" fill="#0b1220" stroke="rgba(148,163,184,.30)" />
+        <circle cx="24" cy="24" r="15" fill="none" stroke={compact ? "url(#vs-gradient-small)" : "url(#vs-gradient)"} strokeWidth="2.6" />
+        <path d="M13.5 18.2 20.8 32h2.8l-7.3-13.8h-2.8Zm18.2 0-5.2 9.7-2.2-4.1-1.5 2.8 2.3 4.4c.7 1.4 2.8 1.4 3.5 0l6.8-12.8h-3.7Z" fill="#f8fafc" />
+        <circle cx="35.6" cy="12.8" r="3.2" fill="#22c55e" stroke="#0b1220" strokeWidth="1.5" />
+      </svg>
+    </span>
+  );
+}
+
+function NationalPressureMap() {
+  const regions = [
+    ["WA", 44, 28, "stable"], ["OR", 38, 46, "stable"], ["CA", 43, 79, "watch"],
+    ["NV", 68, 68, "watch"], ["AZ", 78, 94, "priority"], ["CO", 108, 72, "stable"],
+    ["TX", 128, 112, "priority"], ["MN", 145, 39, "stable"], ["WI", 164, 51, "watch"],
+    ["MI", 186, 49, "watch"], ["IL", 171, 70, "stable"], ["GA", 200, 103, "priority"],
+    ["FL", 221, 123, "watch"], ["NC", 221, 88, "priority"], ["VA", 224, 72, "stable"],
+    ["PA", 222, 55, "priority"], ["NY", 240, 39, "stable"], ["ME", 271, 25, "stable"]
+  ];
+
+  return (
+    <div className="lp-map-visual">
+      <svg viewBox="0 0 310 160" role="img" aria-label="Populated United States political pressure map">
+        <defs>
+          <linearGradient id="map-surface" x1="22" y1="18" x2="284" y2="143" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#101a2c" />
+            <stop offset="1" stopColor="#08101d" />
+          </linearGradient>
+          <filter id="map-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <path className="lp-us-outline" d="M22 32 39 20l24 5 16 14 25-4 17 9 26-5 17 11 23-2 17 12 20-7 21 7 19-3 19 16-11 15-4 19-22 2-14 14-23 2-16 17-20-5-17 9-17-8-19 7-20-13-22 2-14-17-25-7-7-21-13-17 2-20-12-16Z" fill="url(#map-surface)" stroke="rgba(129,140,248,.55)" strokeWidth="1.8" />
+        <g className="lp-map-grid-lines">
+          <path d="M54 28 48 109M78 39 72 126M104 36 102 134M130 42 129 141M156 41 157 136M182 49 185 127M209 56 211 115M236 59 232 102" />
+          <path d="M34 49 261 68M36 69 252 87M42 90 238 105M56 111 215 123" />
+        </g>
+        {regions.map(([label, x, y, tone]) => (
+          <g key={label} className={`lp-map-node is-${tone}`} transform={`translate(${x} ${y})`}>
+            <circle r="7.4" />
+            <text textAnchor="middle" dy="2.2">{label}</text>
+          </g>
+        ))}
+        <g className="lp-map-ring" transform="translate(222 55)" filter="url(#map-glow)"><circle r="12" /><circle r="4" /></g>
+        <g className="lp-map-ring is-danger" transform="translate(200 103)" filter="url(#map-glow)"><circle r="12" /><circle r="4" /></g>
+      </svg>
+      <div className="lp-map-caption"><strong>18 monitored states</strong><span>6 priority signals</span></div>
+    </div>
+  );
+}
 
 function isValidEmail(value) {
   return /\S+@\S+\.\S+/.test(String(value || "").trim());
@@ -118,7 +180,7 @@ export default function LandingPage() {
 
       <header className="lp-header">
         <Link className="lp-brand" to="/" aria-label="VoterSpheres home">
-          <span className="lp-brand-mark">VS</span>
+          <VoterSpheresMark />
           <span>
             <strong>VoterSpheres</strong>
             <small>Political intelligence operating system</small>
@@ -182,7 +244,7 @@ export default function LandingPage() {
 
             <div className="lp-window-body">
               <aside className="lp-preview-sidebar" aria-hidden="true">
-                <div className="lp-preview-logo">VS</div>
+                <div className="lp-preview-brand"><VoterSpheresMark compact /><span>VoterSpheres</span></div>
                 {["Overview", "Intelligence", "Operations", "Decisions", "Reports"].map((item, index) => (
                   <div className={`lp-preview-nav ${index === 0 ? "active" : ""}`} key={item}>
                     <span />{item}
@@ -211,16 +273,9 @@ export default function LandingPage() {
 
                 <div className="lp-preview-content">
                   <div className="lp-map-card">
-                    <div className="lp-card-label">Political pressure map</div>
-                    <div className="lp-map-visual" aria-hidden="true">
-                      <span className="state s1" /><span className="state s2" />
-                      <span className="state s3" /><span className="state s4" />
-                      <span className="state s5" /><span className="state s6" />
-                      <span className="state s7" /><span className="state s8" />
-                      <span className="state s9" /><span className="state s10" />
-                      <span className="map-pulse p1" /><span className="map-pulse p2" />
-                    </div>
-                    <div className="lp-map-legend"><span>Stable</span><span>Watch</span><span>Priority</span></div>
+                    <div className="lp-card-header"><div><div className="lp-card-label">Political pressure map</div><strong>National signal posture</strong></div><span className="lp-card-live">Live</span></div>
+                    <NationalPressureMap />
+                    <div className="lp-map-legend"><span className="stable">Stable</span><span className="watch">Watch</span><span className="priority">Priority</span></div>
                   </div>
 
                   <div className="lp-priority-card">
@@ -343,7 +398,7 @@ export default function LandingPage() {
 
       <footer className="lp-footer">
         <div className="lp-footer-brand">
-          <span className="lp-brand-mark">VS</span>
+          <VoterSpheresMark />
           <div><strong>VoterSpheres</strong><span>Political intelligence operating system</span></div>
         </div>
         <div className="lp-footer-links">
