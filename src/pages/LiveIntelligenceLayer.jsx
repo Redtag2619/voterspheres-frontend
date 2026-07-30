@@ -4,7 +4,7 @@ import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
 import SectionCard from "../components/ui/SectionCard";
-import StatCard from "../components/ui/StatCard";
+import StatCard from "../components/ui/StatCard"; 
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
