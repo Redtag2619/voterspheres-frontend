@@ -228,6 +228,56 @@ function MissionControlExecutiveHeader({
   );
 }
 
+
+function ExecutiveBrief({ summary, missionItems, criticalSignals, openTasks, crmFollowups, vendorGaps, rapidResponses }) {
+  const pressure = Number(summary?.pressure_score || 0);
+  const readiness = Math.max(5, Math.min(100, Math.round(96 - Math.min(30, pressure * 0.3) - Math.min(18, criticalSignals.length * 4) - Math.min(14, openTasks.length) - Math.min(10, vendorGaps.length * 2))));
+
+  const briefItems = [
+    criticalSignals.length ? `${criticalSignals.length} critical political signal${criticalSignals.length === 1 ? "" : "s"} require review.` : "No critical political signals are currently open.",
+    vendorGaps.length ? `${vendorGaps.length} vendor coverage gap${vendorGaps.length === 1 ? "" : "s"} need assignment.` : "Vendor coverage is currently stable.",
+    crmFollowups.length ? `${crmFollowups.length} CRM follow-up${crmFollowups.length === 1 ? "" : "s"} remain open.` : "No CRM follow-ups are overdue.",
+    rapidResponses.length ? `${rapidResponses.length} rapid-response item${rapidResponses.length === 1 ? "" : "s"} need follow-through.` : "No rapid-response items require action.",
+  ];
+
+  return (
+    <div className="emc-brief">
+      <div className="emc-brief-copy">
+        <span>AI Executive Brief</span>
+        <h2>What needs attention now</h2>
+        <p>{missionItems.length ? `${missionItems.length} ranked mission items are active across the next operating cycle.` : "The current mission queue is stable."}</p>
+      </div>
+      <div className="emc-brief-list">
+        {briefItems.map((item) => <div key={item}>{item}</div>)}
+      </div>
+      <div className="emc-brief-score">
+        <span>Estimated Readiness</span>
+        <strong>{readiness}%</strong>
+        <small>{pressure >= 65 ? "Elevated operating pressure" : "Operational posture stable"}</small>
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveTimeline({ activeWindow, onChange }) {
+  const windows = [
+    { id: "hour", label: "Last Hour" },
+    { id: "today", label: "Today" },
+    { id: "week", label: "This Week" },
+    { id: "month", label: "30 Days" },
+  ];
+
+  return (
+    <div className="emc-timeline" aria-label="Executive timeline filter">
+      {windows.map((item) => (
+        <button key={item.id} type="button" className={activeWindow === item.id ? "is-active" : ""} onClick={() => onChange(item.id)}>
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function MissionActionCenter({ onRefresh }) {
   return (
     <div className="emc-action-center">
@@ -261,6 +311,7 @@ export default function ExecutiveMissionControl() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+  const [timelineWindow, setTimelineWindow] = useState("today");
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     try {
@@ -380,6 +431,39 @@ export default function ExecutiveMissionControl() {
       ]}
     >
       <style>{`
+
+        .emc-brief {
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(190px, 0.55fr);
+          gap: 16px;
+          align-items: stretch;
+          border: 1px solid rgba(96, 165, 250, 0.22);
+          border-radius: 24px;
+          padding: 18px;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.68));
+        }
+
+        .emc-brief-copy span,
+        .emc-brief-score span {
+          color: rgba(125, 211, 252, 0.92);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .emc-brief-copy h2 { margin: 7px 0 0; color: white; font-size: 24px; letter-spacing: -0.04em; }
+        .emc-brief-copy p { margin: 8px 0 0; color: rgba(203, 213, 225, 0.76); line-height: 1.55; }
+        .emc-brief-list { display: grid; gap: 8px; }
+        .emc-brief-list div { border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); background: rgba(2, 6, 23, 0.3); padding: 10px 12px; color: rgba(226, 232, 240, 0.88); font-size: 13px; }
+        .emc-brief-score { border-radius: 18px; border: 1px solid rgba(34, 197, 94, 0.22); background: rgba(22, 163, 74, 0.1); padding: 14px; }
+        .emc-brief-score strong { display: block; margin-top: 8px; color: white; font-size: 34px; letter-spacing: -0.06em; }
+        .emc-brief-score small { display: block; margin-top: 6px; color: rgba(203, 213, 225, 0.7); }
+
+        .emc-timeline { display: flex; gap: 8px; flex-wrap: wrap; }
+        .emc-timeline button { border: 1px solid rgba(148, 163, 184, 0.18); background: rgba(15, 23, 42, 0.72); color: rgba(226, 232, 240, 0.82); border-radius: 999px; padding: 9px 12px; font-size: 12px; font-weight: 850; cursor: pointer; }
+        .emc-timeline button.is-active { border-color: rgba(96, 165, 250, 0.62); background: rgba(37, 99, 235, 0.28); color: white; }
+
         .emc-exec-ribbon {
           display: grid;
           grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
@@ -607,7 +691,40 @@ export default function ExecutiveMissionControl() {
 
         @media (max-width: 1100px) {
           .emc-grid,
-          .emc-exec-ribbon {
+  
+        .emc-brief {
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(190px, 0.55fr);
+          gap: 16px;
+          align-items: stretch;
+          border: 1px solid rgba(96, 165, 250, 0.22);
+          border-radius: 24px;
+          padding: 18px;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.68));
+        }
+
+        .emc-brief-copy span,
+        .emc-brief-score span {
+          color: rgba(125, 211, 252, 0.92);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .emc-brief-copy h2 { margin: 7px 0 0; color: white; font-size: 24px; letter-spacing: -0.04em; }
+        .emc-brief-copy p { margin: 8px 0 0; color: rgba(203, 213, 225, 0.76); line-height: 1.55; }
+        .emc-brief-list { display: grid; gap: 8px; }
+        .emc-brief-list div { border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); background: rgba(2, 6, 23, 0.3); padding: 10px 12px; color: rgba(226, 232, 240, 0.88); font-size: 13px; }
+        .emc-brief-score { border-radius: 18px; border: 1px solid rgba(34, 197, 94, 0.22); background: rgba(22, 163, 74, 0.1); padding: 14px; }
+        .emc-brief-score strong { display: block; margin-top: 8px; color: white; font-size: 34px; letter-spacing: -0.06em; }
+        .emc-brief-score small { display: block; margin-top: 6px; color: rgba(203, 213, 225, 0.7); }
+
+        .emc-timeline { display: flex; gap: 8px; flex-wrap: wrap; }
+        .emc-timeline button { border: 1px solid rgba(148, 163, 184, 0.18); background: rgba(15, 23, 42, 0.72); color: rgba(226, 232, 240, 0.82); border-radius: 999px; padding: 9px 12px; font-size: 12px; font-weight: 850; cursor: pointer; }
+        .emc-timeline button.is-active { border-color: rgba(96, 165, 250, 0.62); background: rgba(37, 99, 235, 0.28); color: white; }
+
+        .emc-exec-ribbon {
             grid-template-columns: 1fr;
           }
 
@@ -618,6 +735,18 @@ export default function ExecutiveMissionControl() {
       `}</style>
 
       <div className="emc-exec-stack">
+        <ExecutiveBrief
+          summary={summary}
+          missionItems={missionItems}
+          criticalSignals={criticalSignals}
+          openTasks={openTasks}
+          crmFollowups={crmFollowups}
+          vendorGaps={vendorGaps}
+          rapidResponses={rapidResponses}
+        />
+
+        <ExecutiveTimeline activeWindow={timelineWindow} onChange={setTimelineWindow} />
+
         <MissionControlExecutiveHeader
           summary={summary}
           missionItems={missionItems}
