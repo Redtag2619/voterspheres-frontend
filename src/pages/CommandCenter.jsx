@@ -917,6 +917,54 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
   );
 }
 
+
+function ExecutiveSnapshot({ feed, tasks, battlegrounds, executiveDecision }) {
+  const criticalAlerts = arr(feed).filter((item) => ["critical", "high"].includes(String(item.severity || "").toLowerCase())).length;
+  const openWork = arr(tasks).filter((task) => !isTaskCompleted(task)).length;
+  const highestRisk = arr(battlegrounds).find((item) => ["critical", "high"].includes(String(item.risk || "").toLowerCase())) || battlegrounds?.[0];
+
+  return (
+    <div className="command-snapshot">
+      <div className="command-snapshot-copy">
+        <span>Today&apos;s Executive Summary</span>
+        <h2>{executiveDecision?.title || "No urgent executive action required"}</h2>
+        <p>Live summary generated from alerts, execution tasks, battleground pressure, consultant activity, and relationship intelligence.</p>
+      </div>
+      <div className="command-snapshot-grid">
+        <div><span>Critical Alerts</span><strong>{criticalAlerts}</strong></div>
+        <div><span>Open Work</span><strong>{openWork}</strong></div>
+        <div><span>Highest Risk</span><strong>{highestRisk?.race || highestRisk?.state || "Stable"}</strong></div>
+        <div><span>Decision Level</span><strong>{executiveDecision?.level || "STABLE"}</strong></div>
+      </div>
+    </div>
+  );
+}
+
+function LiveActivityFeed({ feed = [], tasks = [] }) {
+  const taskEvents = arr(tasks).slice(0, 4).map((task) => ({
+    id: `task-${getTaskId(task) || getTaskTitle(task)}`,
+    time: task.updated_at ? new Date(task.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Now",
+    title: getTaskTitle(task),
+    source: task.source || "Execution Board",
+  }));
+
+  const items = [...arr(feed).slice(0, 6), ...taskEvents].slice(0, 8);
+
+  return (
+    <div className="command-live-feed">
+      {items.length ? items.map((item, index) => (
+        <div className="command-live-feed-item" key={item.id || `${item.title}-${index}`}>
+          <span>{item.time || "Now"}</span>
+          <div>
+            <strong>{item.title || "Executive activity"}</strong>
+            <small>{item.source || item.type || "VoterSpheres"}</small>
+          </div>
+        </div>
+      )) : <EmptyState text="No live activity events available." />}
+    </div>
+  );
+}
+
 function CommandExecutiveHeader({
   metrics,
   highSeverityCount,
@@ -1344,6 +1392,7 @@ export default function CommandCenter() {
     { id: "command-dark-money-section", label: "Dark Money", badge: darkMoneySummary.critical_exposure || 0 },
     { id: "command-alerts-section", label: "Alerts", badge: executiveAlerts.length },
     { id: "command-battlegrounds-section", label: "Battlegrounds", badge: stateScopedBattlegrounds.length },
+    { id: "command-live-activity-section", label: "Live Activity", badge: stateScopedFeed.length },
     { id: "command-feed-section", label: "Feed", badge: stateScopedFeed.length },
   ];
 
@@ -1356,6 +1405,30 @@ export default function CommandCenter() {
       demoText="Demo Command Center data is active."
     >
       <style>{`
+
+
+        .command-snapshot {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+          gap: 16px;
+          border: 1px solid rgba(96, 165, 250, 0.22);
+          border-radius: 26px;
+          padding: 18px;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.74));
+        }
+        .command-snapshot-copy span { color: rgba(125, 211, 252, 0.94); font-size: 11px; font-weight: 950; letter-spacing: 0.1em; text-transform: uppercase; }
+        .command-snapshot-copy h2 { margin: 8px 0 0; color: white; font-size: 26px; line-height: 1.18; letter-spacing: -0.045em; }
+        .command-snapshot-copy p { margin: 9px 0 0; color: rgba(203, 213, 225, 0.74); line-height: 1.55; }
+        .command-snapshot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .command-snapshot-grid div { border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.13); background: rgba(2, 6, 23, 0.32); padding: 12px; min-width: 0; }
+        .command-snapshot-grid span { display: block; color: rgba(203, 213, 225, 0.62); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .command-snapshot-grid strong { display: block; margin-top: 6px; color: white; font-size: 18px; overflow-wrap: anywhere; }
+
+        .command-live-feed { display: grid; gap: 10px; }
+        .command-live-feed-item { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: start; border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.13); background: rgba(15, 23, 42, 0.54); padding: 12px; }
+        .command-live-feed-item > span { color: rgba(125, 211, 252, 0.9); font-size: 11px; font-weight: 900; }
+        .command-live-feed-item strong { display: block; color: white; font-size: 13px; }
+        .command-live-feed-item small { display: block; margin-top: 4px; color: rgba(203, 213, 225, 0.64); }
 
         .map-bridge-banner {
           border: 1px solid rgba(96, 165, 250, 0.28);
@@ -1400,7 +1473,8 @@ export default function CommandCenter() {
         }
 
         @media (max-width: 900px) {
-          .map-bridge-banner {
+  
+        .map-bridge-banner {
             grid-template-columns: 1fr;
           }
 
@@ -1900,6 +1974,7 @@ export default function CommandCenter() {
         }
 
         @media (max-width: 1100px) {
+          .command-snapshot,
           .county-task-grid-wrap,
           .command-bottom-grid,
           .command-two-col,
@@ -1919,7 +1994,8 @@ export default function CommandCenter() {
 
         @media (max-width: 760px) {
           .county-task-grid,
-          .command-exec-grid {
+          .command-exec-grid,
+          .command-snapshot-grid {
             grid-template-columns: 1fr;
           }
 
@@ -2031,6 +2107,13 @@ export default function CommandCenter() {
       ) : null}
 
       <div className="command-section-stack">
+        <ExecutiveSnapshot
+          feed={stateScopedFeed}
+          tasks={bridgeScopedTasks}
+          battlegrounds={stateScopedBattlegrounds}
+          executiveDecision={executiveDecision}
+        />
+
         <CommandExecutiveHeader
           metrics={metrics}
           highSeverityCount={highSeverityCount}
@@ -2235,6 +2318,16 @@ export default function CommandCenter() {
       </CollapsibleSection>
 
       <CollapsibleSection
+        id="command-live-activity-section"
+        title="Live Activity Feed"
+        subtitle="Recent execution, alert, and campaign activity across the platform."
+        defaultOpen={false}
+        right={<Badge tone="active">Live</Badge>}
+      >
+        <LiveActivityFeed feed={stateScopedFeed} tasks={bridgeScopedTasks} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
         id="command-feed-section"
         title="Executive Feed"
         subtitle="Recent alerts and updates from across the platform."
@@ -2248,4 +2341,3 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
-
