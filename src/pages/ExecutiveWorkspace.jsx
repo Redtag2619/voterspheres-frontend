@@ -20,7 +20,43 @@ function money(value) {
 }
 
 function number(value = 0) {
-  return Number(value || 0);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function compactMoney(value) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(number(value));
+}
+
+function activityLabel(type) {
+  const value = String(type || "activity")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  return value || "Activity";
+}
+
+function activityTone(type) {
+  const value = String(type || "").toLowerCase();
+
+  if (["alert", "risk", "failure", "overdue", "escalation"].some((item) => value.includes(item))) {
+    return "danger";
+  }
+
+  if (["task", "approval", "pending", "invoice"].some((item) => value.includes(item))) {
+    return "demo";
+  }
+
+  if (["complete", "published", "created", "success"].some((item) => value.includes(item))) {
+    return "active";
+  }
+
+  return "accent";
 }
 
 function tone(value) {
@@ -306,10 +342,95 @@ export default function ExecutiveWorkspace() {
     if (workspaceReadinessScore >= 85 && number(summary.pressure_score) < 40) {
       return "Workspace Ready";
     }
-    if (summary.pressure_score >= 70) return "Command Review";
-    if (summary.pressure_score >= 40) return "Monitor Closely";
+    if (number(summary.pressure_score) >= 70) return "Command Review";
+    if (number(summary.pressure_score) >= 40) return "Monitor Closely";
     return "Stable";
   }, [launchSummary.launch_decision, summary.pressure_score, workspaceReadinessScore]);
+
+  const executiveBrief = useMemo(() => {
+    const primaryAction = launchActions[0] || actions[0] || null;
+    const highestRisk =
+      arr(data.signals)
+        .slice()
+        .sort(
+          (a, b) =>
+            number(b.signal_score || b.score) -
+            number(a.signal_score || a.score)
+        )[0] || null;
+
+    const strongestOpportunity =
+      number(opportunitySummary.hot) > 0
+        ? `${opportunitySummary.hot} hot opportunities require follow-up`
+        : number(opportunitySummary.high) > 0
+          ? `${opportunitySummary.high} high-priority opportunities are active`
+          : number(opportunitySummary.total) > 0
+            ? `${opportunitySummary.total} opportunities are currently scored`
+            : "No qualified revenue opportunity is currently visible";
+
+    return {
+      situation:
+        launchSummary.launch_decision ||
+        `${commandDecision} with ${number(summary.open_tasks)} open tasks`,
+      risk:
+        highestRisk?.title ||
+        highestRisk?.summary ||
+        (number(summary.pressure_score) >= 70
+          ? "Workspace pressure requires executive review"
+          : "No critical political risk is currently identified"),
+      action:
+        primaryAction?.title ||
+        primaryAction?.detail ||
+        "Continue monitoring launch, intelligence, and execution signals",
+      outcome:
+        strongestOpportunity,
+    };
+  }, [
+    actions,
+    commandDecision,
+    data.signals,
+    launchActions,
+    launchSummary.launch_decision,
+    opportunitySummary.high,
+    opportunitySummary.hot,
+    opportunitySummary.total,
+    summary.open_tasks,
+    summary.pressure_score,
+  ]);
+
+  const revenueSummary = useMemo(() => {
+    const clients = arr(data.clients);
+    const invoices = arr(data.invoices);
+
+    const monthlyRevenue = clients.reduce(
+      (total, client) => total + number(client.monthly_retainer),
+      0
+    );
+
+    const outstanding = invoices
+      .filter((invoice) =>
+        ["open", "pending", "overdue", "unpaid"].includes(
+          String(invoice.status || "").toLowerCase()
+        )
+      )
+      .reduce(
+        (total, invoice) =>
+          total + number(invoice.amount_due ?? invoice.amount ?? invoice.total),
+        0
+      );
+
+    const atRiskClients = clients.filter((client) =>
+      ["risk", "at risk", "watch", "critical"].some((value) =>
+        String(client.health_status || "").toLowerCase().includes(value)
+      )
+    ).length;
+
+    return {
+      monthlyRevenue,
+      outstanding,
+      clientCount: clients.length,
+      atRiskClients,
+    };
+  }, [data.clients, data.invoices]);
 
   function handleWorkspaceChange(nextId) {
     setWorkspaceId(nextId);
@@ -581,19 +702,99 @@ export default function ExecutiveWorkspace() {
           gap: 12px;
         }
 
+        .workspace-brief-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .workspace-brief-card {
+          border-radius: 20px;
+          border: 1px solid rgba(148, 163, 184, .15);
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, .09), transparent 38%),
+            rgba(15, 23, 42, .66);
+          padding: 16px;
+          min-height: 142px;
+        }
+
+        .workspace-brief-card strong {
+          display: block;
+          margin-top: 10px;
+          color: white;
+          font-size: 17px;
+          line-height: 1.35;
+        }
+
+        .workspace-brief-card p {
+          margin: 8px 0 0;
+          color: rgba(203, 213, 225, .7);
+          font-size: 12px;
+          line-height: 1.55;
+        }
+
+        .workspace-brief-kicker {
+          color: rgba(251, 146, 60, .92);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+        }
+
+        .workspace-revenue-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .workspace-activity-type {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+
+        @media (max-width: 1180px) {
+          .workspace-brief-grid,
+          .workspace-revenue-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
         @media (max-width: 1100px) {
           .workspace-grid,
-          .workspace-mini-grid,
           .workspace-toolbar,
-          .workspace-select,
-          .workspace-status-grid {
+          .workspace-select {
             grid-template-columns: 1fr;
+          }
+
+          .workspace-mini-grid,
+          .workspace-status-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
         @media (max-width: 1000px) {
           .workspace-module-grid {
             grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 680px) {
+          .workspace-mini-grid,
+          .workspace-status-grid,
+          .workspace-brief-grid,
+          .workspace-revenue-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .workspace-command-card {
+            padding: 20px;
+          }
+
+          .workspace-decision {
+            font-size: 42px;
           }
         }
       `}</style>
@@ -621,7 +822,12 @@ export default function ExecutiveWorkspace() {
             </select>
           </div>
 
-          <button className="vs-button" onClick={() => load({ quiet: true })}>
+          <button
+            className="vs-button"
+            type="button"
+            disabled={refreshing}
+            onClick={() => load({ quiet: true })}
+          >
             {refreshing ? "Refreshing..." : "Refresh Workspace"}
           </button>
         </div>
@@ -673,6 +879,40 @@ export default function ExecutiveWorkspace() {
           tone={number(opportunitySummary.hot) ? "down" : "neutral"}
         />
       </div>
+
+      {!loading ? (
+        <SectionCard
+          title="Executive Brief"
+          subtitle="A concise decision summary generated from launch, political, operational, and revenue signals."
+          right={<Badge tone={tone(commandDecision)}>{commandDecision}</Badge>}
+        >
+          <div className="workspace-brief-grid">
+            <div className="workspace-brief-card">
+              <span className="workspace-brief-kicker">Today's Situation</span>
+              <strong>{executiveBrief.situation}</strong>
+              <p>Current posture across launch readiness and workspace execution.</p>
+            </div>
+
+            <div className="workspace-brief-card">
+              <span className="workspace-brief-kicker">Highest Risk</span>
+              <strong>{executiveBrief.risk}</strong>
+              <p>Highest-priority signal requiring executive awareness.</p>
+            </div>
+
+            <div className="workspace-brief-card">
+              <span className="workspace-brief-kicker">Recommended Action</span>
+              <strong>{executiveBrief.action}</strong>
+              <p>Best next move based on current blockers and priorities.</p>
+            </div>
+
+            <div className="workspace-brief-card">
+              <span className="workspace-brief-kicker">Expected Outcome</span>
+              <strong>{executiveBrief.outcome}</strong>
+              <p>Most relevant opportunity or result visible from current data.</p>
+            </div>
+          </div>
+        </SectionCard>
+      ) : null}
 
       {loading ? (
         <EmptyState text="Loading Executive Workspace 3.0..." />
@@ -839,20 +1079,25 @@ export default function ExecutiveWorkspace() {
                         className="workspace-row"
                       >
                         <ResponsiveRow
-                          title={item.title || item.type}
-                          subtitle={item.type}
+                          title={item.title || activityLabel(item.type)}
+                          subtitle={item.detail || item.description || activityLabel(item.type)}
                           meta={[
                             {
                               label: "Activity",
-                              value: item.type,
+                              value: activityLabel(item.type),
                             },
                             {
                               label: "Updated",
-                              value: formatDate(
-                                item.activity_time
-                              ),
+                              value: formatDate(item.activity_time),
                             },
                           ]}
+                          right={
+                            <div className="workspace-activity-type">
+                              <Badge tone={activityTone(item.type)}>
+                                {activityLabel(item.type)}
+                              </Badge>
+                            </div>
+                          }
                         />
                       </div>
                     ))
@@ -1180,6 +1425,36 @@ export default function ExecutiveWorkspace() {
               title="Workspace Revenue"
               subtitle="Client health, receivables, business suite, and revenue risk."
             >
+              <div className="workspace-revenue-grid">
+                <div className="workspace-insight-card">
+                  <span className="workspace-insight-label">Monthly Retainers</span>
+                  <strong className="workspace-insight-value">
+                    {compactMoney(revenueSummary.monthlyRevenue)}
+                  </strong>
+                </div>
+
+                <div className="workspace-insight-card">
+                  <span className="workspace-insight-label">Outstanding</span>
+                  <strong className="workspace-insight-value">
+                    {compactMoney(revenueSummary.outstanding)}
+                  </strong>
+                </div>
+
+                <div className="workspace-insight-card">
+                  <span className="workspace-insight-label">Active Clients</span>
+                  <strong className="workspace-insight-value">
+                    {revenueSummary.clientCount}
+                  </strong>
+                </div>
+
+                <div className="workspace-insight-card">
+                  <span className="workspace-insight-label">Clients At Risk</span>
+                  <strong className="workspace-insight-value">
+                    {revenueSummary.atRiskClients}
+                  </strong>
+                </div>
+              </div>
+
               <div className="workspace-module-grid">
                 <Link className="workspace-module-card" to="/business-suite">
                   <h3>Consultant Business Suite</h3>
@@ -1330,4 +1605,3 @@ export default function ExecutiveWorkspace() {
     </PageShell>
   );
 }
-
