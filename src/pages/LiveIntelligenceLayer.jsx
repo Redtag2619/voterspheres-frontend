@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"; 
-import { Link } from "react-router-dom"; 
+import { Link } from "react-router-dom";
 import { api } from ".. /services/api"; 
 
 import PageShell from ".. /components/ui/PageShell"; 
@@ -9,7 +9,7 @@ import Badge from ".. /components/ui/Badge";
 import EmptyState from ".. /components/ui/EmptyState"; 
 import ResponsiveRow from ".. /components/ui/ResponsiveRow"; 
 
-import "./LiveIntelligenceLayer.css"; 
+import "./LiveIntelligenceLayer.css";
 
 function arr(value) {
  return Array.isArray(value) ? value : [];
@@ -17,7 +17,7 @@ function arr(value) {
 
 function num(value, fallback = 0) {
  const parsed = Number(value);
- return Number.isFinite(parsed) ? parsed : fallback;
+ return Number.isFinite(parsed) ? parsed : fallback; 
 }
 
 function clamp(value, min = 0, max = 100) {
@@ -31,7 +31,7 @@ function normalizeStatus(value) {
 function labelize(value) {
  return String(value || "unknown")
  .replace(/_/g, " ")
- .replace(/\b\w/g, (letter) => letter.toUpperCase()); 
+ .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function tone(value) {
@@ -59,33 +59,33 @@ function tone(value) {
  return "active";
  }
 
- return "accent"; 
+ return "accent";
 }
 
 function scoreTone(value) {
  const score = num(value);
 
- if (score >= 85) return "active"; 
+ if (score >= 85) return "active";
  if (score >= 65) return "demo"; 
- return "danger"; 
+ return "danger";
 }
 
 function formatDate(value) {
  if (!value) return "Never";
 
- const date = new Date(value); 
+ const date = new Date(value);
 
  if (Number.isNaN(date.getTime())) {
  return "Invalid timestamp";
  }
 
- return date.toLocaleString(); 
+ return date.toLocaleString();
 }
 
 function formatRelative(value) {
  if (!value) return "Never";
 
- const date = new Date(value); 
+ const date = new Date(value);
 
  if (Number.isNaN(date.getTime())) {
  return "Unknown";
@@ -94,16 +94,16 @@ function formatRelative(value) {
  const minutes = Math.max(
  0,
  Math.round((Date.now() - date.getTime()) / 60000)
- ); 
+ );
 
- if (minutes < 1) return "Just now"; 
+ if (minutes < 1) return "Just now";
  if (minutes < 60) return `${minutes}m ago`; 
 
- const hours = Math.round(minutes / 60); 
+ const hours = Math.round(minutes / 60);
 
- if (hours < 24) return `${hours}h ago`; 
+ if (hours < 24) return `${hours}h ago`;
 
- return `${Math.round(hours / 24)}d ago`; 
+ return `${Math.round(hours / 24)}d ago`;
 }
 
 function normalizeFeed(feed = {}) {
@@ -188,22 +188,22 @@ function normalizeDomain(domain = {}) {
 
 function buildModel(result = {}) {
  const feeds = arr(result.feeds).map(normalizeFeed);
- const feedMap = new Map(feeds.map((feed) => [feed.key, feed]));
+ const feedMap = new Map(feeds.map((feed) => [feed.key, feed])); 
 
  const rawBlockers = arr(result.blockers).length
  ? arr(result.blockers)
- : arr(result.recommendations); 
+ : arr(result.recommendations);
 
  const blockers = rawBlockers.map((item) =>
  normalizeBlocker(item, feedMap)
- ); 
+ );
 
  const readyFeeds = feeds.filter((feed) =>
  ["live", "fresh", "ready"].includes(feed.status)
- ); 
+ );
 
  const summary = result.summary || {}; 
- const readinessScore = clamp(
+ const readinessScore = clamp( 
  summary.readiness_score ?? 
  result.readiness_score ?? 
  (feeds.length ? (readyFeeds.length / feeds.length) * 100 : 0)
@@ -229,7 +229,7 @@ function buildModel(result = {}) {
  reviewFeeds: num(
  summary.review_feeds,
  Math.max(0, feeds.length - readyFeeds.length)
- ), 
+ ),
  blockerCount: num(summary.blocker_count, blockers.length),
  coreReady: num(summary.core_ready),
  coreTotal: num(summary.core_total),
@@ -286,7 +286,7 @@ function DomainRow({ domain }) {
  { label: "Blockers", value: domain.blockerCount },
  ]}
  right={
- <Badge tone={scoreTone( domain.score)}>
+ <Badge tone={scoreTone(domain.score)}>
  {labelize(domain.status || "Review")}
  </Badge>
  }
@@ -324,7 +324,7 @@ function FeedRow({ feed }) {
  right={
  <div className="live-row-actions">
  <Badge tone={tone(feed.status)}>{labelize(feed.status)}</Badge>
- <Link className="vs-button vs-button-secondary" to={feed.route}>
+ <Link className="vs-button vs-button-secondary" to={feed.route}> 
  Open
  </Link>
  </div>
@@ -358,7 +358,7 @@ function BlockerRow({ blocker }) {
  title={blocker.title}
  subtitle={blocker.detail}
  meta={[
- { label: "Priority", value: labelize(blocker.priority) },
+ { label: "Priority", value: labelize( blocker.priority) },
  { label: "Owner", value: blocker.owner },
  {
  label: "Score Impact",
@@ -377,7 +377,7 @@ function BlockerRow({ blocker }) {
  <div className="live-row-actions">
  <Badge tone={tone(blocker.status)}>
  {labelize(blocker.status)}
- </ Badge>
+ </Badge>
  <Link className="vs-button vs-button-secondary" to={blocker.route}>
  Resolve
  </Link>
@@ -390,23 +390,23 @@ function BlockerRow({ blocker }) {
 
 export default function LiveIntelligenceLayer() {
  const [model, setModel] = useState(() => buildModel());
- const [loading, setLoading] = useState(true);
+ const [loading, setLoading] = useState(true); 
  const [refreshing, setRefreshing] = useState(false);
- const [error, setError] = useState("");
+ const [error, setError] = useState(""); 
  const [filters, setFilters] = useState({
  q: "",
  domain: "",
  status: "",
- }); 
+ });
 
  const load = useCallback(async ({ quiet = false } = {}) => {
  try {
  if (quiet) setRefreshing(true);
- else setLoading(true);
+ else setLoading(true); 
 
- setError(""); 
+ setError("");
 
- const result = await api.liveIntelligenceLayer(); 
+ const result = await api.liveIntelligenceLayer();
  setModel(buildModel(result)); 
  } catch (err) {
  setError(
@@ -425,7 +425,7 @@ export default function LiveIntelligenceLayer() {
  load();
  }, [load]); 
 
- const { summary, feeds, blockers, domains, rules } = model; 
+ const { summary, feeds, blockers, domains, rules } = model;
 
  const domainOptions = useMemo(
  () => [... new Set(feeds.map((feed) => feed.domain).filter(Boolean))].sort(),
@@ -445,10 +445,10 @@ export default function LiveIntelligenceLayer() {
  }
 
  if (filters.status === "review") {
- return ![" live", "fresh", "ready"].includes(feed.status);
+ return ![" live", "fresh", "ready"].includes(feed.status); 
  }
 
- return feed.status === filters.status; 
+ return feed.status === filters.status;
  })
  .filter((feed) => {
  if (!query) return true;
@@ -463,7 +463,7 @@ export default function LiveIntelligenceLayer() {
  ]
  .join(" ")
  .toLowerCase()
- .includes(query); 
+ .includes(query);
  })
  .sort((a, b) => {
  const rank = {
@@ -478,7 +478,7 @@ export default function LiveIntelligenceLayer() {
  ready: 8,
  };
 
- return (rank[a.status] ?? 99) - (rank[b.status] ?? 99); 
+ return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
  }); 
  }, [feeds, filters]); 
 
@@ -498,7 +498,7 @@ export default function LiveIntelligenceLayer() {
  const readinessDelta =
  summary.scoreChange24h >= 0
  ? `+${summary.scoreChange24h.toFixed(1)} points in 24 hours`
- : `${summary.scoreChange24h.toFixed(1)} points in 24 hours`; 
+ : `${summary.scoreChange24h.toFixed(1)} points in 24 hours`;
 
  return (
  <PageShell
@@ -613,7 +613,7 @@ export default function LiveIntelligenceLayer() {
  <div className="live-summary-details">
  <div>
  <span>Projected readiness</span>
- <strong>{Math.round( summary.projectedScore)}%</strong>
+ <strong>{Math.round(summary.projectedScore)}%</strong>
  </div>
  <div>
  <span>Feeds ready</span>
@@ -663,21 +663,21 @@ export default function LiveIntelligenceLayer() {
  <div className="vs-card-muted">
  <strong>Launch Ready</strong>
  <div className="vs-row-subtitle">
- 85% to 100% with all required core systems healthy. 
+ 85% to 100% with all required core systems healthy.
  </div>
  </div>
 
  <div className="vs-card-muted">
  <strong>Conditional Launch</strong>
  <div className="vs-row-subtitle">
- 65% to 84% with documented executive approval. 
+ 65% to 84% with documented executive approval.
  </div>
  </div>
 
  <div className="vs-card-muted">
  <strong>Launch Blocked</strong>
  <div className="vs-row-subtitle">
- Below 65% or required core systems are missing. 
+ Below 65% or required core systems are missing.
  </div>
  </div>
 
@@ -692,7 +692,7 @@ export default function LiveIntelligenceLayer() {
  )
  )}{" "}
  points
- </strong> 
+ </strong>
  </div>
  </div>
  </SectionCard>
@@ -713,7 +713,7 @@ export default function LiveIntelligenceLayer() {
  ) : (
  <EmptyState text="Domain readiness will appear when the weighted backend response is available." />
  )}
- </SectionCard>
+ </ SectionCard>
 
  <SectionCard
  title="Launch Blockers"
@@ -733,7 +733,7 @@ export default function LiveIntelligenceLayer() {
  ) : (
  <EmptyState text="No launch blockers detected." />
  )}
- </SectionCard>
+ </ SectionCard>
  </div>
 
  <SectionCard
@@ -784,7 +784,7 @@ export default function LiveIntelligenceLayer() {
  <option value="review">Needs Review</option>
  <option value="missing">Missing</option>
  <option value="critical">Critical</option>
- <option value="degraded">Degraded</option>
+ <option value="degraded" >Degraded</option>
  <option value="stale">Stale</option>
  </select>
 
@@ -806,7 +806,7 @@ export default function LiveIntelligenceLayer() {
  ) : (
  <EmptyState text="No intelligence feeds match the selected filters." />
  )}
- </SectionCard>
+ </SectionCard> 
 
  <div className="vs-grid-2">
  <SectionCard
@@ -831,7 +831,7 @@ export default function LiveIntelligenceLayer() {
  "Source is within its configured freshness threshold.",
  },
  {
- key: " coverage",
+ key: "coverage",
  label: "Coverage",
  weight: 25,
  detail:
@@ -876,7 +876,7 @@ export default function LiveIntelligenceLayer() {
 
  <Link to="/executive-workspace">
  <strong>Review Executive Owners</strong>
- <span>Confirm accountability across operating domains.</span>
+ <span>Confirm accountability across operating domains.</span> 
  </Link>
 
  <Link to="/reports">
@@ -885,9 +885,9 @@ export default function LiveIntelligenceLayer() {
  </Link>
  </div>
  </SectionCard>
- </div>
+ </div> 
  </>
  )}
  </PageShell>
- ); 
+  );
 }
