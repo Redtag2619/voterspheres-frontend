@@ -1,6 +1,6 @@
 .live-overview-grid {
  display: grid;
- grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr); 
+ grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);  
  gap: 18px;
  align-items: start;
 }
