@@ -6,7 +6,7 @@ import { getTourSteps } from "../config/platformTourSteps";
 import "./VirtualTour.css";
 
 const API_BASE =
-  String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "") ||
+  String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "") || 
   "https://voterspheres-backend-2pap.onrender.com";
 
 const ROUTE_SETTLE_MS = 850;
