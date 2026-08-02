@@ -5,5 +5,13 @@ export default function PlatformTour() {
   const params = new URLSearchParams(location.search);
   const mode = params.get("mode") === "admin" ? "admin" : "platform";
 
-  return <Navigate to={`/executive-workspace?tour=${mode}`} replace />;
+  return (
+    <Navigate
+      to={{
+        pathname: "/executive-workspace",
+        search: `?tour=${mode}`,
+      }}
+      replace
+    />
+  );
 }
