@@ -3,7 +3,7 @@ export const platformTourSteps = [
     id: "workspace-command",
     chapter: "Executive Command",
     route: "/executive-workspace",
-    page: "Executive Workspace", 
+    page: "Executive Workspace",
     section: "Executive command home",
     heading: "Executive command view",
     label: "Command value",
