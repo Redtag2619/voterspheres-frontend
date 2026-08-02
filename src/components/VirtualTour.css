@@ -1,0 +1,295 @@
+.vs-tour-screen-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  background: rgba(2, 6, 23, 0.24);
+}
+
+.vs-tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10010;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+  padding: 22px;
+}
+
+.vs-tour-spotlight-box {
+  position: fixed;
+  z-index: 10006;
+  pointer-events: none;
+  border-radius: 22px;
+  outline: 3px solid rgba(251, 146, 60, 0.98);
+  box-shadow:
+    0 0 0 9999px rgba(2, 6, 23, 0.48),
+    0 0 0 7px rgba(251, 146, 60, 0.18),
+    0 0 38px rgba(251, 146, 60, 0.76);
+  transition:
+    top 240ms ease,
+    left 240ms ease,
+    width 240ms ease,
+    height 240ms ease;
+  animation: vsTourSpotlightPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vsTourSpotlightPulse {
+  0%,
+  100% {
+    outline-color: rgba(251, 146, 60, 0.98);
+    box-shadow:
+      0 0 0 9999px rgba(2, 6, 23, 0.48),
+      0 0 0 7px rgba(251, 146, 60, 0.18),
+      0 0 38px rgba(251, 146, 60, 0.76);
+  }
+
+  50% {
+    outline-color: rgba(56, 189, 248, 0.98);
+    box-shadow:
+      0 0 0 9999px rgba(2, 6, 23, 0.48),
+      0 0 0 8px rgba(56, 189, 248, 0.18),
+      0 0 46px rgba(56, 189, 248, 0.72);
+  }
+}
+
+.vs-tour-card {
+  width: min(820px, calc(100vw - 32px));
+  max-height: min(72vh, 760px);
+  overflow-y: auto;
+  pointer-events: auto;
+  border: 1px solid rgba(251, 146, 60, 0.32);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(251, 146, 60, 0.17), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(37, 99, 235, 0.13), transparent 34%),
+    rgba(2, 6, 23, 0.98);
+  color: var(--vs-text, #f8fafc);
+  box-shadow:
+    0 34px 110px rgba(0, 0, 0, 0.68),
+    0 0 52px rgba(251, 146, 60, 0.13);
+}
+
+.vs-tour-progress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 28px 28px 0 0;
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.vs-tour-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f97316, #fb923c 48%, #38bdf8);
+  transition: width 280ms ease;
+}
+
+.vs-tour-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 24px 28px 6px;
+}
+
+.vs-tour-header h2 {
+  margin: 7px 0 0;
+  color: #fff;
+  font-size: clamp(1.5rem, 3vw, 2.15rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.vs-tour-mode {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(251, 146, 60, 0.36);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(251, 146, 60, 0.12);
+  color: #fdba74;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.vs-tour-header .vs-kicker {
+  margin: 10px 0 0;
+  color: rgba(186, 230, 253, 0.8);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vs-tour-close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.76);
+  color: #e2e8f0;
+  font-size: 1.45rem;
+  cursor: pointer;
+}
+
+.vs-tour-close:hover {
+  border-color: rgba(251, 146, 60, 0.52);
+  color: #fff;
+}
+
+.vs-tour-section-label {
+  display: inline-flex;
+  width: fit-content;
+  margin: 10px 28px 0;
+  border: 1px solid rgba(56, 189, 248, 0.36);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(14, 165, 233, 0.12);
+  color: rgba(224, 242, 254, 0.98);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vs-tour-body {
+  margin: 15px 28px 0;
+  color: rgba(226, 232, 240, 0.88);
+  font-size: 0.92rem;
+  line-height: 1.72;
+}
+
+.vs-tour-benefits {
+  display: grid;
+  gap: 8px;
+  margin: 14px 28px 0;
+}
+
+.vs-tour-benefit {
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 15px;
+  padding: 11px 13px;
+  background: rgba(245, 158, 11, 0.1);
+  color: rgba(255, 251, 235, 0.94);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.vs-tour-benefit strong {
+  color: #fef3c7;
+}
+
+.vs-tour-warning {
+  margin: 12px 28px 0;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 13px;
+  padding: 9px 11px;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fde68a;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.vs-tour-status,
+.vs-tour-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 14px 28px 0;
+  color: rgba(186, 230, 253, 0.72);
+  font-size: 0.7rem;
+}
+
+.vs-tour-meta {
+  margin-top: 7px;
+  color: rgba(148, 163, 184, 0.72);
+}
+
+.vs-tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 20px 28px 26px;
+}
+
+.vs-tour-actions .vs-button:last-child {
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .vs-tour-backdrop {
+    align-items: flex-end;
+    padding: 8px;
+  }
+
+  .vs-tour-card {
+    width: calc(100vw - 16px);
+    max-height: 58vh;
+    border-radius: 22px;
+  }
+
+  .vs-tour-header {
+    padding: 18px 18px 4px;
+  }
+
+  .vs-tour-section-label,
+  .vs-tour-body,
+  .vs-tour-benefits,
+  .vs-tour-warning,
+  .vs-tour-status,
+  .vs-tour-meta {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .vs-tour-actions {
+    padding: 17px 18px 20px;
+  }
+
+  .vs-tour-actions .vs-button {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+  }
+
+  .vs-tour-actions .vs-button:last-child {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .vs-tour-spotlight-box {
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vs-tour-card {
+    max-height: 62vh;
+  }
+
+  .vs-tour-header h2 {
+    font-size: 1.45rem;
+  }
+
+  .vs-tour-actions .vs-button {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-tour-spotlight-box {
+    animation: none;
+    transition: none;
+  }
+
+  .vs-tour-progress span {
+    transition: none;
+  }
+}
