@@ -9,11 +9,11 @@ const API_BASE =
   String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "") ||
   "https://voterspheres-backend-2pap.onrender.com";
 
-const ROUTE_SETTLE_MS = 850;
-const TARGET_TIMEOUT_MS = 8500;
-const TARGET_POLL_MS = 125;
-const CENTER_SETTLE_MS = 650;
-const BETWEEN_STEPS_MS = 650;
+const ROUTE_SETTLE_MS = 1400;
+const TARGET_TIMEOUT_MS = 12000;
+const TARGET_POLL_MS = 150;
+const CENTER_SETTLE_MS = 1100;
+const BETWEEN_STEPS_MS = 2500;
 
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -36,6 +36,7 @@ function getTourMode(search = "") {
 function removeTourQuery(search = "") {
   const params = new URLSearchParams(search);
   params.delete("tour");
+
   const query = params.toString();
   return query ? `?${query}` : "";
 }
@@ -79,7 +80,9 @@ async function fetchNovaSpeech(text) {
       voice: "nova",
       model: "gpt-4o-mini-tts",
       style:
-        "Warm, natural, confident enterprise product specialist. Conversational American pacing with short pauses. Avoid robotic delivery and exaggerated enthusiasm.",
+        "Speak like a warm, polished enterprise product specialist. " +
+        "Use natural American pacing, short pauses between ideas, and a calm conversational tone. " +
+        "Avoid robotic cadence, exaggerated enthusiasm, and rushed delivery.",
     }),
   });
 
@@ -122,7 +125,7 @@ function playBrowserSpeech(text) {
 
     if (voice) utterance.voice = voice;
 
-    utterance.rate = 0.9;
+    utterance.rate = 0.88;
     utterance.pitch = 1;
     utterance.volume = 1;
     utterance.onend = resolve;
@@ -135,9 +138,11 @@ function playBrowserSpeech(text) {
 function playAudioUrl(url, audioRef) {
   return new Promise((resolve, reject) => {
     const audio = new Audio(url);
+
     audioRef.current = audio;
     audio.onended = resolve;
     audio.onerror = reject;
+
     audio.play().catch(reject);
   });
 }
@@ -226,7 +231,10 @@ function findByHeadingText(terms = []) {
     if (!isVisible(heading) || !containsAnyText(heading, terms)) continue;
 
     const container = nearestTourContainer(heading);
-    if (container && isVisible(container)) return container;
+
+    if (container && isVisible(container)) {
+      return container;
+    }
   }
 
   return null;
@@ -300,7 +308,8 @@ export default function VirtualTour() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [browserFallback, setBrowserFallback] = useState(true);
   const [paused, setPaused] = useState(false);
-  const [voiceStatus, setVoiceStatus] = useState("Ready");
+  const [tourStarted, setTourStarted] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("Ready to begin");
   const [spotlightRect, setSpotlightRect] = useState(null);
   const [replayNonce, setReplayNonce] = useState(0);
   const [targetMissing, setTargetMissing] = useState(false);
@@ -321,10 +330,13 @@ export default function VirtualTour() {
     setRunning(true);
     setStepIndex(0);
     setPaused(false);
+    setTourStarted(false);
+    setVoiceStatus("Ready to begin");
     setTargetMissing(false);
     setTranscriptOpen(false);
     setExpandedControls(false);
     setSpotlightRect(null);
+
     targetRef.current = null;
     cancelledRef.current = false;
   }, [mode]);
@@ -349,8 +361,13 @@ export default function VirtualTour() {
       cancelledRef.current = true;
       window.speechSynthesis?.cancel?.();
 
-      if (audioRef.current) audioRef.current.pause();
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
     };
   }, []);
 
@@ -365,21 +382,28 @@ export default function VirtualTour() {
 
   function cleanObjectUrl() {
     if (!objectUrlRef.current) return;
+
     URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = "";
   }
 
   function stopTour({ completed = false } = {}) {
     cancelledRef.current = true;
+
     setRunning(false);
     setPaused(false);
+    setTourStarted(false);
     setSpotlightRect(null);
     setTargetMissing(false);
+
     targetRef.current = null;
+
     stopAudio();
     cleanObjectUrl();
 
-    if (completed && mode) storeCompletion(mode);
+    if (completed && mode) {
+      storeCompletion(mode);
+    }
 
     navigate(
       {
@@ -400,10 +424,41 @@ export default function VirtualTour() {
     stopTour({ completed: true });
   }
 
+  async function startGuidedTour() {
+    cancelledRef.current = false;
+    setPaused(false);
+    setVoiceStatus("Starting guided tour");
+
+    try {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+
+        const unlock = new SpeechSynthesisUtterance(" ");
+        unlock.volume = 0;
+
+        window.speechSynthesis.speak(unlock);
+      }
+
+      const audio = new Audio();
+      audio.muted = true;
+
+      await audio.play().catch(() => {});
+      audio.pause();
+    } catch {
+      // Browser voice fallback may still be available.
+    }
+
+    setTourStarted(true);
+    setReplayNonce((value) => value + 1);
+  }
+
   useEffect(() => {
-    if (!running || !step || paused) return undefined;
+    if (!running || !step || paused || !tourStarted) {
+      return undefined;
+    }
 
     const runId = runIdRef.current + 1;
+
     runIdRef.current = runId;
     cancelledRef.current = false;
 
@@ -411,24 +466,29 @@ export default function VirtualTour() {
       try {
         stopAudio();
         cleanObjectUrl();
+
         setSpotlightRect(null);
         setTargetMissing(false);
+
         targetRef.current = null;
 
         const alreadyOnRoute = location.pathname === step.route;
+
         setVoiceStatus(alreadyOnRoute ? "Finding section" : "Opening page");
 
         if (!alreadyOnRoute) {
           navigate(step.route);
           await sleep(ROUTE_SETTLE_MS);
         } else {
-          await sleep(220);
+          await sleep(350);
         }
 
         if (cancelledRef.current || runIdRef.current !== runId) return;
 
         setVoiceStatus("Locating section");
+
         const target = await waitForTarget(step);
+
         targetRef.current = target;
 
         const fellBackToPage =
@@ -448,7 +508,8 @@ export default function VirtualTour() {
         if (cancelledRef.current || runIdRef.current !== runId) return;
 
         setSpotlightRect(getSpotlightRect(target));
-        await sleep(250);
+
+        await sleep(500);
 
         if (cancelledRef.current || runIdRef.current !== runId) return;
 
@@ -459,15 +520,21 @@ export default function VirtualTour() {
         } else {
           try {
             setVoiceStatus("Generating natural voice");
+
             const url = await fetchNovaSpeech(narration);
+
             objectUrlRef.current = url;
 
             if (cancelledRef.current || runIdRef.current !== runId) return;
 
             setVoiceStatus("Speaking");
+
             await playAudioUrl(url, audioRef);
           } catch (error) {
-            console.warn("[virtual-tour] Nova voice unavailable:", error?.message);
+            console.warn(
+              "[virtual-tour] Natural voice unavailable:",
+              error?.message
+            );
 
             if (browserFallback) {
               setVoiceStatus("Using browser voice");
@@ -483,6 +550,8 @@ export default function VirtualTour() {
         setVoiceStatus("Ready");
 
         if (autoAdvance) {
+          setVoiceStatus("Moving to next section");
+
           await sleep(BETWEEN_STEPS_MS);
 
           if (!cancelledRef.current && runIdRef.current === runId) {
@@ -490,8 +559,9 @@ export default function VirtualTour() {
           }
         }
       } catch (error) {
-        console.warn("[virtual-tour] step failed:", error?.message);
-        setVoiceStatus("Step unavailable. Use Next to continue.");
+        console.warn("[virtual-tour] Step failed:", error?.message);
+
+        setVoiceStatus("Step unavailable. Use Skip to continue.");
       }
     }
 
@@ -510,50 +580,73 @@ export default function VirtualTour() {
     replayNonce,
     running,
     stepIndex,
+    tourStarted,
     voiceEnabled,
   ]);
 
-  if (!running || !step || !steps.length) return null;
+  if (!running || !step || !steps.length) {
+    return null;
+  }
 
   const progress = Math.round(((stepIndex + 1) / steps.length) * 100);
 
   function goBack() {
     cancelledRef.current = true;
+
     stopAudio();
 
-    if (stepIndex > 0) setStepIndex((value) => value - 1);
+    if (stepIndex > 0) {
+      setStepIndex((value) => value - 1);
+    }
 
     setPaused(false);
+    setReplayNonce((value) => value + 1);
   }
 
   function goNext() {
     cancelledRef.current = true;
+
     stopAudio();
     moveToNext();
+
     setPaused(false);
   }
 
   function replayStep() {
     cancelledRef.current = true;
+
     stopAudio();
-    setReplayNonce((value) => value + 1);
+
     setPaused(false);
+    setReplayNonce((value) => value + 1);
   }
 
   function togglePause() {
     if (paused) {
       cancelledRef.current = false;
+
       setPaused(false);
       setVoiceStatus("Resuming");
       setReplayNonce((value) => value + 1);
+
       return;
     }
 
     cancelledRef.current = true;
+
     stopAudio();
+
     setPaused(true);
     setVoiceStatus("Paused");
   }
+
+  const dockClassName = [
+    "vs-tour-dock",
+    transcriptOpen ? "is-transcript-open" : "",
+    tourStarted ? "is-started" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const tourDock = (
     <>
@@ -569,10 +662,7 @@ export default function VirtualTour() {
         />
       ) : null}
 
-      <aside
-        className={`vs-tour-dock ${transcriptOpen ? "is-transcript-open" : ""}`}
-        aria-live="polite"
-      >
+      <aside className={dockClassName} aria-live="polite">
         <div className="vs-tour-dock-progress" aria-hidden="true">
           <span style={{ width: `${progress}%` }} />
         </div>
@@ -583,6 +673,7 @@ export default function VirtualTour() {
               <span className="vs-tour-dock-mode">
                 {mode === "admin" ? "Admin Tour" : "Platform Tour"}
               </span>
+
               <span className="vs-tour-dock-count">
                 {stepIndex + 1}/{steps.length}
               </span>
@@ -592,20 +683,31 @@ export default function VirtualTour() {
 
             <div className="vs-tour-dock-status">
               <span
-                className={`vs-tour-status-dot ${
-                  paused ? "is-paused" : voiceStatus === "Speaking" ? "is-speaking" : ""
-                }`}
+                className={[
+                  "vs-tour-status-dot",
+                  paused ? "is-paused" : "",
+                  voiceStatus === "Speaking" ? "is-speaking" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               />
-              <span>{paused ? "Tour paused" : voiceStatus}</span>
+
+              <span>
+                {!tourStarted
+                  ? "Ready to begin"
+                  : paused
+                    ? "Tour paused"
+                    : voiceStatus}
+              </span>
             </div>
           </div>
 
           <button
             type="button"
             className="vs-tour-primary-control"
-            onClick={togglePause}
+            onClick={tourStarted ? togglePause : startGuidedTour}
           >
-            {paused ? "Resume" : "Pause"}
+            {!tourStarted ? "Start Tour" : paused ? "Resume" : "Pause"}
           </button>
         </div>
 
@@ -618,7 +720,9 @@ export default function VirtualTour() {
         {transcriptOpen ? (
           <div className="vs-tour-transcript">
             <span>{step.heading}</span>
+
             <p>{step.narration}</p>
+
             {step.value ? (
               <div>
                 <strong>{step.label}:</strong> {step.value}
@@ -628,7 +732,11 @@ export default function VirtualTour() {
         ) : null}
 
         <div className="vs-tour-dock-actions">
-          <button type="button" onClick={goBack} disabled={stepIndex === 0}>
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={!tourStarted || stepIndex === 0}
+          >
             Previous
           </button>
 
@@ -646,14 +754,22 @@ export default function VirtualTour() {
             {expandedControls ? "Less" : "More"}
           </button>
 
-          <button type="button" onClick={goNext}>
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={!tourStarted}
+          >
             {stepIndex === steps.length - 1 ? "Finish" : "Skip"}
           </button>
         </div>
 
         {expandedControls ? (
           <div className="vs-tour-dock-secondary">
-            <button type="button" onClick={replayStep}>
+            <button
+              type="button"
+              onClick={replayStep}
+              disabled={!tourStarted}
+            >
               Replay
             </button>
 
@@ -678,7 +794,11 @@ export default function VirtualTour() {
               Fallback {browserFallback ? "On" : "Off"}
             </button>
 
-            <button type="button" className="is-danger" onClick={() => stopTour()}>
+            <button
+              type="button"
+              className="is-danger"
+              onClick={() => stopTour()}
+            >
               Exit Tour
             </button>
           </div>
