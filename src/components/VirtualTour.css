@@ -8,11 +8,11 @@
     0 0 0 5px rgba(251, 146, 60, 0.16),
     0 0 34px rgba(251, 146, 60, 0.62);
   transition:
-    top 240ms ease,
-    left 240ms ease,
-    width 240ms ease,
-    height 240ms ease;
-  animation: vsTourSpotlightPulse 1.6s ease-in-out infinite;
+    top 320ms ease,
+    left 320ms ease,
+    width 320ms ease,
+    height 320ms ease;
+  animation: vsTourSpotlightPulse 1.8s ease-in-out infinite;
 }
 
 @keyframes vsTourSpotlightPulse {
@@ -42,7 +42,11 @@
   border: 1px solid rgba(251, 146, 60, 0.3);
   border-radius: 22px;
   background:
-    radial-gradient(circle at top right, rgba(251, 146, 60, 0.13), transparent 34%),
+    radial-gradient(
+      circle at top right,
+      rgba(251, 146, 60, 0.13),
+      transparent 34%
+    ),
     rgba(2, 6, 23, 0.96);
   color: #f8fafc;
   box-shadow:
@@ -62,7 +66,7 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #f97316, #fb923c 52%, #38bdf8);
-  transition: width 260ms ease;
+  transition: width 360ms ease;
 }
 
 .vs-tour-dock-main {
@@ -100,7 +104,7 @@
   display: block;
   margin-top: 6px;
   overflow: hidden;
-  color: #fff;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 900;
   letter-spacing: -0.025em;
@@ -151,12 +155,12 @@
 }
 
 .vs-tour-primary-control {
-  min-width: 88px;
-  min-height: 40px;
+  min-width: 104px;
+  min-height: 42px;
   border: 1px solid rgba(251, 146, 60, 0.4);
   border-radius: 13px;
   background: linear-gradient(135deg, #fb923c, #f97316);
-  color: #fff;
+  color: #ffffff;
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
@@ -165,6 +169,23 @@
 
 .vs-tour-primary-control:hover {
   filter: brightness(1.07);
+}
+
+.vs-tour-dock:not(.is-started) .vs-tour-primary-control {
+  animation: vsTourStartPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes vsTourStartPulse {
+  0%,
+  100% {
+    box-shadow: 0 10px 26px rgba(249, 115, 22, 0.22);
+  }
+
+  50% {
+    box-shadow:
+      0 12px 34px rgba(249, 115, 22, 0.48),
+      0 0 0 5px rgba(249, 115, 22, 0.12);
+  }
 }
 
 .vs-tour-dock-note {
@@ -207,7 +228,7 @@
 }
 
 .vs-tour-transcript strong {
-  color: #fff;
+  color: #ffffff;
 }
 
 .vs-tour-dock-actions,
@@ -241,10 +262,11 @@
 .vs-tour-dock-secondary button:hover {
   border-color: rgba(251, 146, 60, 0.38);
   background: rgba(251, 146, 60, 0.1);
-  color: #fff;
+  color: #ffffff;
 }
 
-.vs-tour-dock-actions button:disabled {
+.vs-tour-dock-actions button:disabled,
+.vs-tour-dock-secondary button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }
@@ -267,7 +289,7 @@
   }
 
   .vs-tour-primary-control {
-    min-width: 78px;
+    min-width: 92px;
   }
 
   .vs-tour-dock-actions button,
@@ -293,7 +315,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vs-tour-spotlight-box,
-  .vs-tour-status-dot.is-speaking {
+  .vs-tour-status-dot.is-speaking,
+  .vs-tour-dock:not(.is-started) .vs-tour-primary-control {
     animation: none;
   }
 
