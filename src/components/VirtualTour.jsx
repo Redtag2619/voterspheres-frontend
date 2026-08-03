@@ -6,14 +6,14 @@ import { getTourSteps } from "../config/platformTourSteps";
 import "./VirtualTour.css";
 
 const API_BASE =
-  String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "") || 
+  String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "") ||
   "https://voterspheres-backend-2pap.onrender.com";
 
 const ROUTE_SETTLE_MS = 850;
 const TARGET_TIMEOUT_MS = 8500;
 const TARGET_POLL_MS = 125;
 const CENTER_SETTLE_MS = 650;
-const BETWEEN_STEPS_MS = 500;
+const BETWEEN_STEPS_MS = 650;
 
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -61,7 +61,7 @@ function storeCompletion(mode) {
   try {
     window.localStorage.setItem(completionKey(mode), new Date().toISOString());
   } catch {
-    // Storage may be unavailable in restricted browser contexts.
+    // Ignore storage failures.
   }
 }
 
@@ -78,6 +78,8 @@ async function fetchNovaSpeech(text) {
       text: normalizeText(text),
       voice: "nova",
       model: "gpt-4o-mini-tts",
+      style:
+        "Warm, natural, confident enterprise product specialist. Conversational American pacing with short pauses. Avoid robotic delivery and exaggerated enthusiasm.",
     }),
   });
 
@@ -120,8 +122,8 @@ function playBrowserSpeech(text) {
 
     if (voice) utterance.voice = voice;
 
-    utterance.rate = 0.88;
-    utterance.pitch = 1.02;
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
     utterance.volume = 1;
     utterance.onend = resolve;
     utterance.onerror = resolve;
@@ -190,7 +192,7 @@ function queryFirstVisible(selector) {
         if (
           container &&
           isVisible(container) &&
-          !container.closest(".vs-tour-card")
+          !container.closest(".vs-tour-dock")
         ) {
           return container;
         }
@@ -294,7 +296,7 @@ export default function VirtualTour() {
 
   const [running, setRunning] = useState(Boolean(mode));
   const [stepIndex, setStepIndex] = useState(0);
-  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [browserFallback, setBrowserFallback] = useState(true);
   const [paused, setPaused] = useState(false);
@@ -302,6 +304,8 @@ export default function VirtualTour() {
   const [spotlightRect, setSpotlightRect] = useState(null);
   const [replayNonce, setReplayNonce] = useState(0);
   const [targetMissing, setTargetMissing] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [expandedControls, setExpandedControls] = useState(false);
 
   const audioRef = useRef(null);
   const objectUrlRef = useRef("");
@@ -318,6 +322,8 @@ export default function VirtualTour() {
     setStepIndex(0);
     setPaused(false);
     setTargetMissing(false);
+    setTranscriptOpen(false);
+    setExpandedControls(false);
     setSpotlightRect(null);
     targetRef.current = null;
     cancelledRef.current = false;
@@ -452,7 +458,7 @@ export default function VirtualTour() {
           setVoiceStatus("Voice off");
         } else {
           try {
-            setVoiceStatus("Generating Nova voice");
+            setVoiceStatus("Generating natural voice");
             const url = await fetchNovaSpeech(narration);
             objectUrlRef.current = url;
 
@@ -485,7 +491,7 @@ export default function VirtualTour() {
         }
       } catch (error) {
         console.warn("[virtual-tour] step failed:", error?.message);
-        setVoiceStatus("Tour step unavailable. Use Next to continue.");
+        setVoiceStatus("Step unavailable. Use Next to continue.");
       }
     }
 
@@ -510,8 +516,6 @@ export default function VirtualTour() {
   if (!running || !step || !steps.length) return null;
 
   const progress = Math.round(((stepIndex + 1) / steps.length) * 100);
-  const chapterSteps = steps.filter((item) => item.chapter === step.chapter);
-  const chapterStepIndex = chapterSteps.findIndex((item) => item.id === step.id);
 
   function goBack() {
     cancelledRef.current = true;
@@ -541,6 +545,7 @@ export default function VirtualTour() {
       cancelledRef.current = false;
       setPaused(false);
       setVoiceStatus("Resuming");
+      setReplayNonce((value) => value + 1);
       return;
     }
 
@@ -550,7 +555,7 @@ export default function VirtualTour() {
     setVoiceStatus("Paused");
   }
 
-  const tourCard = (
+  const tourDock = (
     <>
       {spotlightRect ? (
         <div
@@ -564,99 +569,96 @@ export default function VirtualTour() {
         />
       ) : null}
 
-      <div className="vs-tour-screen-dim" />
+      <aside
+        className={`vs-tour-dock ${transcriptOpen ? "is-transcript-open" : ""}`}
+        aria-live="polite"
+      >
+        <div className="vs-tour-dock-progress" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </div>
 
-      <div className="vs-tour-backdrop">
-        <section
-          className="vs-tour-card"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="vs-tour-title"
-        >
-          <div className="vs-tour-progress" aria-hidden="true">
-            <span style={{ width: `${progress}%` }} />
-          </div>
-
-          <div className="vs-tour-header">
-            <div>
-              <div className="vs-tour-mode">
-                {mode === "admin" ? "Administrator Tour" : "Platform Tour"}
-              </div>
-              <p className="vs-kicker">
-                {step.chapter} · {step.section}
-              </p>
-              <h2 id="vs-tour-title">{step.page}</h2>
+        <div className="vs-tour-dock-main">
+          <div className="vs-tour-dock-copy">
+            <div className="vs-tour-dock-topline">
+              <span className="vs-tour-dock-mode">
+                {mode === "admin" ? "Admin Tour" : "Platform Tour"}
+              </span>
+              <span className="vs-tour-dock-count">
+                {stepIndex + 1}/{steps.length}
+              </span>
             </div>
 
-            <button
-              type="button"
-              className="vs-tour-close"
-              onClick={() => stopTour()}
-              aria-label="Close tour"
-            >
-              ×
-            </button>
+            <strong className="vs-tour-dock-title">{step.page}</strong>
+
+            <div className="vs-tour-dock-status">
+              <span
+                className={`vs-tour-status-dot ${
+                  paused ? "is-paused" : voiceStatus === "Speaking" ? "is-speaking" : ""
+                }`}
+              />
+              <span>{paused ? "Tour paused" : voiceStatus}</span>
+            </div>
           </div>
 
-          <div className="vs-tour-section-label">{step.heading}</div>
+          <button
+            type="button"
+            className="vs-tour-primary-control"
+            onClick={togglePause}
+          >
+            {paused ? "Resume" : "Pause"}
+          </button>
+        </div>
 
-          <p className="vs-tour-body">{step.narration}</p>
+        {targetMissing ? (
+          <div className="vs-tour-dock-note">
+            Showing the page because the exact section marker was not found.
+          </div>
+        ) : null}
 
-          {step.value ? (
-            <div className="vs-tour-benefits">
-              <div className="vs-tour-benefit">
+        {transcriptOpen ? (
+          <div className="vs-tour-transcript">
+            <span>{step.heading}</span>
+            <p>{step.narration}</p>
+            {step.value ? (
+              <div>
                 <strong>{step.label}:</strong> {step.value}
               </div>
-            </div>
-          ) : null}
-
-          {targetMissing ? (
-            <div className="vs-tour-warning">
-              The exact section marker was not found, so the page was highlighted.
-              The tour can continue normally.
-            </div>
-          ) : null}
-
-          <div className="vs-tour-status">
-            <span>{voiceStatus}</span>
-            <span>
-              Chapter {chapterStepIndex + 1} of {chapterSteps.length}
-            </span>
+            ) : null}
           </div>
+        ) : null}
 
-          <div className="vs-tour-meta">
-            Step {stepIndex + 1} of {steps.length} · {progress}% complete
-          </div>
+        <div className="vs-tour-dock-actions">
+          <button type="button" onClick={goBack} disabled={stepIndex === 0}>
+            Previous
+          </button>
 
-          <div className="vs-tour-actions">
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={goBack}
-              disabled={stepIndex === 0}
-            >
-              Back
-            </button>
+          <button
+            type="button"
+            onClick={() => setTranscriptOpen((value) => !value)}
+          >
+            {transcriptOpen ? "Hide Text" : "Transcript"}
+          </button>
 
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={togglePause}
-            >
-              {paused ? "Resume" : "Pause"}
-            </button>
+          <button
+            type="button"
+            onClick={() => setExpandedControls((value) => !value)}
+          >
+            {expandedControls ? "Less" : "More"}
+          </button>
 
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
-              onClick={replayStep}
-            >
+          <button type="button" onClick={goNext}>
+            {stepIndex === steps.length - 1 ? "Finish" : "Skip"}
+          </button>
+        </div>
+
+        {expandedControls ? (
+          <div className="vs-tour-dock-secondary">
+            <button type="button" onClick={replayStep}>
               Replay
             </button>
 
             <button
               type="button"
-              className="vs-button vs-button-secondary"
               onClick={() => setVoiceEnabled((value) => !value)}
             >
               Voice {voiceEnabled ? "On" : "Off"}
@@ -664,28 +666,26 @@ export default function VirtualTour() {
 
             <button
               type="button"
-              className="vs-button vs-button-secondary"
-              onClick={() => setBrowserFallback((value) => !value)}
-            >
-              Fallback {browserFallback ? "On" : "Off"}
-            </button>
-
-            <button
-              type="button"
-              className="vs-button vs-button-secondary"
               onClick={() => setAutoAdvance((value) => !value)}
             >
               Auto {autoAdvance ? "On" : "Off"}
             </button>
 
-            <button type="button" className="vs-button" onClick={goNext}>
-              {stepIndex === steps.length - 1 ? "Finish Tour" : "Next"}
+            <button
+              type="button"
+              onClick={() => setBrowserFallback((value) => !value)}
+            >
+              Fallback {browserFallback ? "On" : "Off"}
+            </button>
+
+            <button type="button" className="is-danger" onClick={() => stopTour()}>
+              Exit Tour
             </button>
           </div>
-        </section>
-      </div>
+        ) : null}
+      </aside>
     </>
   );
 
-  return createPortal(tourCard, document.body);
+  return createPortal(tourDock, document.body);
 }
