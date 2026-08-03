@@ -137,11 +137,14 @@ function playBrowserSpeech(text) {
 
 function playAudioUrl(url, audioRef) {
   return new Promise((resolve, reject) => {
-    const audio = new Audio(url);
+    const audio = audioRef.current || new Audio();
 
     audioRef.current = audio;
     audio.onended = resolve;
     audio.onerror = reject;
+    audio.muted = false;
+    audio.src = url;
+    audio.load();
 
     audio.play().catch(reject);
   });
@@ -424,31 +427,50 @@ export default function VirtualTour() {
     stopTour({ completed: true });
   }
 
-  async function startGuidedTour() {
+  function startGuidedTour() {
     cancelledRef.current = false;
     setPaused(false);
+    setTourStarted(true);
     setVoiceStatus("Starting guided tour");
 
     try {
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
 
-        const unlock = new SpeechSynthesisUtterance(" ");
+        const unlock = new SpeechSynthesisUtterance("Tour starting");
         unlock.volume = 0;
-
+        unlock.rate = 1;
         window.speechSynthesis.speak(unlock);
       }
 
-      const audio = new Audio();
-      audio.muted = true;
+      const silentWav =
+        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+      const audio = audioRef.current || new Audio();
 
-      await audio.play().catch(() => {});
-      audio.pause();
+      audioRef.current = audio;
+      audio.muted = true;
+      audio.src = silentWav;
+      audio.load();
+
+      const unlockPromise = audio.play();
+
+      if (unlockPromise?.catch) {
+        unlockPromise.catch(() => {});
+      }
+
+      window.setTimeout(() => {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+        } catch {
+          // The generated narration can still use browser speech fallback.
+        }
+      }, 120);
     } catch {
-      // Browser voice fallback may still be available.
+      // Browser speech fallback remains available.
     }
 
-    setTourStarted(true);
     setReplayNonce((value) => value + 1);
   }
 
