@@ -69,29 +69,63 @@ function storeCompletion(mode) {
 async function fetchNovaSpeech(text) {
   const token = getToken();
 
-  const response = await fetch(`${API_BASE}/api/tour/voice`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
-      text: normalizeText(text),
-      voice: "nova",
-      model: "gpt-4o-mini-tts",
-      style:
-        "Speak like a warm, polished enterprise product specialist. " +
-        "Use natural American pacing, short pauses between ideas, and a calm conversational tone. " +
-        "Avoid robotic cadence, exaggerated enthusiasm, and rushed delivery.",
-    }),
-  });
+  const response = await fetch(
+    `${API_BASE}/api/tour/voice`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+
+        ...(token
+          ? {
+              Authorization:
+                `Bearer ${token}`,
+            }
+          : {}),
+      },
+
+      body: JSON.stringify({
+        text:
+          normalizeText(text),
+
+        voice:
+          "marin",
+
+        model:
+          "gpt-4o-mini-tts",
+
+        instructions:
+          "Speak like a warm, polished human product specialist. " +
+          "Use a natural conversational American delivery. " +
+          "Speak calmly and confidently with short pauses between ideas. " +
+          "Apply subtle emphasis to important business outcomes. " +
+          "Avoid robotic cadence, announcer-style delivery, exaggerated enthusiasm, and rushed speech. " +
+          "Pronounce VoterSpheres as Voter Spheres.",
+      }),
+    }
+  );
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Nova voice failed ${response.status}: ${detail}`);
+    const detail = await response
+      .text()
+      .catch(() => "");
+
+    throw new Error(
+      `Natural tour voice failed ${response.status}: ${detail}`
+    );
   }
 
-  return URL.createObjectURL(await response.blob());
+  const blob = await response.blob();
+
+  if (!blob.size) {
+    throw new Error(
+      "The tour voice response was empty."
+    );
+  }
+
+  return URL.createObjectURL(blob);
 }
 
 function getFallbackVoice() {
