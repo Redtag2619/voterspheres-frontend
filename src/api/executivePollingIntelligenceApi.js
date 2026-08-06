@@ -1,3 +1,5 @@
+import { getStoredToken } from "../lib/auth.js";
+
 const RAW_API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_BASE ||
@@ -10,14 +12,6 @@ const CLEAN_API_BASE = String(RAW_API_BASE)
 const API_BASE = CLEAN_API_BASE.endsWith("/api")
   ? CLEAN_API_BASE
   : `${CLEAN_API_BASE}/api`;
-
-function getStoredToken() {
-  const directKeys = [
-    "token",
-    "authToken",
-    "access_token",
-    "voterspheres_token",
-  ];
 
   for (const key of directKeys) {
     const value = localStorage.getItem(key);
