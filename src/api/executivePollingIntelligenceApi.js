@@ -1,3 +1,4 @@
+```javascript
 import { getStoredToken } from "../lib/auth.js";
 
 const RAW_API_BASE =
@@ -12,43 +13,6 @@ const CLEAN_API_BASE = String(RAW_API_BASE)
 const API_BASE = CLEAN_API_BASE.endsWith("/api")
   ? CLEAN_API_BASE
   : `${CLEAN_API_BASE}/api`;
-
-  const objectKeys = [
-    "auth",
-    "user",
-    "session",
-    "voterspheres_auth",
-  ];
-
-  for (const key of objectKeys) {
-    try {
-      const raw = localStorage.getItem(key);
-
-      if (!raw) continue;
-
-      const parsed = JSON.parse(raw);
-
-      const value =
-        parsed?.token ||
-        parsed?.accessToken ||
-        parsed?.access_token ||
-        parsed?.jwt ||
-        parsed?.data?.token ||
-        "";
-
-      if (value) {
-        return String(value)
-          .trim()
-          .replace(/^Bearer\s+/i, "")
-          .replace(/^"|"$/g, "");
-      }
-    } catch {
-      // Ignore invalid JSON and continue checking other keys.
-    }
-  }
-
-  return "";
-}
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
@@ -114,15 +78,12 @@ async function request(path, options = {}) {
     error.url = url;
     error.payload = payload;
 
-    console.error(
-      "[ExecutivePolling] request failed",
-      {
-        url,
-        status: response.status,
-        payload,
-        tokenFound: Boolean(token),
-      }
-    );
+    console.error("[ExecutivePolling] request failed", {
+      url,
+      status: response.status,
+      payload,
+      tokenFound: Boolean(token),
+    });
 
     throw error;
   }
@@ -130,9 +91,7 @@ async function request(path, options = {}) {
   return payload;
 }
 
-export function getExecutivePollingDashboard(
-  params = {}
-) {
+export function getExecutivePollingDashboard(params = {}) {
   return request(
     `/executive-polling-intelligence/dashboard${buildQuery(
       params
@@ -146,9 +105,7 @@ export function getExecutivePollingHealth() {
   );
 }
 
-export function listExecutivePollingRecords(
-  params = {}
-) {
+export function listExecutivePollingRecords(params = {}) {
   return request(
     `/executive-polling-intelligence/records${buildQuery(
       params
@@ -161,3 +118,4 @@ export default {
   getExecutivePollingHealth,
   listExecutivePollingRecords,
 };
+```
