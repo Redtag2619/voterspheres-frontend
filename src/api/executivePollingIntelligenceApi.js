@@ -1,4 +1,3 @@
-```javascript
 import { getStoredToken } from "../lib/auth.js";
 
 const RAW_API_BASE =
@@ -118,4 +117,4 @@ export default {
   getExecutivePollingHealth,
   listExecutivePollingRecords,
 };
-```
+
