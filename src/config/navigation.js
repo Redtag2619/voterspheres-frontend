@@ -7,6 +7,7 @@ export const navigationSections = [
       { label: "Unified Executive Intelligence", to: "/executive-intelligence" },
       { label: "Executive AI Command Platform", to: "/executive-ai-command-platform" },
       { label: "Political Intelligence Fabric", to: "/political-intelligence-fabric", section: "Executive" },
+      { label: "Polling Intelligence", path: "/executive-polling-intelligence", description: "Live VoteHub polling, trends, averages, and pollster intelligence."},
       { label: "National Political Digital Twin", to: "/national-political-digital-twin" }, 
       { label: "Autonomous Campaign Operations", to: "/autonomous-campaign-operations" },
       { label: "Executive Decision Intelligence", to: "/executive-decision-intelligence" },
