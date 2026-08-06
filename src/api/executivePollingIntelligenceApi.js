@@ -13,17 +13,6 @@ const API_BASE = CLEAN_API_BASE.endsWith("/api")
   ? CLEAN_API_BASE
   : `${CLEAN_API_BASE}/api`;
 
-  for (const key of directKeys) {
-    const value = localStorage.getItem(key);
-
-    if (value) {
-      return String(value)
-        .trim()
-        .replace(/^Bearer\s+/i, "")
-        .replace(/^"|"$/g, "");
-    }
-  }
-
   const objectKeys = [
     "auth",
     "user",
