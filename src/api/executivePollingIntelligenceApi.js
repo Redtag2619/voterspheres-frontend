@@ -1,7 +1,17 @@
-const API_BASE =
+import { getStoredToken } from "../utils/authStorage";
+
+const RAW_API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_BASE ||
   "https://voterspheres-backend-2pap.onrender.com/api";
+
+const CLEAN_API_BASE = String(RAW_API_BASE)
+  .trim()
+  .replace(/\/+$/, "");
+
+const API_BASE = CLEAN_API_BASE.endsWith("/api")
+  ? CLEAN_API_BASE
+  : `${CLEAN_API_BASE}/api`;
 
 function storedToken() {
   const keys = [
