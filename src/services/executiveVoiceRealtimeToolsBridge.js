@@ -583,16 +583,10 @@ export function createExecutiveVoiceLiveToolsBridge({
     // excluded because it can arrive before the argument JSON is complete.
 
     const supportedEvents = [
+  "response.function_call_arguments.done",
+];
 
-      "response.function_call_arguments.done",
-
-      "response.output_item.done",
-
-    ];
-
- 
-
-    if (!supportedEvents.includes(event.type)) {
+     if (!supportedEvents.includes(event.type)) {
 
       return { handled: false, event };
 
