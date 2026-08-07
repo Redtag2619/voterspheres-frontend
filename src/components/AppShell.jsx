@@ -1,5 +1,6 @@
 import ExecutiveKpiRibbon from "./ExecutiveKpiRibbon.jsx";
 import UnifiedExecutiveStatusBar from "./UnifiedExecutiveStatusBar.jsx";
+import BackToTop from "./BackToTop";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { flattenedNavigation, navigationSections } from "../config/navigation"; 
@@ -455,7 +456,112 @@ export default function AppShell() {
           .vs-top-content {
             padding: 14px;
           }
-        }
+        
+          .vs-back-to-top {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 1000;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-width: 92px;
+  height: 46px;
+  padding: 0 17px;
+
+  border: 1px solid rgba(251, 146, 60, 0.42);
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(251, 146, 60, 0.98),
+      rgba(234, 88, 12, 0.98)
+    );
+
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.28),
+    0 4px 12px rgba(234, 88, 12, 0.22);
+
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transform: translateY(14px) scale(0.96);
+
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.vs-back-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.vs-back-to-top:hover {
+  transform: translateY(-2px) scale(1.02);
+
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.32),
+    0 6px 18px rgba(234, 88, 12, 0.28);
+
+  filter: brightness(1.05);
+}
+
+.vs-back-to-top:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.vs-back-to-top:focus-visible {
+  outline: 3px solid rgba(251, 146, 60, 0.32);
+  outline-offset: 4px;
+}
+
+.vs-back-to-top svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .vs-back-to-top {
+    right: 16px;
+    bottom: 18px;
+
+    min-width: 46px;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+
+    border-radius: 14px;
+  }
+
+  .vs-back-to-top span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-back-to-top {
+    transition: none;
+  }
+}
       `}</style>
 
       {openMenu ? (
@@ -602,8 +708,10 @@ export default function AppShell() {
       <UnifiedExecutiveStatusBar />
 
       <main className="vs-top-content">
-       <Outlet />
-     </main>
+        <Outlet />
+      </main>
+
+      <BackToTop />
     </div>
   );
 }
