@@ -410,10 +410,6 @@ export default function CampaignFinanceIntelligencePlatform() {
     setOpenSections((current) => ({ ...current, [section]: !current[section] }));
   }
 
-  function scrollTop() {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   const candidates = arr(data.leaderboards.candidates);
   const pacs = arr(data.leaderboards.pacs);
   const states = arr(data.leaderboards.states);
@@ -1210,10 +1206,7 @@ export default function CampaignFinanceIntelligencePlatform() {
         </div>
       </div>
 
-      <button type="button" className="vs-button vs-button-primary cfi-back-top" onClick={scrollTop}>
-        Back To Top
-      </button>
-    </PageShell>
+     </PageShell>
   );
 }
 
