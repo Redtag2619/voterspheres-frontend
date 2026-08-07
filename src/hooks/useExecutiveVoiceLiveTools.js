@@ -310,8 +310,6 @@ export function useExecutiveVoiceLiveTools({
   };
 }
 
-<<<<<<< HEAD
 export default useExecutiveVoiceLiveTools;
-=======
 export default useExecutiveVoiceLiveTools;
->>>>>>> 9f9f13e (Connect Executive Voice Realtime to live data tools)
+
