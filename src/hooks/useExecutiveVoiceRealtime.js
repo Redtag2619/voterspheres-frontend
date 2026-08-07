@@ -1,280 +1,468 @@
 import {
+
   useCallback,
+
   useEffect,
+
+  useMemo,
+
   useRef,
+
   useState,
+
 } from "react";
 
+ 
+
 import {
+
   createExecutiveVoiceRealtimeClient,
+
 } from "../services/executiveVoiceRealtime";
 
+ 
+
 export default function useExecutiveVoiceRealtime({
+
   voice = "marin",
+
   agent = "executive_chief_of_staff",
+
   workspaceId = 1,
+
   executiveContext = {},
-  onUserTranscript,
-  onAssistantTranscript,
-  onAssistantTranscriptDelta,
+
   onEvent,
-  onError,
+
+  onUserTranscript,
+
+  onAssistantTranscript,
+
+  onAssistantTranscriptDelta,
+
+  onSpeechStarted,
+
+  onSpeechStopped,
+
 } = {}) {
-  const clientRef = useRef(null);
-  const audioRef = useRef(null);
 
   const [status, setStatus] = useState("idle");
-  const [statusDetail, setStatusDetail] =
-    useState(null);
 
-  const [connected, setConnected] =
-    useState(false);
-
-  const [
-    microphoneEnabled,
-    setMicrophoneEnabledState,
-  ] = useState(true);
-
-  const [
-    userTranscript,
-    setUserTranscript,
-  ] = useState("");
-
-  const [
-    assistantTranscript,
-    setAssistantTranscript,
-  ] = useState("");
+  const [statusDetail, setStatusDetail] = useState(null);
 
   const [error, setError] = useState("");
 
-  const ensureAudioElement =
-    useCallback(() => {
-      if (!audioRef.current) {
-        const audio =
-          document.createElement("audio");
+  const [connected, setConnected] = useState(false);
 
-        audio.autoplay = true;
-        audio.playsInline = true;
+  const [microphoneEnabled, setMicrophoneEnabledState] = useState(true);
 
-        audioRef.current = audio;
-      }
+  const [assistantTranscript, setAssistantTranscript] = useState("");
 
-      return audioRef.current;
-    }, []);
+  const [userTranscript, setUserTranscript] = useState("");
 
-  const buildClient =
-    useCallback(() => {
-      const client =
-        createExecutiveVoiceRealtimeClient({
-          onStatus: ({
-            status: nextStatus,
-            detail,
-          }) => {
-            setStatus(nextStatus);
-            setStatusDetail(detail || null);
+  const [liveToolsStatus, setLiveToolsStatus] = useState("idle");
 
-            setConnected(
-              [
-                "connected",
-                "session_ready",
-                "ready",
-                "listening",
-                "thinking",
-                "responding",
-                "speaking",
-                "microphone_on",
-                "microphone_off",
-              ].includes(nextStatus)
-            );
-          },
+  const [liveToolsDetail, setLiveToolsDetail] = useState(null);
 
-          onEvent,
+  const [lastLiveTool, setLastLiveTool] = useState(null);
 
-          onUserTranscript: (payload) => {
-            if (payload.delta) {
-              setUserTranscript(
-                (current) =>
-                  current + payload.text
-              );
-            } else {
-              setUserTranscript(
-                payload.text || ""
-              );
-            }
+ 
 
-            onUserTranscript?.(payload);
-          },
+  const clientRef = useRef(null);
 
-          onAssistantTranscriptDelta:
-            (payload) => {
-              setAssistantTranscript(
-                payload.text || ""
-              );
+  const optionsRef = useRef({
 
-              onAssistantTranscriptDelta?.(
-                payload
-              );
-            },
+    voice,
 
-          onAssistantTranscript:
-            (payload) => {
-              setAssistantTranscript(
-                payload.text || ""
-              );
+    agent,
 
-              onAssistantTranscript?.(
-                payload
-              );
-            },
+    workspaceId,
 
-          onSpeechStarted: () => {
-            setUserTranscript("");
-            setAssistantTranscript("");
-          },
+    executiveContext,
 
-          onSpeechStopped: () => {
-            setStatus("thinking");
-          },
+  });
 
-          onError: (nextError) => {
-            const message =
-              nextError?.message ||
-              "Executive Voice connection failed.";
+ 
 
-            setError(message);
-            onError?.(nextError);
-          },
-        });
+  optionsRef.current = {
 
-      clientRef.current = client;
+    voice,
 
-      return client;
-    }, [
-      onAssistantTranscript,
-      onAssistantTranscriptDelta,
-      onError,
-      onEvent,
-      onUserTranscript,
-    ]);
+    agent,
 
-  const connect = useCallback(async () => {
-    setError("");
+    workspaceId,
 
-    const client =
-      clientRef.current || buildClient();
+    executiveContext,
 
-    const audioElement =
-      ensureAudioElement();
+  };
 
-    await client.connect({
-      voice,
-      agent,
-      workspaceId,
-      executiveContext,
-      audioElement,
+ 
+
+  const callbacksRef = useRef({
+
+    onEvent,
+
+    onUserTranscript,
+
+    onAssistantTranscript,
+
+    onAssistantTranscriptDelta,
+
+    onSpeechStarted,
+
+    onSpeechStopped,
+
+  });
+
+ 
+
+  callbacksRef.current = {
+
+    onEvent,
+
+    onUserTranscript,
+
+    onAssistantTranscript,
+
+    onAssistantTranscriptDelta,
+
+    onSpeechStarted,
+
+    onSpeechStopped,
+
+  };
+
+ 
+
+  const client = useMemo(() => {
+
+    const instance = createExecutiveVoiceRealtimeClient({
+
+      onStatus: ({ status: nextStatus, detail }) => {
+
+        setStatus(nextStatus || "idle");
+
+        setStatusDetail(detail || null);
+
+ 
+
+        if (
+
+          nextStatus === "connected" ||
+
+          nextStatus === "session_ready" ||
+
+          nextStatus === "ready" ||
+
+          nextStatus === "listening" ||
+
+          nextStatus === "speaking" ||
+
+          nextStatus === "responding" ||
+
+          nextStatus === "thinking"
+
+        ) {
+
+          setConnected(true);
+
+        }
+
+ 
+
+        if (
+
+          nextStatus === "disconnected" ||
+
+          nextStatus === "data_channel_closed" ||
+
+          nextStatus === "peer_failed"
+
+        ) {
+
+          setConnected(false);
+
+        }
+
+      },
+
+      onEvent: (event) => {
+
+        if (event?.type === "executive_voice_live_tool_started") {
+
+          setLastLiveTool({
+
+            name: event.tool,
+
+            call_id: event.call_id,
+
+            status: "running",
+
+          });
+
+        }
+
+ 
+
+        if (event?.type === "executive_voice_live_tool_completed") {
+
+          setLastLiveTool({
+
+            name: event.tool,
+
+            call_id: event.call_id,
+
+            status: "complete",
+
+            result: event.result || null,
+
+          });
+
+        }
+
+ 
+
+        if (event?.type === "executive_voice_live_tool_error") {
+
+          setLastLiveTool({
+
+            name: event.tool,
+
+            call_id: event.call_id,
+
+            status: "error",
+
+            error: event.error,
+
+          });
+
+        }
+
+ 
+
+        callbacksRef.current.onEvent?.(event);
+
+      },
+
+      onUserTranscript: (payload) => {
+
+        setUserTranscript(payload?.text || "");
+
+        callbacksRef.current.onUserTranscript?.(payload);
+
+      },
+
+      onAssistantTranscript: (payload) => {
+
+        setAssistantTranscript(payload?.text || "");
+
+        callbacksRef.current.onAssistantTranscript?.(payload);
+
+      },
+
+      onAssistantTranscriptDelta: (payload) => {
+
+        setAssistantTranscript(payload?.text || "");
+
+        callbacksRef.current.onAssistantTranscriptDelta?.(payload);
+
+      },
+
+      onSpeechStarted: (event) => {
+
+        callbacksRef.current.onSpeechStarted?.(event);
+
+      },
+
+      onSpeechStopped: (event) => {
+
+        callbacksRef.current.onSpeechStopped?.(event);
+
+      },
+
+      onError: (nextError) => {
+
+        setError(nextError?.message || "Executive Voice failed.");
+
+      },
+
+      onLiveToolStatus: ({ status: nextStatus, detail }) => {
+
+        setLiveToolsStatus(nextStatus || "idle");
+
+        setLiveToolsDetail(detail || null);
+
+      },
+
     });
 
-    setConnected(true);
-  }, [
-    agent,
-    buildClient,
-    ensureAudioElement,
-    executiveContext,
-    voice,
-    workspaceId,
-  ]);
+ 
 
-  const disconnect =
-    useCallback(async () => {
-      await clientRef.current?.disconnect?.();
+    clientRef.current = instance;
 
-      setConnected(false);
-      setStatus("disconnected");
-      setStatusDetail(null);
-      setUserTranscript("");
-      setAssistantTranscript("");
-    }, []);
+    return instance;
 
-  const sendText = useCallback(
-    (text, options = {}) => {
-      return (
-        clientRef.current?.sendText?.(
-          text,
-          options
-        ) || false
-      );
-    },
-    []
-  );
-
-  const interrupt = useCallback(() => {
-    clientRef.current?.interrupt?.();
   }, []);
 
-  const updateSession = useCallback(
-    (patch = {}) => {
-      return (
-        clientRef.current?.updateSession?.(
-          patch
-        ) || false
-      );
-    },
-    []
-  );
-
-  const setMicrophoneEnabled =
-    useCallback((enabled) => {
-      clientRef.current?.setMicrophoneEnabled?.(
-        enabled
-      );
-
-      setMicrophoneEnabledState(
-        Boolean(enabled)
-      );
-    }, []);
-
-  const resumeAudio =
-    useCallback(async () => {
-      try {
-        await clientRef.current?.resumeAudio?.();
-      } catch (resumeError) {
-        const message =
-          resumeError?.message ||
-          "Unable to resume realtime audio.";
-
-        setError(message);
-        onError?.(resumeError);
-      }
-    }, [onError]);
-
-  const clearTranscripts =
-    useCallback(() => {
-      setUserTranscript("");
-      setAssistantTranscript("");
-    }, []);
+ 
 
   useEffect(() => {
+
     return () => {
-      clientRef.current?.disconnect?.();
+
+      client.disconnect().catch(() => {});
+
     };
-  }, []);
+
+  }, [client]);
+
+ 
+
+  const connect = useCallback(async () => {
+
+    setError("");
+
+ 
+
+    const session = await client.connect({
+
+      ...optionsRef.current,
+
+    });
+
+ 
+
+    setConnected(true);
+
+    return session;
+
+  }, [client]);
+
+ 
+
+  const disconnect = useCallback(async () => {
+
+    await client.disconnect();
+
+    setConnected(false);
+
+    setAssistantTranscript("");
+
+    setUserTranscript("");
+
+  }, [client]);
+
+ 
+
+  const sendText = useCallback(
+
+    (text, options = {}) => client.sendText(text, options),
+
+    [client]
+
+  );
+
+ 
+
+  const interrupt = useCallback(() => {
+
+    client.interrupt();
+
+  }, [client]);
+
+ 
+
+  const setMicrophoneEnabled = useCallback(
+
+    (enabled) => {
+
+      const next = Boolean(enabled);
+
+      setMicrophoneEnabledState(next);
+
+      client.setMicrophoneEnabled(next);
+
+    },
+
+    [client]
+
+  );
+
+ 
+
+  const resumeAudio = useCallback(async () => {
+
+    await client.resumeAudio();
+
+  }, [client]);
+
+ 
+
+  const clearTranscripts = useCallback(() => {
+
+    client.clearTranscripts();
+
+    setAssistantTranscript("");
+
+    setUserTranscript("");
+
+  }, [client]);
+
+ 
+
+  const registerLiveTools = useCallback(
+
+    (options) => client.registerLiveTools(options),
+
+    [client]
+
+  );
+
+ 
 
   return {
+
     status,
+
     statusDetail,
-    connected,
-    microphoneEnabled,
-    userTranscript,
-    assistantTranscript,
+
     error,
 
+    connected,
+
+    microphoneEnabled,
+
+    assistantTranscript,
+
+    userTranscript,
+
+    liveToolsStatus,
+
+    liveToolsDetail,
+
+    lastLiveTool,
+
     connect,
+
     disconnect,
+
     sendText,
+
     interrupt,
-    updateSession,
+
     setMicrophoneEnabled,
+
     resumeAudio,
+
     clearTranscripts,
+
+    registerLiveTools,
+
+    sendEvent: (event) => client.sendEvent(event),
+
+    updateSession: (patch) => client.updateSession(patch),
+
   };
+
 }
+
