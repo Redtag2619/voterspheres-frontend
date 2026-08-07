@@ -576,13 +576,17 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
+    // Execute function calls only after Realtime has finished producing
+
+    // the function arguments. response.output_item.added is intentionally
+
+    // excluded because it can arrive before the argument JSON is complete.
+
     const supportedEvents = [
 
       "response.function_call_arguments.done",
 
       "response.output_item.done",
-
-      "response.output_item.added",
 
     ];
 
@@ -600,6 +604,26 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
+    console.log(
+
+      "[Executive Voice Realtime] completed function call:",
+
+      {
+
+        sourceEvent: event.type,
+
+        name: call.name,
+
+        callId: call.callId,
+
+        arguments: call.arguments,
+
+      }
+
+    );
+
+ 
+
     if (!call.name || !call.callId) {
 
       return {
@@ -609,6 +633,28 @@ export function createExecutiveVoiceLiveToolsBridge({
         reason: "missing-function-call-data",
 
         event,
+
+      };
+
+    }
+
+ 
+
+    if (
+
+      event.type === "response.function_call_arguments.done" &&
+
+      (!call.arguments || typeof call.arguments !== "object")
+
+    ) {
+
+      return {
+
+        handled: false,
+
+        reason: "function-arguments-not-ready",
+
+        call,
 
       };
 
