@@ -10,6 +10,10 @@ import {
 
 const TOOL_TIMEOUT_MS = 30000;
 
+const SYNTHESIS_DEBOUNCE_MS = 75;
+
+const COMPLETED_CALL_HISTORY_LIMIT = 500;
+
  
 
 const TOOL_INSTRUCTIONS = `
@@ -24,11 +28,29 @@ Do not guess live facts when a tool can retrieve them. For broad executive brief
 
  
 
+const SYNTHESIS_INSTRUCTIONS =
+
+  "Use all completed VoterSpheres function-call outputs from this tool batch to answer the user's request now. " +
+
+  "Do not describe any tool in this completed batch as still running. Lead with the most important verified result. " +
+
+  "Include dates, reporting periods, poll field dates, filing periods, source names, and freshness when available. " +
+
+  "If the current evidence still requires another registered VoterSpheres tool to answer the same request, call it before the final synthesis. " +
+
+  "Clearly distinguish verified records, individual polls, aggregates, modeled estimates, cached data, stale data, degraded sources, and unavailable data. " +
+
+  "Do not invent missing facts.";
+
+ 
+
 function parseEvent(value) {
 
   if (!value) return null;
 
   if (typeof value === "object") return value;
+
+ 
 
   try {
 
@@ -48,13 +70,19 @@ function parseArguments(value) {
 
   if (!value) return {};
 
-  if (typeof value === "object") return value;
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+
+ 
 
   try {
 
     const parsed = JSON.parse(value);
 
-    return parsed && typeof parsed === "object" ? parsed : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+
+      ? parsed
+
+      : {};
 
   } catch {
 
@@ -68,7 +96,15 @@ function parseArguments(value) {
 
 function normalizeFunctionCall(event = {}) {
 
-  const item = event.item || event.output_item || event.response?.output?.[0] || {};
+  const item =
+
+    event.item ||
+
+    event.output_item ||
+
+    event.response?.output?.[0] ||
+
+    {};
 
  
 
@@ -164,9 +200,9 @@ function extractResultFromCapturedEvents(events = []) {
 
     const output = event?.item?.output;
 
-    if (!output) continue;
-
  
+
+    if (!output) continue;
 
     if (typeof output === "object") return output;
 
@@ -204,7 +240,7 @@ function compactSources(sources = []) {
 
  
 
-  return sources.slice(0, 12).map((source) => {
+  return sources.slice(0, 16).map((source) => {
 
     if (typeof source === "string") {
 
@@ -218,19 +254,53 @@ function compactSources(sources = []) {
 
       provider: source?.provider || source?.source || null,
 
-      name: source?.name || source?.title || source?.label || null,
+      source: source?.source || source?.key || null,
 
-      url: source?.url || null,
+      name:
+
+        source?.name ||
+
+        source?.title ||
+
+        source?.label ||
+
+        source?.key ||
+
+        null,
+
+      url: source?.url || source?.source_url || null,
 
       published_at:
 
-        source?.published_at || source?.field_end || source?.updated_at || null,
+        source?.published_at ||
+
+        source?.field_end ||
+
+        source?.last_seen ||
+
+        source?.updated_at ||
+
+        null,
+
+      checked_at: source?.checked_at || source?.fetched_at || null,
+
+      freshness: source?.freshness || null,
+
+      status: source?.status || null,
 
       excerpt: source?.excerpt || source?.summary || null,
 
       confidence:
 
-        source?.confidence ?? source?.confidence_score ?? source?.reliability_score ?? null,
+        source?.confidence ??
+
+        source?.confidence_score ??
+
+        source?.reliability_score ??
+
+        null,
+
+      error: source?.error || null,
 
     };
 
@@ -266,11 +336,15 @@ function compactToolResult(result = {}, toolName = "unknown") {
 
     sources: compactSources(result?.sources || result?.evidence || []),
 
-    warnings: Array.isArray(result?.warnings) ? result.warnings.slice(0, 8) : [],
+    warnings: Array.isArray(result?.warnings)
+
+      ? result.warnings.slice(0, 12)
+
+      : [],
 
     diagnostics: Array.isArray(result?.diagnostics)
 
-      ? result.diagnostics.slice(0, 8)
+      ? result.diagnostics.slice(0, 12)
 
       : [],
 
@@ -283,6 +357,78 @@ function compactToolResult(result = {}, toolName = "unknown") {
     generated_at: result?.generated_at || new Date().toISOString(),
 
   };
+
+}
+
+ 
+
+function responseIdentifier(event = {}) {
+
+  return (
+
+    event?.response?.id ||
+
+    event?.response_id ||
+
+    event?.responseId ||
+
+    null
+
+  );
+
+}
+
+ 
+
+function isResponseLifecycleStart(event = {}) {
+
+  return event.type === "response.created";
+
+}
+
+ 
+
+function isResponseLifecycleEnd(event = {}) {
+
+  return [
+
+    "response.done",
+
+    "response.cancelled",
+
+    "response.canceled",
+
+    "response.failed",
+
+  ].includes(event.type);
+
+}
+
+ 
+
+function isActiveResponseConflict(event = {}) {
+
+  if (event.type !== "error") return false;
+
+ 
+
+  const message = String(
+
+    event?.error?.message || event?.message || ""
+
+  ).toLowerCase();
+
+ 
+
+  return (
+
+    message.includes("active response") ||
+
+    message.includes("response in progress") ||
+
+    message.includes("already has an active response")
+
+  );
 
 }
 
@@ -320,15 +466,143 @@ export function createExecutiveVoiceLiveToolsBridge({
 
   let registeringPromise = null;
 
+ 
+
+  let responseInProgress = false;
+
+  let activeResponseId = null;
+
+  let responseCreatePending = false;
+
+ 
+
+  let synthesisNeeded = false;
+
+  let synthesisQueuedAt = null;
+
+  let synthesisTimer = null;
+
+ 
+
+  let batchSequence = 0;
+
+  let currentBatchId = null;
+
+ 
+
   const activeCalls = new Set();
 
   const completedCalls = new Set();
+
+  const completedCallOrder = [];
+
+  const batchResults = new Map();
 
  
 
   function setStatus(status, detail = null) {
 
     onStatus?.({ status, detail });
+
+  }
+
+ 
+
+  function clearSynthesisTimer() {
+
+    if (synthesisTimer !== null) {
+
+      window.clearTimeout(synthesisTimer);
+
+      synthesisTimer = null;
+
+    }
+
+  }
+
+ 
+
+  function rememberCompletedCall(callId) {
+
+    if (!callId || completedCalls.has(callId)) return;
+
+ 
+
+    completedCalls.add(callId);
+
+    completedCallOrder.push(callId);
+
+ 
+
+    while (completedCallOrder.length > COMPLETED_CALL_HISTORY_LIMIT) {
+
+      const oldest = completedCallOrder.shift();
+
+      if (oldest) completedCalls.delete(oldest);
+
+    }
+
+  }
+
+ 
+
+  function ensureBatch() {
+
+    if (currentBatchId !== null) return currentBatchId;
+
+ 
+
+    batchSequence += 1;
+
+    currentBatchId = batchSequence;
+
+    batchResults.clear();
+
+ 
+
+    return currentBatchId;
+
+  }
+
+ 
+
+  function batchSummary() {
+
+    const values = Array.from(batchResults.values());
+
+ 
+
+    return {
+
+      batch_id: currentBatchId,
+
+      tool_count: values.length,
+
+      successful_tools: values.filter(
+
+        (item) => item?.result?.ok !== false
+
+      ).length,
+
+      failed_tools: values.filter(
+
+        (item) => item?.result?.ok === false
+
+      ).length,
+
+      tools: values.map((item) => item?.call?.name).filter(Boolean),
+
+    };
+
+  }
+
+ 
+
+  function finishBatchAfterSynthesisRequest() {
+
+    currentBatchId = null;
+
+    batchResults.clear();
 
   }
 
@@ -349,6 +623,256 @@ export function createExecutiveVoiceLiveToolsBridge({
  
 
     return sent;
+
+  }
+
+ 
+
+  function canCreateSynthesisResponse() {
+
+    return (
+
+      synthesisNeeded &&
+
+      activeCalls.size === 0 &&
+
+      !responseInProgress &&
+
+      !responseCreatePending
+
+    );
+
+  }
+
+ 
+
+  function requestSynthesis(reason = "tool-batch-complete") {
+
+    synthesisNeeded = true;
+
+    synthesisQueuedAt = Date.now();
+
+ 
+
+    if (activeCalls.size > 0) {
+
+      setStatus("tool-running", {
+
+        reason,
+
+        active_tool_count: activeCalls.size,
+
+        synthesis_queued: true,
+
+        batch: batchSummary(),
+
+      });
+
+      return false;
+
+    }
+
+ 
+
+    if (responseInProgress || responseCreatePending) {
+
+      setStatus("synthesis-queued", {
+
+        reason,
+
+        response_in_progress: responseInProgress,
+
+        response_create_pending: responseCreatePending,
+
+        active_response_id: activeResponseId,
+
+        batch: batchSummary(),
+
+      });
+
+      return false;
+
+    }
+
+ 
+
+    clearSynthesisTimer();
+
+ 
+
+    synthesisTimer = window.setTimeout(() => {
+
+      synthesisTimer = null;
+
+ 
+
+      if (!canCreateSynthesisResponse()) {
+
+        requestSynthesis("synthesis-deferred");
+
+        return;
+
+      }
+
+ 
+
+      const batch = batchSummary();
+
+ 
+
+      try {
+
+        responseCreatePending = true;
+
+ 
+
+        sendRequiredEvent(
+
+          {
+
+            type: "response.create",
+
+            response: {
+
+              instructions: SYNTHESIS_INSTRUCTIONS,
+
+            },
+
+          },
+
+          "batched post-tool response creation"
+
+        );
+
+ 
+
+        synthesisNeeded = false;
+
+        synthesisQueuedAt = null;
+
+ 
+
+        setStatus("synthesis-requested", {
+
+          reason,
+
+          batch,
+
+        });
+
+ 
+
+        console.log(
+
+          "[Executive Voice Realtime] batched synthesis requested:",
+
+          batch
+
+        );
+
+ 
+
+        finishBatchAfterSynthesisRequest();
+
+      } catch (error) {
+
+        responseCreatePending = false;
+
+        synthesisNeeded = true;
+
+ 
+
+        console.error(
+
+          "[Executive Voice Realtime] synthesis request failed:",
+
+          error
+
+        );
+
+ 
+
+        setStatus("degraded", {
+
+          reason: "synthesis-request-failed",
+
+          error: error?.message || "Unable to create Realtime response.",
+
+          batch,
+
+        });
+
+      }
+
+    }, SYNTHESIS_DEBOUNCE_MS);
+
+ 
+
+    return true;
+
+  }
+
+ 
+
+  function noteFunctionOutput(call, compactResult) {
+
+    const batchId = ensureBatch();
+
+ 
+
+    batchResults.set(call.callId, {
+
+      batch_id: batchId,
+
+      call,
+
+      result: compactResult,
+
+      completed_at: new Date().toISOString(),
+
+    });
+
+ 
+
+    synthesisNeeded = true;
+
+    synthesisQueuedAt = Date.now();
+
+  }
+
+ 
+
+  function settleToolCall(call, compactResult) {
+
+    activeCalls.delete(call.callId);
+
+    rememberCompletedCall(call.callId);
+
+    noteFunctionOutput(call, compactResult);
+
+ 
+
+    if (activeCalls.size === 0) {
+
+      requestSynthesis("all-active-tools-complete");
+
+    } else {
+
+      setStatus("tool-running", {
+
+        last_tool: call.name,
+
+        call_id: call.callId,
+
+        active_tool_count: activeCalls.size,
+
+        synthesis_queued: true,
+
+        batch: batchSummary(),
+
+      });
+
+    }
 
   }
 
@@ -544,6 +1068,154 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
+  function handleResponseLifecycle(event) {
+
+    if (isResponseLifecycleStart(event)) {
+
+      responseInProgress = true;
+
+      responseCreatePending = false;
+
+      activeResponseId = responseIdentifier(event);
+
+ 
+
+      setStatus(activeCalls.size > 0 ? "tool-running" : "response-active", {
+
+        response_id: activeResponseId,
+
+        active_tool_count: activeCalls.size,
+
+        synthesis_queued: synthesisNeeded,
+
+      });
+
+ 
+
+      return {
+
+        handled: true,
+
+        reason: "response-created",
+
+        response_id: activeResponseId,
+
+      };
+
+    }
+
+ 
+
+    if (isResponseLifecycleEnd(event)) {
+
+      const completedResponseId =
+
+        responseIdentifier(event) || activeResponseId;
+
+ 
+
+      responseInProgress = false;
+
+      responseCreatePending = false;
+
+      activeResponseId = null;
+
+ 
+
+      if (synthesisNeeded) {
+
+        requestSynthesis("response-finished-with-tool-output-waiting");
+
+      } else if (activeCalls.size > 0) {
+
+        setStatus("tool-running", {
+
+          response_id: completedResponseId,
+
+          active_tool_count: activeCalls.size,
+
+          synthesis_queued: true,
+
+        });
+
+      } else {
+
+        setStatus("ready", {
+
+          response_id: completedResponseId,
+
+        });
+
+      }
+
+ 
+
+      return {
+
+        handled: true,
+
+        reason: "response-finished",
+
+        response_id: completedResponseId,
+
+      };
+
+    }
+
+ 
+
+    if (isActiveResponseConflict(event)) {
+
+      responseCreatePending = false;
+
+      responseInProgress = true;
+
+      synthesisNeeded = true;
+
+ 
+
+      console.warn(
+
+        "[Executive Voice Realtime] response.create deferred because a response is already active:",
+
+        event?.error?.message || event?.message || "active response"
+
+      );
+
+ 
+
+      setStatus("synthesis-queued", {
+
+        reason: "active-response-conflict",
+
+        active_tool_count: activeCalls.size,
+
+        synthesis_queued: true,
+
+        batch: batchSummary(),
+
+      });
+
+ 
+
+      return {
+
+        handled: true,
+
+        reason: "active-response-conflict",
+
+      };
+
+    }
+
+ 
+
+    return null;
+
+  }
+
+ 
+
   async function handleServerEvent(rawEvent) {
 
     const event = parseEvent(rawEvent);
@@ -576,17 +1248,19 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
-    // Execute function calls only after Realtime has finished producing
+    const lifecycleResult = handleResponseLifecycle(event);
 
-    // the function arguments. response.output_item.added is intentionally
+    if (lifecycleResult) return lifecycleResult;
 
-    // excluded because it can arrive before the argument JSON is complete.
+ 
 
-    const supportedEvents = [
-  "response.function_call_arguments.done",
-];
+    // Execute tools only once the Realtime API has emitted the completed
 
-     if (!supportedEvents.includes(event.type)) {
+    // function-call argument payload. Earlier output-item events can contain
+
+    // partial JSON and are intentionally ignored.
+
+    if (event.type !== "response.function_call_arguments.done") {
 
       return { handled: false, event };
 
@@ -634,13 +1308,7 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
-    if (
-
-      event.type === "response.function_call_arguments.done" &&
-
-      (!call.arguments || typeof call.arguments !== "object")
-
-    ) {
+    if (!call.arguments || typeof call.arguments !== "object") {
 
       return {
 
@@ -688,25 +1356,33 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
+    ensureBatch();
+
     activeCalls.add(call.callId);
 
  
 
-    try {
+    setStatus("tool-running", {
 
-      setStatus("tool-running", {
+      name: call.name,
 
-        name: call.name,
+      call_id: call.callId,
 
-        call_id: call.callId,
+      source_event: call.sourceEvent,
 
-        source_event: call.sourceEvent,
+      active_tool_count: activeCalls.size,
 
-      });
+      batch_id: currentBatchId,
 
-      onToolStarted?.(call);
+    });
 
  
+
+    onToolStarted?.(call);
+
+ 
+
+    try {
 
       const execution = await executeCall(call);
 
@@ -714,13 +1390,77 @@ export function createExecutiveVoiceLiveToolsBridge({
 
       if (!execution.handled) {
 
+        const unregisteredOutput = compactToolResult(
+
+          {
+
+            ok: false,
+
+            tool: call.name,
+
+            summary: `The requested Realtime tool ${call.name} is not registered.`,
+
+            warnings: [
+
+              "The tool call could not be matched to a registered VoterSpheres tool.",
+
+            ],
+
+            degraded: true,
+
+          },
+
+          call.name
+
+        );
+
+ 
+
+        sendRequiredEvent(
+
+          {
+
+            type: "conversation.item.create",
+
+            item: {
+
+              type: "function_call_output",
+
+              call_id: call.callId,
+
+              output: JSON.stringify(unregisteredOutput),
+
+            },
+
+          },
+
+          "unregistered-tool output"
+
+        );
+
+ 
+
+        settleToolCall(call, unregisteredOutput);
+
+        onToolError?.({
+
+          ...call,
+
+          error: new Error(`Unregistered Executive Voice tool: ${call.name}`),
+
+        });
+
+ 
+
         return {
 
-          handled: false,
+          handled: true,
 
-          reason: "unregistered-tool",
+          reason: "unregistered-tool-output-returned",
 
           call,
+
+          result: unregisteredOutput,
 
         };
 
@@ -758,51 +1498,37 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
-      sendRequiredEvent(
-
-        {
-
-          type: "response.create",
-
-          response: {
-
-            instructions:
-
-              "Use the completed VoterSpheres tool output to answer the user's request now. " +
-
-              "Lead with the most important verified result. Include dates, reporting periods, " +
-
-              "poll field dates, or source names when available. If another registered tool is " +
-
-              "needed to fully answer the same request, call it before giving the final synthesis. " +
-
-              "If data is degraded, stale, cached, or empty, say so clearly. Never invent missing facts.",
-
-          },
-
-        },
-
-        "post-tool response creation"
-
-      );
-
- 
-
-      completedCalls.add(call.callId);
+      settleToolCall(call, compactResult);
 
       onToolCompleted?.({ ...call, result: compactResult });
 
-      setStatus("ready", {
+ 
 
-        last_tool: call.name,
+      console.log(
 
-        call_id: call.callId,
+        "[Executive Voice Realtime] tool output submitted:",
 
-        output_bytes: output.length,
+        {
 
-        result_ok: compactResult.ok,
+          name: call.name,
 
-      });
+          callId: call.callId,
+
+          resultOk: compactResult.ok,
+
+          activeToolCount: activeCalls.size,
+
+          responseInProgress,
+
+          synthesisNeeded,
+
+          outputBytes: output.length,
+
+          batchId: currentBatchId,
+
+        }
+
+      );
 
  
 
@@ -820,21 +1546,31 @@ export function createExecutiveVoiceLiveToolsBridge({
 
     } catch (error) {
 
-      const errorOutput = {
+      const errorOutput = compactToolResult(
 
-        ok: false,
+        {
 
-        tool: call.name,
+          ok: false,
 
-        summary: "The live-data tool could not complete.",
+          tool: call.name,
 
-        error: error?.message || "Live-data tool execution failed.",
+          summary: "The live-data tool could not complete.",
 
-        degraded: true,
+          warnings: [
 
-        generated_at: new Date().toISOString(),
+            error?.message || "Live-data tool execution failed.",
 
-      };
+          ],
+
+          degraded: true,
+
+          generated_at: new Date().toISOString(),
+
+        },
+
+        call.name
+
+      );
 
  
 
@@ -862,39 +1598,11 @@ export function createExecutiveVoiceLiveToolsBridge({
 
         );
 
- 
-
-        sendRequiredEvent(
-
-          {
-
-            type: "response.create",
-
-            response: {
-
-              instructions:
-
-                "Explain briefly that the requested VoterSpheres data source failed. " +
-
-                "Name the unavailable tool, do not invent facts, and use only verified information already available.",
-
-            },
-
-          },
-
-          "tool-error response creation"
-
-        );
-
- 
-
-        completedCalls.add(call.callId);
-
       } catch (sendError) {
 
         console.error(
 
-          "[Executive Voice] Failed to return tool error to Realtime:",
+          "[Executive Voice Realtime] failed to return tool error output:",
 
           sendError
 
@@ -904,17 +1612,33 @@ export function createExecutiveVoiceLiveToolsBridge({
 
  
 
+      settleToolCall(call, errorOutput);
+
       onToolError?.({ ...call, error });
 
-      setStatus("degraded", {
+ 
 
-        name: call.name,
+      setStatus(
 
-        call_id: call.callId,
+        activeCalls.size > 0 ? "tool-running" : "synthesis-queued",
 
-        error: error?.message || "Tool execution failed.",
+        {
 
-      });
+          name: call.name,
+
+          call_id: call.callId,
+
+          error: error?.message || "Tool execution failed.",
+
+          active_tool_count: activeCalls.size,
+
+          synthesis_queued: true,
+
+          batch: batchSummary(),
+
+        }
+
+      );
 
  
 
@@ -928,11 +1652,9 @@ export function createExecutiveVoiceLiveToolsBridge({
 
         error,
 
+        result: errorOutput,
+
       };
-
-    } finally {
-
-      activeCalls.delete(call.callId);
 
     }
 
@@ -942,13 +1664,45 @@ export function createExecutiveVoiceLiveToolsBridge({
 
   function reset() {
 
+    clearSynthesisTimer();
+
+ 
+
     registered = false;
 
     registeringPromise = null;
 
+ 
+
+    responseInProgress = false;
+
+    activeResponseId = null;
+
+    responseCreatePending = false;
+
+ 
+
+    synthesisNeeded = false;
+
+    synthesisQueuedAt = null;
+
+ 
+
+    batchSequence = 0;
+
+    currentBatchId = null;
+
+ 
+
     activeCalls.clear();
 
     completedCalls.clear();
+
+    completedCallOrder.length = 0;
+
+    batchResults.clear();
+
+ 
 
     setStatus("idle");
 
@@ -964,15 +1718,59 @@ export function createExecutiveVoiceLiveToolsBridge({
 
     reset,
 
+ 
+
     get registered() {
 
       return registered;
 
     },
 
+ 
+
     get activeCallCount() {
 
       return activeCalls.size;
+
+    },
+
+ 
+
+    get responseInProgress() {
+
+      return responseInProgress;
+
+    },
+
+ 
+
+    get responseCreatePending() {
+
+      return responseCreatePending;
+
+    },
+
+ 
+
+    get synthesisQueued() {
+
+      return synthesisNeeded;
+
+    },
+
+ 
+
+    get synthesisQueuedAt() {
+
+      return synthesisQueuedAt;
+
+    },
+
+ 
+
+    get currentBatchId() {
+
+      return currentBatchId;
 
     },
 
