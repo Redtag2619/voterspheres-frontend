@@ -1714,6 +1714,84 @@ function extractAgentConfidence(result, fallback = 0) {
 
  
 
+function extractAgentGrounding(result = {}) {
+
+  const toolResults = arr(
+
+    result?.tool_results ||
+
+      result?.evidence ||
+
+      result?.data?.tool_results ||
+
+      result?.data?.evidence
+
+  );
+
+ 
+
+  const meaningfulTools = toolResults.filter(
+
+    (item) => item?.usable || item?.meaningful || (item?.ok && item?.data)
+
+  );
+
+ 
+
+  const coverage =
+
+    result?.execution?.coverage ||
+
+    result?.coverage ||
+
+    result?.data?.execution?.coverage ||
+
+    result?.data?.coverage ||
+
+    {};
+
+ 
+
+  return {
+
+    grounded: Boolean(
+
+      result?.grounded ??
+
+        result?.live_data_available ??
+
+        meaningfulTools.length
+
+    ),
+
+    evidence_status:
+
+      result?.evidence_status ||
+
+      coverage?.evidence_status ||
+
+      (meaningfulTools.length ? "live" : "unavailable"),
+
+    useful_tools:
+
+      coverage?.useful_tools ??
+
+      coverage?.meaningful_tools ??
+
+      meaningfulTools.length,
+
+    attempted_tools:
+
+      coverage?.attempted_tools ??
+
+      toolResults.length,
+
+  };
+
+}
+
+ 
+
 async function listExecutiveAiThreads() {
 
   if (typeof api?.listAiCampaignCopilotThreads === "function") {
@@ -2466,29 +2544,35 @@ function ExecutiveAgentWorkspace({
 
         thread_id: threadId || null,
 
-        agent: teamMode ? "executive_chief_of_staff" : selectedKey.replace(/-/g, "_"),
+        agent: teamMode
+
+          ? "executive_chief_of_staff"
+
+          : selectedKey.replace(/-/g, "_"),
 
         workspace_id: activeMission?.workspace_id || 1,
 
-        candidate: activeMission?.candidate_name || null,
+ 
 
-        state:
+        // Query filters come from the user's question or an explicitly
 
-          executiveContext?.selected_state ||
+        // selected state. Active-mission entities stay in executive_context
 
-          activeMission?.state_code ||
+        // so they cannot force unrelated questions into candidate intent.
 
-          activeMission?.state_name ||
+        state: executiveContext?.selected_state || null,
 
-          null,
+        candidate: null,
 
-        office: activeMission?.office || activeMission?.office_name || null,
+        office: null,
 
-        cycle: activeMission?.cycle || null,
+        cycle: null,
 
-        locality: activeMission?.locality || activeMission?.county_name || null,
+        locality: null,
 
         limit: 12,
+
+ 
 
         executive_context: {
 
@@ -2496,7 +2580,29 @@ function ExecutiveAgentWorkspace({
 
           mission_title: activeMission?.title || null,
 
+          mission_candidate: activeMission?.candidate_name || null,
+
+          mission_state:
+
+            activeMission?.state_code ||
+
+            activeMission?.state_name ||
+
+            null,
+
+          mission_office:
+
+            activeMission?.office ||
+
+            activeMission?.office_name ||
+
+            null,
+
+          mission_cycle: activeMission?.cycle || null,
+
           geographic_scope:
+
+            executiveContext?.selected_state ||
 
             activeMission?.state_name ||
 
@@ -2579,6 +2685,8 @@ function ExecutiveAgentWorkspace({
               selectedAgent?.confidence_percentage ?? 0
 
             ),
+
+            grounding: extractAgentGrounding(result),
 
             created_at: new Date().toISOString(),
 
@@ -3251,6 +3359,36 @@ function ExecutiveAgentWorkspace({
                     <Badge tone="active">
 
                       Confidence {pct(message.confidence)}
+
+                    </Badge>
+
+                  ) : null}
+
+ 
+
+                  {message.grounding ? (
+
+                    <Badge tone={message.grounding.grounded ? "active" : "danger"}>
+
+                      {message.grounding.grounded
+
+                        ? "Grounded in VoterSpheres Data"
+
+                        : "No Verified Evidence"}
+
+                    </Badge>
+
+                  ) : null}
+
+ 
+
+                  {message.grounding?.attempted_tools ? (
+
+                    <Badge tone="info">
+
+                      {message.grounding.useful_tools || 0}/
+
+                      {message.grounding.attempted_tools} Tools Usable
 
                     </Badge>
 
@@ -4391,3 +4529,4 @@ export default function ExecutiveAICommandPlatform() {
   );
 
 }
+
