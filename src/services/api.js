@@ -98,7 +98,7 @@ function shouldInjectWorkspace(config = {}) {
 const http = axios.create({
   baseURL: API_BASE,
   headers: { "Content-Type": "application/json" },
-  timeout: 30000,
+  timeout: 90000,
 });
 
 function isDemoModeEnabled() {
