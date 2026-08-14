@@ -4078,6 +4078,14 @@ function ExecutiveAgentWorkspace({
 
  
 
+  const [liveConversation, setLiveConversation] = useState(true);
+
+ 
+
+  const [readAnswersAloud, setReadAnswersAloud] = useState(true);
+
+ 
+
  
 
  
@@ -5018,6 +5026,18 @@ function ExecutiveAgentWorkspace({
 
  
 
+    if (voice?.connected && liveConversation) {
+
+ 
+
+      voice.setMicrophoneEnabled(false);
+
+ 
+
+    }
+
+ 
+
  
 
  
@@ -5314,7 +5334,7 @@ function ExecutiveAgentWorkspace({
 
  
 
-      streamAssistantText(assistantAnswer, () => {
+      streamAssistantText(assistantAnswer, async () => {
 
  
 
@@ -5406,6 +5426,74 @@ function ExecutiveAgentWorkspace({
 
  
 
+        if (voice?.connected && liveConversation && readAnswersAloud) {
+
+ 
+
+          try {
+
+ 
+
+            await voice.speak(assistantAnswer, {
+
+ 
+
+              voice: "marin",
+
+ 
+
+              resumeMicrophone: true,
+
+ 
+
+            });
+
+ 
+
+          } catch (speechError) {
+
+ 
+
+            setError(
+
+ 
+
+              speechError?.response?.data?.error ||
+
+ 
+
+                speechError?.message ||
+
+ 
+
+                "The answer was generated, but voice playback failed."
+
+ 
+
+            );
+
+ 
+
+            voice.setMicrophoneEnabled(true);
+
+ 
+
+          }
+
+ 
+
+        } else if (voice?.connected && liveConversation) {
+
+ 
+
+          voice.setMicrophoneEnabled(true);
+
+ 
+
+        }
+
+ 
+
       });
 
  
@@ -5487,6 +5575,18 @@ function ExecutiveAgentWorkspace({
  
 
       ]);
+
+ 
+
+      if (voice?.connected && liveConversation) {
+
+ 
+
+        voice.setMicrophoneEnabled(true);
+
+ 
+
+      }
 
  
 
@@ -5622,6 +5722,10 @@ function ExecutiveAgentWorkspace({
 
  
 
+        setLiveConversation(false);
+
+ 
+
         return;
 
  
@@ -5631,6 +5735,10 @@ function ExecutiveAgentWorkspace({
  
 
       await voice.connect();
+
+ 
+
+      setLiveConversation(true);
 
  
 
@@ -7142,6 +7250,14 @@ function ExecutiveAgentWorkspace({
 
  
 
+            .cmd-voice-command-toggle{display:inline-flex;align-items:center;gap:6px;color:#cbd5e1;font-size:10px;font-weight:800}
+
+ 
+
+            .cmd-voice-command-toggle input{accent-color:#f97316}
+
+ 
+
             @keyframes cmdVoicePulse{50%{transform:scale(1.55);opacity:.45}}
 
  
@@ -7198,11 +7314,123 @@ function ExecutiveAgentWorkspace({
 
  
 
-            {voice.connected ? "Voice Listening" : "Start Voice Command"}
+            {voice.connected ? "End Live Conversation" : "Start Live Conversation"}
 
  
 
           </button>
+
+ 
+
+          {voice.connected ? (
+
+ 
+
+            <button
+
+ 
+
+              type="button"
+
+ 
+
+              className="cmd-voice-command-button"
+
+ 
+
+              onClick={() =>
+
+ 
+
+                voice.setMicrophoneEnabled(!voice.microphoneEnabled)
+
+ 
+
+              }
+
+ 
+
+            >
+
+ 
+
+              {voice.microphoneEnabled ? "Mute" : "Unmute"}
+
+ 
+
+            </button>
+
+ 
+
+          ) : null}
+
+ 
+
+          {voice.speaking ? (
+
+ 
+
+            <button
+
+ 
+
+              type="button"
+
+ 
+
+              className="cmd-voice-command-button"
+
+ 
+
+              onClick={() => voice.stopSpeaking({ resumeMicrophone: true })}
+
+ 
+
+            >
+
+ 
+
+              Interrupt Voice
+
+ 
+
+            </button>
+
+ 
+
+          ) : null}
+
+ 
+
+          <label className="cmd-voice-command-toggle">
+
+ 
+
+            <input
+
+ 
+
+              type="checkbox"
+
+ 
+
+              checked={readAnswersAloud}
+
+ 
+
+              onChange={(event) => setReadAnswersAloud(event.target.checked)}
+
+ 
+
+            />
+
+ 
+
+            Read answers aloud
+
+ 
+
+          </label>
 
  
 
@@ -7214,15 +7442,23 @@ function ExecutiveAgentWorkspace({
 
  
 
-              ? voice.status === "transcribing"
+              ? voice.speaking
 
  
 
-                ? "Processing command…"
+                ? "AI-generated voice playback"
 
  
 
-                : "Speak naturally; pause to submit"
+                : voice.status === "transcribing"
+
+ 
+
+                  ? "Processing command…"
+
+ 
+
+                  : "Speak naturally; pause for an answer"
 
  
 
