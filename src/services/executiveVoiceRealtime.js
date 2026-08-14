@@ -142,6 +142,122 @@ function normalizeOutgoingEvent(event = {}) {
 
  
 
+function splitSpeechText(value, maximumCharacters = 5500) {
+
+ 
+
+  const text = String(value || "").trim();
+
+ 
+
+  if (!text) return [];
+
+ 
+
+  if (text.length <= maximumCharacters) return [text];
+
+ 
+
+  const paragraphs = text.split(/\n{2,}/).filter(Boolean);
+
+ 
+
+  const chunks = [];
+
+ 
+
+  let current = "";
+
+ 
+
+  for (const paragraph of paragraphs) {
+
+ 
+
+    if (!current) {
+
+ 
+
+      current = paragraph;
+
+ 
+
+      continue;
+
+ 
+
+    }
+
+ 
+
+    if (`${current}\n\n${paragraph}`.length <= maximumCharacters) {
+
+ 
+
+      current = `${current}\n\n${paragraph}`;
+
+ 
+
+      continue;
+
+ 
+
+    }
+
+ 
+
+    chunks.push(current);
+
+ 
+
+    current = paragraph;
+
+ 
+
+  }
+
+ 
+
+  if (current) chunks.push(current);
+
+ 
+
+  return chunks.flatMap((chunk) => {
+
+ 
+
+    if (chunk.length <= maximumCharacters) return [chunk];
+
+ 
+
+    const pieces = [];
+
+ 
+
+    for (let index = 0; index < chunk.length; index += maximumCharacters) {
+
+ 
+
+      pieces.push(chunk.slice(index, index + maximumCharacters));
+
+ 
+
+    }
+
+ 
+
+    return pieces;
+
+ 
+
+  });
+
+ 
+
+}
+
+ 
+
  
 
  
@@ -291,6 +407,26 @@ export class ExecutiveVoiceRealtimeClient {
  
 
     this.mode = "assistant";
+
+ 
+
+    this.speechAudioElement = null;
+
+ 
+
+    this.speechObjectUrl = null;
+
+ 
+
+    this.speechGeneration = 0;
+
+ 
+
+    this.speakingAuthoritativeAnswer = false;
+
+ 
+
+    this.speechResolve = null;
 
  
 
@@ -2486,6 +2622,498 @@ export class ExecutiveVoiceRealtimeClient {
 
  
 
+  async playSpeechBlob(blob, generation) {
+
+ 
+
+    if (generation !== this.speechGeneration || this.destroyed) return false;
+
+ 
+
+    if (!(blob instanceof Blob)) {
+
+ 
+
+      throw new Error("Executive Voice playback did not return valid audio.");
+
+ 
+
+    }
+
+ 
+
+    if (this.speechObjectUrl) {
+
+ 
+
+      URL.revokeObjectURL(this.speechObjectUrl);
+
+ 
+
+    }
+
+ 
+
+    this.speechObjectUrl = URL.createObjectURL(blob);
+
+ 
+
+    this.speechAudioElement = this.speechAudioElement || new Audio();
+
+ 
+
+    this.speechAudioElement.autoplay = false;
+
+ 
+
+    this.speechAudioElement.preload = "auto";
+
+ 
+
+    this.speechAudioElement.src = this.speechObjectUrl;
+
+ 
+
+    await new Promise((resolve, reject) => {
+
+ 
+
+      const audio = this.speechAudioElement;
+
+ 
+
+      const cleanup = () => {
+
+ 
+
+        audio.onended = null;
+
+ 
+
+        audio.onerror = null;
+
+ 
+
+        this.speechResolve = null;
+
+ 
+
+      };
+
+ 
+
+      audio.onended = () => {
+
+ 
+
+        cleanup();
+
+ 
+
+        resolve();
+
+ 
+
+      };
+
+ 
+
+      this.speechResolve = () => {
+
+ 
+
+        cleanup();
+
+ 
+
+        resolve();
+
+ 
+
+      };
+
+ 
+
+      audio.onerror = () => {
+
+ 
+
+        cleanup();
+
+ 
+
+        reject(new Error("Executive Voice audio playback failed."));
+
+ 
+
+      };
+
+ 
+
+      audio.play().catch((error) => {
+
+ 
+
+        cleanup();
+
+ 
+
+        reject(error);
+
+ 
+
+      });
+
+ 
+
+    });
+
+ 
+
+    return generation === this.speechGeneration;
+
+ 
+
+  }
+
+ 
+
+  async speak(
+
+ 
+
+    text,
+
+ 
+
+    {
+
+ 
+
+      voice = this.session?.voice || "marin",
+
+ 
+
+      instructions = null,
+
+ 
+
+      resumeMicrophone = true,
+
+ 
+
+    } = {}
+
+ 
+
+  ) {
+
+ 
+
+    const chunks = splitSpeechText(text);
+
+ 
+
+    if (!chunks.length) return { ok: false, skipped: true };
+
+ 
+
+    this.interruptSpeech({ resumeMicrophone: false });
+
+ 
+
+    const generation = ++this.speechGeneration;
+
+ 
+
+    this.speakingAuthoritativeAnswer = true;
+
+ 
+
+    this.setMicrophoneEnabled(false);
+
+ 
+
+    this.setStatus("speaking_authoritative_answer", {
+
+ 
+
+      chunk_count: chunks.length,
+
+ 
+
+      disclosure: "AI-generated voice",
+
+ 
+
+    });
+
+ 
+
+    try {
+
+ 
+
+      for (let index = 0; index < chunks.length; index += 1) {
+
+ 
+
+        if (generation !== this.speechGeneration || this.destroyed) break;
+
+ 
+
+        this.setStatus("generating_voice_playback", {
+
+ 
+
+          chunk: index + 1,
+
+ 
+
+          chunk_count: chunks.length,
+
+ 
+
+        });
+
+ 
+
+        const response = await api.post(
+
+ 
+
+          "/executive-voice/speak",
+
+ 
+
+          {
+
+ 
+
+            text: chunks[index],
+
+ 
+
+            voice,
+
+ 
+
+            instructions,
+
+ 
+
+          },
+
+ 
+
+          { responseType: "blob" }
+
+ 
+
+        );
+
+ 
+
+        if (generation !== this.speechGeneration || this.destroyed) break;
+
+ 
+
+        this.setStatus("speaking_authoritative_answer", {
+
+ 
+
+          chunk: index + 1,
+
+ 
+
+          chunk_count: chunks.length,
+
+ 
+
+          disclosure: "AI-generated voice",
+
+ 
+
+        });
+
+ 
+
+        const blob = response?.data instanceof Blob ? response.data : response;
+
+ 
+
+        await this.playSpeechBlob(blob, generation);
+
+ 
+
+      }
+
+ 
+
+      return {
+
+ 
+
+        ok: generation === this.speechGeneration,
+
+ 
+
+        interrupted: generation !== this.speechGeneration,
+
+ 
+
+        chunk_count: chunks.length,
+
+ 
+
+      };
+
+ 
+
+    } catch (error) {
+
+ 
+
+      this.emitError(
+
+ 
+
+        new Error(error?.response?.data?.error || error?.message || "Voice playback failed.")
+
+ 
+
+      );
+
+ 
+
+      throw error;
+
+ 
+
+    } finally {
+
+ 
+
+      if (generation === this.speechGeneration) {
+
+ 
+
+        this.speakingAuthoritativeAnswer = false;
+
+ 
+
+        if (resumeMicrophone && this.connected) {
+
+ 
+
+          this.setMicrophoneEnabled(true);
+
+ 
+
+          this.setStatus("listening");
+
+ 
+
+        } else if (this.connected) {
+
+ 
+
+          this.setStatus("ready");
+
+ 
+
+        }
+
+ 
+
+      }
+
+ 
+
+    }
+
+ 
+
+  }
+
+ 
+
+  interruptSpeech({ resumeMicrophone = true } = {}) {
+
+ 
+
+    this.speechGeneration += 1;
+
+ 
+
+    this.speakingAuthoritativeAnswer = false;
+
+ 
+
+    this.speechResolve?.();
+
+ 
+
+    if (this.speechAudioElement) {
+
+ 
+
+      this.speechAudioElement.pause();
+
+ 
+
+      this.speechAudioElement.currentTime = 0;
+
+ 
+
+      this.speechAudioElement.removeAttribute("src");
+
+ 
+
+      this.speechAudioElement.load?.();
+
+ 
+
+    }
+
+ 
+
+    if (this.speechObjectUrl) {
+
+ 
+
+      URL.revokeObjectURL(this.speechObjectUrl);
+
+ 
+
+      this.speechObjectUrl = null;
+
+ 
+
+    }
+
+ 
+
+    if (resumeMicrophone && this.connected) {
+
+ 
+
+      this.setMicrophoneEnabled(true);
+
+ 
+
+      this.setStatus("listening");
+
+ 
+
+    }
+
+ 
+
+  }
+
+ 
+
  
 
  
@@ -2539,6 +3167,10 @@ export class ExecutiveVoiceRealtimeClient {
  
 
     this.destroyed = true;
+
+ 
+
+    this.interruptSpeech({ resumeMicrophone: false });
 
  
 
