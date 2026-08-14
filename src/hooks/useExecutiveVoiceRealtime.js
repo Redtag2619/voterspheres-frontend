@@ -44,6 +44,8 @@ export default function useExecutiveVoiceRealtime({
 
   const [userTranscript, setUserTranscript] = useState("");
 
+  const [speaking, setSpeaking] = useState(false);
+
  
 
   const optionsRef = useRef({ voice, agent, workspaceId, executiveContext, mode });
@@ -98,15 +100,59 @@ export default function useExecutiveVoiceRealtime({
 
           setStatusDetail(detail || null);
 
-          setConnected(
+          setSpeaking(
 
-            ["connected", "session_ready", "ready", "listening", "transcribing"].includes(
+            ["generating_voice_playback", "speaking_authoritative_answer"].includes(
 
               nextStatus
 
             )
 
           );
+
+          if (
+
+            [
+
+              "connected",
+
+              "session_ready",
+
+              "ready",
+
+              "listening",
+
+              "transcribing",
+
+              "microphone_on",
+
+              "microphone_off",
+
+              "generating_voice_playback",
+
+              "speaking_authoritative_answer",
+
+            ].includes(nextStatus)
+
+          ) {
+
+            setConnected(true);
+
+          }
+
+          if (
+
+            ["disconnected", "data_channel_closed", "peer_failed", "peer_closed"].includes(
+
+              nextStatus
+
+            )
+
+          ) {
+
+            setConnected(false);
+
+          }
 
         },
 
@@ -180,6 +226,8 @@ export default function useExecutiveVoiceRealtime({
 
     setUserTranscript("");
 
+    setSpeaking(false);
+
   }, [client]);
 
  
@@ -218,6 +266,8 @@ export default function useExecutiveVoiceRealtime({
 
     userTranscript,
 
+    speaking,
+
     liveToolsStatus: mode === "command" ? "copilot-pipeline" : "idle",
 
     liveToolsDetail: null,
@@ -231,6 +281,10 @@ export default function useExecutiveVoiceRealtime({
     sendText: (text, options) => client.sendText(text, options),
 
     interrupt: () => client.interrupt(),
+
+    speak: (text, options) => client.speak(text, options),
+
+    stopSpeaking: (options) => client.interruptSpeech(options),
 
     setMicrophoneEnabled,
 
