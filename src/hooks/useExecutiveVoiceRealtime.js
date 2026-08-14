@@ -1,24 +1,6 @@
-import {
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-  useCallback,
-
-  useEffect,
-
-  useMemo,
-
-  useRef,
-
-  useState,
-
-} from "react";
-
- 
-
-import {
-
-  createExecutiveVoiceRealtimeClient,
-
-} from "../services/executiveVoiceRealtime";
+import { createExecutiveVoiceRealtimeClient } from "../services/executiveVoiceRealtime";
 
  
 
@@ -31,6 +13,8 @@ export default function useExecutiveVoiceRealtime({
   workspaceId = 1,
 
   executiveContext = {},
+
+  mode = "command",
 
   onEvent,
 
@@ -60,41 +44,11 @@ export default function useExecutiveVoiceRealtime({
 
   const [userTranscript, setUserTranscript] = useState("");
 
-  const [liveToolsStatus, setLiveToolsStatus] = useState("idle");
-
-  const [liveToolsDetail, setLiveToolsDetail] = useState(null);
-
-  const [lastLiveTool, setLastLiveTool] = useState(null);
-
  
 
-  const clientRef = useRef(null);
+  const optionsRef = useRef({ voice, agent, workspaceId, executiveContext, mode });
 
-  const optionsRef = useRef({
-
-    voice,
-
-    agent,
-
-    workspaceId,
-
-    executiveContext,
-
-  });
-
- 
-
-  optionsRef.current = {
-
-    voice,
-
-    agent,
-
-    workspaceId,
-
-    executiveContext,
-
-  };
+  optionsRef.current = { voice, agent, workspaceId, executiveContext, mode };
 
  
 
@@ -114,8 +68,6 @@ export default function useExecutiveVoiceRealtime({
 
   });
 
- 
-
   callbacksRef.current = {
 
     onEvent,
@@ -134,187 +86,73 @@ export default function useExecutiveVoiceRealtime({
 
  
 
-  const client = useMemo(() => {
+  const client = useMemo(
 
-    const instance = createExecutiveVoiceRealtimeClient({
+    () =>
 
-      onStatus: ({ status: nextStatus, detail }) => {
+      createExecutiveVoiceRealtimeClient({
 
-        setStatus(nextStatus || "idle");
+        onStatus: ({ status: nextStatus, detail }) => {
 
-        setStatusDetail(detail || null);
+          setStatus(nextStatus || "idle");
 
- 
+          setStatusDetail(detail || null);
 
-        if (
+          setConnected(
 
-          nextStatus === "connected" ||
+            ["connected", "session_ready", "ready", "listening", "transcribing"].includes(
 
-          nextStatus === "session_ready" ||
+              nextStatus
 
-          nextStatus === "ready" ||
+            )
 
-          nextStatus === "listening" ||
+          );
 
-          nextStatus === "speaking" ||
+        },
 
-          nextStatus === "responding" ||
+        onEvent: (event) => callbacksRef.current.onEvent?.(event),
 
-          nextStatus === "thinking"
+        onUserTranscript: (payload) => {
 
-        ) {
+          setUserTranscript(payload?.text || "");
 
-          setConnected(true);
+          callbacksRef.current.onUserTranscript?.(payload);
 
-        }
+          if (!payload?.delta) setUserTranscript("");
 
- 
+        },
 
-        if (
+        onAssistantTranscript: (payload) => {
 
-          nextStatus === "disconnected" ||
+          setAssistantTranscript(payload?.text || "");
 
-          nextStatus === "data_channel_closed" ||
+          callbacksRef.current.onAssistantTranscript?.(payload);
 
-          nextStatus === "peer_failed"
+        },
 
-        ) {
+        onAssistantTranscriptDelta: (payload) => {
 
-          setConnected(false);
+          setAssistantTranscript(payload?.text || "");
 
-        }
+          callbacksRef.current.onAssistantTranscriptDelta?.(payload);
 
-      },
+        },
 
-      onEvent: (event) => {
+        onSpeechStarted: (event) => callbacksRef.current.onSpeechStarted?.(event),
 
-        if (event?.type === "executive_voice_live_tool_started") {
+        onSpeechStopped: (event) => callbacksRef.current.onSpeechStopped?.(event),
 
-          setLastLiveTool({
+        onError: (nextError) => setError(nextError?.message || "Executive Voice failed."),
 
-            name: event.tool,
+      }),
 
-            call_id: event.call_id,
+    []
 
-            status: "running",
-
-          });
-
-        }
+  );
 
  
 
-        if (event?.type === "executive_voice_live_tool_completed") {
-
-          setLastLiveTool({
-
-            name: event.tool,
-
-            call_id: event.call_id,
-
-            status: "complete",
-
-            result: event.result || null,
-
-          });
-
-        }
-
- 
-
-        if (event?.type === "executive_voice_live_tool_error") {
-
-          setLastLiveTool({
-
-            name: event.tool,
-
-            call_id: event.call_id,
-
-            status: "error",
-
-            error: event.error,
-
-          });
-
-        }
-
- 
-
-        callbacksRef.current.onEvent?.(event);
-
-      },
-
-      onUserTranscript: (payload) => {
-
-        setUserTranscript(payload?.text || "");
-
-        callbacksRef.current.onUserTranscript?.(payload);
-
-      },
-
-      onAssistantTranscript: (payload) => {
-
-        setAssistantTranscript(payload?.text || "");
-
-        callbacksRef.current.onAssistantTranscript?.(payload);
-
-      },
-
-      onAssistantTranscriptDelta: (payload) => {
-
-        setAssistantTranscript(payload?.text || "");
-
-        callbacksRef.current.onAssistantTranscriptDelta?.(payload);
-
-      },
-
-      onSpeechStarted: (event) => {
-
-        callbacksRef.current.onSpeechStarted?.(event);
-
-      },
-
-      onSpeechStopped: (event) => {
-
-        callbacksRef.current.onSpeechStopped?.(event);
-
-      },
-
-      onError: (nextError) => {
-
-        setError(nextError?.message || "Executive Voice failed.");
-
-      },
-
-      onLiveToolStatus: ({ status: nextStatus, detail }) => {
-
-        setLiveToolsStatus(nextStatus || "idle");
-
-        setLiveToolsDetail(detail || null);
-
-      },
-
-    });
-
- 
-
-    clientRef.current = instance;
-
-    return instance;
-
-  }, []);
-
- 
-
-  useEffect(() => {
-
-    return () => {
-
-      client.disconnect().catch(() => {});
-
-    };
-
-  }, [client]);
+  useEffect(() => () => void client.disconnect().catch(() => {}), [client]);
 
  
 
@@ -322,15 +160,7 @@ export default function useExecutiveVoiceRealtime({
 
     setError("");
 
- 
-
-    const session = await client.connect({
-
-      ...optionsRef.current,
-
-    });
-
- 
+    const session = await client.connect(optionsRef.current);
 
     setConnected(true);
 
@@ -354,24 +184,6 @@ export default function useExecutiveVoiceRealtime({
 
  
 
-  const sendText = useCallback(
-
-    (text, options = {}) => client.sendText(text, options),
-
-    [client]
-
-  );
-
- 
-
-  const interrupt = useCallback(() => {
-
-    client.interrupt();
-
-  }, [client]);
-
- 
-
   const setMicrophoneEnabled = useCallback(
 
     (enabled) => {
@@ -383,36 +195,6 @@ export default function useExecutiveVoiceRealtime({
       client.setMicrophoneEnabled(next);
 
     },
-
-    [client]
-
-  );
-
- 
-
-  const resumeAudio = useCallback(async () => {
-
-    await client.resumeAudio();
-
-  }, [client]);
-
- 
-
-  const clearTranscripts = useCallback(() => {
-
-    client.clearTranscripts();
-
-    setAssistantTranscript("");
-
-    setUserTranscript("");
-
-  }, [client]);
-
- 
-
-  const registerLiveTools = useCallback(
-
-    (options) => client.registerLiveTools(options),
 
     [client]
 
@@ -436,27 +218,27 @@ export default function useExecutiveVoiceRealtime({
 
     userTranscript,
 
-    liveToolsStatus,
+    liveToolsStatus: mode === "command" ? "copilot-pipeline" : "idle",
 
-    liveToolsDetail,
+    liveToolsDetail: null,
 
-    lastLiveTool,
+    lastLiveTool: null,
 
     connect,
 
     disconnect,
 
-    sendText,
+    sendText: (text, options) => client.sendText(text, options),
 
-    interrupt,
+    interrupt: () => client.interrupt(),
 
     setMicrophoneEnabled,
 
-    resumeAudio,
+    resumeAudio: () => client.resumeAudio(),
 
-    clearTranscripts,
+    clearTranscripts: () => client.clearTranscripts(),
 
-    registerLiveTools,
+    registerLiveTools: (options) => client.registerLiveTools(options),
 
     sendEvent: (event) => client.sendEvent(event),
 
