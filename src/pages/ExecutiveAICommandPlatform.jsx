@@ -14,18 +14,6 @@ import {
 
  
 
-  askExecutiveIntelligence,
-
- 
-
-} from "../api/executiveIntelligenceOrchestratorApi";
-
- 
-
-import {
-
- 
-
   ComposableMap,
 
  
@@ -3138,6 +3126,85 @@ function normalizeAgentKey(agent = {}) {
 
  
 
+const FEDERAL_OFFICE_LABELS = {
+  house: "House",
+  representative: "House",
+  congress: "House",
+  congressional: "House",
+  senate: "Senate",
+  senator: "Senate",
+  president: "President",
+  presidential: "President",
+};
+
+function normalizeFederalOffice(value = "") {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/\bu\.?\s*s\.?\b/g, "")
+    .replace(/[^a-z]+/g, " ")
+    .trim();
+
+  for (const [key, office] of Object.entries(FEDERAL_OFFICE_LABELS)) {
+    if (normalized === key || normalized.includes(key)) return office;
+  }
+
+  return null;
+}
+
+function cleanCandidatePhrase(value = "") {
+  return String(value || "")
+    .replace(
+      /\s*(?:(?:—|–|\||,)|\s-\s)\s*(?:u\.?\s*s\.?\s*)?(?:house|representative|congress|congressional|senate|senator|president|presidential)(?:\s+district\s+\d+)?\s*[.)]*\s*$/i,
+      ""
+    )
+    .replace(
+      /\s*\(\s*(?:u\.?\s*s\.?\s*)?(?:house|representative|congress|congressional|senate|senator|president|presidential)(?:\s+district\s+\d+)?\s*\)\s*$/i,
+      ""
+    )
+    .replace(/[.!?]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function deriveFederalCandidateRequest(question = "") {
+  const text = String(question || "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+
+  const candidateIntent =
+    /\b(?:brief|briefing|report|profile|candidate intelligence|complete intelligence|executive summary|update|tell me about|what should i know about)\b/i.test(
+      text
+    );
+
+  if (!candidateIntent) return null;
+
+  const officeSuffix = text.match(
+    /(?:(?:—|–|\||,)|\s-\s|\()\s*(?:u\.?\s*s\.?\s*)?(house|representative|congress|congressional|senate|senator|president|presidential)(?:\s+district\s+(\d+))?\s*\)?[.!?]*$/i
+  );
+
+  const office = normalizeFederalOffice(officeSuffix?.[1] || "");
+  const district = officeSuffix?.[2] || null;
+  const candidatePatterns = [
+    /\b(?:on|about|for)\s+(.+)$/i,
+    /\bbrief\s+me\s+(?:on|about)\s+(.+)$/i,
+    /\btell\s+me\s+about\s+(.+)$/i,
+  ];
+
+  let candidate = "";
+
+  for (const pattern of candidatePatterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      candidate = cleanCandidatePhrase(match[1]);
+      break;
+    }
+  }
+
+  if (!candidate) return null;
+  if (candidate.split(/\s+/).filter(Boolean).length < 2) return null;
+
+  return { candidate, office, district };
+}
+
 async function askExecutiveAgent(payload = {}) {
 
  
@@ -3174,7 +3241,7 @@ async function askExecutiveAgent(payload = {}) {
 
  
 
-  const result = await askExecutiveIntelligence({
+  const response = await api.post("/ai-campaign-copilot/ask", {
 
  
 
@@ -3198,7 +3265,7 @@ async function askExecutiveAgent(payload = {}) {
 
  
 
-  return result?.data || result;
+  return response?.data || response;
 
  
 
@@ -5000,6 +5067,8 @@ function ExecutiveAgentWorkspace({
 
     const question = String(value || "").trim();
 
+    const candidateRequest = deriveFederalCandidateRequest(question);
+
  
 
     if (!question || asking) return;
@@ -5150,15 +5219,19 @@ function ExecutiveAgentWorkspace({
 
  
 
-        state: executiveContext?.selected_state || null,
+        state: candidateRequest
+          ? null
+          : executiveContext?.selected_state || null,
 
  
 
-        candidate: null,
+        candidate: candidateRequest?.candidate || null,
 
  
 
-        office: null,
+        office: candidateRequest?.office || null,
+
+        district: candidateRequest?.district || null,
 
  
 
