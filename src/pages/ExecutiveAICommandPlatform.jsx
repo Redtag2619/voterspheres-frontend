@@ -3205,6 +3205,35 @@ function deriveFederalCandidateRequest(question = "") {
   return { candidate, office, district };
 }
 
+function displayCandidateName(candidate = {}) {
+  const first = String(candidate.first_name || "").trim();
+  const middle = String(candidate.middle_name || "").trim();
+  const last = String(candidate.last_name || "").trim();
+  const suffix = String(candidate.suffix || "").trim();
+  const structured = [first, middle, last, suffix].filter(Boolean).join(" ");
+  if (structured) return structured;
+
+  const canonical = String(candidate.canonical_name || candidate.name || "").trim();
+  if (!canonical.includes(",")) return canonical;
+  const [family, given] = canonical.split(",", 2).map((part) => part.trim());
+  return [given, family].filter(Boolean).join(" ");
+}
+
+function candidateBriefingPrompt(candidate = {}) {
+  const name = displayCandidateName(candidate);
+  const office = candidate.office_name || candidate.office || "federal office";
+  const geography = [
+    candidate.state,
+    candidate.district && candidate.district !== "Statewide"
+      ? `District ${candidate.district}`
+      : candidate.district,
+  ].filter(Boolean).join(" ");
+
+  return `Give me a complete detailed briefing and executive summary on ${name}, ${office}${
+    geography ? ` — ${geography}` : ""
+  }, including verified FEC finance figures, applicable polling, current candidate-specific news, political signals, risks, and VoterSpheres strategy recommendations.`;
+}
+
 async function askExecutiveAgent(payload = {}) {
 
  
@@ -4091,6 +4120,17 @@ function ExecutiveAgentWorkspace({
 
   const [prompt, setPrompt] = useState("");
 
+  const [candidateDirectoryOpen, setCandidateDirectoryOpen] = useState(false);
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [candidateState, setCandidateState] = useState("");
+  const [candidateOffice, setCandidateOffice] = useState("");
+  const [candidateCycle, setCandidateCycle] = useState("2026");
+  const [candidateResults, setCandidateResults] = useState([]);
+  const [candidateTotal, setCandidateTotal] = useState(0);
+  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [candidateError, setCandidateError] = useState("");
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+
  
 
   const [asking, setAsking] = useState(false);
@@ -4202,6 +4242,61 @@ function ExecutiveAgentWorkspace({
  
 
   }, []);
+
+  useEffect(() => {
+    if (!candidateDirectoryOpen) return undefined;
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setCandidateLoading(true);
+      setCandidateError("");
+
+      try {
+        const response = await api.get(
+          "/universal-candidate-intelligence/candidates",
+          {
+            params: {
+              q: candidateSearch.trim() || undefined,
+              state: candidateState || undefined,
+              office: candidateOffice || undefined,
+              cycle: Number(candidateCycle) || undefined,
+              ballot_status: "active",
+              page: 1,
+              limit: 25,
+            },
+          }
+        );
+        const payload = response?.data || response || {};
+        if (cancelled) return;
+        setCandidateResults(
+          Array.isArray(payload.candidates) ? payload.candidates : []
+        );
+        setCandidateTotal(Number(payload.total || 0));
+      } catch (directoryError) {
+        if (cancelled) return;
+        setCandidateResults([]);
+        setCandidateTotal(0);
+        setCandidateError(
+          directoryError?.response?.data?.error ||
+            directoryError?.message ||
+            "Candidate directory could not be loaded."
+        );
+      } finally {
+        if (!cancelled) setCandidateLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    candidateDirectoryOpen,
+    candidateSearch,
+    candidateState,
+    candidateOffice,
+    candidateCycle,
+  ]);
 
  
 
@@ -5061,13 +5156,36 @@ function ExecutiveAgentWorkspace({
 
  
 
+  function selectDirectoryCandidate(candidate) {
+    setSelectedCandidate(candidate);
+    setPrompt(candidateBriefingPrompt(candidate));
+    setCandidateDirectoryOpen(false);
+    setCandidateError("");
+  }
+
+  function clearDirectoryCandidate() {
+    setSelectedCandidate(null);
+    setPrompt("");
+  }
+
   async function submitQuestion(value = prompt) {
 
  
 
     const question = String(value || "").trim();
 
-    const candidateRequest = deriveFederalCandidateRequest(question);
+    const candidateRequest = selectedCandidate
+      ? {
+          candidate: displayCandidateName(selectedCandidate),
+          candidate_id: selectedCandidate.candidate_id || null,
+          state: selectedCandidate.state || selectedCandidate.home_state || null,
+          office: selectedCandidate.office_name || null,
+          district: selectedCandidate.district || null,
+          cycle: Number(selectedCandidate.cycle) || null,
+          candidacy_id: selectedCandidate.candidacy_id || null,
+          candidate_entity_id: selectedCandidate.candidate_entity_id || null,
+        }
+      : deriveFederalCandidateRequest(question);
 
  
 
@@ -5219,13 +5337,17 @@ function ExecutiveAgentWorkspace({
 
  
 
-        state: candidateRequest
-          ? null
-          : executiveContext?.selected_state || null,
+        state:
+          candidateRequest?.state ||
+          (candidateRequest
+            ? null
+            : executiveContext?.selected_state || null),
 
  
 
         candidate: candidateRequest?.candidate || null,
+
+        candidate_id: candidateRequest?.candidate_id || null,
 
  
 
@@ -5235,7 +5357,11 @@ function ExecutiveAgentWorkspace({
 
  
 
-        cycle: null,
+        cycle: candidateRequest?.cycle || null,
+
+        candidacy_id: candidateRequest?.candidacy_id || null,
+
+        candidate_entity_id: candidateRequest?.candidate_entity_id || null,
 
  
 
@@ -7585,6 +7711,134 @@ function ExecutiveAgentWorkspace({
 
         >
 
+          <div className="cmd-candidate-launcher">
+            <div className="cmd-candidate-launcher-head">
+              <div>
+                <strong>Candidate Intelligence Launcher</strong>
+                <span>
+                  Search the verified VoterSpheres candidate registry and
+                  populate a complete federal briefing request.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="cmd-candidate-launcher-toggle"
+                onClick={() => setCandidateDirectoryOpen((current) => !current)}
+              >
+                {candidateDirectoryOpen ? "Close directory" : "Find candidate"}
+              </button>
+            </div>
+
+            {selectedCandidate ? (
+              <div className="cmd-candidate-selected">
+                <div>
+                  <strong>{displayCandidateName(selectedCandidate)}</strong>
+                  <span>
+                    {[
+                      selectedCandidate.office_name,
+                      selectedCandidate.state,
+                      selectedCandidate.district &&
+                      selectedCandidate.district !== "Statewide"
+                        ? `District ${selectedCandidate.district}`
+                        : selectedCandidate.district,
+                      selectedCandidate.cycle,
+                    ].filter(Boolean).join(" · ")}
+                    {selectedCandidate.candidate_id
+                      ? ` · FEC ${selectedCandidate.candidate_id}`
+                      : ""}
+                  </span>
+                </div>
+                <button type="button" onClick={clearDirectoryCandidate}>
+                  Clear
+                </button>
+              </div>
+            ) : null}
+
+            {candidateDirectoryOpen ? (
+              <div className="cmd-candidate-directory">
+                <div className="cmd-candidate-directory-filters">
+                  <input
+                    type="search"
+                    value={candidateSearch}
+                    onChange={(event) => setCandidateSearch(event.target.value)}
+                    placeholder="Search candidate name…"
+                    autoFocus
+                  />
+                  <input
+                    type="text"
+                    value={candidateState}
+                    onChange={(event) =>
+                      setCandidateState(
+                        event.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2)
+                      )
+                    }
+                    placeholder="State"
+                    aria-label="Candidate state"
+                  />
+                  <select
+                    value={candidateOffice}
+                    onChange={(event) => setCandidateOffice(event.target.value)}
+                    aria-label="Candidate office"
+                  >
+                    <option value="">All offices</option>
+                    <option value="President">President</option>
+                    <option value="Senate">Senate</option>
+                    <option value="House">House</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="2024"
+                    max="2032"
+                    value={candidateCycle}
+                    onChange={(event) => setCandidateCycle(event.target.value)}
+                    aria-label="Election cycle"
+                  />
+                </div>
+
+                <div className="cmd-candidate-directory-status">
+                  {candidateLoading
+                    ? "Searching candidate registry…"
+                    : candidateError
+                      ? candidateError
+                      : `${candidateTotal.toLocaleString()} matching candidacies`}
+                </div>
+
+                {!candidateLoading && !candidateError ? (
+                  <div className="cmd-candidate-results">
+                    {candidateResults.map((candidate) => (
+                      <button
+                        type="button"
+                        key={`${candidate.candidacy_id || candidate.candidate_entity_id}-${candidate.candidate_id || candidate.office_name}`}
+                        onClick={() => selectDirectoryCandidate(candidate)}
+                      >
+                        <strong>{displayCandidateName(candidate)}</strong>
+                        <span>
+                          {[
+                            candidate.office_name,
+                            candidate.state,
+                            candidate.district && candidate.district !== "Statewide"
+                              ? `District ${candidate.district}`
+                              : candidate.district,
+                            candidate.cycle,
+                            candidate.party,
+                          ].filter(Boolean).join(" · ")}
+                        </span>
+                        <small>
+                          {candidate.candidate_id
+                            ? `FEC ${candidate.candidate_id}`
+                            : "Verified registry candidacy"}
+                        </small>
+                      </button>
+                    ))}
+                    {!candidateResults.length ? (
+                      <p>No active candidacies match these filters.</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
  
 
           <textarea
@@ -8805,6 +9059,8 @@ export default function ExecutiveAICommandPlatform() {
 
         .cmd-consult-composer{border-top:1px solid rgba(148,163,184,.12);padding:16px 18px;background:rgba(15,23,42,.45)}.cmd-consult-composer textarea{width:100%;resize:vertical;border:1px solid rgba(148,163,184,.16);border-radius:16px;background:rgba(2,6,23,.45);color:white;padding:16px;outline:none;line-height:1.6;font-size:14px;min-height:130px}.cmd-consult-composer textarea:focus{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 3px rgba(59,130,246,.1)}.cmd-consult-composer>div{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:12px}.cmd-consult-composer span{color:rgba(148,163,184,.7);font-size:9px}
 
+        .cmd-consult-composer>.cmd-candidate-launcher{display:grid;gap:10px;align-items:stretch;margin:0 0 12px;padding:12px;border:1px solid rgba(96,165,250,.2);border-radius:16px;background:linear-gradient(135deg,rgba(30,64,175,.12),rgba(2,6,23,.36))}.cmd-candidate-launcher-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.cmd-candidate-launcher-head strong,.cmd-candidate-selected strong,.cmd-candidate-results strong{display:block;color:white;font-size:12px}.cmd-candidate-launcher-head span,.cmd-candidate-selected span,.cmd-candidate-results span{display:block;margin-top:4px;color:rgba(203,213,225,.74);font-size:10px;line-height:1.4}.cmd-candidate-launcher-toggle,.cmd-candidate-selected button{border:1px solid rgba(96,165,250,.32);border-radius:10px;background:rgba(37,99,235,.14);color:white;padding:8px 10px;font-size:10px;font-weight:900;cursor:pointer}.cmd-candidate-selected{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px;border:1px solid rgba(34,197,94,.24);border-radius:12px;background:rgba(22,163,74,.09)}.cmd-candidate-directory{display:grid;gap:9px}.cmd-candidate-directory-filters{display:grid;grid-template-columns:minmax(180px,1fr) 72px 120px 90px;gap:8px}.cmd-candidate-directory-filters input,.cmd-candidate-directory-filters select{min-width:0;border:1px solid rgba(148,163,184,.18);border-radius:10px;background:rgba(2,6,23,.6);color:white;padding:9px 10px;font-size:11px;outline:none}.cmd-candidate-directory-status{color:rgba(147,197,253,.8);font-size:10px;font-weight:800}.cmd-candidate-results{display:grid;gap:7px;max-height:260px;overflow:auto}.cmd-candidate-results button{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(220px,1.2fr) auto;gap:10px;align-items:center;width:100%;border:1px solid rgba(148,163,184,.12);border-radius:11px;background:rgba(15,23,42,.6);padding:10px;text-align:left;cursor:pointer}.cmd-candidate-results button:hover{border-color:rgba(96,165,250,.42);background:rgba(30,64,175,.16)}.cmd-candidate-results span{margin:0}.cmd-candidate-results small{color:rgba(251,146,60,.82);font-size:9px;font-weight:850}.cmd-candidate-results p{margin:0;padding:12px;color:rgba(148,163,184,.72);font-size:11px;text-align:center}
+
  
 
  
@@ -9015,7 +9271,7 @@ export default function ExecutiveAICommandPlatform() {
 
  
 
-        @media(max-width:900px){.cmd-intelligence-status{justify-content:flex-start}.cmd-consult-header-tools{justify-items:start}.cmd-conversation-toolbar{justify-content:flex-start}.cmd-history-item{grid-template-columns:1fr}.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}}
+        @media(max-width:900px){.cmd-intelligence-status{justify-content:flex-start}.cmd-consult-header-tools{justify-items:start}.cmd-conversation-toolbar{justify-content:flex-start}.cmd-history-item{grid-template-columns:1fr}.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}.cmd-candidate-directory-filters,.cmd-candidate-results button{grid-template-columns:1fr}.cmd-candidate-launcher-head,.cmd-candidate-selected{align-items:stretch;flex-direction:column}}
 
  
 
