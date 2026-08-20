@@ -1452,7 +1452,7 @@ function ExecutiveAgentWorkspace({
         if (readAnswersAloud && voice?.connected && liveConversation) {
           try {
             await voice.speak(assistantAnswer, {
-              voice: "coral",
+              voice: "marin",
               resumeMicrophone: true,
             });
           } catch (speechError) {
@@ -1463,19 +1463,13 @@ function ExecutiveAgentWorkspace({
             );
             voice.setMicrophoneEnabled(true);
           }
-        } else if (readAnswersAloud && window.speechSynthesis) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(assistantAnswer);
-          utterance.rate = 1;
-          utterance.pitch = 1;
-          utterance.volume = 1;
-          window.speechSynthesis.speak(utterance);
-          if (voice?.connected && liveConversation) {
-            voice.setMicrophoneEnabled(true);
-          }
-        } else if (voice?.connected && liveConversation) {
-          voice.setMicrophoneEnabled(true);
-        }
+        } else if (readAnswersAloud) {
+  setError(
+    "Start Live Conversation to hear the natural Executive AI voice."
+  );
+} else if (voice?.connected && liveConversation) {
+  voice.setMicrophoneEnabled(true);
+}
       });
     } catch (err) {
       const message =
@@ -1506,7 +1500,7 @@ function ExecutiveAgentWorkspace({
   }
   const voice = useExecutiveVoiceRealtime({
     mode: "command",
-    voice: "coral",
+    voice: "marin",
     agent: teamMode
       ? "executive_chief_of_staff"
       : selectedKey.replace(/-/g, "_"),
