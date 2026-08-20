@@ -1522,12 +1522,42 @@ function ExecutiveAgentWorkspace({
       submitQuestion(voiceCommand);
     },
   });
+  async function readAnswerAloud(answerText) {
+    const text = String(answerText || "").trim();
+    if (!text) return;
+    setError("");
+    try {
+      if (voice.speaking) {
+        voice.stopSpeaking({ resumeMicrophone: true });
+        return;
+      }
+      if (!voice.connected) {
+        await voice.connect();
+        setLiveConversation(true);
+      }
+      voice.setMicrophoneEnabled(false);
+      await voice.speak(text, {
+        voice: "marin",
+        resumeMicrophone: true,
+      });
+    } catch (speechError) {
+      setError(
+        speechError?.response?.data?.error ||
+          speechError?.message ||
+          "Natural voice playback could not be started."
+      );
+      if (voice.connected) {
+        voice.setMicrophoneEnabled(true);
+      }
+    }
+  }
   async function toggleVoiceCommand() {
     setError("");
     try {
       if (voice.connected) {
         await voice.disconnect();
         setLiveConversation(false);
+
         return;
       }
       await voice.connect();
@@ -1557,7 +1587,6 @@ function ExecutiveAgentWorkspace({
           >
             Single Agent
           </button>
-
           <button
             type="button"
             className={teamMode ? "is-active" : ""}
@@ -1567,6 +1596,7 @@ function ExecutiveAgentWorkspace({
           </button>
         </div>
         <div className="cmd-consult-agent-list">
+
           {agents.map((agent) => {
             const key = normalizeAgentKey(agent);
             const active = key === selectedAgentKey;
@@ -1596,7 +1626,6 @@ function ExecutiveAgentWorkspace({
               key={item}
               type="button"
               onClick={() => submitQuestion(item)}
-
               disabled={asking}
             >
               {item}
@@ -1606,6 +1635,7 @@ function ExecutiveAgentWorkspace({
       </aside>
       <div className="cmd-consult-main">
         <div className="cmd-consult-header">
+
   <div className="cmd-conversation-heading">
     <span>
       {teamMode
@@ -1635,7 +1665,6 @@ function ExecutiveAgentWorkspace({
       >
         Clear Chat
       </button>
-
       <button
         type="button"
         onClick={renameConversation}
@@ -1645,6 +1674,7 @@ function ExecutiveAgentWorkspace({
       <button
         type="button"
         onClick={saveCurrentBriefing}
+
       >
         Save Briefing
       </button>
@@ -1674,7 +1704,6 @@ function ExecutiveAgentWorkspace({
       <button
         type="button"
         className={historyOpen ? "is-active" : ""}
-
         onClick={() =>
           setHistoryOpen((value) => !value)
         }
@@ -1684,6 +1713,7 @@ function ExecutiveAgentWorkspace({
     </div>
     <div className="cmd-intelligence-status">
       <div className="vs-chip-row">
+
         <Badge tone="active">Intelligence Orchestrator Online</Badge>
         <Badge tone={teamMode ? "accent" : "info"}>
           {teamMode ? "Executive Team Synthesis" : "Specialist Analysis"}
@@ -1713,7 +1743,6 @@ function ExecutiveAgentWorkspace({
                 <span>Conversation History</span>
                 <strong>{conversationHistory.length} Conversations</strong>
               </div>
-
               <button
                 type="button"
                 onClick={() => setHistoryOpen(false)}
@@ -1723,6 +1752,7 @@ function ExecutiveAgentWorkspace({
             </div>
             <input
               value={historySearch}
+
               onChange={(event) => setHistorySearch(event.target.value)}
               placeholder="Search conversations..."
             />
@@ -1752,7 +1782,6 @@ function ExecutiveAgentWorkspace({
                     </button>
                     <div>
                       <button
-
                         type="button"
                         className={
                           pinnedThreadIds.includes(thread.id)
@@ -1762,6 +1791,7 @@ function ExecutiveAgentWorkspace({
                         onClick={() => togglePinnedThread(thread.id)}
                       >
                         {pinnedThreadIds.includes(thread.id)
+
                           ? "Pinned"
                           : "Pin"}
                       </button>
@@ -1791,7 +1821,6 @@ function ExecutiveAgentWorkspace({
                     type="button"
                     onClick={() => {
                       setMessages(briefing.messages);
-
                       setThreadId(briefing.thread_id || null);
                       setConversationTitle(briefing.title);
                       setHistoryOpen(false);
@@ -1801,6 +1830,7 @@ function ExecutiveAgentWorkspace({
                     <small>
                       {new Date(briefing.saved_at).toLocaleString()}
                     </small>
+
                   </button>
                 ))}
               </div>
@@ -1825,14 +1855,21 @@ function ExecutiveAgentWorkspace({
               <p>{message.content}</p>
               {message.role === "assistant" ? (
                 <div className="cmd-consult-message-meta">
+                  <button
+                    type="button"
+                    className="cmd-read-aloud-button"
+                    onClick={() => readAnswerAloud(message.content)}
+                  >
+                    {voice.speaking ? "Stop Reading" : "Read Aloud"}
+                  </button>
                   {message.confidence ? (
                     <Badge tone="active">
                       Confidence {pct(message.confidence)}
                     </Badge>
                   ) : null}
-
                   {message.grounding ? (
                     <Badge tone={message.grounding.grounded ? "active" : "danger"}>
+
                       {message.grounding.grounded
                         ? "Grounded in VoterSpheres Data"
                         : "No Verified Evidence"}
@@ -1869,9 +1906,9 @@ function ExecutiveAgentWorkspace({
               </div>
               <p>{streamingText}</p>
             </div>
-
           ) : null}
           {asking && !streamingText ? (
+
             <div className="cmd-consult-thinking">
               <span className="cmd-status-dot processing" />
               Executive AI is analyzing the request…
@@ -1889,6 +1926,9 @@ function ExecutiveAgentWorkspace({
             .cmd-voice-command-status{color:#94a3b8;font-size:10px;text-transform:capitalize}
             .cmd-voice-command-toggle{display:inline-flex;align-items:center;gap:6px;color:#cbd5e1;font-size:10px;font-weight:800}
             .cmd-voice-command-toggle input{accent-color:#f97316}
+            .cmd-read-aloud-button{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(249,115,22,.46);border-radius:999px;background:rgba(124,45,18,.18);color:#fed7aa;padding:6px 11px;font-size:10px;font-weight:900;cursor:pointer;transition:background 160ms ease,border-color 160ms ease,transform 160ms ease}
+            .cmd-read-aloud-button:hover{background:rgba(249,115,22,.24);border-color:rgba(251,146,60,.8);transform:translateY(-1px)}
+            .cmd-read-aloud-button:focus-visible{outline:2px solid #fb923c;outline-offset:2px}
             @keyframes cmdVoicePulse{50%{transform:scale(1.55);opacity:.45}}
           `}</style>
           <button
@@ -1907,8 +1947,8 @@ function ExecutiveAgentWorkspace({
           </button>
           {voice.connected ? (
             <button
-              type="button"
 
+              type="button"
               className="cmd-voice-command-button"
               onClick={() =>
                 voice.setMicrophoneEnabled(!voice.microphoneEnabled)
@@ -1946,8 +1986,8 @@ function ExecutiveAgentWorkspace({
             {voice.connected
               ? voice.speaking
                 ? "AI-generated voice playback"
-                : voice.status === "transcribing"
 
+                : voice.status === "transcribing"
                   ? "Processing command…"
                   : "Speak naturally; pause for an answer"
               : String(voice.status || "idle").replace(/[_-]+/g, " ")}
@@ -1985,8 +2025,8 @@ function ExecutiveAgentWorkspace({
                 <div>
                   <strong>{displayCandidateName(selectedCandidate)}</strong>
                   <span>
-                    {[
 
+                    {[
                       selectedCandidate.office_name,
                       selectedCandidate.state,
                       selectedCandidate.district &&
@@ -2024,8 +2064,8 @@ function ExecutiveAgentWorkspace({
                     {STATE_OPTIONS.map((state) => (
                       <option key={state.abbr} value={state.abbr}>
                         {state.name} ({state.abbr})
-                      </option>
 
+                      </option>
                     ))}
                   </select>
                   <select
@@ -2063,8 +2103,8 @@ function ExecutiveAgentWorkspace({
                         onClick={() => selectDirectoryCandidate(candidate)}
                       >
                         <strong>{displayCandidateName(candidate)}</strong>
-                        <span>
 
+                        <span>
                           {[
                             candidate.office_name,
                             candidate.state,
@@ -2102,8 +2142,8 @@ function ExecutiveAgentWorkspace({
           />
           <div>
             <span>
-              {threadId
 
+              {threadId
                 ? `Secure executive thread ${threadId} · Intelligence sources and confidence will appear with each response.`
                 : "A secure executive intelligence conversation will be created when you send this request."}
             </span>
@@ -2141,8 +2181,8 @@ function ExecutiveChiefOfStaffConsole({
           <strong>Executive Chief of Staff</strong>
           <p>
             Your primary VoterSpheres intelligence interface for leadership
-            briefings, strategic analysis, operational recommendations,
 
+            briefings, strategic analysis, operational recommendations,
             specialist consultation, and cross-functional executive synthesis.
           </p>
         </div>
@@ -2180,8 +2220,8 @@ export default function ExecutiveAICommandPlatform() {
   async function loadData() {
     setLoading(true);
     setMessage("");
-    const result = await fetchExecutiveAiCommand(1);
 
+    const result = await fetchExecutiveAiCommand(1);
     setData(result);
     const missions = arr(result.missions);
     setActiveMissionId((current) => {
@@ -2219,8 +2259,8 @@ export default function ExecutiveAICommandPlatform() {
     setGenerateLoading(false);
   }
   useEffect(() => {
-    loadData();
 
+    loadData();
   }, []);
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -2258,8 +2298,8 @@ export default function ExecutiveAICommandPlatform() {
       data?.agents ||
         data?.ai_agents ||
         data?.agent_statuses
-    );
 
+    );
     if (apiAgents.length) {
       return apiAgents.map((agent, index) => ({
         id: agent.id || agent.key || `agent-${index}`,
@@ -2297,8 +2337,8 @@ export default function ExecutiveAICommandPlatform() {
       missions,
       timeline,
       summary,
-    });
 
+    });
   }, [data, brief, missions, timeline, summary]);
   return (
     <PageShell
@@ -2336,8 +2376,8 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.cmd-agent-card{padding:14px;display:grid;gap:10px;position:relative;overflow:hidden}
         .cmd-agent-card::after{content:"";position:absolute;inset:auto 0 0;height:2px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.55),transparent)}
         .cmd-agent-card.is-alert{border-color:rgba(239,68,68,.36);background:radial-gradient(circle at top right,rgba(239,68,68,.12),transparent 42%),rgba(15,23,42,.56)}
-        .cmd-agent-card.is-active,.cmd-agent-card.is-processing{border-color:rgba(34,197,94,.28)}
 
+        .cmd-agent-card.is-active,.cmd-agent-card.is-processing{border-color:rgba(34,197,94,.28)}
         .cmd-agent-title{min-width:0;flex:1}
         .cmd-agent-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .cmd-agent-title small{margin-top:3px;color:rgba(148,163,184,.78);font-size:10px;letter-spacing:.07em}
@@ -2375,8 +2415,8 @@ export default function ExecutiveAICommandPlatform() {
         .cmd-consult-header-tools{display:grid;justify-items:end;gap:10px}
         .cmd-conversation-heading small{display:block;margin-top:5px;color:rgba(148,163,184,.74);font-size:10px}
         .cmd-conversation-toolbar{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
-        .cmd-conversation-toolbar button,.cmd-history-head button,.cmd-history-item>div button{border:1px solid rgba(148,163,184,.15);border-radius:10px;background:rgba(2,6,23,.42);color:rgba(226,232,240,.88);padding:8px 10px;font-size:9px;font-weight:850;cursor:pointer}
 
+        .cmd-conversation-toolbar button,.cmd-history-head button,.cmd-history-item>div button{border:1px solid rgba(148,163,184,.15);border-radius:10px;background:rgba(2,6,23,.42);color:rgba(226,232,240,.88);padding:8px 10px;font-size:9px;font-weight:850;cursor:pointer}
         .cmd-conversation-toolbar button:hover,.cmd-conversation-toolbar button.is-active,.cmd-history-head button:hover,.cmd-history-item>div button:hover,.cmd-history-item>div button.is-active{border-color:rgba(96,165,250,.5);background:rgba(37,99,235,.14);color:white}
         .cmd-history-drawer{border-bottom:1px solid rgba(148,163,184,.13);background:rgba(2,6,23,.72);padding:16px;display:grid;gap:12px}
         .cmd-history-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.cmd-history-head span,.cmd-saved-briefings>span{display:block;color:rgba(147,197,253,.84);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.cmd-history-head strong{display:block;margin-top:4px;color:white;font-size:16px}
@@ -2414,8 +2454,8 @@ export default function ExecutiveAICommandPlatform() {
         }
         @media(max-width:900px){.cmd-intelligence-status{justify-content:flex-start}.cmd-consult-header-tools{justify-items:start}.cmd-conversation-toolbar{justify-content:flex-start}.cmd-history-item{grid-template-columns:1fr}.cmd-consult-agent-list,.cmd-consult-suggestions{grid-template-columns:1fr}.cmd-consult-message{max-width:96%}.cmd-consult-header{align-items:flex-start;flex-direction:column}.cmd-consult-composer>div{align-items:stretch;flex-direction:column}.cmd-score-grid,.cmd-row .vs-responsive-meta,.cmd-timeline-row .vs-responsive-meta,.cmd-reasoning-grid{grid-template-columns:1fr}.cmd-action-row{grid-template-columns:1fr}.cmd-timeline-row{grid-template-columns:48px 12px minmax(0,1fr)}.cmd-candidate-directory-filters,.cmd-candidate-results button{grid-template-columns:1fr}.cmd-candidate-launcher-head,.cmd-candidate-selected{align-items:stretch;flex-direction:column}}
       `}</style>
-      <div id="cmd-overview" className="cmd-command-ribbon">
 
+      <div id="cmd-overview" className="cmd-command-ribbon">
         <div className="cmd-primary-ribbon">
           <span>National Executive Status</span>
           <strong>{readiness >= 75 ? "Operational" : "Attention Required"}</strong>
@@ -2453,8 +2493,8 @@ export default function ExecutiveAICommandPlatform() {
         <StatCard label="Active Executive Missions" value={summary.activeExecutiveMissions || missions.length || 0} subtext="AI-created mission packages under review" />
         <StatCard label="AI Confidence Percentage" value={pct(summary.aiConfidencePercentage)} subtext="Confidence across the active executive command brief" />
         <StatCard label="Execution Risk Percentage" value={pct(summary.executionRiskPercentage)} subtext={`${summary.queuedApprovalActions || 0} queued approval actions`} />
-      </div>
 
+      </div>
       <CollapsibleSection id="cmd-map" title="National Operations Map" subtitle="Executive mission posture, attention states, and active operational zones." defaultOpen right={<Badge tone="active">National Live Layer</Badge>}>
         <NationalOperationsMap
           missions={missions}
@@ -2492,8 +2532,8 @@ export default function ExecutiveAICommandPlatform() {
                       data?.agent_statuses
                   ).length
                     ? "Live API"
-                    : "Derived Status"}
 
+                    : "Derived Status"}
                 </Badge>
                 <Badge tone="active">{liveAgents.length} Agents</Badge>
               </div>
@@ -2531,8 +2571,8 @@ export default function ExecutiveAICommandPlatform() {
           <CollapsibleSection id="cmd-reasoning" title="AI Decision Reasoning" subtitle="Why Executive AI elevated this action and which factors influenced the recommendation." defaultOpen right={<Badge tone="accent">Explainable AI</Badge>}>
             <ReasoningPanel brief={brief} activeMission={activeMission} />
           </CollapsibleSection>
-          <CollapsibleSection title="Selected Mission Approval Queue" subtitle="Executive approval actions attached to the selected AI mission package." defaultOpen right={<Badge tone="info">{arr(activeMission?.actions).length} Approval Actions</Badge>}>
 
+          <CollapsibleSection title="Selected Mission Approval Queue" subtitle="Executive approval actions attached to the selected AI mission package." defaultOpen right={<Badge tone="info">{arr(activeMission?.actions).length} Approval Actions</Badge>}>
             {arr(activeMission?.actions).length ? <div className="vs-stack">{arr(activeMission.actions).map((action) => <ActionRow key={action.id || action.title} action={action} />)}</div> : <EmptyState text="No approval actions are currently attached to this mission." />}
           </CollapsibleSection>
           <CollapsibleSection id="cmd-timeline" title="Executive AI Command Feed" subtitle="Recent events and intelligence updates absorbed into the executive command platform." defaultOpen right={<Badge tone="accent">{timeline.length} Timeline Events</Badge>}>
@@ -2567,3 +2607,4 @@ export default function ExecutiveAICommandPlatform() {
     </PageShell>
   );
 }
+
