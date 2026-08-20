@@ -1452,7 +1452,7 @@ function ExecutiveAgentWorkspace({
         if (readAnswersAloud && voice?.connected && liveConversation) {
           try {
             await voice.speak(assistantAnswer, {
-              voice: "marin",
+              voice: "coral",
               resumeMicrophone: true,
             });
           } catch (speechError) {
@@ -1506,7 +1506,7 @@ function ExecutiveAgentWorkspace({
   }
   const voice = useExecutiveVoiceRealtime({
     mode: "command",
-    voice: "marin",
+    voice: "coral",
     agent: teamMode
       ? "executive_chief_of_staff"
       : selectedKey.replace(/-/g, "_"),
