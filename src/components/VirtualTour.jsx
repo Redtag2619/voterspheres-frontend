@@ -165,7 +165,6 @@ async function fetchMarinSpeech(text) {
 
         "Speak as a warm, natural, confident female enterprise product specialist. Use lifelike conversational American pacing, subtle emotional warmth, natural sentence rhythm, and short pauses between ideas. Sound polished and human, never robotic, rushed, theatrical, or excessively enthusiastic.",
 
-        "Speak as a warm, natural, confident female enterprise product specialist. Use lifelike conversational American pacing, subtle emotional warmth, natural sentence rhythm, and short pauses between ideas. Sound polished and human, never robotic, rushed, theatrical, or excessively enthusiastic.",
     }),
 
   });
