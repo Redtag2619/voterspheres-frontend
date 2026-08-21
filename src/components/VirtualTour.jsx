@@ -13,11 +13,11 @@ import "./VirtualTour.css";
 
  
 
-const API_BASE =
-
+const RAW_API_BASE =
   String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "") ||
-
   "https://voterspheres-backend-2pap.onrender.com";
+
+const API_ROOT = RAW_API_BASE.replace(/\/api$/i, "");
 
  
 
@@ -135,11 +135,12 @@ function storeCompletion(mode) {
 
 async function fetchMarinSpeech(text) {
 
+async function fetchMarinSpeech(text) {
   const token = getToken();
 
  
 
-  const response = await fetch(`${API_BASE}/api/tour/voice`, {
+  const response = await fetch(`${API_ROOT}/api/tour/voice`, {
 
     method: "POST",
 
@@ -154,15 +155,23 @@ async function fetchMarinSpeech(text) {
     body: JSON.stringify({
 
       text: normalizeText(text),
+<<<<<<< HEAD
 
       voice: "marin",
 
+=======
+      voice: "marin",
+>>>>>>> d9884c7 (Use Marin natural voice for platform tour)
       model: "gpt-4o-mini-tts",
 
       style:
+<<<<<<< HEAD
 
         "Speak as a warm, natural, confident female enterprise product specialist. Use lifelike conversational American pacing, subtle emotional warmth, natural sentence rhythm, and short pauses between ideas. Sound polished and human, never robotic, rushed, theatrical, or excessively enthusiastic.",
 
+=======
+        "Speak as a warm, natural, confident female enterprise product specialist. Use lifelike conversational American pacing, subtle emotional warmth, natural sentence rhythm, and short pauses between ideas. Sound polished and human, never robotic, rushed, theatrical, or excessively enthusiastic.",
+>>>>>>> d9884c7 (Use Marin natural voice for platform tour)
     }),
 
   });
@@ -172,9 +181,13 @@ async function fetchMarinSpeech(text) {
   if (!response.ok) {
 
     const detail = await response.text().catch(() => "");
+<<<<<<< HEAD
 
     throw new Error(`Marin voice failed ${response.status}: ${detail}`);
 
+=======
+    throw new Error(`Marin voice failed ${response.status}: ${detail}`);
+>>>>>>> d9884c7 (Use Marin natural voice for platform tour)
   }
 
  
@@ -599,7 +612,7 @@ export default function VirtualTour() {
 
   const [voiceEnabled, setVoiceEnabled] = useState(true);
 
-  const [browserFallback, setBrowserFallback] = useState(true);
+  const [browserFallback, setBrowserFallback] = useState(false);
 
   const [paused, setPaused] = useState(false);
 
@@ -920,9 +933,13 @@ export default function VirtualTour() {
           try {
 
             setVoiceStatus("Generating natural voice");
+<<<<<<< HEAD
 
             const url = await fetchMarinSpeech(narration);
 
+=======
+            const url = await fetchMarinSpeech(narration);
+>>>>>>> d9884c7 (Use Marin natural voice for platform tour)
             objectUrlRef.current = url;
 
  
@@ -936,10 +953,14 @@ export default function VirtualTour() {
             await playAudioUrl(url, audioRef);
 
           } catch (error) {
+<<<<<<< HEAD
 
             console.warn("[virtual-tour] Marin voice unavailable:", error?.message);
 
  
+=======
+            console.warn("[virtual-tour] Marin voice unavailable:", error?.message);
+>>>>>>> d9884c7 (Use Marin natural voice for platform tour)
 
             if (browserFallback) {
 
