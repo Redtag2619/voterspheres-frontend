@@ -238,7 +238,7 @@ function buildLeadMailto(lead = {}) {
 
   const firm = getLeadFirm(lead);
 
-  const subject = `VoterSpheres demo follow-up — ${firm}`;
+  const subject = `Schedule your VoterSpheres enterprise demonstration — ${firm}`;
 
   const body = [
 
@@ -246,11 +246,23 @@ function buildLeadMailto(lead = {}) {
 
     "",
 
-    "Thank you for requesting a VoterSpheres demonstration.",
+    "Thank you for your interest in VoterSpheres and for requesting an enterprise demonstration.",
 
     "",
 
-    "I would be glad to learn more about your organization, campaign objectives, and preferred demonstration time.",
+    "We would welcome the opportunity to learn more about your organization and show how VoterSpheres can support your political intelligence, campaign operations, and strategic decision-making needs.",
+
+    "",
+
+    "What day and time would be most convenient for your demonstration? Please include your time zone and, if possible, two or three scheduling options so we can confirm the best available time.",
+
+    "",
+
+    "If there are specific capabilities or workflows you would like us to prioritize during the demonstration, please include them in your reply.",
+
+    "",
+
+    "Once we receive your preferred availability, we will confirm the meeting and send the demonstration details.",
 
     "",
 
