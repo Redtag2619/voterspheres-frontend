@@ -133,7 +133,7 @@ function storeCompletion(mode) {
 
  
 
-async function fetchNovaSpeech(text) {
+async function fetchMarinSpeech(text) {
 
   const token = getToken();
 
@@ -155,13 +155,13 @@ async function fetchNovaSpeech(text) {
 
       text: normalizeText(text),
 
-      voice: "nova",
+      voice: "marin",
 
       model: "gpt-4o-mini-tts",
 
       style:
 
-        "Warm, natural, confident enterprise product specialist. Conversational American pacing with short pauses. Avoid robotic delivery and exaggerated enthusiasm.",
+        "Speak as a warm, natural, confident female enterprise product specialist. Use lifelike conversational American pacing, subtle emotional warmth, natural sentence rhythm, and short pauses between ideas. Sound polished and human, never robotic, rushed, theatrical, or excessively enthusiastic.",
 
     }),
 
@@ -173,7 +173,7 @@ async function fetchNovaSpeech(text) {
 
     const detail = await response.text().catch(() => "");
 
-    throw new Error(`Nova voice failed ${response.status}: ${detail}`);
+    throw new Error(`Marin voice failed ${response.status}: ${detail}`);
 
   }
 
@@ -921,7 +921,7 @@ export default function VirtualTour() {
 
             setVoiceStatus("Generating natural voice");
 
-            const url = await fetchNovaSpeech(narration);
+            const url = await fetchMarinSpeech(narration);
 
             objectUrlRef.current = url;
 
@@ -937,7 +937,7 @@ export default function VirtualTour() {
 
           } catch (error) {
 
-            console.warn("[virtual-tour] Nova voice unavailable:", error?.message);
+            console.warn("[virtual-tour] Marin voice unavailable:", error?.message);
 
  
 
