@@ -923,8 +923,6 @@ export default function VirtualTour() {
             setVoiceStatus("Generating natural voice");
 
             const url = await fetchMarinSpeech(narration);
-
-            const url = await fetchMarinSpeech(narration);
             objectUrlRef.current = url;
 
  
