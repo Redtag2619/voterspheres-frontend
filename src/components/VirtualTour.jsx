@@ -134,8 +134,6 @@ function storeCompletion(mode) {
  
 
 async function fetchMarinSpeech(text) {
-
-async function fetchMarinSpeech(text) {
   const token = getToken();
 
  
