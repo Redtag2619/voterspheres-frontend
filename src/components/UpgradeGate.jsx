@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { getPlanLabel, getUpgradeCopy } from "../lib/plan";
+import { getPlanLabel, getUpgradeCopy } from "../lib/plan"; 
 
 export default function UpgradeGate({
   requiredPlan = "pro",
