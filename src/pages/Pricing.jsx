@@ -17,17 +17,17 @@ const tiers = [
     description:
       "For emerging firms and smaller campaigns that need a clear command layer, visibility, and a professional operating system.",
     includes: [
-      "Executive dashboard with campaign overview",
-      "Candidates, map, donor network, and forecast access",
-      "Vendor and consultant directory workflows",
-      "Basic MailOps visibility and event tracking",
-      "Shared firm workspace and core CRM records",
-      "Secure account access for small teams",
+      "1 user, 1 workspace, and 3 tracked candidates",
+      "Candidate profiles, FEC finance, polling, news, and signals",
+      "Election maps, state operations, search, and notifications",
+      "25 AI candidate briefings per month",
+      "10 report exports and 100,000 voice characters per month",
+      "Route and API enforcement with upgrade guidance",
     ],
   },
   {
     key: "pro",
-    name: "Pro",
+    name: "Professional",
     price: "$149",
     period: "/month",
     tone: "accent",
@@ -38,11 +38,11 @@ const tiers = [
       "For active consulting firms that need tighter execution, more intelligence depth, and automated client reporting.",
     includes: [
       "Everything in Starter",
-      "Command Center and AI War Room workflows",
-      "Advanced fundraising and rankings visibility",
-      "Scheduled workspace reports",
-      "Operational MailOps composer and live event updates",
-      "Higher-value intelligence workflows for campaign management",
+      "3 users, 3 workspaces, and 15 tracked candidates",
+      "Advanced AI, Command Center, CRM, War Room, and MailOps",
+      "Relationship, dark-money, coalition, influence, and strategy intelligence",
+      "Vendor network, task ownership, branded reports, and exports",
+      "150 AI briefings, 100 exports, and 500,000 voice characters per month",
     ],
   },
   {
@@ -57,11 +57,11 @@ const tiers = [
       "For high-volume firms and serious campaign operators who need a premium control layer, live operations, and full-platform execution support.",
     includes: [
       "Everything in Pro",
-      "Unlimited scheduled reports",
-      "Full platform access for multi-workstream operations",
-      "Live intelligence fusion across dashboard, map, war room, and MailOps",
-      "Enterprise-grade workflow support for campaign execution",
-      "Best fit for top-tier political consulting organizations",
+      "15 users, 15 workspaces, and unlimited tracked candidates",
+      "National digital twin, predictive simulation, and autonomous operations",
+      "National command, political intelligence fabric, and operations map",
+      "Business suite, revenue intelligence, opportunity engine, and client portal",
+      "Unlimited report exports and 1,000 AI briefings per month",
     ],
   },
 ];
@@ -381,12 +381,12 @@ export default function Pricing() {
           <tbody>
             {[
               ["Executive dashboard and core campaign visibility", true, true, true],
-              ["Candidate, map, donor, vendor, and forecast workflows", true, true, true],
-              ["Command Center and AI War Room", false, true, true],
-              ["Scheduled workspace reporting", false, true, true],
-              ["Advanced MailOps and execution workflows", false, true, true],
-              ["Full intelligence fusion and executive control", false, false, true],
-              ["Unlimited scheduled reports", false, false, true],
+              ["Candidate, FEC, polling, news, signals, maps, and search", true, true, true],
+              ["Advanced AI, Command Center, CRM, War Room, and MailOps", false, true, true],
+              ["Relationships, dark money, coalitions, influence, and strategy", false, true, true],
+              ["Digital twin, simulation, autonomous operations, and national command", false, false, true],
+              ["Business suite, revenue intelligence, client portal, and firm administration", false, false, true],
+              ["Unlimited candidates and report exports", false, false, true],
               ["White-glove enterprise onboarding", false, false, true],
             ].map(([label, starter, pro, enterprise]) => (
               <tr key={label}>
