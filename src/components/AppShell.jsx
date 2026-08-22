@@ -3,8 +3,14 @@ import UnifiedExecutiveStatusBar from "./UnifiedExecutiveStatusBar.jsx";
 import BackToTop from "./BackToTop";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { flattenedNavigation, navigationSections } from "../config/navigation"; 
+import { navigationSections } from "../config/navigation";
+import {
+  filterNavigationForAccess,
+  flattenNavigation,
+  PLAN_DETAILS,
+} from "../lib/entitlements.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import EntitlementRouteGuard from "./EntitlementRouteGuard.jsx";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -22,36 +28,58 @@ function getInitials(user) {
 
 export default function AppShell() {
   const location = useLocation();
-  const { user, logout } = useAuth?.() || {};
+  const {
+    user,
+    logout,
+    planTier = "free",
+    entitlementSet = new Set(),
+    isPlatformAdmin = false,
+    canAccessRoute = () => false,
+  } = useAuth?.() || {};
   const [openMenu, setOpenMenu] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  const visibleNavigation = useMemo(
+    () =>
+      filterNavigationForAccess(navigationSections, {
+        planTier,
+        entitlementSet,
+        user,
+      }),
+    [planTier, entitlementSet, user]
+  );
+
+  const visibleFlattenedNavigation = useMemo(
+    () => flattenNavigation(visibleNavigation),
+    [visibleNavigation]
+  );
+
   const activeSection = useMemo(() => {
     return (
-      navigationSections.find((section) =>
+      visibleNavigation.find((section) =>
         section.items.some((item) => location.pathname === item.to)
       )?.label || "VoterSpheres"
     );
-  }, [location.pathname]);
+  }, [location.pathname, visibleNavigation]);
 
   const currentPage = useMemo(() => {
     return (
-      flattenedNavigation.find((item) => location.pathname === item.to)?.label ||
+      visibleFlattenedNavigation.find((item) => location.pathname === item.to)?.label ||
       activeSection
     );
-  }, [location.pathname, activeSection]);
+  }, [location.pathname, activeSection, visibleFlattenedNavigation]);
 
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
 
-    return flattenedNavigation
+    return visibleFlattenedNavigation
       .filter((item) =>
         `${item.label} ${item.section} ${item.to}`.toLowerCase().includes(q)
       )
       .slice(0, 9);
-  }, [query]);
+  }, [query, visibleFlattenedNavigation]);
 
   function closeMenus() {
     setOpenMenu("");
@@ -575,7 +603,7 @@ export default function AppShell() {
 
       <header className="vs-top-nav">
         <div className="vs-top-row">
-          <Link className="vs-brand" to="/national-command" onClick={closeMenus}>
+          <Link className="vs-brand" to="/executive-workspace" onClick={closeMenus}>
             <div className="vs-logo">VS</div>
             <div>
               <strong>VoterSpheres</strong>
@@ -584,7 +612,7 @@ export default function AppShell() {
           </Link>
 
           <nav className="vs-menu-row">
-            {navigationSections.map((section) => (
+            {visibleNavigation.map((section) => (
               <div key={section.label} className="vs-menu-wrap">
                 <button
                   type="button"
@@ -626,9 +654,11 @@ export default function AppShell() {
             <Link className="vs-pill" to="/notifications" onClick={closeMenus}>
               Alerts
             </Link>
-            <Link className="vs-pill"to="/campaign-operations-studio"onClick={closeMenus}>
-              AI Studio
-            </Link>
+            {canAccessRoute("/campaign-operations-studio") ? (
+              <Link className="vs-pill" to="/campaign-operations-studio" onClick={closeMenus}>
+                AI Studio
+              </Link>
+            ) : null}
             <button
               type="button"
               className="vs-pill vs-mobile-button"
@@ -636,6 +666,11 @@ export default function AppShell() {
             >
               Menu
             </button>
+            <Link className="vs-pill" to="/billing" onClick={closeMenus}>
+              {isPlatformAdmin
+                ? "Platform Admin"
+                : PLAN_DETAILS[planTier]?.label || "Free"}
+            </Link>
             <div className="vs-avatar">{getInitials(user)}</div>
             {logout ? (
               <button type="button" className="vs-pill" onClick={logout}>
@@ -681,7 +716,7 @@ export default function AppShell() {
         </div>
 
         <div className={cx("vs-mobile-panel", !mobileOpen && "closed")}>
-          {navigationSections.map((section) => (
+          {visibleNavigation.map((section) => (
             <div key={section.label} className="vs-mobile-section">
               <h3>{section.label}</h3>
               <div className="vs-mobile-links">
@@ -708,7 +743,9 @@ export default function AppShell() {
       <UnifiedExecutiveStatusBar />
 
       <main className="vs-top-content">
-        <Outlet />
+        <EntitlementRouteGuard>
+          <Outlet />
+        </EntitlementRouteGuard>
       </main>
 
       <BackToTop />
