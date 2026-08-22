@@ -16,24 +16,24 @@ const PLANS = [
     key: "starter",
     name: "Starter",
     price: "$99/mo",
-    description: "Core campaign operating system for smaller teams.",
+    description: "Core federal and state candidate intelligence for an individual operator.",
     features: [
-      "Executive dashboard",
-      "Core workspaces",
-      "Candidate and vendor visibility",
-      "Basic MailOps tracking",
+      "1 user, 1 workspace, and 3 tracked candidates",
+      "Candidate, FEC, polling, signals, news, maps, and search",
+      "25 AI briefings and 10 report exports per month",
+      "100,000 natural-voice characters per month",
     ],
   },
   {
     key: "pro",
-    name: "Pro",
+    name: "Professional",
     price: "$149/mo",
     description: "Advanced execution, reporting, and intelligence workflows.",
     features: [
-      "Everything in Starter",
-      "Scheduled reports",
-      "Command Center workflows",
-      "AI War Room access",
+      "Everything in Starter; 3 users, 3 workspaces, 15 candidates",
+      "Advanced AI, Command Center, CRM, War Room, MailOps, and vendors",
+      "Relationships, dark money, coalitions, influence, and strategy",
+      "150 AI briefings, 100 exports, and 500,000 voice characters monthly",
     ],
   },
   {
@@ -42,19 +42,20 @@ const PLANS = [
     price: "$499/mo",
     description: "Premium multi-workstream control layer for serious firms.",
     features: [
-      "Everything in Pro",
-      "Unlimited scheduled reports",
-      "Enterprise workflow support",
-      "Full-platform operations visibility",
+      "Everything in Professional; 15 users and 15 workspaces",
+      "Unlimited candidates and report exports",
+      "Digital twin, simulations, autonomous operations, and national command",
+      "Business suite, revenue intelligence, client portal, and firm administration",
     ],
   },
 ];
 
-function normalizePlan(value = "starter") {
-  const plan = String(value || "starter").toLowerCase();
+function normalizePlan(value = "free") {
+  const plan = String(value || "free").toLowerCase();
   if (plan === "enterprise") return "enterprise";
   if (plan === "pro") return "pro";
-  return "starter";
+  if (plan === "starter" || plan === "basic") return "starter";
+  return "free";
 }
 
 function formatDate(value) {
@@ -91,8 +92,40 @@ function statusTone(status = "") {
 }
 
 function planRank(plan) {
-  const order = { starter: 1, pro: 2, enterprise: 3 };
-  return order[normalizePlan(plan)] || 1;
+  const order = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+  return order[normalizePlan(plan)] || 0;
+}
+
+function UsagePanel({ limits = {}, usage = {} }) {
+  const metrics = [
+    ["ai_briefings", "AI briefings"],
+    ["report_exports", "Report exports"],
+    ["voice_characters", "Voice characters"],
+  ];
+
+  return (
+    <div className="vs-grid-3">
+      {metrics.map(([key, label]) => {
+        const used = Number(usage?.[key] || 0);
+        const limit = Number(limits?.[key] ?? 0);
+        const unlimited = limit < 0;
+        const percentage = unlimited || !limit ? 0 : Math.min(100, Math.round((used / limit) * 100));
+        return (
+          <div className="vs-card-muted" key={key}>
+            <div className="vs-stat-label">{label}</div>
+            <div style={{ marginTop: 7, fontSize: 22, fontWeight: 900 }}>
+              {used.toLocaleString()} / {unlimited ? "Unlimited" : limit.toLocaleString()}
+            </div>
+            {!unlimited ? (
+              <div style={{ height: 7, marginTop: 12, borderRadius: 99, overflow: "hidden", background: "rgba(148,163,184,.18)" }}>
+                <div style={{ width: `${percentage}%`, height: "100%", background: percentage >= 90 ? "#ef4444" : "#22c55e" }} />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function billingHealthText(status = "") {
@@ -238,7 +271,7 @@ function BillingActionCenter({ onRefresh, onPortal, portalBusy }) {
 }
 
 export default function Billing() {
-  const { refreshMe } = useAuth();
+  const { refreshMe, refreshEntitlements, limits, usage } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [busyPlan, setBusyPlan] = useState("");
@@ -261,7 +294,7 @@ export default function Billing() {
       setConfig(billingConfig || {});
       setDebug(billingDebug || {});
 
-      await refreshMe?.();
+      await Promise.all([refreshMe?.(), refreshEntitlements?.()]);
     } catch (err) {
       setError(
         err?.response?.data?.error ||
@@ -283,14 +316,16 @@ export default function Billing() {
       firm?.planTier ||
       debug?.auth?.planTier ||
       debug?.plan_tier ||
-      "starter"
+      "free"
   );
 
   const subscriptionStatus =
     firm?.subscription_status || firm?.status || debug?.status || "active";
 
   const currentPlanDetails = useMemo(
-    () => PLANS.find((plan) => plan.key === currentPlan) || PLANS[0],
+    () => PLANS.find((plan) => plan.key === currentPlan) || {
+      key: "free", name: "Free", price: "$0/mo", description: "Billing and platform tour access.", features: []
+    },
     [currentPlan]
   );
 
@@ -395,6 +430,7 @@ export default function Billing() {
   const navSections = [
     { id: "billing-overview", label: "Overview" },
     { id: "billing-metrics", label: "Metrics" },
+    { id: "billing-usage", label: "Usage" },
     { id: "billing-current", label: "Subscription" },
     { id: "billing-health", label: "Payment Health" },
     { id: "billing-plans", label: "Plans", badge: PLANS.length },
@@ -721,6 +757,16 @@ export default function Billing() {
         </div>
       </CollapsibleSection>
 
+      <CollapsibleSection
+        id="billing-usage"
+        title="Monthly Plan Usage"
+        subtitle="Live allowance consumption for metered AI, exports, and natural-voice playback."
+        defaultOpen
+        right={<Badge tone="accent">Resets Monthly</Badge>}
+      >
+        <UsagePanel limits={limits} usage={usage} />
+      </CollapsibleSection>
+
       <div className="vs-grid-2">
         <div id="billing-current">
         <SectionCard
@@ -771,7 +817,7 @@ export default function Billing() {
         <div id="billing-health">
         <SectionCard
           title="Payment Health"
-          subtitle="Keep the firmâ€™s access in good standing."
+          subtitle="Keep the firm's access in good standing."
           right={
             <Badge tone={statusTone(subscriptionStatus)}>
               {String(subscriptionStatus || "active").toUpperCase()}
