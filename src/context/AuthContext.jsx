@@ -1,6 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import { enrichUserWithPermissions } from "../lib/permissions.js";
+import {
+  canAccessRoute as evaluateRouteAccess,
+  getEntitlementsForPlan,
+  isPlatformAdmin as evaluatePlatformAdmin,
+  normalizePlan,
+} from "../lib/entitlements.js";
 
 const AuthContext = createContext(null);
 
@@ -66,6 +72,36 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getStoredToken());
   const [user, setUser] = useState(() => getStoredUser());
   const [loading, setLoading] = useState(true);
+  const [entitlementState, setEntitlementState] = useState({
+    entitlements: [],
+    limits: {},
+    usage: {},
+    build: "",
+    plan: "",
+  });
+
+  const loadEntitlements = useCallback(async (activeToken, activeUser) => {
+    if (!activeToken) return null;
+    try {
+      const response = await api.get("/entitlements/me", {
+        headers: { Authorization: `Bearer ${activeToken}` },
+      });
+      const next = response?.data || null;
+      if (next) setEntitlementState(next);
+      return next;
+    } catch (error) {
+      console.warn("Entitlement refresh failed; using plan fallback:", error?.message);
+      const fallbackPlan = normalizePlan(
+        activeUser?.plan_tier || activeUser?.firm?.plan_tier || "free"
+      );
+      setEntitlementState((current) => ({
+        ...current,
+        plan: fallbackPlan,
+        entitlements: getEntitlementsForPlan(fallbackPlan),
+      }));
+      return null;
+    }
+  }, []);
 
   const applyAuth = useCallback((nextToken, nextUser) => {
     const enrichedUser = nextUser ? enrichUserWithPermissions(nextUser) : null;
@@ -78,6 +114,7 @@ export function AuthProvider({ children }) {
     clearStoredAuth();
     setToken("");
     setUser(null);
+    setEntitlementState({ entitlements: [], limits: {}, usage: {}, build: "", plan: "" });
   }, []);
 
   const refreshMe = useCallback(async () => {
@@ -102,8 +139,9 @@ export function AuthProvider({ children }) {
     }
 
     applyAuth(activeToken, me);
+    await loadEntitlements(activeToken, me);
     return enrichUserWithPermissions(me);
-  }, [applyAuth, logout, token]);
+  }, [applyAuth, loadEntitlements, logout, token]);
 
   useEffect(() => {
     let isMounted = true;
@@ -137,6 +175,7 @@ export function AuthProvider({ children }) {
 
         if (isMounted) {
           applyAuth(storedToken, me);
+          await loadEntitlements(storedToken, me);
         }
       } catch (error) {
         console.error("Auth bootstrap failed:", error);
@@ -155,7 +194,7 @@ export function AuthProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [applyAuth, logout]);
+  }, [applyAuth, loadEntitlements, logout]);
 
   const login = useCallback(
     async (email, password) => {
@@ -171,9 +210,10 @@ export function AuthProvider({ children }) {
       }
 
       applyAuth(nextToken, nextUser);
+      await loadEntitlements(nextToken, nextUser);
       return { token: nextToken, user: nextUser };
     },
-    [applyAuth]
+    [applyAuth, loadEntitlements]
   );
 
   const signup = useCallback(
@@ -192,10 +232,20 @@ export function AuthProvider({ children }) {
       };
 
       applyAuth(nextToken, userWithFirm);
+      await loadEntitlements(nextToken, userWithFirm);
       return { token: nextToken, user: userWithFirm, firm };
     },
-    [applyAuth]
+    [applyAuth, loadEntitlements]
   );
+
+  const planTier = normalizePlan(
+    entitlementState.plan || user?.plan_tier || user?.firm?.plan_tier || "free"
+  );
+  const entitlementSet = useMemo(
+    () => new Set(entitlementState.entitlements || []),
+    [entitlementState.entitlements]
+  );
+  const platformAdmin = evaluatePlatformAdmin(user) || Boolean(entitlementState.platformAdmin);
 
   const value = useMemo(
     () => ({
@@ -207,9 +257,38 @@ export function AuthProvider({ children }) {
       signup,
       logout,
       refreshMe,
-      setUser: (nextUser) => applyAuth(token, nextUser)
+      setUser: (nextUser) => applyAuth(token, nextUser),
+      planTier,
+      entitlements: entitlementState.entitlements || [],
+      entitlementSet,
+      limits: entitlementState.limits || {},
+      usage: entitlementState.usage || {},
+      entitlementBuild: entitlementState.build || "",
+      isPlatformAdmin: platformAdmin,
+      can: (entitlement) => platformAdmin || entitlementSet.has(entitlement),
+      canAccess: (requiredPlan) => {
+        const levels = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+        return platformAdmin || levels[planTier] >= levels[normalizePlan(requiredPlan)];
+      },
+      canAccessRoute: (pathname) =>
+        evaluateRouteAccess({ pathname, planTier, entitlementSet, user }),
+      refreshEntitlements: () => loadEntitlements(token || getStoredToken(), user),
     }),
-    [token, user, loading, login, signup, logout, refreshMe, applyAuth]
+    [
+      token,
+      user,
+      loading,
+      login,
+      signup,
+      logout,
+      refreshMe,
+      applyAuth,
+      planTier,
+      entitlementState,
+      entitlementSet,
+      platformAdmin,
+      loadEntitlements,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
