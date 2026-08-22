@@ -26,10 +26,15 @@ export function hasPlanAccess(userPlan, requiredPlan = "starter") {
 }
 
 export function getPlanLabel(plan) {
-  return normalizePlan(plan).toUpperCase();
+  const value = normalizePlan(plan);
+  if (value === "pro") return "PROFESSIONAL";
+  return value.toUpperCase();
 }
 
 export function getUpgradeCopy(requiredPlan) {
+  if (requiredPlan === "platform_admin") {
+    return "This page is reserved for authorized VoterSpheres platform administrators.";
+  }
   const plan = normalizePlan(requiredPlan);
 
   if (plan === "starter") {
@@ -61,3 +66,4 @@ export function getUpgradeMessage(requiredPlan) {
       return "Your current plan does not include this feature.";
   }
 }
+
