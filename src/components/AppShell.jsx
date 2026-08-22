@@ -1,5 +1,5 @@
 import ExecutiveKpiRibbon from "./ExecutiveKpiRibbon.jsx";
-import UnifiedExecutiveStatusBar from "./UnifiedExecutiveStatusBar.jsx";
+import UnifiedExecutiveStatusBar from "./UnifiedExecutiveStatusBar.jsx"; 
 import BackToTop from "./BackToTop";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
