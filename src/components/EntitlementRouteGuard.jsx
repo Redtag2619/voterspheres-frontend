@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import UpgradeGate from "./UpgradeGate.jsx";
-import { getRouteRule, getUpgradeTarget } from "../lib/entitlements.js";
+import { getRouteRule, getUpgradeTarget } from "../lib/entitlements.js"; 
 
 export default function EntitlementRouteGuard({ children }) {
   const location = useLocation();
