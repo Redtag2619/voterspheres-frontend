@@ -5,6 +5,7 @@ export default function UpgradeGate({
   requiredPlan = "pro",
   title = "Upgrade Required",
   featureName = "This feature",
+  currentPlan = "free",
 }) {
   const navigate = useNavigate();
 
@@ -17,18 +18,29 @@ export default function UpgradeGate({
 
         <p style={styles.text}>
           <strong>{featureName}</strong> requires the{" "}
-          <strong>{getPlanLabel(requiredPlan)}</strong> plan.
+          <strong>
+            {requiredPlan === "platform_admin"
+              ? "PLATFORM ADMINISTRATOR"
+              : getPlanLabel(requiredPlan)}
+          </strong>{" "}
+          access.
         </p>
 
         <p style={styles.subtext}>{getUpgradeCopy(requiredPlan)}</p>
 
+        <p style={styles.subtext}>
+          Current access: <strong>{getPlanLabel(currentPlan)}</strong>
+        </p>
+
         <div style={styles.actions}>
-          <button
-            onClick={() => navigate("/pricing")}
-            style={styles.primaryButton}
-          >
-            View Plans
-          </button>
+          {requiredPlan !== "platform_admin" ? (
+            <button
+              onClick={() => navigate("/pricing")}
+              style={styles.primaryButton}
+            >
+              View Plans
+            </button>
+          ) : null}
 
           <button
             onClick={() => navigate("/billing")}
