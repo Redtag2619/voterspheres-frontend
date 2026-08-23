@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
@@ -7,7 +6,6 @@ import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 import ResponsiveRow from "../components/ui/ResponsiveRow";
-import DemoBanner from "../components/ui/DemoBanner";
 import { useDemoMode } from "../context/DemoModeContext.jsx";
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
@@ -135,14 +133,6 @@ export default function DarkMoneyExposure() {
   const selectedAmount = relationships.reduce((total, row) => total + number(row.total_amount), 0);
   const selectedTransactions = relationships.reduce((total, row) => total + number(row.transaction_count), 0);
 
-  const tickerItems = [
-    `${number(summary.total_committees)} committees`,
-    `${number(summary.high_exposure)} high exposure`,
-    `${number(summary.critical_exposure)} critical`,
-    `${compactMoney(summary.total_amount)} mapped flow`,
-    `Cycle ${cycle}`,
-  ];
-
   function resetFilters() {
     setSearch("");
     setState("");
@@ -156,16 +146,13 @@ export default function DarkMoneyExposure() {
       title="Dark Money Exposure Command Center"
       description="Investigate committee, consultant, candidate, geographic, party and money-flow concentration using the VoterSpheres exposure model."
       actions={(
-        <button className="vs-btn vs-btn-primary" type="button" onClick={() => loadDashboard(true)} disabled={refreshing}>
+        <button className="vs-button vs-button-secondary dm-refresh-button" type="button" onClick={() => loadDashboard(true)} disabled={refreshing}>
           {refreshing ? "Refreshing…" : "Refresh intelligence"}
         </button>
       )}
       demo={demoMode}
       demoText="Demonstration mode may include representative records."
-      tickerItems={tickerItems}
     >
-      {demoMode ? <DemoBanner /> : null}
-
       <div className="dm-methodology">
         <div>
           <strong>What this model measures</strong>
@@ -284,7 +271,7 @@ export default function DarkMoneyExposure() {
       <p className="dm-updated">Last refreshed: {updatedAt ? updatedAt.toLocaleString() : "Not yet refreshed"}</p>
 
       <style>{`
-        .dm-methodology{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 18px;padding:18px;border:1px solid rgba(76,201,240,.28);border-radius:16px;background:rgba(14,165,233,.06);margin-bottom:18px}.dm-methodology p{margin:5px 0 0;color:var(--vs-text-muted,#9aa9bd);line-height:1.55}.dm-methodology .dm-limit{grid-column:1/-1;margin:0;padding-top:10px;border-top:1px solid rgba(148,163,184,.16)}
+        .dm-refresh-button{min-height:42px;padding:0 17px;border-radius:10px;white-space:nowrap}.dm-methodology{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 18px;padding:18px;border:1px solid rgba(76,201,240,.28);border-radius:16px;background:rgba(14,165,233,.06);margin-bottom:18px}.dm-methodology p{margin:5px 0 0;color:var(--vs-text-muted,#9aa9bd);line-height:1.55}.dm-methodology .dm-limit{grid-column:1/-1;margin:0;padding-top:10px;border-top:1px solid rgba(148,163,184,.16)}
         .dm-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.dm-filters{display:grid;grid-template-columns:2fr repeat(4,minmax(130px,1fr)) auto;gap:12px;align-items:end}.dm-filters label{display:grid;gap:6px;color:var(--vs-text-muted,#9aa9bd);font-size:12px}.dm-filters input,.dm-filters select{width:100%;min-height:42px;border:1px solid rgba(148,163,184,.24);border-radius:10px;background:var(--vs-surface,#101827);color:inherit;padding:0 11px}.dm-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.8fr);gap:18px;align-items:start;margin-top:18px}.dm-side{display:grid;gap:18px}.dm-list{display:grid;gap:10px}.dm-row-button{display:block;width:100%;border:0;padding:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.dm-row-button:hover{filter:brightness(1.08)}.dm-score{display:grid;justify-items:end;gap:6px}.dm-score>strong{font-size:22px}.dm-loading,.dm-error{padding:18px;border-radius:12px}.dm-loading{color:var(--vs-text-muted,#9aa9bd)}.dm-error{color:#fecaca;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3)}.dm-briefing{margin:0;padding-left:22px;display:grid;gap:12px;line-height:1.55}.dm-ranking{display:grid;gap:8px}.dm-ranking button{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:0;border-bottom:1px solid rgba(148,163,184,.13);background:transparent;color:inherit;padding:10px 0;cursor:pointer}.dm-ranking button>span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:rgba(59,130,246,.14);color:#93c5fd}.dm-ranking button div{display:grid;gap:3px;min-width:0}.dm-ranking small{color:var(--vs-text-muted,#9aa9bd)}.dm-profile-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.dm-profile-stats>div,.dm-modules>div{display:grid;gap:6px;padding:14px;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(148,163,184,.04)}.dm-profile-stats span,.dm-modules span{font-size:12px;color:var(--vs-text-muted,#9aa9bd)}.dm-profile-stats strong{font-size:20px}.dm-relationships{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-height:720px;overflow:auto}.dm-relationships article{padding:15px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(148,163,184,.035)}.dm-relationship-heading{display:flex;justify-content:space-between;gap:14px}.dm-relationship-heading>div{display:grid;gap:4px}.dm-relationship-heading span,.dm-relationships article>p{color:var(--vs-text-muted,#9aa9bd);font-size:12px}.dm-relationships dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0 0}.dm-relationships dl>div{min-width:0}.dm-relationships dt{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--vs-text-muted,#9aa9bd)}.dm-relationships dd{margin:3px 0 0;overflow-wrap:anywhere}.dm-modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dm-updated{text-align:right;color:var(--vs-text-muted,#9aa9bd);font-size:12px;margin:12px 0 0}
         @media(max-width:1100px){.dm-stats,.dm-profile-stats,.dm-modules{grid-template-columns:repeat(2,minmax(0,1fr))}.dm-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.dm-layout{grid-template-columns:1fr}}
         @media(max-width:720px){.dm-stats,.dm-profile-stats,.dm-modules,.dm-relationships,.dm-filters{grid-template-columns:1fr}.dm-methodology{grid-template-columns:1fr}.dm-methodology .dm-limit{grid-column:auto}.dm-relationship-heading{align-items:flex-start}.dm-relationships dl{grid-template-columns:1fr}}
@@ -292,3 +279,4 @@ export default function DarkMoneyExposure() {
     </PageShell>
   );
 }
+
