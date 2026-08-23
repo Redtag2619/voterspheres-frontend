@@ -72,6 +72,7 @@ export default function DarkMoneyExposure() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [boardOpen, setBoardOpen] = useState(true);
 
   const params = useMemo(() => ({
     cycle,
@@ -176,33 +177,49 @@ export default function DarkMoneyExposure() {
           <label><span>State</span><select value={state} onChange={(event) => setState(event.target.value)}>{STATES.map(([value, label]) => <option key={value || "all"} value={value}>{label}</option>)}</select></label>
           <label><span>Party</span><select value={party} onChange={(event) => setParty(event.target.value)}><option value="">All Parties</option><option value="DEM">Democratic</option><option value="REP">Republican</option><option value="IND">Independent</option></select></label>
           <label><span>Minimum flow</span><input type="number" min="0" step="1000" value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0" /></label>
-          <button type="button" className="vs-btn" onClick={resetFilters}>Clear filters</button>
+          <button type="button" className="vs-button vs-button-secondary dm-control-button" onClick={resetFilters}>Clear filters</button>
         </div>
       </SectionCard>
 
       {error ? <div className="dm-error" role="alert">{error}</div> : null}
 
       <div className="dm-layout">
-        <SectionCard title="Committee Exposure Board" subtitle={`${results.length} committees returned • select a committee for relationship evidence`}>
-          {loading ? <div className="dm-loading">Loading exposure intelligence…</div> : null}
-          {!loading && !results.length ? <EmptyState title="No exposure records found" description="Adjust the filters or refresh the intelligence model." /> : null}
-          <div className="dm-list">
-            {results.map((row) => (
-              <button className="dm-row-button" type="button" key={row.committee_id} onClick={() => openProfile(row)}>
-                <ResponsiveRow
-                  title={row.committee_name || "Unnamed committee"}
-                  subtitle={`${row.committee_id || "No ID"} • ${date(row.last_activity)} • ${list(row.states).join(", ") || "No state"}`}
-                  meta={[
-                    { label: "Money flow", value: money(row.total_amount) },
-                    { label: "Consultants", value: number(row.consultant_count).toLocaleString() },
-                    { label: "Candidates", value: number(row.candidate_count).toLocaleString() },
-                    { label: "States", value: number(row.state_count).toLocaleString() },
-                  ]}
-                  active={selected?.committee_id === row.committee_id}
-                  right={<div className="dm-score"><strong>{number(row.exposure_score)}</strong><Badge tone={tierTone(row.exposure_tier || row.severity)}>{row.exposure_tier || row.severity || "review"}</Badge></div>}
-                />
-              </button>
-            ))}
+        <SectionCard
+          title="Committee Exposure Board"
+          subtitle={`${results.length} committees returned • select a committee for relationship evidence`}
+          right={(
+            <button
+              type="button"
+              className="vs-button vs-button-secondary dm-control-button"
+              onClick={() => setBoardOpen((value) => !value)}
+              aria-expanded={boardOpen}
+              aria-controls="dark-money-committee-board"
+            >
+              {boardOpen ? "Collapse" : "Expand"}
+            </button>
+          )}
+        >
+          <div id="dark-money-committee-board" hidden={!boardOpen}>
+            {loading ? <div className="dm-loading">Loading exposure intelligence…</div> : null}
+            {!loading && !results.length ? <EmptyState title="No exposure records found" description="Adjust the filters or refresh the intelligence model." /> : null}
+            <div className="dm-list">
+              {results.map((row) => (
+                <button className="dm-row-button" type="button" key={row.committee_id} onClick={() => openProfile(row)}>
+                  <ResponsiveRow
+                    title={row.committee_name || "Unnamed committee"}
+                    subtitle={`${row.committee_id || "No ID"} • ${date(row.last_activity)} • ${list(row.states).join(", ") || "No state"}`}
+                    meta={[
+                      { label: "Money flow", value: money(row.total_amount) },
+                      { label: "Consultants", value: number(row.consultant_count).toLocaleString() },
+                      { label: "Candidates", value: number(row.candidate_count).toLocaleString() },
+                      { label: "States", value: number(row.state_count).toLocaleString() },
+                    ]}
+                    active={selected?.committee_id === row.committee_id}
+                    right={<div className="dm-score"><strong>{number(row.exposure_score)}</strong><Badge tone={tierTone(row.exposure_tier || row.severity)}>{row.exposure_tier || row.severity || "review"}</Badge></div>}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         </SectionCard>
 
@@ -225,7 +242,7 @@ export default function DarkMoneyExposure() {
       <SectionCard
         title={selected ? `Committee Evidence — ${selected.committee_name}` : "Committee Evidence"}
         subtitle={selected ? `${selected.committee_id} • relationship-level model evidence` : "Select a committee from the exposure board"}
-        right={selected ? <button type="button" className="vs-btn" onClick={() => { setSelected(null); setProfile(null); }}>Close</button> : null}
+        right={selected ? <button type="button" className="vs-button vs-button-secondary dm-control-button" onClick={() => { setSelected(null); setProfile(null); }}>Close</button> : null}
       >
         {!selected ? <EmptyState title="No committee selected" description="Choose a committee to inspect its consultants, vendors, candidates and mapped money flow." /> : null}
         {profileLoading ? <div className="dm-loading">Loading committee evidence…</div> : null}
@@ -271,7 +288,7 @@ export default function DarkMoneyExposure() {
       <p className="dm-updated">Last refreshed: {updatedAt ? updatedAt.toLocaleString() : "Not yet refreshed"}</p>
 
       <style>{`
-        .dm-refresh-button{min-height:42px;padding:0 17px;border-radius:10px;white-space:nowrap}.dm-methodology{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 18px;padding:18px;border:1px solid rgba(76,201,240,.28);border-radius:16px;background:rgba(14,165,233,.06);margin-bottom:18px}.dm-methodology p{margin:5px 0 0;color:var(--vs-text-muted,#9aa9bd);line-height:1.55}.dm-methodology .dm-limit{grid-column:1/-1;margin:0;padding-top:10px;border-top:1px solid rgba(148,163,184,.16)}
+        .dm-refresh-button,.dm-control-button{min-height:42px;padding:0 17px;border-radius:10px;white-space:nowrap}.dm-methodology{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 18px;padding:18px;border:1px solid rgba(76,201,240,.28);border-radius:16px;background:rgba(14,165,233,.06);margin-bottom:18px}.dm-methodology p{margin:5px 0 0;color:var(--vs-text-muted,#9aa9bd);line-height:1.55}.dm-methodology .dm-limit{grid-column:1/-1;margin:0;padding-top:10px;border-top:1px solid rgba(148,163,184,.16)}
         .dm-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.dm-filters{display:grid;grid-template-columns:2fr repeat(4,minmax(130px,1fr)) auto;gap:12px;align-items:end}.dm-filters label{display:grid;gap:6px;color:var(--vs-text-muted,#9aa9bd);font-size:12px}.dm-filters input,.dm-filters select{width:100%;min-height:42px;border:1px solid rgba(148,163,184,.24);border-radius:10px;background:var(--vs-surface,#101827);color:inherit;padding:0 11px}.dm-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.8fr);gap:18px;align-items:start;margin-top:18px}.dm-side{display:grid;gap:18px}.dm-list{display:grid;gap:10px}.dm-row-button{display:block;width:100%;border:0;padding:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.dm-row-button:hover{filter:brightness(1.08)}.dm-score{display:grid;justify-items:end;gap:6px}.dm-score>strong{font-size:22px}.dm-loading,.dm-error{padding:18px;border-radius:12px}.dm-loading{color:var(--vs-text-muted,#9aa9bd)}.dm-error{color:#fecaca;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3)}.dm-briefing{margin:0;padding-left:22px;display:grid;gap:12px;line-height:1.55}.dm-ranking{display:grid;gap:8px}.dm-ranking button{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:0;border-bottom:1px solid rgba(148,163,184,.13);background:transparent;color:inherit;padding:10px 0;cursor:pointer}.dm-ranking button>span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:rgba(59,130,246,.14);color:#93c5fd}.dm-ranking button div{display:grid;gap:3px;min-width:0}.dm-ranking small{color:var(--vs-text-muted,#9aa9bd)}.dm-profile-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.dm-profile-stats>div,.dm-modules>div{display:grid;gap:6px;padding:14px;border:1px solid rgba(148,163,184,.16);border-radius:12px;background:rgba(148,163,184,.04)}.dm-profile-stats span,.dm-modules span{font-size:12px;color:var(--vs-text-muted,#9aa9bd)}.dm-profile-stats strong{font-size:20px}.dm-relationships{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-height:720px;overflow:auto}.dm-relationships article{padding:15px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(148,163,184,.035)}.dm-relationship-heading{display:flex;justify-content:space-between;gap:14px}.dm-relationship-heading>div{display:grid;gap:4px}.dm-relationship-heading span,.dm-relationships article>p{color:var(--vs-text-muted,#9aa9bd);font-size:12px}.dm-relationships dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0 0}.dm-relationships dl>div{min-width:0}.dm-relationships dt{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--vs-text-muted,#9aa9bd)}.dm-relationships dd{margin:3px 0 0;overflow-wrap:anywhere}.dm-modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dm-updated{text-align:right;color:var(--vs-text-muted,#9aa9bd);font-size:12px;margin:12px 0 0}
         @media(max-width:1100px){.dm-stats,.dm-profile-stats,.dm-modules{grid-template-columns:repeat(2,minmax(0,1fr))}.dm-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.dm-layout{grid-template-columns:1fr}}
         @media(max-width:720px){.dm-stats,.dm-profile-stats,.dm-modules,.dm-relationships,.dm-filters{grid-template-columns:1fr}.dm-methodology{grid-template-columns:1fr}.dm-methodology .dm-limit{grid-column:auto}.dm-relationship-heading{align-items:flex-start}.dm-relationships dl{grid-template-columns:1fr}}
@@ -279,4 +296,3 @@ export default function DarkMoneyExposure() {
     </PageShell>
   );
 }
-
