@@ -55,6 +55,21 @@ function sectionValues(value) {
   return list(value).filter(Boolean);
 }
 
+function hasDarkMoneyIndicators(row = {}) {
+  const tier = String(row.exposure_tier || row.severity || "").toLowerCase();
+  return Boolean(
+    row.dark_money_indicator === true ||
+    number(row.dark_money_score) > 0 ||
+    number(row.disclosure_gap_score) > 0 ||
+    number(row.independent_expenditure_amount) > 0 ||
+    number(row.nonprofit_spending_amount) > 0 ||
+    number(row.organization_transfer_amount) > 0 ||
+    number(row.shell_organization_score) > 0 ||
+    tier === "high" ||
+    tier === "critical"
+  );
+}
+
 export default function DarkMoneyExposure() {
   const { demoMode } = useDemoMode();
   const { filters, setFilters } = useExecutiveFilters();
@@ -73,6 +88,7 @@ export default function DarkMoneyExposure() {
   const [profileError, setProfileError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [boardOpen, setBoardOpen] = useState(true);
+  const [darkIndicatorsOnly, setDarkIndicatorsOnly] = useState(false);
 
   const params = useMemo(() => ({
     cycle,
@@ -130,6 +146,9 @@ export default function DarkMoneyExposure() {
 
   const summary = data.summary || EMPTY_DATA.summary;
   const results = sectionValues(data.results);
+  const displayedResults = darkIndicatorsOnly
+    ? results.filter(hasDarkMoneyIndicators)
+    : results;
   const relationships = sectionValues(profile?.relationships);
   const selectedAmount = relationships.reduce((total, row) => total + number(row.total_amount), 0);
   const selectedTransactions = relationships.reduce((total, row) => total + number(row.transaction_count), 0);
@@ -139,13 +158,14 @@ export default function DarkMoneyExposure() {
     setState("");
     setParty("");
     setMinAmount("");
+    setDarkIndicatorsOnly(false);
   }
 
   return (
     <PageShell
       eyebrow="Political Finance Risk Intelligence"
-      title="Dark Money Exposure Command Center"
-      description="Investigate committee, consultant, candidate, geographic, party and money-flow concentration using the VoterSpheres exposure model."
+      title="Political Money Exposure Command Center"
+      description="Investigate committee, nonprofit, consultant, candidate, geographic, party and money-flow concentration using the VoterSpheres exposure model."
       actions={(
         <button className="vs-button vs-button-secondary dm-refresh-button" type="button" onClick={() => loadDashboard(true)} disabled={refreshing}>
           {refreshing ? "Refreshing…" : "Refresh intelligence"}
@@ -157,7 +177,7 @@ export default function DarkMoneyExposure() {
       <div className="dm-methodology">
         <div>
           <strong>What this model measures</strong>
-          <p>Mapped committee relationships, consultant and vendor concentration, candidate reach, geographic spread, party reach and reported money flow.</p>
+          <p>Mapped committee and nonprofit relationships, consultant and vendor concentration, candidate reach, geographic spread, party reach and reported money flow.</p>
         </div>
         <Badge tone="info">Risk model</Badge>
         <p className="dm-limit"><strong>Important:</strong> an exposure score is an investigative lead, not proof that a committee concealed donors or violated campaign-finance law.</p>
@@ -177,6 +197,15 @@ export default function DarkMoneyExposure() {
           <label><span>State</span><select value={state} onChange={(event) => setState(event.target.value)}>{STATES.map(([value, label]) => <option key={value || "all"} value={value}>{label}</option>)}</select></label>
           <label><span>Party</span><select value={party} onChange={(event) => setParty(event.target.value)}><option value="">All Parties</option><option value="DEM">Democratic</option><option value="REP">Republican</option><option value="IND">Independent</option></select></label>
           <label><span>Minimum flow</span><input type="number" min="0" step="1000" value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0" /></label>
+          <button
+            type="button"
+            className={`vs-button dm-control-button ${darkIndicatorsOnly ? "vs-button-primary" : "vs-button-secondary"}`}
+            onClick={() => setDarkIndicatorsOnly((value) => !value)}
+            aria-pressed={darkIndicatorsOnly}
+            title="Prioritize records with disclosure-gap, nonprofit-spending, independent-expenditure, organizational-transfer, shell-organization, or elevated exposure indicators."
+          >
+            {darkIndicatorsOnly ? "Showing dark-money indicators" : "Dark-money indicators"}
+          </button>
           <button type="button" className="vs-button vs-button-secondary dm-control-button" onClick={resetFilters}>Clear filters</button>
         </div>
       </SectionCard>
@@ -186,7 +215,7 @@ export default function DarkMoneyExposure() {
       <div className="dm-layout">
         <SectionCard
           title="Committee Exposure Board"
-          subtitle={`${results.length} committees returned • select a committee for relationship evidence`}
+          subtitle={`${displayedResults.length} of ${results.length} committees shown • select a committee for relationship evidence`}
           right={(
             <button
               type="button"
@@ -201,9 +230,9 @@ export default function DarkMoneyExposure() {
         >
           <div id="dark-money-committee-board" hidden={!boardOpen}>
             {loading ? <div className="dm-loading">Loading exposure intelligence…</div> : null}
-            {!loading && !results.length ? <EmptyState title="No exposure records found" description="Adjust the filters or refresh the intelligence model." /> : null}
+            {!loading && !displayedResults.length ? <EmptyState title="No exposure records found" description={darkIndicatorsOnly ? "No records currently meet the dark-money indicator criteria. Turn off the indicator filter or refresh the model." : "Adjust the filters or refresh the intelligence model."} /> : null}
             <div className="dm-list">
-              {results.map((row) => (
+              {displayedResults.map((row) => (
                 <button className="dm-row-button" type="button" key={row.committee_id} onClick={() => openProfile(row)}>
                   <ResponsiveRow
                     title={row.committee_name || "Unnamed committee"}
@@ -296,3 +325,4 @@ export default function DarkMoneyExposure() {
     </PageShell>
   );
 }
+
