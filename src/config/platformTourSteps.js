@@ -421,13 +421,14 @@ const PAGE_GUIDES = {
 
   },
 
-  "/dark-money-exposure": {
+  "/Political-Money-Exposure": {
 
-    heading: "Dark-money and funding exposure",
+    heading: "Political Money Exposure",
 
     narration:
 
-      "Dark Money Exposure helps identify opaque funding relationships, committee connections, organizational exposure, and areas requiring deeper compliance or research review.",
+      
+"Political Money Exposure maps reported political money flows, committee and nonprofit relationships, disclosure gaps, and areas requiring deeper compliance or research review. A dedicated filter prioritizes dark-money indicators without treating them as proof of wrongdoing.",
 
     value:
 
