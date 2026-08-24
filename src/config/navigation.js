@@ -162,7 +162,7 @@ export const navigationSections = [
 
       item("Donor Network", "/donors", "Explore donor relationships, giving patterns, and financial networks."),
 
-      item("Dark Money Exposure", "/dark-money-exposure", "Assess opaque funding, committee relationships, and financial risk."),
+      item("Political Money Exposure", "/dark-money-exposure", "Assess political money flows, disclosure gaps, committee relationships, and financial risk."),
 
       item("Political Intelligence Graph", "/political-intelligence", "Explore connected political entities, relationships, and signals."),
 
