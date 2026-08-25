@@ -180,7 +180,7 @@ export default function NationalPoliticalDigitalTwin() {
 
   return (
     <PageShell
-      eyebrow="Build 3A · National Political Digital Twin"
+      eyebrow="National Political Digital Twin"
       title="National Political Digital Twin"
       description="A unified national model connecting forecast, influence, coalition, strategy, decision intelligence, predictive simulation, operations, vendors, donors, candidates, political graph, and state operations."
       demo={String(data?.source || "").includes("fallback")}
