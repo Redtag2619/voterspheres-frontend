@@ -394,7 +394,7 @@ export default function ExecutiveDecisionIntelligence() {
 
   return (
     <PageShell
-      eyebrow="Build 2D · Executive Decision Intelligence"
+      eyebrow="Executive Decision Intelligence"
       title="Executive Decision Intelligence"
       description="A VoterSpheres enterprise command module for ranking strategic choices, comparing decision paths, scoring operational risk, and converting cross-module intelligence into executive action."
       demo={Boolean(apiWarning) || String(data.source || "").includes("fallback")}
