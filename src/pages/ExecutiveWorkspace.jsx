@@ -444,7 +444,7 @@ export default function ExecutiveWorkspace() {
 
   return (
     <PageShell
-      eyebrow="Executive Workspace 3.0"
+      eyebrow="Executive Workspace"
       title={selected ? selected.name : "Executive Workspace"}
       description="The consolidated VoterSpheres operating home: launch readiness, live intelligence, command actions, opportunity pipeline, CRM, operations, revenue, reports, and executive tools."
       tickerItems={[
