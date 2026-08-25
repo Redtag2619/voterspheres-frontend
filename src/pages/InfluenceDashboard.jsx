@@ -558,7 +558,7 @@ export default function InfluenceDashboard() {
 
   return (
     <PageShell
-      eyebrow="Build 2A.2"
+      eyebrow="National Influence Dashboard"
       title="National Influence Dashboard"
       description="Rank the most influential candidates, donors, vendors, endorsements, committees, organizations, states, and task signals across the VoterSpheres political graph."
       tickerItems={[
