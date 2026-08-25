@@ -368,7 +368,7 @@ export default function PredictiveCampaignSimulation() {
 
   return (
     <PageShell
-      eyebrow="Build 2E · Predictive Campaign Simulation"
+      eyebrow="Predictive Campaign Simulation"
       title="Predictive Campaign Simulation"
       description="Executive simulation engine for modeling turnout, funding, coalition movement, vendor readiness, risk exposure, and projected win probability."
       demo={String(data?.source || "").includes("fallback")}
