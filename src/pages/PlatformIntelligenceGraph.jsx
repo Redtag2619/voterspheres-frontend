@@ -560,7 +560,7 @@ export default function PlatformIntelligenceGraph() {
 
   return (
     <PageShell
-      eyebrow="Platform Intelligence 2.0"
+      eyebrow="Platform Intelligence"
       title="Platform Intelligence Graph"
       description="Executive view of the Political Relationship Graph powering candidates, donors, vendors, endorsements, states, and Command Center actions."
       tickerItems={[
