@@ -795,7 +795,7 @@ export default function ExecutiveForecastDashboard() {
 
   return (
     <PageShell
-      eyebrow="Build 2A.5"
+      eyebrow="Executive Forecast Terminal"
       title="Executive Forecast Terminal"
       description="Bloomberg/Palantir-style political forecasting command center for opportunity, risk, momentum, relationships, and coalition formation."
       tickerItems={[
