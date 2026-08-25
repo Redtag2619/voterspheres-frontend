@@ -218,7 +218,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   return (
     <PageShell
-      eyebrow="Unified Executive Intelligence Layer · Build 1"
+      eyebrow="Unified Executive Intelligence Layer"
       title="Unified Executive Intelligence"
       description="One executive operating picture across campaign workspaces, tasks, political signals, alerts, strategy recommendations, missions, source freshness, and execution risk."
       tickerItems={[
