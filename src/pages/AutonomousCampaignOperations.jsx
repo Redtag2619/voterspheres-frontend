@@ -221,7 +221,7 @@ export default function AutonomousCampaignOperations() {
 
   return (
     <PageShell
-      eyebrow="Build 3B · Autonomous Campaign Operations"
+      eyebrow="Autonomous Campaign Operations"
       title="Autonomous Campaign Operations"
       description="An executive operations module that converts intelligence signals, digital twin movement, predictive simulations, and decision recommendations into approval-ready campaign execution plans."
       demo={String(data?.source || "").includes("fallback")}
