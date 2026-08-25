@@ -349,7 +349,7 @@ export default function CoalitionIntelligenceDashboard() {
 
   return (
     <PageShell
-      eyebrow="Build 2B"
+      eyebrow="National Coalition Intelligence"
       title="National Coalition Intelligence"
       description="Identify coalition clusters across candidates, donors, endorsements, vendors, committees, organizations, states, and Command Center actions."
       tickerItems={[
