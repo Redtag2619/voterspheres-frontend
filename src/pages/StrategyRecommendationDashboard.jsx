@@ -668,7 +668,7 @@ export default function StrategyRecommendationDashboard() {
 
   return (
     <PageShell
-      eyebrow="Build 2C Â· AI Strategy Recommendation Engine"
+      eyebrow="AI Strategy Recommendation Engine"
       title="AI Strategy Recommendation Engine"
       description="Enterprise strategy command layer for fully explained strategy types, state strategy heat, recommendation confidence, strategic impact, feasibility, urgency, and execution risk."
       demo={String(data?.source || "").includes("fallback")}
