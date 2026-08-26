@@ -78,6 +78,12 @@ export default function AppShell() {
 
     isPlatformAdmin = false,
 
+    isAdministrator = false,
+
+    canViewAllPages = false,
+
+    accessLevel = "standard",
+
     canAccessRoute = () => false,
 
   } = useAuth?.() || {};
@@ -87,6 +93,8 @@ export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [query, setQuery] = useState("");
+
+  const [navigationMode, setNavigationMode] = useState("core");
 
  
 
@@ -102,9 +110,11 @@ export default function AppShell() {
 
         user,
 
+        navigationMode,
+
       }),
 
-    [planTier, entitlementSet, user]
+    [planTier, entitlementSet, user, navigationMode]
 
   );
 
@@ -1434,6 +1444,36 @@ export default function AppShell() {
 
           <div className="vs-right-tools">
 
+            {canViewAllPages ? (
+
+              <button
+
+                type="button"
+
+                className={cx("vs-pill", navigationMode === "all" && "active")}
+
+                onClick={() => {
+
+                  setNavigationMode((current) => current === "core" ? "all" : "core");
+
+                  setOpenMenu("");
+
+                  setMobileOpen(false);
+
+                  setQuery("");
+
+                }}
+
+                title={navigationMode === "core" ? "Show every page available to your role" : "Return to the simplified navigation"}
+
+              >
+
+                {navigationMode === "core" ? "All Pages" : "Core Pages"}
+
+              </button>
+
+            ) : null}
+
             <Link className="vs-pill" to="/notifications" onClick={closeMenus}>
 
               Alerts
@@ -1469,6 +1509,14 @@ export default function AppShell() {
               {isPlatformAdmin
 
                 ? "Platform Admin"
+
+                : isAdministrator
+
+                  ? "Administrator"
+
+                  : accessLevel === "executive"
+
+                    ? `Executive · ${PLAN_DETAILS[planTier]?.label || "Free"}`
 
                 : PLAN_DETAILS[planTier]?.label || "Free"}
 
@@ -1653,4 +1701,3 @@ export default function AppShell() {
   );
 
 }
-
