@@ -1495,7 +1495,7 @@ export default function PoliticalIntelligenceFabric() {
   return (
 
     <PageShell
-
+      eyebrow="Political Intelligence Fabric"
       title="Political Intelligence Fabric"
 
       description="Unify national, state, candidate, coalition, vendor, finance, influence, execution, and decision signals into one executive intelligence surface."
