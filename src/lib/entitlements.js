@@ -1,4 +1,4 @@
-export const ENTITLEMENT_BUILD = "7.0.0-unified-entitlements";
+export const ENTITLEMENT_BUILD = "7.0.1-simplified-navigation-access";
 
 export const PLAN_LEVELS = Object.freeze({
   free: 0,
@@ -47,6 +47,7 @@ const ROUTE_RULES = [
   { prefix: "/launch-assets", internal: true },
   { prefix: "/launch-data-seeder", internal: true },
   { prefix: "/launch-automation", internal: true },
+  { prefix: "/beta-onboarding", internal: true },
   { prefix: "/admin/beta-access", internal: true },
   { prefix: "/admin/live-intelligence", internal: true },
   { prefix: "/admin/alerts", internal: true },
@@ -63,11 +64,12 @@ const ROUTE_RULES = [
   { prefix: "/revenue-intelligence", minimumPlan: "enterprise", entitlement: "revenue_intelligence" },
   { prefix: "/opportunity-engine", minimumPlan: "enterprise", entitlement: "opportunity_engine" },
   { prefix: "/client-portal-admin", minimumPlan: "enterprise", entitlement: "client_portal" },
-  { prefix: "/admin/firm-users", minimumPlan: "starter", entitlement: "team_management" },
-  { prefix: "/admin/firm-invites", minimumPlan: "starter", entitlement: "team_management" },
-  { prefix: "/admin/candidate-profiles", minimumPlan: "enterprise", entitlement: "firm_administration" },
+  { prefix: "/admin/firm-users", minimumPlan: "starter", entitlement: "team_management", administratorOnly: true },
+  { prefix: "/admin/firm-invites", minimumPlan: "starter", entitlement: "team_management", administratorOnly: true },
+  { prefix: "/admin/candidate-profiles", minimumPlan: "enterprise", entitlement: "firm_administration", administratorOnly: true },
 
   { prefix: "/executive-intelligence", minimumPlan: "pro", entitlement: "executive_intelligence" },
+  { prefix: "/platform-intelligence", minimumPlan: "pro", entitlement: "executive_intelligence" },
   { prefix: "/executive-ai-command-platform", minimumPlan: "pro", entitlement: "advanced_ai" },
   { prefix: "/executive-decision-intelligence", minimumPlan: "pro", entitlement: "executive_intelligence" },
   { prefix: "/strategy", minimumPlan: "pro", entitlement: "strategy_recommendations" },
@@ -113,6 +115,19 @@ const ROUTE_RULES = [
   { prefix: "/billing", minimumPlan: "free", entitlement: "billing" },
 ];
 
+const PLATFORM_ADMIN_ROLES = new Set(["platform_admin", "super_admin"]);
+const ADMINISTRATOR_ROLES = new Set([
+  "platform_admin", "super_admin", "admin", "firm_admin", "owner",
+]);
+const EXECUTIVE_ROLES = new Set([
+  ...ADMINISTRATOR_ROLES,
+  "executive", "executive_user", "principal", "partner", "chief_of_staff",
+]);
+
+function userRole(user = {}) {
+  return String(user?.role || user?.user_role || "").toLowerCase().trim();
+}
+
 export function normalizePlan(value = "free") {
   const plan = String(value || "free").toLowerCase().trim();
   if (["enterprise", "agency", "premium", "business"].includes(plan)) return "enterprise";
@@ -133,23 +148,47 @@ export function getEntitlementsForPlan(value = "free") {
 }
 
 export function isPlatformAdmin(user = {}) {
-  return ["platform_admin", "super_admin"].includes(String(user?.role || "").toLowerCase());
+  return PLATFORM_ADMIN_ROLES.has(userRole(user));
+}
+
+export function isAdministrator(user = {}) {
+  return ADMINISTRATOR_ROLES.has(userRole(user));
+}
+
+export function isExecutiveUser(user = {}) {
+  return EXECUTIVE_ROLES.has(userRole(user));
+}
+
+export function getUserAccessLevel(user = {}) {
+  if (isAdministrator(user)) return "admin";
+  if (isExecutiveUser(user)) return "executive";
+  return "standard";
+}
+
+export function canViewAdvancedNavigation(user = {}) {
+  return isExecutiveUser(user);
 }
 
 export function getRouteRule(pathname = "") {
   const path = String(pathname || "").split("?")[0].replace(/\/$/, "") || "/";
-  return ROUTE_RULES.find((rule) => path === rule.prefix || path.startsWith(`${rule.prefix}/`)) || null;
+  return ROUTE_RULES.find(
+    (rule) => path === rule.prefix || path.startsWith(`${rule.prefix}/`)
+  ) || null;
 }
 
 export function canAccessRoute({ pathname, planTier, entitlementSet, user } = {}) {
   const rule = getRouteRule(pathname);
   if (!rule) return true;
-  if (isPlatformAdmin(user)) return true;
-  if (rule.internal) return false;
+
+  // Platform and firm administrators retain access to every preserved page.
+  if (isAdministrator(user)) return true;
+  if (rule.internal || rule.administratorOnly) return false;
+
   const currentLevel = PLAN_LEVELS[normalizePlan(planTier)] ?? 0;
   const neededLevel = PLAN_LEVELS[normalizePlan(rule.minimumPlan)] ?? 0;
   if (currentLevel < neededLevel) return false;
   if (!rule.entitlement) return true;
+
   return entitlementSet instanceof Set
     ? entitlementSet.has(rule.entitlement)
     : Array.isArray(entitlementSet)
@@ -158,26 +197,36 @@ export function canAccessRoute({ pathname, planTier, entitlementSet, user } = {}
 }
 
 export function filterNavigationForAccess(sections, access = {}) {
+  const navigationMode = access.navigationMode === "all" ? "all" : "core";
+  const showAdvanced = navigationMode === "all" && canViewAdvancedNavigation(access.user);
+  const administrator = isAdministrator(access.user);
+
   return (sections || [])
-    .map((section) => ({
-      ...section,
-      items: (section.items || []).filter((item) =>
-        (!item.internalOnly || isPlatformAdmin(access.user)) &&
-        canAccessRoute({ ...access, pathname: item.to })
-      ),
+    .filter((group) => {
+      if (group.adminOnly && !administrator) return false;
+      if (group.visibility === "advanced" && !showAdvanced) return false;
+      return true;
+    })
+    .map((group) => ({
+      ...group,
+      items: (group.items || []).filter((entry) => {
+        if (entry.adminOnly && !administrator) return false;
+        if (entry.visibility === "advanced" && !showAdvanced) return false;
+        return canAccessRoute({ ...access, pathname: entry.to });
+      }),
     }))
-    .filter((section) => section.items.length > 0);
+    .filter((group) => group.items.length > 0);
 }
 
 export function flattenNavigation(sections) {
-  return (sections || []).flatMap((section) =>
-    section.items.map((item) => ({ ...item, section: section.label }))
+  return (sections || []).flatMap((group) =>
+    group.items.map((entry) => ({ ...entry, section: group.label }))
   );
 }
 
 export function getUpgradeTarget(rule = {}) {
-  return rule?.minimumPlan || (rule?.internal ? "platform_admin" : "starter");
+  if (rule?.internal || rule?.administratorOnly) return "administrator";
+  return rule?.minimumPlan || "starter";
 }
 
-export { ROUTE_RULES };
-
+export { PLAN_ENTITLEMENTS, ROUTE_RULES };
