@@ -1,1607 +1,1107 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { Link } from "react-router-dom";
+
+ 
+
 import { api } from "../services/api";
 
 import PageShell from "../components/ui/PageShell";
+
 import SectionCard from "../components/ui/SectionCard";
+
 import StatCard from "../components/ui/StatCard";
+
 import Badge from "../components/ui/Badge";
+
 import EmptyState from "../components/ui/EmptyState";
+
 import ResponsiveRow from "../components/ui/ResponsiveRow";
 
+ 
+
 function arr(value) {
+
   return Array.isArray(value) ? value : [];
+
 }
 
-function money(value) {
-  return `$${Number(value || 0).toLocaleString(undefined, {
-    maximumFractionDigits: 0,
-  })}`;
-}
+ 
 
 function number(value = 0) {
+
   const parsed = Number(value);
+
   return Number.isFinite(parsed) ? parsed : 0;
+
 }
 
-function compactMoney(value) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(number(value));
+ 
+
+function text(value, fallback = "") {
+
+  const normalized = String(value ?? "").trim();
+
+  return normalized || fallback;
+
 }
 
-function activityLabel(type) {
-  const value = String(type || "activity")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+ 
 
-  return value || "Activity";
+function formatDateTime(value) {
+
+  if (!value) return "Not provided";
+
+ 
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return "Not provided";
+
+ 
+
+  return parsed.toLocaleString([], {
+
+    month: "short",
+
+    day: "numeric",
+
+    hour: "numeric",
+
+    minute: "2-digit",
+
+  });
+
 }
 
-function activityTone(type) {
-  const value = String(type || "").toLowerCase();
+ 
 
-  if (["alert", "risk", "failure", "overdue", "escalation"].some((item) => value.includes(item))) {
-    return "danger";
+function routeFor(item, fallback = "/command-center") {
+
+  const candidate = text(item?.path || item?.route || item?.href);
+
+  return candidate.startsWith("/") ? candidate : fallback;
+
+}
+
+ 
+
+function priorityRank(item) {
+
+  const priority = text(item?.priority || item?.severity || item?.risk, "normal").toLowerCase();
+
+ 
+
+  if (["critical", "urgent", "immediate", "severe"].some((value) => priority.includes(value))) {
+
+    return 4;
+
   }
 
-  if (["task", "approval", "pending", "invoice"].some((item) => value.includes(item))) {
-    return "demo";
+  if (["high", "elevated", "overdue", "blocked"].some((value) => priority.includes(value))) {
+
+    return 3;
+
   }
 
-  if (["complete", "published", "created", "success"].some((item) => value.includes(item))) {
-    return "active";
+  if (["medium", "watch", "review", "pending"].some((value) => priority.includes(value))) {
+
+    return 2;
+
   }
+
+  return 1;
+
+}
+
+ 
+
+function toneFor(item) {
+
+  const rank = priorityRank(item);
+
+  if (rank >= 4) return "danger";
+
+  if (rank >= 3) return "demo";
+
+  if (rank === 2) return "info";
 
   return "accent";
+
 }
 
-function tone(value) {
-  const v = String(value || "").toLowerCase();
+ 
 
-  if (
-    ["critical", "high", "blocked", "overdue", "at risk", "do not launch", "not ready", "failing"].some((x) =>
-      v.includes(x)
-    )
-  ) {
-    return "danger";
-  }
+function labelFor(item) {
 
-  if (
-    ["watch", "medium", "elevated", "open", "pending", "needs review", "launch with review", "review"].some((x) =>
-      v.includes(x)
-    )
-  ) {
-    return "demo";
-  }
+  return text(item?.priority || item?.severity || item?.risk || item?.status, "Review");
 
-  if (
-    ["stable", "active", "complete", "completed", "launch ready", "ready to launch", "ready"].some((x) =>
-      v.includes(x)
-    )
-  ) {
-    return "active";
-  }
-
-  return "accent";
 }
 
-function scoreTone(score) {
-  const n = Number(score || 0);
-  if (n >= 85) return "active";
-  if (n >= 65) return "demo";
-  return "danger";
+ 
+
+function itemTitle(item, fallback) {
+
+  return text(item?.title || item?.name || item?.subject, fallback);
+
 }
 
-function riskDot(score) {
-  const n = Number(score || 0);
-  if (n >= 70) return "vs-live-dot";
-  if (n >= 40) return "vs-live-dot-warning";
-  return "vs-live-dot-success";
+ 
+
+function itemDetail(item, fallback) {
+
+  return text(item?.detail || item?.description || item?.summary, fallback);
+
 }
 
-function formatDate(value) {
-  if (!value) return "—";
+ 
 
-  try {
-    return new Date(value).toLocaleDateString();
-  } catch {
-    return "—";
-  }
+function itemKey(item, prefix, index) {
+
+  return `${prefix}-${item?.id || item?.key || item?.slug || index}`;
+
 }
 
-const workspaceTabs = [
-  { key: "home", label: "Home" },
-  { key: "launch", label: "Launch" },
-  { key: "intelligence", label: "Intelligence" },
-  { key: "operations", label: "Operations" },
-  { key: "crm", label: "CRM" },
-  { key: "revenue", label: "Revenue" },
-  { key: "reports", label: "Reports" },
-  { key: "tools", label: "Tools" },
-];
+ 
 
-const launchToolCards = [
-  {
-    title: "Launch Readiness",
-    body: "Final launch gate combining QA, hardening, live feeds, KPI risk, Opportunity Engine, and workspace readiness.",
-    to: "/launch-readiness",
-    badge: "Launch",
-    tone: "active",
-  },
-  {
-    title: "Production Hardening",
-    body: "Security, environment, billing, database, workflows, alerts, and deployment blockers.",
-    to: "/production-hardening",
-    badge: "Hardening",
-    tone: "demo",
-  },
-  {
-    title: "Launch QA",
-    body: "Smoke-test center for backend, auth, billing, live data, reports, CRM, and core routes.",
-    to: "/launch-qa",
-    badge: "QA",
-    tone: "info",
-  },
-  {
-    title: "Database Stability",
-    body: "Postgres connectivity, latency, pool pressure, critical tables, and infrastructure blockers.",
-    to: "/database-stability",
-    badge: "Database",
-    tone: "accent",
-  },
-  {
-    title: "Live Intelligence Layer",
-    body: "Feed freshness and launch-readiness status across candidates, FEC, signals, vendors, alerts, reports, and revenue.",
-    to: "/live-intelligence-layer",
-    badge: "Feeds",
-    tone: "active",
-  },
-  {
-    title: "Opportunity Engine",
-    body: "Campaign scoring, CRM conversion, follow-up tasking, and consultant revenue pipeline.",
-    to: "/opportunity-engine",
-    badge: "Pipeline",
-    tone: "demo",
-  },
-];
+const EMPTY_DATA = {
+
+  selected_workspace: null,
+
+  workspaces: [],
+
+  summary: {},
+
+  executive_actions: [],
+
+  signals: [],
+
+  tasks: [],
+
+  activities: [],
+
+};
+
+ 
 
 export default function ExecutiveWorkspace() {
+
   const [workspaceId, setWorkspaceId] = useState(
+
     () => localStorage.getItem("vs_active_workspace") || ""
+
   );
 
-  const [activeTab, setActiveTab] = useState("home");
-
-  const [data, setData] = useState({
-    selected_workspace: null,
-    workspaces: [],
-    summary: {},
-    executive_actions: [],
-    signals: [],
-    tasks: [],
-    contacts: [],
-    activities: [],
-    reports: [],
-    vendors: [],
-    clients: [],
-    invoices: [],
-  });
-
-  const [launchData, setLaunchData] = useState({
-    summary: {},
-    gates: [],
-    next_actions: [],
-  });
-
-  const [kpis, setKpis] = useState({});
-  const [dbStatus, setDbStatus] = useState({});
-  const [opportunitySummary, setOpportunitySummary] = useState({});
-  const [liveSummary, setLiveSummary] = useState({});
-  const [workspaceActivity, setWorkspaceActivity] = useState([]);
+  const [data, setData] = useState(EMPTY_DATA);
 
   const [loading, setLoading] = useState(true);
+
   const [refreshing, setRefreshing] = useState(false);
+
   const [error, setError] = useState("");
+
   const [lastUpdated, setLastUpdated] = useState("");
 
+ 
+
   const load = useCallback(
+
     async ({ quiet = false } = {}) => {
+
       try {
+
         if (quiet) setRefreshing(true);
+
         else setLoading(true);
+
+ 
 
         setError("");
 
-       const [
-         workspaceResult,
-         launchResult,
-         kpiResult,
-         dbResult,
-         opportunityResult,
-         liveResult,
-         activityResult,
-       ] = await Promise.allSettled([
-          api.executiveWorkspaceDashboard(workspaceId || undefined),
-          api.launchReadiness ? api.launchReadiness() : Promise.resolve(null),
-          api.executiveKpis ? api.executiveKpis() : Promise.resolve(null),
-          api.databaseStability ? api.databaseStability() : Promise.resolve(null),
-          api.opportunityEngine ? api.opportunityEngine({}) : Promise.resolve(null),
-          api.liveIntelligenceLayer ? api.liveIntelligenceLayer() : Promise.resolve(null),
-         api.workspaceActivity ? api.workspaceActivity() : Promise.resolve(null),
-        ]);
+ 
 
-        if (workspaceResult.status === "fulfilled") {
-          const result = workspaceResult.value;
+        const result = await api.executiveWorkspaceDashboard(workspaceId || undefined);
 
-          setData({
-            selected_workspace: result?.selected_workspace || null,
-            workspaces: arr(result?.workspaces),
-            summary: result?.summary || {},
-            executive_actions: arr(result?.executive_actions),
-            signals: arr(result?.signals),
-            tasks: arr(result?.tasks),
-            contacts: arr(result?.contacts),
-            activities: arr(result?.activities),
-            reports: arr(result?.reports),
-            vendors: arr(result?.vendors),
-            clients: arr(result?.clients),
-            invoices: arr(result?.invoices),
-          });
+ 
 
-          if (result?.selected_workspace?.id) {
-            localStorage.setItem(
-              "vs_active_workspace",
-              String(result.selected_workspace.id)
-            );
-            setWorkspaceId(String(result.selected_workspace.id));
-          }
-        } else {
-          throw workspaceResult.reason;
+        const nextData = {
+
+          selected_workspace: result?.selected_workspace || null,
+
+          workspaces: arr(result?.workspaces),
+
+          summary: result?.summary || {},
+
+          executive_actions: arr(result?.executive_actions),
+
+          signals: arr(result?.signals),
+
+          tasks: arr(result?.tasks),
+
+          activities: arr(result?.activities),
+
+        };
+
+ 
+
+        setData(nextData);
+
+ 
+
+        if (nextData.selected_workspace?.id) {
+
+          const nextWorkspaceId = String(nextData.selected_workspace.id);
+
+          localStorage.setItem("vs_active_workspace", nextWorkspaceId);
+
+          setWorkspaceId(nextWorkspaceId);
+
         }
 
-        if (launchResult.status === "fulfilled" && launchResult.value) {
-          setLaunchData({
-            summary: launchResult.value?.summary || {},
-            gates: arr(launchResult.value?.gates),
-            next_actions: arr(launchResult.value?.next_actions),
-          });
-        }
+ 
 
-        if (kpiResult.status === "fulfilled" && kpiResult.value) {
-          setKpis(kpiResult.value?.summary || {});
-        }
+        setLastUpdated(new Date().toISOString());
 
-        if (dbResult.status === "fulfilled" && dbResult.value) {
-          setDbStatus(dbResult.value?.summary || {});
-        }
-
-        if (opportunityResult.status === "fulfilled" && opportunityResult.value) {
-          setOpportunitySummary(opportunityResult.value?.summary || {});
-        }
-
-        if (liveResult.status === "fulfilled" && liveResult.value) {
-          setLiveSummary(liveResult.value?.summary || {});
-        }
-
-        if (activityResult.status === "fulfilled" && activityResult.value) {
-          setWorkspaceActivity(
-            activityResult.value?.activity || []
-          );
-        }
-
-        setLastUpdated(
-          new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        );
       } catch (err) {
+
         setError(
+
           err?.response?.data?.error ||
+
             err?.response?.data?.detail ||
+
             err?.message ||
-            "Failed to load Executive Workspace."
+
+            "Executive priorities could not be loaded."
+
         );
+
       } finally {
+
         setLoading(false);
+
         setRefreshing(false);
+
       }
+
     },
+
     [workspaceId]
+
   );
 
+ 
+
   useEffect(() => {
+
     load();
+
   }, [load]);
 
-  const selected = data.selected_workspace;
-  const summary = data.summary || {};
-  const actions = arr(data.executive_actions);
-  const launchSummary = launchData.summary || {};
-  const launchActions = arr(launchData.next_actions);
-  const launchGates = arr(launchData.gates);
+ 
 
-  const workspaceReadinessScore = number(summary.workspace_readiness_score);
-  const workspaceActivityCount = number(summary.workspace_activity_count);
+  const selected = data.selected_workspace;
+
+  const summary = data.summary || {};
 
   const workspaceOptions = useMemo(() => arr(data.workspaces), [data.workspaces]);
 
-  const topOpportunityLabel = useMemo(() => {
-    if (number(opportunitySummary.hot)) return `${opportunitySummary.hot} hot`;
-    if (number(opportunitySummary.high)) return `${opportunitySummary.high} high`;
-    if (number(opportunitySummary.total)) return `${opportunitySummary.total} scored`;
-    return "No pipeline";
-  }, [opportunitySummary]);
+ 
 
-  const commandDecision = useMemo(() => {
-    if (launchSummary.launch_decision) return launchSummary.launch_decision;
-    if (workspaceReadinessScore >= 85 && number(summary.pressure_score) < 40) {
-      return "Workspace Ready";
-    }
-    if (number(summary.pressure_score) >= 70) return "Command Review";
-    if (number(summary.pressure_score) >= 40) return "Monitor Closely";
-    return "Stable";
-  }, [launchSummary.launch_decision, summary.pressure_score, workspaceReadinessScore]);
+  const priorities = useMemo(() => {
 
-  const executiveBrief = useMemo(() => {
-    const primaryAction = launchActions[0] || actions[0] || null;
-    const highestRisk =
+    const actions = arr(data.executive_actions).map((item) => ({
+
+      ...item,
+
+      _kind: "Executive action",
+
+    }));
+
+ 
+
+    const urgentTasks = arr(data.tasks)
+
+      .filter((item) => priorityRank(item) >= 3)
+
+      .map((item) => ({ ...item, _kind: "Assigned task" }));
+
+ 
+
+    return [...actions, ...urgentTasks]
+
+      .sort((a, b) => priorityRank(b) - priorityRank(a))
+
+      .slice(0, 6);
+
+  }, [data.executive_actions, data.tasks]);
+
+ 
+
+  const signals = useMemo(
+
+    () =>
+
       arr(data.signals)
+
         .slice()
-        .sort(
-          (a, b) =>
-            number(b.signal_score || b.score) -
-            number(a.signal_score || a.score)
-        )[0] || null;
 
-    const strongestOpportunity =
-      number(opportunitySummary.hot) > 0
-        ? `${opportunitySummary.hot} hot opportunities require follow-up`
-        : number(opportunitySummary.high) > 0
-          ? `${opportunitySummary.high} high-priority opportunities are active`
-          : number(opportunitySummary.total) > 0
-            ? `${opportunitySummary.total} opportunities are currently scored`
-            : "No qualified revenue opportunity is currently visible";
+        .sort((a, b) => {
 
-    return {
-      situation:
-        launchSummary.launch_decision ||
-        `${commandDecision} with ${number(summary.open_tasks)} open tasks`,
-      risk:
-        highestRisk?.title ||
-        highestRisk?.summary ||
-        (number(summary.pressure_score) >= 70
-          ? "Workspace pressure requires executive review"
-          : "No critical political risk is currently identified"),
-      action:
-        primaryAction?.title ||
-        primaryAction?.detail ||
-        "Continue monitoring launch, intelligence, and execution signals",
-      outcome:
-        strongestOpportunity,
-    };
-  }, [
-    actions,
-    commandDecision,
-    data.signals,
-    launchActions,
-    launchSummary.launch_decision,
-    opportunitySummary.high,
-    opportunitySummary.hot,
-    opportunitySummary.total,
-    summary.open_tasks,
-    summary.pressure_score,
-  ]);
+          const riskDifference = priorityRank(b) - priorityRank(a);
 
-  const revenueSummary = useMemo(() => {
-    const clients = arr(data.clients);
-    const invoices = arr(data.invoices);
+          if (riskDifference) return riskDifference;
 
-    const monthlyRevenue = clients.reduce(
-      (total, client) => total + number(client.monthly_retainer),
-      0
-    );
+          return number(b?.signal_score || b?.score) - number(a?.signal_score || a?.score);
 
-    const outstanding = invoices
-      .filter((invoice) =>
-        ["open", "pending", "overdue", "unpaid"].includes(
-          String(invoice.status || "").toLowerCase()
-        )
-      )
-      .reduce(
-        (total, invoice) =>
-          total + number(invoice.amount_due ?? invoice.amount ?? invoice.total),
-        0
-      );
+        })
 
-    const atRiskClients = clients.filter((client) =>
-      ["risk", "at risk", "watch", "critical"].some((value) =>
-        String(client.health_status || "").toLowerCase().includes(value)
-      )
-    ).length;
+        .slice(0, 4),
 
-    return {
-      monthlyRevenue,
-      outstanding,
-      clientCount: clients.length,
-      atRiskClients,
-    };
-  }, [data.clients, data.invoices]);
+    [data.signals]
+
+  );
+
+ 
+
+  const activities = useMemo(
+
+    () => arr(data.activities).slice(0, 6),
+
+    [data.activities]
+
+  );
+
+ 
+
+  const primaryPriority = priorities[0] || null;
+
+  const criticalSignalCount = arr(data.signals).filter((item) => priorityRank(item) >= 4).length;
+
+  const urgentTaskCount = arr(data.tasks).filter((item) => priorityRank(item) >= 3).length;
+
+  const openTaskCount = number(summary.open_tasks || arr(data.tasks).length);
+
+  const readinessScore = number(summary.workspace_readiness_score);
+
+  const pressureScore = number(summary.pressure_score);
+
+ 
 
   function handleWorkspaceChange(nextId) {
+
     setWorkspaceId(nextId);
 
-    if (nextId) {
-      localStorage.setItem("vs_active_workspace", String(nextId));
-    } else {
-      localStorage.removeItem("vs_active_workspace");
-    }
+ 
+
+    if (nextId) localStorage.setItem("vs_active_workspace", String(nextId));
+
+    else localStorage.removeItem("vs_active_workspace");
+
   }
 
+ 
+
+  const primaryRoute = routeFor(primaryPriority);
+
+ 
+
   return (
+
     <PageShell
-      eyebrow="Executive Workspace"
-      title={selected ? selected.name : "Executive Workspace"}
-      description="The consolidated VoterSpheres operating home: launch readiness, live intelligence, command actions, opportunity pipeline, CRM, operations, revenue, reports, and executive tools."
+
+      eyebrow="Executive"
+
+      title={selected?.name || "Executive Workspace"}
+
+      description="Leadership's daily starting point for urgent priorities, assigned work, and material political alerts."
+
       tickerItems={[
+
         {
-          label: "Workspace",
-          value: workspaceReadinessScore ? `${workspaceReadinessScore}% Ready` : "Checking",
-          dotClass:
-            workspaceReadinessScore >= 85
-              ? "vs-live-dot-success"
-              : workspaceReadinessScore >= 65
-              ? "vs-live-dot-warning"
-              : "vs-live-dot",
+
+          label: "Priority",
+
+          value: primaryPriority ? labelFor(primaryPriority) : "Clear",
+
+          dotClass: primaryPriority ? "vs-live-dot-warning" : "vs-live-dot-success",
+
         },
+
         {
-          label: "Launch",
-          value: launchSummary.launch_decision || "Checking",
-          dotClass:
-            launchSummary.launch_decision === "Ready To Launch"
-              ? "vs-live-dot-success"
-              : launchSummary.launch_decision === "Do Not Launch"
-              ? "vs-live-dot"
-              : "vs-live-dot-warning",
+
+          label: "Open tasks",
+
+          value: String(openTaskCount),
+
+          dotClass: openTaskCount ? "vs-live-dot-warning" : "vs-live-dot-success",
+
         },
+
         {
-          label: "Pressure",
-          value: summary.pressure_status || "Stable",
-          dotClass: riskDot(summary.pressure_score),
+
+          label: "Critical alerts",
+
+          value: String(criticalSignalCount),
+
+          dotClass: criticalSignalCount ? "vs-live-dot" : "vs-live-dot-success",
+
         },
+
         {
-          label: "Tasks",
-          value: `${summary.open_tasks || 0}`,
-          dotClass: summary.open_tasks
-            ? "vs-live-dot-warning"
-            : "vs-live-dot-success",
-        },
-        {
+
           label: "Updated",
-          value: refreshing ? "Live" : lastUpdated || "Ready",
+
+          value: refreshing ? "Refreshing" : formatDateTime(lastUpdated),
+
           dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success",
+
         },
+
       ]}
+
     >
+
       <style>{`
-        [data-tour] {
-          scroll-margin: 120px;
-        }
 
-        .workspace-toolbar {
+        .executive-workspace-toolbar {
+
           display: grid;
+
           grid-template-columns: minmax(0, 1fr) auto;
+
           gap: 14px;
-          align-items: center;
+
+          align-items: end;
+
         }
 
-        .workspace-select {
+ 
+
+        .executive-workspace-field {
+
           display: grid;
-          grid-template-columns: 160px minmax(0, 1fr);
-          gap: 10px;
-          align-items: center;
+
+          gap: 7px;
+
         }
 
-        .workspace-select label {
-          color: rgba(148, 163, 184, .86);
+ 
+
+        .executive-workspace-field label,
+
+        .executive-workspace-kicker {
+
+          color: rgba(148, 163, 184, .9);
+
           font-size: 11px;
+
           font-weight: 900;
+
           letter-spacing: .12em;
+
           text-transform: uppercase;
+
         }
 
-        .workspace-select select {
-          border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          background: rgba(15, 23, 42, .78);
-          color: white;
-          padding: 11px 12px;
-        }
+ 
 
-        .workspace-tabs {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
+        .executive-workspace-field select {
 
-        .workspace-tab {
-          border-radius: 999px;
+          width: 100%;
+
+          min-height: 44px;
+
           border: 1px solid rgba(148, 163, 184, .18);
-          background: rgba(15, 23, 42, .72);
-          color: rgba(226, 232, 240, .86);
-          padding: 10px 14px;
-          font-size: 12px;
-          font-weight: 850;
-          cursor: pointer;
+
+          border-radius: 13px;
+
+          background: rgba(15, 23, 42, .82);
+
+          color: #f8fafc;
+
+          padding: 0 13px;
+
         }
 
-        .workspace-tab.active {
-          border-color: rgba(251, 146, 60, .42);
-          background: rgba(251, 146, 60, .16);
-          color: white;
-        }
+ 
 
-        .workspace-grid {
+        .executive-workspace-focus {
+
           display: grid;
-          grid-template-columns: minmax(0, 1.18fr) minmax(360px, .82fr);
-          gap: 18px;
-          align-items: start;
-        }
 
-        .workspace-stack {
-          display: grid;
-          gap: 14px;
-        }
+          grid-template-columns: minmax(0, 1fr) auto;
 
-        .workspace-command-card {
-          border-radius: 30px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          background:
-            radial-gradient(circle at top left, rgba(251, 146, 60, .18), transparent 34%),
-            radial-gradient(circle at bottom right, rgba(37, 99, 235, .16), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, .98), rgba(2, 6, 23, .88));
-          padding: 26px;
-          box-shadow: 0 18px 60px rgba(0,0,0,.32);
-        }
+          gap: 24px;
 
-        .workspace-command-top {
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          align-items: flex-start;
-        }
-
-        .workspace-command-title {
-          margin: 0;
-          color: white;
-          font-size: clamp(34px, 5vw, 58px);
-          font-weight: 950;
-          letter-spacing: -.075em;
-          line-height: .94;
-        }
-
-        .workspace-command-sub {
-          margin-top: 12px;
-          color: rgba(203, 213, 225, .74);
-          font-size: 13px;
-          line-height: 1.7;
-          max-width: 860px;
-        }
-
-        .workspace-decision {
-          margin-top: 18px;
-          color: white;
-          font-size: clamp(44px, 8vw, 92px);
-          line-height: .9;
-          font-weight: 950;
-          letter-spacing: -.085em;
-        }
-
-        .workspace-mini-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
-          margin-top: 20px;
-        }
-
-        .workspace-mini-grid div,
-        .workspace-insight-card {
-          border-radius: 18px;
-          border: 1px solid rgba(148, 163, 184, .14);
-          background: rgba(2, 6, 23, .38);
-          padding: 14px;
-        }
-
-        .workspace-mini-grid span,
-        .workspace-insight-label {
-          display: block;
-          color: rgba(203, 213, 225, .62);
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: .08em;
-          font-weight: 900;
-        }
-
-        .workspace-mini-grid strong,
-        .workspace-insight-value {
-          display: block;
-          margin-top: 7px;
-          color: white;
-          font-size: 22px;
-          font-weight: 950;
-          letter-spacing: -.04em;
-        }
-
-        .workspace-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-top: 20px;
-        }
-
-        .workspace-row {
-          border-radius: 20px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, .1), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, .78), rgba(2, 6, 23, .54));
-          overflow: hidden;
-        }
-
-        .workspace-row .vs-responsive-row {
-          border: 0;
-          background: transparent;
-        }
-
-        .workspace-module-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 14px;
-        }
-
-        .workspace-module-card {
-          display: block;
-          text-decoration: none;
-          border-radius: 20px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          background:
-            radial-gradient(circle at top right, rgba(251, 146, 60, .08), transparent 36%),
-            rgba(15, 23, 42, .68);
-          padding: 16px;
-          min-height: 150px;
-        }
-
-        .workspace-module-card:hover {
-          border-color: rgba(251, 146, 60, .36);
-          background:
-            radial-gradient(circle at top right, rgba(251, 146, 60, .13), transparent 36%),
-            rgba(15, 23, 42, .82);
-        }
-
-        .workspace-module-card h3 {
-          margin: 0;
-          color: white;
-          font-size: 15px;
-          font-weight: 900;
-        }
-
-        .workspace-module-card p {
-          margin: 8px 0 14px;
-          color: rgba(203, 213, 225, .72);
-          font-size: 12px;
-          line-height: 1.55;
-        }
-
-        .workspace-status-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-        }
-
-        .workspace-brief-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
-        }
-
-        .workspace-brief-card {
-          border-radius: 20px;
-          border: 1px solid rgba(148, 163, 184, .15);
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, .09), transparent 38%),
-            rgba(15, 23, 42, .66);
-          padding: 16px;
-          min-height: 142px;
-        }
-
-        .workspace-brief-card strong {
-          display: block;
-          margin-top: 10px;
-          color: white;
-          font-size: 17px;
-          line-height: 1.35;
-        }
-
-        .workspace-brief-card p {
-          margin: 8px 0 0;
-          color: rgba(203, 213, 225, .7);
-          font-size: 12px;
-          line-height: 1.55;
-        }
-
-        .workspace-brief-kicker {
-          color: rgba(251, 146, 60, .92);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-        }
-
-        .workspace-revenue-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .workspace-activity-type {
-          display: flex;
           align-items: center;
-          gap: 8px;
-          justify-content: flex-end;
+
+          padding: 24px;
+
+          border: 1px solid rgba(249, 115, 22, .28);
+
+          border-radius: 20px;
+
+          background: linear-gradient(135deg, rgba(249, 115, 22, .13), rgba(15, 23, 42, .88));
+
+          box-shadow: 0 18px 50px rgba(2, 6, 23, .22);
+
         }
 
-        @media (max-width: 1180px) {
-          .workspace-brief-grid,
-          .workspace-revenue-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
+ 
+
+        .executive-workspace-focus h2 {
+
+          margin: 7px 0 8px;
+
+          color: #f8fafc;
+
+          font-size: clamp(23px, 3vw, 34px);
+
+          line-height: 1.1;
+
         }
 
-        @media (max-width: 1100px) {
-          .workspace-grid,
-          .workspace-toolbar,
-          .workspace-select {
+ 
+
+        .executive-workspace-focus p {
+
+          max-width: 760px;
+
+          margin: 0;
+
+          color: rgba(226, 232, 240, .82);
+
+          line-height: 1.65;
+
+        }
+
+ 
+
+        .executive-workspace-grid {
+
+          display: grid;
+
+          grid-template-columns: minmax(0, 1.45fr) minmax(300px, .75fr);
+
+          gap: 18px;
+
+          align-items: start;
+
+        }
+
+ 
+
+        .executive-workspace-stack {
+
+          display: grid;
+
+          gap: 12px;
+
+        }
+
+ 
+
+        .executive-workspace-row {
+
+          padding: 14px;
+
+          border: 1px solid rgba(148, 163, 184, .13);
+
+          border-radius: 14px;
+
+          background: rgba(15, 23, 42, .45);
+
+        }
+
+ 
+
+        .executive-workspace-links {
+
+          display: flex;
+
+          flex-wrap: wrap;
+
+          gap: 10px;
+
+        }
+
+ 
+
+        .executive-workspace-source {
+
+          margin: 8px 0 0;
+
+          color: rgba(148, 163, 184, .78);
+
+          font-size: 12px;
+
+          line-height: 1.5;
+
+        }
+
+ 
+
+        @media (max-width: 900px) {
+
+          .executive-workspace-grid,
+
+          .executive-workspace-focus {
+
             grid-template-columns: 1fr;
+
           }
 
-          .workspace-mini-grid,
-          .workspace-status-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+ 
+
+          .executive-workspace-focus .vs-button {
+
+            width: 100%;
+
+            justify-content: center;
+
           }
+
         }
 
-        @media (max-width: 1000px) {
-          .workspace-module-grid {
+ 
+
+        @media (max-width: 640px) {
+
+          .executive-workspace-toolbar {
+
             grid-template-columns: 1fr;
+
           }
+
         }
 
-        @media (max-width: 680px) {
-          .workspace-mini-grid,
-          .workspace-status-grid,
-          .workspace-brief-grid,
-          .workspace-revenue-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .workspace-command-card {
-            padding: 20px;
-          }
-
-          .workspace-decision {
-            font-size: 42px;
-          }
-        }
       `}</style>
 
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
+ 
 
-      <SectionCard
-        title="Workspace Selector"
-        subtitle="Choose the campaign workspace that should drive this command view."
-      >
-        <div className="workspace-toolbar">
-          <div className="workspace-select">
-            <label>Active workspace</label>
-            <select
-              value={workspaceId}
-              onChange={(event) => handleWorkspaceChange(event.target.value)}
-            >
-              <option value="">Most recent workspace</option>
-              {workspaceOptions.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name} • {workspace.state} • {workspace.office} •{" "}
-                  {workspace.cycle}
-                </option>
-              ))}
-            </select>
-          </div>
+      {error ? (
+
+        <div className="vs-banner vs-banner-danger" role="alert">
+
+          {error}
 
           <button
-            className="vs-button"
+
+            className="vs-button vs-button-secondary"
+
             type="button"
-            disabled={refreshing}
-            onClick={() => load({ quiet: true })}
+
+            onClick={() => load()}
+
           >
-            {refreshing ? "Refreshing..." : "Refresh Workspace"}
+
+            Try Again
+
           </button>
+
         </div>
-      </SectionCard>
 
-      <SectionCard
-        title="Workspace Navigation"
-        subtitle="The workspace is now the home base. Use tabs for workflow; use deep tools only when needed."
-      >
-        <div className="workspace-tabs" data-tour="workspace-tabs">
-          {workspaceTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={`workspace-tab ${
-                activeTab === tab.key ? "active" : ""
-              }`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-
-      <div className="vs-grid-4" data-tour="workspace-kpis">
-        <StatCard
-          label="Workspace Readiness"
-          value={`${workspaceReadinessScore || 0}%`}
-          delta={`${workspaceActivityCount || 0} activity signals`}
-          tone={workspaceReadinessScore >= 85 ? "up" : workspaceReadinessScore >= 65 ? "neutral" : "down"}
-        />
-        <StatCard
-          label="Launch Score"
-          value={`${launchSummary.score || 0}%`}
-          delta={launchSummary.launch_decision || "Checking"}
-          tone={scoreTone(launchSummary.score)}
-        />
-        <StatCard
-          label="Pressure Score"
-          value={`${summary.pressure_score || 0}%`}
-          delta={`${summary.open_tasks || 0} open tasks`}
-          tone={summary.pressure_score >= 70 ? "down" : "up"}
-        />
-        <StatCard
-          label="Pipeline"
-          value={topOpportunityLabel}
-          delta="Opportunity Engine"
-          tone={number(opportunitySummary.hot) ? "down" : "neutral"}
-        />
-      </div>
-
-      {!loading ? (
-        <SectionCard
-          title="Executive Brief"
-          subtitle="A concise decision summary generated from launch, political, operational, and revenue signals."
-          right={<Badge tone={tone(commandDecision)}>{commandDecision}</Badge>}
-        >
-          <div className="workspace-brief-grid">
-            <div className="workspace-brief-card">
-              <span className="workspace-brief-kicker">Today's Situation</span>
-              <strong>{executiveBrief.situation}</strong>
-              <p>Current posture across launch readiness and workspace execution.</p>
-            </div>
-
-            <div className="workspace-brief-card">
-              <span className="workspace-brief-kicker">Highest Risk</span>
-              <strong>{executiveBrief.risk}</strong>
-              <p>Highest-priority signal requiring executive awareness.</p>
-            </div>
-
-            <div className="workspace-brief-card">
-              <span className="workspace-brief-kicker">Recommended Action</span>
-              <strong>{executiveBrief.action}</strong>
-              <p>Best next move based on current blockers and priorities.</p>
-            </div>
-
-            <div className="workspace-brief-card">
-              <span className="workspace-brief-kicker">Expected Outcome</span>
-              <strong>{executiveBrief.outcome}</strong>
-              <p>Most relevant opportunity or result visible from current data.</p>
-            </div>
-          </div>
-        </SectionCard>
       ) : null}
 
+ 
+
+      <SectionCard
+
+        title="Active Workspace"
+
+        subtitle="Choose the campaign or organization that should drive today's executive priorities."
+
+      >
+
+        <div className="executive-workspace-toolbar">
+
+          <div className="executive-workspace-field">
+
+            <label htmlFor="executive-workspace-select">Workspace</label>
+
+            <select
+
+              id="executive-workspace-select"
+
+              value={workspaceId}
+
+              onChange={(event) => handleWorkspaceChange(event.target.value)}
+
+            >
+
+              <option value="">Most recent workspace</option>
+
+              {workspaceOptions.map((workspace) => (
+
+                <option key={workspace.id} value={workspace.id}>
+
+                  {[workspace.name, workspace.state, workspace.office, workspace.cycle]
+
+                    .filter(Boolean)
+
+                    .join(" - ")}
+
+                </option>
+
+              ))}
+
+            </select>
+
+          </div>
+
+ 
+
+          <button
+
+            className="vs-button vs-button-secondary"
+
+            type="button"
+
+            disabled={loading || refreshing}
+
+            onClick={() => load({ quiet: true })}
+
+          >
+
+            {refreshing ? "Refreshing..." : "Refresh"}
+
+          </button>
+
+        </div>
+
+      </SectionCard>
+
+ 
+
       {loading ? (
-        <EmptyState text="Loading Executive Workspace 3.0..." />
+
+        <EmptyState text="Loading today's executive priorities..." />
+
       ) : (
+
         <>
-          {activeTab === "home" ? (
-            <div className="workspace-grid">
-              <div className="workspace-stack">
-                <div className="workspace-command-card" data-tour="workspace-command">
-                  <div className="workspace-command-top">
-                    <div>
-                      <h2 className="workspace-command-title">
-                        {selected?.name || "Workspace Command View"}
-                      </h2>
-                      <div className="workspace-command-sub">
-                        {selected?.state || "National"} •{" "}
-                        {selected?.office || "Campaign"} •{" "}
-                        {selected?.cycle || "Cycle"} • This is the consolidated command home for launch readiness, political intelligence, CRM, tasks, revenue, reports, alerts, and action routing.
-                      </div>
-                    </div>
 
-                    <Badge tone={tone(commandDecision)}>
-                      {commandDecision}
-                    </Badge>
-                  </div>
+          <div className="vs-grid-4">
 
-                  <div className="workspace-decision">{commandDecision}</div>
+            <StatCard
 
-                  <div className="workspace-mini-grid">
-                    <div>
-                      <span>Workspace Ready</span>
-                      <strong>{workspaceReadinessScore || 0}%</strong>
-                    </div>
-                    <div>
-                      <span>Launch Score</span>
-                      <strong>{launchSummary.score || 0}%</strong>
-                    </div>
-                    <div>
-                      <span>National Risk</span>
-                      <strong>{kpis.national_risk || 0}%</strong>
-                    </div>
-                    <div>
-                      <span>Live Readiness</span>
-                      <strong>{kpis.live_readiness || liveSummary.readiness_score || launchSummary.live_readiness || 0}%</strong>
-                    </div>
-                    <div>
-                      <span>DB Stability</span>
-                      <strong>{dbStatus.readiness_score || 0}%</strong>
-                    </div>
-                  </div>
+              label="Priority items"
 
-                  <div className="workspace-actions" data-tour="workspace-actions">
-                    <button
-                      className="vs-button"
-                      onClick={() => setActiveTab("launch")}
-                    >
-                      Review Launch Gate
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("intelligence")}
-                    >
-                      Intelligence
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("operations")}
-                    >
-                      Operations
-                    </button>
-                    <button
-                      className="vs-button vs-button-secondary"
-                      onClick={() => setActiveTab("revenue")}
-                    >
-                      Revenue
-                    </button>
-                    <Link className="vs-button vs-button-secondary" to="/search">
-                      Universal Search
-                    </Link>
-                  </div>
-                </div>
+              value={String(priorities.length)}
 
-                <div data-tour="workspace-next-actions">
-                  <SectionCard
-                    title="What To Do Next"
-                  subtitle="Priority actions generated from launch readiness and workspace pressure."
-                  right={
-                    <Badge tone={launchActions.length ? "demo" : "active"}>
-                      {launchActions.length || actions.length}
-                    </Badge>
-                  }
-                >
-                  <div className="workspace-stack">
-                    {launchActions.length ? (
-                      launchActions.map((item) => (
-                        <div key={item.key} className="workspace-row">
-                          <ResponsiveRow
-                            title={item.title}
-                            subtitle={item.detail}
-                            meta={[
-                              { label: "Priority", value: item.priority },
-                              { label: "Route", value: item.route },
-                              { label: "Action", value: "Review and resolve" },
-                              { label: "Launch", value: "Pre-launch" },
-                            ]}
-                            right={
-                              <Link
-                                className="vs-button vs-button-secondary"
-                                to={item.route}
-                              >
-                                Open
-                              </Link>
-                            }
-                          />
-                        </div>
-                      ))
-                    ) : actions.length ? (
-                      actions.slice(0, 6).map((item) => (
-                        <div key={item.id} className="workspace-row">
-                          <ResponsiveRow
-                            title={item.title}
-                            subtitle={item.detail}
-                            meta={[
-                              { label: "Source", value: item.source },
-                              { label: "Priority", value: item.priority },
-                              { label: "Path", value: item.path },
-                              {
-                                label: "Workspace",
-                                value: selected?.name || "Current",
-                              },
-                            ]}
-                            right={
-                              <Link
-                                className="vs-button vs-button-secondary"
-                                to={item.path}
-                              >
-                                Open
-                              </Link>
-                            }
-                          />
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState text="No priority actions detected." />
-                    )}
-                  </div>
-                  </SectionCard>
-                </div>
+              delta={primaryPriority ? labelFor(primaryPriority) : "No urgent action"}
+
+              tone={priorities.length ? "neutral" : "up"}
+
+            />
+
+            <StatCard
+
+              label="Urgent tasks"
+
+              value={String(urgentTaskCount)}
+
+              delta={`${openTaskCount} total open`}
+
+              tone={urgentTaskCount ? "down" : "up"}
+
+            />
+
+            <StatCard
+
+              label="Critical alerts"
+
+              value={String(criticalSignalCount)}
+
+              delta={`${arr(data.signals).length} monitored signals`}
+
+              tone={criticalSignalCount ? "down" : "up"}
+
+            />
+
+            <StatCard
+
+              label="Operating pressure"
+
+              value={`${pressureScore}%`}
+
+              delta={`${readinessScore}% workspace readiness`}
+
+              tone={pressureScore >= 70 ? "down" : pressureScore >= 40 ? "neutral" : "up"}
+
+            />
+
+          </div>
+
+ 
+
+          {primaryPriority ? (
+
+            <div className="executive-workspace-focus">
+
+              <div>
+
+                <span className="executive-workspace-kicker">Highest-priority item</span>
+
+                <h2>{itemTitle(primaryPriority, "Executive review required")}</h2>
+
+                <p>{itemDetail(primaryPriority, "Open this item to review the evidence and determine the next action.")}</p>
+
               </div>
-              
-              <div data-tour="workspace-activity-feed">
-                <SectionCard
-                  title="Executive Activity Feed"
-                subtitle="Recent CRM, task, report, revenue, and notification activity."
-                right={<Badge tone={workspaceActivity.length ? "accent" : "active"}>{workspaceActivity.length}</Badge>}
+
+ 
+
+              <Link className="vs-button" to={primaryRoute}>
+
+                Open Highest-Priority Item
+
+              </Link>
+
+            </div>
+
+          ) : (
+
+            <SectionCard title="Today's Priority" subtitle="No urgent executive intervention is currently required.">
+
+              <EmptyState text="The current workspace has no ranked priority action. Continue monitoring alerts and assigned work." />
+
+            </SectionCard>
+
+          )}
+
+ 
+
+          <div className="executive-workspace-grid">
+
+            <SectionCard
+
+              title="Priority Queue"
+
+              subtitle="The six highest-ranked executive actions and urgent assigned tasks."
+
+              right={<Badge tone={priorities.length ? "demo" : "active"}>{priorities.length}</Badge>}
+
+            >
+
+              <div className="executive-workspace-stack">
+
+                {!priorities.length ? (
+
+                  <EmptyState text="No priority actions are waiting for executive review." />
+
+                ) : (
+
+                  priorities.map((item, index) => (
+
+                    <div className="executive-workspace-row" key={itemKey(item, "priority", index)}>
+
+                      <ResponsiveRow
+
+                        title={itemTitle(item, "Executive action")}
+
+                        subtitle={itemDetail(item, "Review the source record for details.")}
+
+                        meta={[
+
+                          { label: "Type", value: item._kind },
+
+                          { label: "Priority", value: labelFor(item) },
+
+                          { label: "Owner", value: text(item.owner_name || item.owner, "Unassigned") },
+
+                          { label: "Due", value: formatDateTime(item.due_at || item.due_date) },
+
+                        ]}
+
+                        right={
+
+                          <Link className="vs-button vs-button-secondary" to={routeFor(item)}>
+
+                            Open
+
+                          </Link>
+
+                        }
+
+                      />
+
+                    </div>
+
+                  ))
+
+                )}
+
+              </div>
+
+            </SectionCard>
+
+ 
+
+            <div className="executive-workspace-stack">
+
+              <SectionCard
+
+                title="Material Alerts"
+
+                subtitle="A preview of political signals requiring leadership awareness."
+
+                right={<Badge tone={criticalSignalCount ? "danger" : "active"}>{arr(data.signals).length}</Badge>}
+
               >
-                <div className="workspace-stack">
-                  {!workspaceActivity.length ? (
-                    <EmptyState text="No activity found." />
+
+                <div className="executive-workspace-stack">
+
+                  {!signals.length ? (
+
+                    <EmptyState text="No material political alerts are available for this workspace." />
+
                   ) : (
-                    workspaceActivity.slice(0, 20).map((item) => (
-                      <div
-                        key={`${item.type}-${item.id}`}
-                        className="workspace-row"
-                      >
+
+                    signals.map((signal, index) => (
+
+                      <div className="executive-workspace-row" key={itemKey(signal, "signal", index)}>
+
                         <ResponsiveRow
-                          title={item.title || activityLabel(item.type)}
-                          subtitle={item.detail || item.description || activityLabel(item.type)}
+
+                          title={itemTitle(signal, "Political signal")}
+
+                          subtitle={itemDetail(signal, "Review the full signal record for evidence.")}
+
                           meta={[
-                            {
-                              label: "Activity",
-                              value: activityLabel(item.type),
-                            },
-                            {
-                              label: "Updated",
-                              value: formatDate(item.activity_time),
-                            },
+
+                            { label: "Severity", value: labelFor(signal) },
+
+                            { label: "Score", value: number(signal.signal_score || signal.score) || "Not scored" },
+
                           ]}
-                          right={
-                            <div className="workspace-activity-type">
-                              <Badge tone={activityTone(item.type)}>
-                                {activityLabel(item.type)}
-                              </Badge>
-                            </div>
-                          }
+
+                          right={<Badge tone={toneFor(signal)}>{labelFor(signal)}</Badge>}
+
                         />
+
                       </div>
+
                     ))
+
                   )}
+
                 </div>
-                </SectionCard>
-              </div>
 
-              <div className="workspace-stack">
-                <SectionCard
-                  title="Operating Status"
-                  subtitle="Launch, database, feeds, risk, and revenue health."
-                >
-                  <div className="workspace-status-grid" data-tour="workspace-operating-status">
-                    <Link className="workspace-module-card" to="/launch-readiness">
-                      <h3>Launch Gate</h3>
-                      <p>{launchSummary.launch_decision || "Launch readiness not loaded."}</p>
-                      <Badge tone={tone(launchSummary.launch_decision)}>
-                        {launchSummary.score || 0}%
-                      </Badge>
-                    </Link>
+ 
 
-                    <Link className="workspace-module-card" to="/campaign-operations-studio">
-                      <h3>AI Studio</h3>
-                      <p>{dbStatus.status || "Database stability not loaded."}</p>
-                      <Badge tone={scoreTone(dbStatus.readiness_score)}>
-                        {dbStatus.readiness_score || 0}%
-                      </Badge>
-                    </Link>
+                <p className="executive-workspace-source">
 
-                    <Link className="workspace-module-card" to="/live-intelligence-layer">
-                      <h3>Live Feeds</h3>
-                      <p>Candidate, FEC, signal, vendor, alert, report, and revenue feed readiness.</p>
-                      <Badge tone={scoreTone(kpis.live_readiness || liveSummary.readiness_score || launchSummary.live_readiness)}>
-                        {kpis.live_readiness || liveSummary.readiness_score || launchSummary.live_readiness || 0}%
-                      </Badge>
-                    </Link>
+                  Full evidence, source history, and signal filtering remain authoritative on Political Signals.
 
-                    <Link className="workspace-module-card" to="/opportunity-engine">
-                      <h3>Opportunity Pipeline</h3>
-                      <p>{topOpportunityLabel} opportunities currently visible.</p>
-                      <Badge tone={number(opportunitySummary.hot) ? "danger" : "demo"}>
-                        Pipeline
-                      </Badge>
-                    </Link>
-                  </div>
-                </SectionCard>
+                </p>
 
-                <div data-tour="workspace-quick-tools">
-                  <SectionCard title="Quick Tools" subtitle="Use only when deeper review is needed.">
-                  <div className="workspace-status-grid">
-                    <Link className="workspace-module-card" to="/notifications">
-                      <h3>Notifications</h3>
-                      <p>{kpis.critical_alerts || 0} critical alerts.</p>
-                      <Badge tone={kpis.critical_alerts ? "danger" : "active"}>Alerts</Badge>
-                    </Link>
-                    <Link className="workspace-module-card" to="/command-center">
-                      <h3>Command Center</h3>
-                      <p>{summary.open_tasks || 0} open workspace tasks.</p>
-                      <Badge tone={summary.open_tasks ? "demo" : "active"}>Tasks</Badge>
-                    </Link>
-                  </div>
-                  </SectionCard>
+                <Link className="vs-button vs-button-secondary" to="/political-signals">
+
+                  View Political Signals
+
+                </Link>
+
+              </SectionCard>
+
+ 
+
+              <SectionCard
+
+                title="Recent Activity"
+
+                subtitle="Latest workspace changes, shown for context rather than task management."
+
+              >
+
+                <div className="executive-workspace-stack">
+
+                  {!activities.length ? (
+
+                    <EmptyState text="No recent workspace activity was returned." />
+
+                  ) : (
+
+                    activities.map((activity, index) => (
+
+                      <div className="executive-workspace-row" key={itemKey(activity, "activity", index)}>
+
+                        <ResponsiveRow
+
+                          title={itemTitle(activity, "Workspace activity")}
+
+                          subtitle={itemDetail(activity, text(activity.type, "Activity"))}
+
+                          meta={[
+
+                            { label: "Type", value: text(activity.type, "Activity") },
+
+                            { label: "Updated", value: formatDateTime(activity.activity_time || activity.updated_at || activity.created_at) },
+
+                          ]}
+
+                        />
+
+                      </div>
+
+                    ))
+
+                  )}
+
                 </div>
-              </div>
+
+              </SectionCard>
+
             </div>
-          ) : null}
 
-          {activeTab === "launch" ? (
-            <div className="workspace-grid" data-tour="workspace-launch">
-              <div className="workspace-stack">
-                <SectionCard
-                  title="Launch Readiness Gates"
-                  subtitle="Final launch decision inputs shown inside the workspace."
-                  right={<Badge tone={tone(launchSummary.launch_decision)}>{launchSummary.launch_decision || "Checking"}</Badge>}
-                >
-                  <div className="workspace-module-grid">
-                    {launchToolCards.map((card) => (
-                      <Link key={card.to} className="workspace-module-card" to={card.to}>
-                        <h3>{card.title}</h3>
-                        <p>{card.body}</p>
-                        <Badge tone={card.tone}>{card.badge}</Badge>
-                      </Link>
-                    ))}
-                  </div>
-                </SectionCard>
+          </div>
 
-                <SectionCard title="Gate Status" subtitle="Major readiness gates from the Launch Readiness Dashboard.">
-                  <div className="workspace-stack">
-                    {!launchGates.length ? (
-                      <EmptyState text="No launch gates returned yet." />
-                    ) : (
-                      launchGates.map((gate) => (
-                        <div key={gate.key} className="workspace-row">
-                          <ResponsiveRow
-                            title={gate.label}
-                            subtitle={gate.detail}
-                            meta={[
-                              { label: "Score", value: `${gate.score}%` },
-                              { label: "Status", value: gate.status },
-                              { label: "Blockers", value: gate.blockers },
-                              { label: "Review", value: gate.review },
-                            ]}
-                            right={
-                              <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
-                                <Badge tone={tone(gate.status)}>{gate.status}</Badge>
-                                <Link className="vs-button vs-button-secondary" to={gate.route}>
-                                  Open
-                                </Link>
-                              </div>
-                            }
-                          />
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </SectionCard>
-              </div>
+ 
 
-              <div className="workspace-stack">
-                <SectionCard title="Launch Summary" subtitle="Current executive launch posture.">
-                  <div className="workspace-status-grid">
-                    <div className="workspace-insight-card">
-                      <span className="workspace-insight-label">Decision</span>
-                      <strong className="workspace-insight-value">{launchSummary.launch_decision || "Checking"}</strong>
-                    </div>
-                    <div className="workspace-insight-card">
-                      <span className="workspace-insight-label">Blockers</span>
-                      <strong className="workspace-insight-value">{launchSummary.blockers || 0}</strong>
-                    </div>
-                    <div className="workspace-insight-card">
-                      <span className="workspace-insight-label">Workspace Ready</span>
-                      <strong className="workspace-insight-value">{workspaceReadinessScore || 0}%</strong>
-                    </div>
-                    <div className="workspace-insight-card">
-                      <span className="workspace-insight-label">Ready Gates</span>
-                      <strong className="workspace-insight-value">{launchSummary.ready_gates || 0}/{launchSummary.total_gates || 0}</strong>
-                    </div>
-                  </div>
-                </SectionCard>
+          <SectionCard
 
-                <SectionCard title="Next Launch Actions" subtitle="Resolve these to increase launch readiness.">
-                  <div className="workspace-stack">
-                    {!launchActions.length ? (
-                      <EmptyState text="No launch actions detected." />
-                    ) : (
-                      launchActions.map((item) => (
-                        <div key={item.key} className="workspace-row">
-                          <ResponsiveRow
-                            title={item.title}
-                            subtitle={item.detail}
-                            meta={[
-                              { label: "Priority", value: item.priority },
-                              { label: "Route", value: item.route },
-                              { label: "Action", value: "Resolve" },
-                              { label: "Status", value: "Pre-launch" },
-                            ]}
-                            right={<Link className="vs-button vs-button-secondary" to={item.route}>Open</Link>}
-                          />
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </SectionCard>
-              </div>
+            title="Continue in the Authoritative Workspace"
+
+            subtitle="Open the full destination only when deeper analysis or execution is required."
+
+          >
+
+            <div className="executive-workspace-links">
+
+              <Link className="vs-button vs-button-secondary" to="/command-center">
+
+                Command Center
+
+              </Link>
+
+              <Link className="vs-button vs-button-secondary" to="/unified-executive-intelligence">
+
+                Unified Intelligence
+
+              </Link>
+
+              <Link className="vs-button vs-button-secondary" to="/executive-decision-intelligence">
+
+                Decision Intelligence
+
+              </Link>
+
+              <Link className="vs-button vs-button-secondary" to="/mission-control">
+
+                Mission Control
+
+              </Link>
+
             </div>
-          ) : null}
 
-          {activeTab === "intelligence" ? (
-            <SectionCard
-              title="Workspace Intelligence"
-              subtitle="Political signals, graph intelligence, candidate intelligence, and AI strategy connected to this workspace."
-            >
-              <div className="workspace-module-grid">
-                <Link className="workspace-module-card" to="/political-intelligence">
-                  <h3>Political Intelligence Graph</h3>
-                  <p>Relationship graph, signal clusters, consultants, donors, and influence paths.</p>
-                  <Badge tone="info">Graph</Badge>
-                </Link>
+          </SectionCard>
 
-                <Link className="workspace-module-card" to="/campaign-copilot">
-                  <h3>AI Campaign Co-Pilot</h3>
-                  <p>AI strategy, guidance, and operating recommendations based on workspace context.</p>
-                  <Badge tone="accent">AI</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/candidates">
-                  <h3>Candidate Intelligence</h3>
-                  <p>Candidate profiles, readiness scoring, contact intelligence, and FEC linkage.</p>
-                  <Badge tone="info">Candidates</Badge>
-                </Link>
-              </div>
-
-              <div className="workspace-stack" style={{ marginTop: 16 }}>
-                {!data.signals.length ? (
-                  <EmptyState text="No signals found." />
-                ) : (
-                  data.signals.slice(0, 10).map((signal) => (
-                    <div key={signal.id} className="workspace-row">
-                      <ResponsiveRow
-                        title={signal.title || "Political Signal"}
-                        subtitle={signal.summary || "Signal detail unavailable."}
-                        meta={[
-                          { label: "State", value: signal.state || "National" },
-                          { label: "Type", value: signal.signal_type || "Signal" },
-                          { label: "Risk", value: signal.risk || signal.severity || "Stable" },
-                          { label: "Score", value: signal.signal_score || 0 },
-                        ]}
-                        right={
-                          <Badge tone={tone(signal.risk || signal.severity)}>
-                            {signal.risk || signal.severity || "Signal"}
-                          </Badge>
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {activeTab === "operations" ? (
-            <SectionCard
-              title="Workspace Operations"
-              subtitle="Tasks, War Room activity, vendors, MailOps, and execution pressure."
-            >
-              <div className="workspace-module-grid">
-                <Link className="workspace-module-card" to="/war-room">
-                  <h3>War Room</h3>
-                  <p>Threats, rapid response, campaign narratives, and escalation workflow.</p>
-                  <Badge tone="danger">War Room</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/command-center">
-                  <h3>Command Center</h3>
-                  <p>Execution board, cross-signal priority layer, and operational tasking.</p>
-                  <Badge tone="demo">Command</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/vendors">
-                  <h3>Vendor Network</h3>
-                  <p>Vendor coverage, state gaps, direct mail capacity, and partner risk.</p>
-                  <Badge tone="accent">Vendors</Badge>
-                </Link>
-              </div>
-
-              <div className="workspace-stack" style={{ marginTop: 16 }}>
-                {!data.tasks.length ? (
-                  <EmptyState text="No tasks found." />
-                ) : (
-                  data.tasks.slice(0, 10).map((task) => (
-                    <div key={task.id} className="workspace-row">
-                      <ResponsiveRow
-                        title={task.title || "Task"}
-                        subtitle={task.description || "No task description."}
-                        meta={[
-                          { label: "Status", value: task.status || "Open" },
-                          { label: "Priority", value: task.priority || "Normal" },
-                          { label: "State", value: task.state || "National" },
-                          { label: "Updated", value: formatDate(task.updated_at || task.created_at) },
-                        ]}
-                        right={
-                          <Badge tone={tone(task.priority || task.status)}>
-                            {task.status || "Open"}
-                          </Badge>
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {activeTab === "crm" ? (
-            <SectionCard
-              title="Workspace CRM"
-              subtitle="Contacts, organizations, activity, and relationship workflow for this campaign."
-            >
-              <div className="workspace-module-grid">
-                <Link className="workspace-module-card" to="/campaign-crm">
-                  <h3>Campaign CRM</h3>
-                  <p>Manage contacts, activity, follow-ups, and campaign relationships.</p>
-                  <Badge tone="info">CRM</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/opportunity-engine">
-                  <h3>Opportunity Engine</h3>
-                  <p>Score campaign opportunities and turn prospects into CRM and task workflow.</p>
-                  <Badge tone="demo">Pipeline</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/task-ownership">
-                  <h3>Task Ownership</h3>
-                  <p>Assign, track, and monitor ownership across the workspace team.</p>
-                  <Badge tone="demo">Ownership</Badge>
-                </Link>
-              </div>
-
-              <div className="workspace-stack" style={{ marginTop: 16 }}>
-                {!data.contacts.length ? (
-                  <EmptyState text="No CRM contacts found." />
-                ) : (
-                  data.contacts.slice(0, 10).map((contact) => (
-                    <div key={contact.id} className="workspace-row">
-                      <ResponsiveRow
-                        title={contact.full_name || "CRM Contact"}
-                        subtitle={contact.organization || "No organization"}
-                        meta={[
-                          { label: "Role", value: contact.role_type || "Contact" },
-                          { label: "State", value: contact.state || "National" },
-                          { label: "Updated", value: formatDate(contact.updated_at || contact.created_at) },
-                          { label: "Workspace", value: contact.workspace_id || "—" },
-                        ]}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {activeTab === "revenue" ? (
-            <SectionCard
-              title="Workspace Revenue"
-              subtitle="Client health, receivables, business suite, and revenue risk."
-            >
-              <div className="workspace-revenue-grid">
-                <div className="workspace-insight-card">
-                  <span className="workspace-insight-label">Monthly Retainers</span>
-                  <strong className="workspace-insight-value">
-                    {compactMoney(revenueSummary.monthlyRevenue)}
-                  </strong>
-                </div>
-
-                <div className="workspace-insight-card">
-                  <span className="workspace-insight-label">Outstanding</span>
-                  <strong className="workspace-insight-value">
-                    {compactMoney(revenueSummary.outstanding)}
-                  </strong>
-                </div>
-
-                <div className="workspace-insight-card">
-                  <span className="workspace-insight-label">Active Clients</span>
-                  <strong className="workspace-insight-value">
-                    {revenueSummary.clientCount}
-                  </strong>
-                </div>
-
-                <div className="workspace-insight-card">
-                  <span className="workspace-insight-label">Clients At Risk</span>
-                  <strong className="workspace-insight-value">
-                    {revenueSummary.atRiskClients}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="workspace-module-grid">
-                <Link className="workspace-module-card" to="/business-suite">
-                  <h3>Consultant Business Suite</h3>
-                  <p>Clients, projects, invoices, staff, and business operations.</p>
-                  <Badge tone="accent">Business</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/revenue-intelligence">
-                  <h3>Revenue Intelligence</h3>
-                  <p>Client health, overdue invoices, margin watch, and revenue pressure.</p>
-                  <Badge tone="demo">Revenue</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/billing">
-                  <h3>Billing</h3>
-                  <p>Subscription status, portal access, plan controls, and account billing.</p>
-                  <Badge tone="info">Billing</Badge>
-                </Link>
-              </div>
-
-              <div className="workspace-stack" style={{ marginTop: 16 }}>
-                {!data.clients.length ? (
-                  <EmptyState text="No clients found." />
-                ) : (
-                  data.clients.slice(0, 10).map((client) => (
-                    <div key={client.id} className="workspace-row">
-                      <ResponsiveRow
-                        title={client.client_name || "Client"}
-                        subtitle={client.organization || "Client account"}
-                        meta={[
-                          { label: "State", value: client.state || "National" },
-                          { label: "Status", value: client.status || "Active" },
-                          { label: "Health", value: client.health_status || "Stable" },
-                          { label: "Retainer", value: money(client.monthly_retainer) },
-                        ]}
-                        right={
-                          <Badge tone={tone(client.health_status)}>
-                            {client.health_status || "Client"}
-                          </Badge>
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {activeTab === "reports" ? (
-            <SectionCard
-              title="Workspace Reports"
-              subtitle="Intelligence reports, exports, and client deliverables."
-            >
-              <div className="workspace-module-grid">
-                <Link className="workspace-module-card" to="/intelligence-reports">
-                  <h3>Intelligence Reports</h3>
-                  <p>Generate campaign, donor, threat, and strategic reports.</p>
-                  <Badge tone="info">Reports</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/report-exports">
-                  <h3>Report Export Center</h3>
-                  <p>Create downloadable deliverables and client-ready exports.</p>
-                  <Badge tone="accent">Exports</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/client-portal-admin">
-                  <h3>Client Portal Publishing</h3>
-                  <p>Push reports and updates into client-facing portals.</p>
-                  <Badge tone="demo">Portal</Badge>
-                </Link>
-              </div>
-
-              <div className="workspace-stack" style={{ marginTop: 16 }}>
-                {!data.reports.length ? (
-                  <EmptyState text="No reports found." />
-                ) : (
-                  data.reports.slice(0, 10).map((report) => (
-                    <div key={report.id} className="workspace-row">
-                      <ResponsiveRow
-                        title={report.title || "Report"}
-                        subtitle={report.report_type || "Intelligence report"}
-                        meta={[
-                          { label: "State", value: report.state || "National" },
-                          { label: "Status", value: report.status || "Generated" },
-                          { label: "Created", value: formatDate(report.created_at) },
-                          { label: "Type", value: report.report_type || "Report" },
-                        ]}
-                        right={
-                          <Badge tone="info">
-                            {report.status || "Report"}
-                          </Badge>
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {activeTab === "tools" ? (
-            <SectionCard
-              title="Workspace Tools"
-              subtitle="Deep links into the full VoterSpheres platform."
-            >
-              <div className="workspace-module-grid">
-                <Link className="workspace-module-card" to="/national-command">
-                  <h3>National Command</h3>
-                  <p>National election operating surface.</p>
-                  <Badge tone="accent">Command</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/notifications">
-                  <h3>Notifications</h3>
-                  <p>Unified alert inbox.</p>
-                  <Badge tone="demo">Alerts</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/search">
-                  <h3>Universal Search</h3>
-                  <p>Find records across the platform.</p>
-                  <Badge tone="info">Search</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/operations-map">
-                  <h3>Operations Map</h3>
-                  <p>State and county operational pressure.</p>
-                  <Badge tone="accent">Map</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/donors">
-                  <h3>Donor Network</h3>
-                  <p>Donor relationships and funding signals.</p>
-                  <Badge tone="info">Donors</Badge>
-                </Link>
-
-                <Link className="workspace-module-card" to="/mailops">
-                  <h3>MailOps</h3>
-                  <p>Direct mail execution tracking.</p>
-                  <Badge tone="demo">Mail</Badge>
-                </Link>
-              </div>
-            </SectionCard>
-          ) : null}
         </>
+
       )}
+
     </PageShell>
+
   );
+
 }
