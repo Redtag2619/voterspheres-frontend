@@ -1,315 +1,167 @@
 const item = (label, to, description, options = {}) => ({
-
   label,
-
   to,
-
   description,
-
   keywords: options.keywords || "",
-
   featured: Boolean(options.featured),
-
-  internalOnly: Boolean(options.internalOnly),
-
+  visibility: options.visibility || "core",
+  adminOnly: Boolean(options.adminOnly),
 });
 
- 
+const section = (label, description, startAt, items, options = {}) => ({
+  label,
+  shortLabel: options.shortLabel || label,
+  featured: Boolean(options.featured),
+  description,
+  startAt,
+  visibility: options.visibility || "core",
+  adminOnly: Boolean(options.adminOnly),
+  items,
+});
 
 export const navigationSections = [
-
-  {
-
-    label: "Home",
-
-    shortLabel: "Home",
-
-    featured: true,
-
-    description: "Start here for the daily executive picture and platform-wide intelligence.",
-
-    startAt: "/executive-workspace",
-
-    items: [
-
-      item("Executive Workspace", "/executive-workspace", "Your daily command view, priorities, alerts, and next actions.", { featured: true, keywords: "home overview daily" }),
-
-      item("Dashboard", "/dashboard", "A concise operating snapshot of campaigns, activity, and performance."),
-
-      item("Unified Executive Intelligence", "/executive-intelligence", "Evidence-backed intelligence assembled into one executive view."),
-
-      item("Political Intelligence Fabric", "/political-intelligence-fabric", "Enterprise intelligence connections across signals, people, money, and operations."),
-
-      item("Platform Intelligence", "/platform-intelligence", "Platform-wide data health, intelligence coverage, and operational context."),
-
-      item("Mission Control", "/mission-control", "Monitor urgent campaign priorities and coordinated execution."),
-
-      item("National Command", "/national-command", "Enterprise national command view across campaigns and jurisdictions."),
-
-      item("Platform Tour", "/platform-tour", "A guided explanation of VoterSpheres capabilities and workflows."),
-
-    ],
-
-  },
-
-  {
-
-    label: "Candidates",
-
-    shortLabel: "Candidates",
-
-    description: "Research candidates, monitor narratives, and understand the political environment.",
-
-    startAt: "/candidates",
-
-    items: [
-
-      item("Candidates", "/candidates", "Search, compare, and open candidate intelligence profiles.", { featured: true }),
-
-      item("Power Rankings", "/power-rankings", "Compare candidate and political influence rankings."),
-
-      item("Endorsement Intelligence", "/endorsements", "Track endorsements, validators, and political support."),
-
-      item("Political Signals", "/political-signals", "Monitor emerging political, electoral, and organizational signals."),
-
-      item("Narrative Intelligence", "/narrative-intelligence", "Track news narratives, sentiment, and message movement."),
-
-      item("Narrative Response", "/narrative-response", "Turn narrative risks into coordinated response actions."),
-
-      item("Signal Matching", "/signal-matching", "Match relevant signals to campaigns, candidates, and workspaces."),
-
-    ],
-
-  },
-
-  {
-
-    label: "AI & Strategy",
-
-    shortLabel: "AI & Strategy",
-
-    description: "Ask questions, generate briefings, test decisions, and convert intelligence into strategy.",
-
-    startAt: "/executive-ai-command-platform",
-
-    items: [
-
-      item("Executive AI Command Platform", "/executive-ai-command-platform", "Ask natural-language questions and receive complete evidence-backed briefings.", { featured: true, keywords: "copilot chief of staff briefing" }),
-
-      item("Campaign Studio AI", "/campaign-operations-studio", "Develop campaign content, plans, and operating workflows."),
-
-      item("Strategic Advisor", "/strategic-advisor", "Generate strategic guidance from current campaign intelligence."),
-
-      item("AI Tactical", "/ai-tactical", "Translate strategy into tactical recommendations and actions."),
-
-      item("War Room", "/war-room", "Coordinate fast-moving issues, threats, narratives, and responses."),
-
+  section(
+    "Executive",
+    "Understand the operating picture, receive intelligence, and make decisions.",
+    "/executive-workspace",
+    [
+      item("Executive Workspace", "/executive-workspace", "Daily priorities, alerts, tasks, and shortcuts.", { featured: true, keywords: "home dashboard daily overview" }),
+      item("Unified Executive Intelligence", "/executive-intelligence", "A synthesized briefing across polling, finance, news, signals, and operations."),
+      item("Executive AI Command Platform", "/executive-ai-command-platform", "Ask questions and receive complete evidence-backed intelligence briefings.", { keywords: "ai copilot chief of staff candidate briefing" }),
+      item("Mission Control", "/mission-control", "Monitor urgent risks, campaign conditions, and coordinated activity."),
       item("Executive Decision Intelligence", "/executive-decision-intelligence", "Compare options, consequences, confidence, and recommended decisions."),
 
-      item("AI Strategy Recommendations", "/strategy", "Review prioritized recommendations, rationale, ownership, and urgency."),
-
+      item("Dashboard", "/dashboard", "Legacy operating snapshot preserved for authorized users.", { visibility: "advanced" }),
+      item("Platform Intelligence", "/platform-intelligence", "Platform-wide intelligence coverage and operating context.", { visibility: "advanced" }),
+      item("Political Intelligence Fabric", "/political-intelligence-fabric", "Enterprise intelligence connections and provider coverage.", { visibility: "advanced" }),
+      item("National Command", "/national-command", "National command view across campaigns and jurisdictions.", { visibility: "advanced" }),
+      item("Autonomous Campaign Operations", "/autonomous-campaign-operations", "Automated monitoring and operational recommendations.", { visibility: "advanced" }),
     ],
+    { featured: true }
+  ),
 
-  },
+  section(
+    "Intelligence",
+    "Review evidence, polling, narratives, relationships, influence, and political money.",
+    "/political-signals",
+    [
+      item("Political Signals", "/political-signals", "Evidence-backed political, electoral, and organizational developments.", { featured: true }),
+      item("Polling Intelligence", "/executive-polling-intelligence", "Polling, trends, averages, margins, and pollster analysis."),
+      item("Narrative Intelligence", "/narrative-intelligence", "News narratives, sentiment, media momentum, and emerging risks."),
+      item("Political Intelligence Graph", "/political-intelligence", "Connected candidates, committees, organizations, consultants, and signals."),
+      item("Political Money Exposure", "/dark-money-exposure", "Money flows, disclosure gaps, transfers, and dark-money indicators."),
+      item("Power & Influence Rankings", "/power-rankings", "Comparative political influence, network power, and strategic importance."),
 
-  {
+      item("Relationship Graph", "/relationship-graph", "Legacy relationship exploration preserved for authorized users.", { visibility: "advanced" }),
+      item("Influence Dashboard", "/influence", "Detailed influence scoring and relationship leverage.", { visibility: "advanced" }),
+      item("Narrative Response", "/narrative-response", "Convert narrative risk into coordinated response actions.", { visibility: "advanced" }),
+      item("Signal Matching", "/signal-matching", "Match signals to candidates, campaigns, and workspaces.", { visibility: "advanced" }),
+      item("Live Intelligence Layer", "/live-intelligence-layer", "Inspect live intelligence feeds and operating events.", { visibility: "advanced" }),
+      item("Live Data Refresh", "/live-data-refresh", "Review and initiate supported provider refresh workflows.", { visibility: "advanced" }),
+    ]
+  ),
 
-    label: "Polling & Forecasts",
+  section(
+    "Campaigns",
+    "Research candidates and manage campaign finance, relationships, endorsements, and response.",
+    "/candidates",
+    [
+      item("Candidates", "/candidates", "Search candidates and open complete candidate intelligence profiles.", { featured: true }),
+      item("Campaign Finance Intelligence", "/campaign-finance-intelligence", "FEC filings, receipts, spending, cash, committees, and PAC activity."),
+      item("Donor Network", "/donors", "Donor relationships, contribution patterns, and cultivation opportunities."),
+      item("Endorsement Intelligence", "/endorsements", "Endorsements, validators, organizations, and endorsement opportunities."),
+      item("Campaign CRM", "/campaign-crm", "Contacts, interactions, follow-ups, and relationship ownership."),
+      item("Campaign War Room", "/war-room", "Active threats, coordinated responses, and rapid campaign decisions."),
 
-    shortLabel: "Polling",
+      item("Fundraising Intelligence", "/fundraising", "Detailed candidate fundraising comparisons and performance.", { visibility: "advanced" }),
+      item("Campaign Studio AI", "/campaign-operations-studio", "Develop campaign content, plans, and operating workflows.", { visibility: "advanced" }),
+      item("Strategic Advisor", "/strategic-advisor", "Generate strategic guidance from current campaign intelligence.", { visibility: "advanced" }),
+      item("AI Tactical", "/ai-tactical", "Translate strategy into immediate tactical actions.", { visibility: "advanced" }),
+    ]
+  ),
 
-    description: "Understand polling, election geography, forecasts, scenarios, and opportunity.",
+  section(
+    "Strategy",
+    "Understand likely outcomes, test scenarios, and prioritize strategic action.",
+    "/forecast",
+    [
+      item("Executive Forecast", "/forecast", "Current race outlook, probability, momentum, and risk.", { featured: true }),
+      item("Predictive Campaign Simulation", "/predictive-campaign-simulation", "Test strategic scenarios and projected consequences."),
+      item("Strategy Recommendations", "/strategy", "Prioritized recommendations with rationale, owner, urgency, and status."),
+      item("National Coalition Intelligence", "/coalitions", "Coalition opportunities, bridge organizations, and alliance development."),
+      item("Campaign Opportunity Heatmap", "/campaign-opportunity-heatmap", "Geographic and strategic opportunity prioritization."),
 
-    startAt: "/executive-polling-intelligence",
+      item("National Political Digital Twin", "/national-political-digital-twin", "Advanced model of the national political environment.", { visibility: "advanced" }),
+    ]
+  ),
 
-    items: [
+  section(
+    "Operations",
+    "Assign work, manage geographic operations, and deploy campaign resources.",
+    "/command-center",
+    [
+      item("Command Center", "/command-center", "Tasks, assignments, deadlines, escalation, and execution.", { featured: true }),
+      item("State Operations", "/state-operations", "State and county or parish operating intelligence."),
+      item("Election Map", "/map", "Races, candidates, election geography, and competitive conditions."),
+      item("Vendor Network", "/vendors", "Political vendors, capabilities, relationships, and deployment readiness."),
+      item("MailOps", "/mailops", "Direct-mail planning, approvals, targeting, production, and delivery."),
+      item("Universal Search", "/search", "Search candidates, organizations, intelligence, reports, and operations."),
 
-      item("Polling Intelligence", "/executive-polling-intelligence", "Live polling, trends, averages, pollsters, and candidate context.", { featured: true }),
+      item("State Operations Map", "/state-operations-map", "Legacy interactive state operations map.", { visibility: "advanced" }),
+      item("Executive Operations Map", "/operations-map", "Executive geographic posture, risk, and activity.", { visibility: "advanced" }),
+      item("Task Ownership", "/task-ownership", "Detailed ownership, accountability, and completion monitoring.", { visibility: "advanced" }),
+      item("Notifications", "/notifications", "Alerts, updates, and items requiring attention.", { visibility: "advanced" }),
+    ]
+  ),
 
-      item("Executive Forecast Dashboard", "/forecast", "Review forecast movement, race posture, and modeled outlook."),
+  section(
+    "Business",
+    "Manage clients, revenue, deliverables, subscriptions, and firm performance.",
+    "/business-suite",
+    [
+      item("Consultant Business Suite", "/business-suite", "Clients, engagements, firm performance, and business operations.", { featured: true }),
+      item("Revenue Pipeline", "/revenue-pipeline", "Prospects, deal stages, projected revenue, and next actions."),
+      item("Client Portal", "/client-portal-admin", "Client access, shared intelligence, deliverables, and approvals."),
+      item("Intelligence Reports", "/intelligence-reports", "Create, approve, manage, and deliver intelligence reports."),
+      item("Billing", "/billing", "Plan, invoices, payment method, usage, and upgrades."),
 
-      item("Predictive Campaign Simulation", "/predictive-campaign-simulation", "Test strategic scenarios and likely campaign outcomes."),
+      item("Revenue Intelligence", "/revenue-intelligence", "Detailed revenue analytics and business performance.", { visibility: "advanced" }),
+      item("Opportunity Engine", "/opportunity-engine", "Discover and prioritize prospective campaign opportunities.", { visibility: "advanced" }),
+      item("Report Exports", "/report-exports", "Export jobs, formats, distribution, and delivery history.", { visibility: "advanced" }),
+    ]
+  ),
 
-      item("National Political Digital Twin", "/national-political-digital-twin", "Explore an enterprise model of the national political environment."),
-
-      item("Election Map", "/map", "Explore races, candidates, and political conditions geographically."),
-
-      item("State Operations", "/state-operations", "Open state-level operating intelligence and county or parish drilldowns."),
-
-      item("State Operations Map", "/state-operations-map", "Navigate state operations through an interactive map."),
-
-      item("Campaign Opportunity Heatmap", "/campaign-opportunity-heatmap", "Identify geographic and strategic campaign opportunities."),
-
+  section(
+    "Administration",
+    "Firm administration, launch operations, customer access, and platform readiness.",
+    "/admin/firm-users",
+    [
+      item("Firm Users", "/admin/firm-users", "Manage firm users, roles, and access.", { adminOnly: true }),
+      item("Firm Invites", "/admin/firm-invites", "Invite and onboard firm users.", { adminOnly: true }),
+      item("Candidate Profiles", "/admin/candidate-profiles", "Administer candidate profile records.", { adminOnly: true }),
+      item("Beta Access", "/admin/beta-access", "Manage beta participation and customer access.", { adminOnly: true }),
+      item("Live Intelligence Administration", "/admin/live-intelligence", "Administer providers and refresh state.", { adminOnly: true }),
+      item("Admin Alerts", "/admin/alerts", "Review platform administrative alerts.", { adminOnly: true }),
+      item("Enterprise Leads", "/admin/enterprise-leads", "Manage demo requests and enterprise prospects.", { adminOnly: true }),
+      item("Admin Platform Tour", "/platform-tour?mode=admin", "Run the administrator platform tour.", { adminOnly: true }),
+      item("Launch Automation", "/launch-automation", "Operate launch automation workflows.", { adminOnly: true }),
+      item("Launch Data Seeder", "/launch-data-seeder", "Seed and validate launch data.", { adminOnly: true }),
+      item("Launch Assets", "/launch-assets", "Manage launch assets and readiness material.", { adminOnly: true }),
+      item("Launch Readiness", "/launch-readiness", "Review launch gates and readiness status.", { adminOnly: true }),
+      item("Launch QA", "/launch-qa", "Run launch quality-assurance checks.", { adminOnly: true }),
+      item("Production Hardening", "/production-hardening", "Review production security and resilience controls.", { adminOnly: true }),
+      item("Database Stability", "/database-stability", "Monitor database stability and operating checks.", { adminOnly: true }),
+      item("Beta Onboarding", "/beta-onboarding", "Coordinate customer beta onboarding.", { adminOnly: true }),
+      item("Platform Tour", "/platform-tour", "Review the guided customer platform experience.", { adminOnly: true }),
     ],
-
-  },
-
-  {
-
-    label: "Finance & Networks",
-
-    shortLabel: "Finance",
-
-    description: "Follow campaign money, donors, committees, relationships, coalitions, and influence.",
-
-    startAt: "/campaign-finance-intelligence",
-
-    items: [
-
-      item("Campaign Finance Intelligence", "/campaign-finance-intelligence", "Review FEC totals, PAC activity, financial position, and finance trends.", { featured: true }),
-
-      item("Fundraising Intelligence", "/fundraising", "Compare fundraising performance and candidate finance leaders."),
-
-      item("Donor Network", "/donors", "Explore donor relationships, giving patterns, and financial networks."),
-
-      item("Political Money Exposure", "/dark-money-exposure", "Assess political money flows, disclosure gaps, committee relationships, and financial risk."),
-
-      item("Political Intelligence Graph", "/political-intelligence", "Explore connected political entities, relationships, and signals."),
-
-      item("Relationship Graph", "/relationship-graph", "Map people, organizations, campaigns, and strategic connections."),
-
-      item("National Coalition Intelligence", "/coalitions", "Identify coalitions, bridge entities, and partnership opportunities."),
-
-      item("Influence Dashboard", "/influence", "Measure political influence, reach, and relationship leverage."),
-
-    ],
-
-  },
-
-  {
-
-    label: "Campaign Operations",
-
-    shortLabel: "Operations",
-
-    description: "Organize teams, vendors, communications, tasks, live intelligence, and execution.",
-
-    startAt: "/command-center",
-
-    items: [
-
-      item("Command Center", "/command-center", "Coordinate priorities, workstreams, ownership, and campaign execution.", { featured: true }),
-
-      item("Autonomous Campaign Operations", "/autonomous-campaign-operations", "Enterprise monitoring and automated operational recommendations."),
-
-      item("Executive Operations Map", "/operations-map", "View operating posture, risks, and tactical activity geographically."),
-
-      item("Campaign CRM", "/campaign-crm", "Manage campaign relationships, contacts, and follow-up activity."),
-
-      item("Vendor Network", "/vendors", "Find, compare, and manage political vendors and capabilities."),
-
-      item("MailOps", "/mailops", "Plan and monitor campaign mail operations."),
-
-      item("Task Ownership", "/task-ownership", "Assign work, clarify owners, and monitor completion."),
-
-      item("Live Intelligence Layer", "/live-intelligence-layer", "Monitor live sources, events, and operational intelligence."),
-
-      item("Live Data Refresh", "/live-data-refresh", "Review and initiate supported data refresh workflows."),
-
-      item("Universal Search", "/search", "Search across candidates, intelligence, reports, and operations."),
-
-      item("Notifications", "/notifications", "Review alerts, updates, and items requiring attention."),
-
-    ],
-
-  },
-
-  {
-
-    label: "Reports & Business",
-
-    shortLabel: "Reports",
-
-    description: "Deliver intelligence, develop opportunities, support clients, and manage the subscription.",
-
-    startAt: "/intelligence-reports",
-
-    items: [
-
-      item("Intelligence Reports", "/intelligence-reports", "Create, review, and manage client-ready intelligence reports.", { featured: true }),
-
-      item("Report Exports", "/report-exports", "Export and distribute approved reports."),
-
-      item("Consultant Business Suite", "/business-suite", "Manage the enterprise consultant business and client portfolio."),
-
-      item("Revenue Pipeline", "/revenue-pipeline", "Track prospective business, stages, value, and next actions."),
-
-      item("Revenue Intelligence", "/revenue-intelligence", "Analyze revenue opportunities and business performance."),
-
-      item("Opportunity Engine", "/opportunity-engine", "Identify and prioritize potential client and campaign opportunities."),
-
-      item("Client Portal", "/client-portal-admin", "Manage client-facing access, intelligence, and deliverables."),
-
-      item("Billing", "/billing", "Review the current plan, usage, billing, and upgrade options."),
-
-    ],
-
-  },
-
-  {
-
-    label: "Administration",
-
-    shortLabel: "Admin",
-
-    description: "Platform administration, launch operations, customer access, and system readiness.",
-
-    startAt: "/admin/firm-users",
-
-    internalOnly: true,
-
-    items: [
-
-      item("Firm Users", "/admin/firm-users", "Manage firm users and roles."),
-
-      item("Firm Invites", "/admin/firm-invites", "Invite and onboard firm users."),
-
-      item("Candidate Profiles", "/admin/candidate-profiles", "Administer candidate profile records."),
-
-      item("Beta Access", "/admin/beta-access", "Manage beta access and customer participation.", { internalOnly: true }),
-
-      item("Live Intelligence", "/admin/live-intelligence", "Administer live intelligence providers and refresh state.", { internalOnly: true }),
-
-      item("Admin Alerts", "/admin/alerts", "Review platform administrative alerts.", { internalOnly: true }),
-
-      item("Enterprise Leads", "/admin/enterprise-leads", "Manage demo requests and enterprise prospects.", { internalOnly: true }),
-
-      item("Admin Platform Tour", "/platform-tour?mode=admin", "Run the administrator version of the platform tour.", { internalOnly: true }),
-
-      item("Launch Automation", "/launch-automation", "Operate launch automation workflows.", { internalOnly: true }),
-
-      item("Launch Data Seeder", "/launch-data-seeder", "Seed and validate launch data.", { internalOnly: true }),
-
-      item("Launch Assets", "/launch-assets", "Manage launch assets and readiness materials.", { internalOnly: true }),
-
-      item("Launch Readiness", "/launch-readiness", "Review launch gates and readiness status.", { internalOnly: true }),
-
-      item("Launch QA", "/launch-qa", "Run launch quality-assurance checks.", { internalOnly: true }),
-
-      item("Production Hardening", "/production-hardening", "Review production security and resilience controls.", { internalOnly: true }),
-
-      item("Database Stability", "/database-stability", "Monitor database stability and operational checks.", { internalOnly: true }),
-
-      item("Beta Onboarding", "/beta-onboarding", "Coordinate customer beta onboarding."),
-
-    ],
-
-  },
-
+    { visibility: "advanced", adminOnly: true, shortLabel: "Admin" }
+  ),
 ];
 
- 
-
-export const flattenedNavigation = navigationSections.flatMap((section) =>
-
-  section.items.map((entry) => ({
-
+export const flattenedNavigation = navigationSections.flatMap((group) =>
+  group.items.map((entry) => ({
     ...entry,
-
-    section: section.label,
-
-    sectionDescription: section.description,
-
+    section: group.label,
+    sectionDescription: group.description,
   }))
-
 );
