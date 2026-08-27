@@ -48,6 +48,32 @@ function text(value, fallback = "") {
 
  
 
+function cleanDisplayText(value, fallback = "") {
+
+  const normalized = String(value ?? "")
+
+    .replace(/&nbsp;/gi, " ")
+
+    .replace(/&amp;/gi, "&")
+
+    .replace(/&quot;/gi, '"')
+
+    .replace(/&#39;|&apos;/gi, "'")
+
+    .replace(/<[^>]*>/g, " ")
+
+    .replace(/\s+/g, " ")
+
+    .trim();
+
+ 
+
+  return normalized || fallback;
+
+}
+
+ 
+
 function formatDateTime(value) {
 
   if (!value) return "Not provided";
@@ -174,6 +200,10 @@ const EMPTY_DATA = {
 
   executive_actions: [],
 
+  material_alerts: [],
+
+  material_alerts_summary: {},
+
   signals: [],
 
   tasks: [],
@@ -233,6 +263,10 @@ export default function ExecutiveWorkspace() {
           summary: result?.summary || {},
 
           executive_actions: arr(result?.executive_actions),
+
+          material_alerts: arr(result?.material_alerts),
+
+          material_alerts_summary: result?.material_alerts_summary || {},
 
           signals: arr(result?.signals),
 
@@ -338,29 +372,53 @@ export default function ExecutiveWorkspace() {
 
  
 
-  const signals = useMemo(
+  const materialAlerts = useMemo(() => {
 
-    () =>
+    const normalized = arr(data.material_alerts);
 
-      arr(data.signals)
+    if (normalized.length) return normalized.slice(0, 4);
 
-        .slice()
+ 
 
-        .sort((a, b) => {
+    return arr(data.signals)
 
-          const riskDifference = priorityRank(b) - priorityRank(a);
+      .slice()
 
-          if (riskDifference) return riskDifference;
+      .sort((a, b) => {
 
-          return number(b?.signal_score || b?.score) - number(a?.signal_score || a?.score);
+        const riskDifference = priorityRank(b) - priorityRank(a);
 
-        })
+        if (riskDifference) return riskDifference;
 
-        .slice(0, 4),
+        return number(b?.signal_score || b?.score) - number(a?.signal_score || a?.score);
 
-    [data.signals]
+      })
 
-  );
+      .slice(0, 4)
+
+      .map((signal) => ({
+
+        ...signal,
+
+        alert_type: "narrative",
+
+        category: signal.signal_type || "Political narrative",
+
+        headline: cleanDisplayText(signal.title, "Political signal"),
+
+        summary: cleanDisplayText(signal.summary, "Review the source record for evidence."),
+
+        source_label: "Political Signals",
+
+        evidence_type: "Narrative reporting",
+
+        score: number(signal.signal_score || signal.score),
+
+        route: "/political-signals",
+
+      }));
+
+  }, [data.material_alerts, data.signals]);
 
  
 
@@ -376,7 +434,7 @@ export default function ExecutiveWorkspace() {
 
   const primaryPriority = priorities[0] || null;
 
-  const criticalSignalCount = arr(data.signals).filter((item) => priorityRank(item) >= 4).length;
+  const criticalSignalCount = materialAlerts.filter((item) => priorityRank(item) >= 4).length;
 
   const urgentTaskCount = arr(data.tasks).filter((item) => priorityRank(item) >= 3).length;
 
@@ -642,6 +700,82 @@ export default function ExecutiveWorkspace() {
 
  
 
+        .executive-material-alert {
+
+          display: grid;
+
+          gap: 10px;
+
+          padding: 16px;
+
+          border: 1px solid rgba(148, 163, 184, .14);
+
+          border-radius: 15px;
+
+          background: rgba(15, 23, 42, .48);
+
+        }
+
+ 
+
+        .executive-material-alert-top,
+
+        .executive-material-alert-meta,
+
+        .executive-material-alert-actions {
+
+          display: flex;
+
+          flex-wrap: wrap;
+
+          gap: 8px;
+
+          align-items: center;
+
+        }
+
+ 
+
+        .executive-material-alert h3 {
+
+          margin: 0;
+
+          color: #f8fafc;
+
+          font-size: 16px;
+
+          line-height: 1.35;
+
+        }
+
+ 
+
+        .executive-material-alert p {
+
+          margin: 0;
+
+          color: rgba(203, 213, 225, .82);
+
+          font-size: 13px;
+
+          line-height: 1.6;
+
+        }
+
+ 
+
+        .executive-material-alert-meta span {
+
+          color: rgba(148, 163, 184, .82);
+
+          font-size: 11px;
+
+          font-weight: 800;
+
+        }
+
+ 
+
         @media (max-width: 900px) {
 
           .executive-workspace-grid,
@@ -814,7 +948,7 @@ export default function ExecutiveWorkspace() {
 
               value={String(criticalSignalCount)}
 
-              delta={`${arr(data.signals).length} monitored signals`}
+              delta={`${materialAlerts.length} material alerts shown`}
 
               tone={criticalSignalCount ? "down" : "up"}
 
@@ -944,43 +1078,97 @@ export default function ExecutiveWorkspace() {
 
                 title="Material Alerts"
 
-                subtitle="A preview of political signals requiring leadership awareness."
+                subtitle="A concise mix of FEC-linked political-finance evidence and material political developments."
 
-                right={<Badge tone={criticalSignalCount ? "danger" : "active"}>{arr(data.signals).length}</Badge>}
+                right={
+
+                  <Badge tone={criticalSignalCount ? "danger" : "active"}>
+
+                    {materialAlerts.length} shown
+
+                  </Badge>
+
+                }
 
               >
 
                 <div className="executive-workspace-stack">
 
-                  {!signals.length ? (
+                  {!materialAlerts.length ? (
 
-                    <EmptyState text="No material political alerts are available for this workspace." />
+                    <EmptyState text="No FEC-linked or narrative material alerts are available for this workspace." />
 
                   ) : (
 
-                    signals.map((signal, index) => (
+                    materialAlerts.map((alert, index) => (
 
-                      <div className="executive-workspace-row" key={itemKey(signal, "signal", index)}>
+                      <article className="executive-material-alert" key={itemKey(alert, "material-alert", index)}>
 
-                        <ResponsiveRow
+                        <div className="executive-material-alert-top">
 
-                          title={itemTitle(signal, "Political signal")}
+                          <Badge tone={alert.alert_type === "fec" ? "accent" : "info"}>
 
-                          subtitle={itemDetail(signal, "Review the full signal record for evidence.")}
+                            {cleanDisplayText(alert.category, alert.alert_type === "fec" ? "Political finance" : "Narrative")}
 
-                          meta={[
+                          </Badge>
 
-                            { label: "Severity", value: labelFor(signal) },
+                          <Badge tone={toneFor(alert)}>{labelFor(alert)}</Badge>
 
-                            { label: "Score", value: number(signal.signal_score || signal.score) || "Not scored" },
+                        </div>
 
-                          ]}
+ 
 
-                          right={<Badge tone={toneFor(signal)}>{labelFor(signal)}</Badge>}
+                        <h3>{cleanDisplayText(alert.headline || alert.title, "Material alert")}</h3>
 
-                        />
+                        <p>{cleanDisplayText(alert.summary, "Review the authoritative record for supporting evidence.")}</p>
 
-                      </div>
+ 
+
+                        <div className="executive-material-alert-meta">
+
+                          <span>Source: {cleanDisplayText(alert.source_label, "Public records")}</span>
+
+                          <span>Evidence: {cleanDisplayText(alert.evidence_type, "Review required")}</span>
+
+                          <span>Score: {number(alert.score || alert.signal_score) || "Not scored"}</span>
+
+                          <span>Updated: {formatDateTime(alert.published_at || alert.created_at)}</span>
+
+                        </div>
+
+ 
+
+                        <div className="executive-material-alert-actions">
+
+                          <Link className="vs-button vs-button-secondary" to={routeFor(alert, "/political-signals")}>
+
+                            Review Alert
+
+                          </Link>
+
+                          {alert.external_url ? (
+
+                            <a
+
+                              className="vs-button vs-button-secondary"
+
+                              href={alert.external_url}
+
+                              target="_blank"
+
+                              rel="noreferrer"
+
+                            >
+
+                              Open Source
+
+                            </a>
+
+                          ) : null}
+
+                        </div>
+
+                      </article>
 
                     ))
 
@@ -992,15 +1180,25 @@ export default function ExecutiveWorkspace() {
 
                 <p className="executive-workspace-source">
 
-                  Full evidence, source history, and signal filtering remain authoritative on Political Signals.
+                  FEC-linked financial records remain authoritative on Political Money Exposure. Narrative evidence remains authoritative on Political Signals.
 
                 </p>
 
-                <Link className="vs-button vs-button-secondary" to="/political-signals">
+                <div className="executive-workspace-links">
 
-                  View Political Signals
+                  <Link className="vs-button vs-button-secondary" to="/political-money-exposure">
 
-                </Link>
+                    View Political Money
+
+                  </Link>
+
+                  <Link className="vs-button vs-button-secondary" to="/political-signals">
+
+                    View Political Signals
+
+                  </Link>
+
+                </div>
 
               </SectionCard>
 
