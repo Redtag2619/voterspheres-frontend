@@ -1,878 +1,725 @@
 import { useMemo, useState } from "react";
+
 import { Link } from "react-router-dom";
 
+ 
+
 import PageShell from "../components/ui/PageShell";
+
 import SectionCard from "../components/ui/SectionCard";
-import StatCard from "../components/ui/StatCard";
+
 import Badge from "../components/ui/Badge";
+
 import EmptyState from "../components/ui/EmptyState";
-import ResponsiveRow from "../components/ui/ResponsiveRow";
+
+ 
 
 import { useWorkspace } from "../context/WorkspaceContext";
+
 import { useExecutiveFilters } from "../context/ExecutiveFiltersContext";
+
 import { useUnifiedExecutiveIntelligence } from "../context/UnifiedExecutiveIntelligenceContext";
 
-function fmt(value) {
-  return Number(value || 0).toLocaleString();
+ 
+
+function arr(value) {
+
+  return Array.isArray(value) ? value : [];
+
 }
+
+ 
+
+function number(value) {
+
+  const next = Number(value);
+
+  return Number.isFinite(next) ? next : 0;
+
+}
+
+ 
 
 function pct(value) {
-  return `${Math.round(Number(value || 0))}%`;
+
+  return `${Math.round(number(value))}%`;
+
 }
+
+ 
 
 function tone(value = "") {
+
   const next = String(value || "").toLowerCase();
 
-  if (["critical", "high", "danger", "intervention required"].some((item) => next.includes(item))) {
+ 
+
+  if (["critical", "high", "danger", "intervention"].some((item) => next.includes(item))) {
+
     return "danger";
+
   }
+
+ 
 
   if (["elevated", "watch", "medium", "degraded"].some((item) => next.includes(item))) {
+
     return "demo";
+
   }
+
+ 
 
   if (["stable", "operational", "available", "active", "live", "fresh"].some((item) => next.includes(item))) {
+
     return "active";
+
   }
+
+ 
 
   return "accent";
+
 }
 
-function dotClass(value = "") {
-  const next = String(value || "").toLowerCase();
-
-  if (next.includes("critical") || next.includes("intervention")) {
-    return "vs-live-dot-danger";
-  }
-
-  if (next.includes("watch") || next.includes("degraded")) {
-    return "vs-live-dot-warning";
-  }
-
-  return "vs-live-dot-success";
-}
-
-function formatTime(value) {
-  if (!value) return "Ready";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Ready";
-
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+ 
 
 function decodeHtmlEntities(value = "") {
+
   if (!value) return "";
+
   if (typeof document === "undefined") return String(value);
 
+ 
+
   const textarea = document.createElement("textarea");
+
   textarea.innerHTML = String(value);
+
   return textarea.value;
+
 }
 
-function cleanPoliticalIntelligenceText(value = "") {
-  if (!value) return "";
+ 
+
+function cleanText(value = "") {
 
   const decoded = decodeHtmlEntities(value);
 
+ 
+
   if (typeof document === "undefined") {
-    return decoded
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+
+    return decoded.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
+
   }
+
+ 
 
   const container = document.createElement("div");
+
   container.innerHTML = decoded;
 
+ 
+
   const anchor = container.querySelector("a");
-  const publisherNode = container.querySelector("font");
-  const headline =
-    anchor?.textContent?.trim() ||
-    container.textContent?.trim() ||
-    "";
-  const publisher = publisherNode?.textContent?.trim() || "";
 
-  const cleanHeadline = headline
-    .replace(/\s+/g, " ")
-    .trim();
+  const publisher = container.querySelector("font")?.textContent?.trim() || "";
 
-  if (publisher && !cleanHeadline.includes(publisher)) {
-    return `${cleanHeadline} — ${publisher}`;
-  }
+  const headline = (anchor?.textContent || container.textContent || "").replace(/\s+/g, " ").trim();
 
-  return cleanHeadline;
+ 
+
+  return publisher && !headline.includes(publisher) ? `${headline} — ${publisher}` : headline;
+
 }
 
-function cleanPoliticalIntelligenceTitle(value = "") {
-  return cleanPoliticalIntelligenceText(value)
+ 
+
+function cleanTitle(value = "") {
+
+  return cleanText(value)
+
     .replace(/^Narrative signal:\s*/i, "")
+
     .replace(/^Political signal:\s*/i, "")
+
     .replace(/^Election signal:\s*/i, "")
+
     .trim();
+
 }
 
-function WorkspaceRow({ item }) {
-  return (
-    <div className={`uei-row is-${String(item.risk || "stable").toLowerCase()}`}>
-      <ResponsiveRow
-        title={item.name || "Campaign Workspace"}
-        subtitle={`${item.state || "National"} • ${item.office || "Campaign"} • ${item.cycle || "2026"}`}
-        meta={[
-          { label: "Pressure", value: pct(item.pressure_score) },
-          { label: "Open", value: fmt(item.open_task_count) },
-          { label: "Blocked", value: fmt(item.blocked_task_count) },
-          { label: "High Priority", value: fmt(item.high_priority_task_count) },
-          { label: "Complete", value: pct(item.completion_rate) },
-        ]}
-        right={
-          <div className="uei-row-actions">
-            <Badge tone={tone(item.risk)}>{item.risk || "Stable"}</Badge>
-            <Link
-              className="vs-button vs-button-secondary"
-              to={`/campaign-workspace/${item.id}`}
-            >
-              Open
-            </Link>
-          </div>
-        }
-      />
-    </div>
-  );
+ 
+
+function firstText(...values) {
+
+  return values.map(cleanText).find(Boolean) || "No additional context is available.";
+
 }
+
+ 
+
+function safeRoute(value, fallback) {
+
+  const route = String(value || "").trim();
+
+  return route.startsWith("/") && !route.startsWith("//") ? route : fallback;
+
+}
+
+ 
+
+function findingScore(item = {}) {
+
+  return Math.max(
+
+    number(item.score),
+
+    number(item.priority_score),
+
+    number(item.severity_score),
+
+    number(item.confidence),
+
+    number(item.confidence_percentage)
+
+  );
+
+}
+
+ 
+
+function formatTime(value) {
+
+  if (!value) return "Awaiting refresh";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Awaiting refresh";
+
+  return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+
+}
+
+ 
 
 export default function CrossWorkspaceExecutiveDashboard() {
-  const {
-    health,
-    briefing,
-    kpis,
-    summary,
-    workspaces,
-    urgentWorkspaces,
-    tasks,
-    signals,
-    alerts,
-    recommendations,
-    sourceStatus,
-    loading,
-    refreshing,
-    error,
-    lastUpdated,
-    refresh,
-    createAction,
-  } = useUnifiedExecutiveIntelligence();
 
   const {
-    workspaces: workspaceOptions,
-    activeWorkspaceId,
-    setActiveWorkspaceId,
-  } = useWorkspace();
+
+    health,
+
+    briefing,
+
+    summary,
+
+    signals,
+
+    alerts,
+
+    recommendations,
+
+    sourceStatus,
+
+    loading,
+
+    refreshing,
+
+    error,
+
+    lastUpdated,
+
+    refresh,
+
+    createAction,
+
+  } = useUnifiedExecutiveIntelligence();
+
+ 
+
+  const { workspaces, activeWorkspaceId, setActiveWorkspaceId } = useWorkspace();
 
   const { filters, setFilters, clearFilters } = useExecutiveFilters();
 
+ 
+
   const [creatingActionId, setCreatingActionId] = useState("");
+
   const [actionMessage, setActionMessage] = useState("");
 
-  const degradedSources = useMemo(
-    () => sourceStatus.filter((item) => item.status === "degraded"),
-    [sourceStatus]
+ 
+
+  const states = useMemo(
+
+    () => [...new Set(arr(workspaces).map((item) => item.state).filter(Boolean))].sort(),
+
+    [workspaces]
+
   );
 
-  const urgent = useMemo(
+ 
+
+  const findings = useMemo(() => {
+
+    const alertFindings = arr(alerts).map((item, index) => ({
+
+      ...item,
+
+      findingId: `alert-${item.id || index}`,
+
+      kind: "Executive Alert",
+
+      title: cleanTitle(item.title || item.name || item.headline || "Executive alert"),
+
+      detail: firstText(item.detail, item.description, item.summary, item.message),
+
+      route: safeRoute(item.route, "/notifications"),
+
+      level: item.severity || item.priority || item.risk || "Alert",
+
+      score: findingScore(item),
+
+    }));
+
+ 
+
+    const signalFindings = arr(signals).map((item, index) => ({
+
+      ...item,
+
+      findingId: `signal-${item.id || index}`,
+
+      kind: "Political Signal",
+
+      title: cleanTitle(item.title || item.name || item.headline || "Political signal"),
+
+      detail: firstText(item.detail, item.description, item.summary, item.explanation),
+
+      route: safeRoute(item.route, "/political-signals"),
+
+      level: item.severity || item.priority || item.risk || item.signal_type || "Signal",
+
+      score: findingScore(item),
+
+    }));
+
+ 
+
+    return [...alertFindings, ...signalFindings]
+
+      .sort((a, b) => b.score - a.score)
+
+      .slice(0, 5);
+
+  }, [alerts, signals]);
+
+ 
+
+  const executiveImplications = useMemo(
+
     () =>
-      urgentWorkspaces.length
-        ? urgentWorkspaces
-        : workspaces.filter((item) => ["Critical", "High"].includes(item.risk)),
-    [urgentWorkspaces, workspaces]
+
+      arr(recommendations)
+
+        .filter((item) => item?.title || item?.detail || item?.description)
+
+        .slice(0, 3),
+
+    [recommendations]
+
   );
 
-  async function handleCreateAction(item) {
+ 
+
+  const evidence = useMemo(() => {
+
+    const sources = arr(sourceStatus);
+
+    const available = sources.filter((item) =>
+
+      ["available", "active", "live", "fresh", "operational"].includes(
+
+        String(item.status || "").toLowerCase()
+
+      )
+
+    ).length;
+
+    const degraded = sources.filter((item) =>
+
+      ["degraded", "offline", "unavailable", "error"].includes(
+
+        String(item.status || "").toLowerCase()
+
+      )
+
+    ).length;
+
+ 
+
+    return { sources, available, degraded };
+
+  }, [sourceStatus]);
+
+ 
+
+  async function handleCreateAction(item, index) {
+
+    const actionId = String(item.id || index);
+
+ 
+
     try {
-      setCreatingActionId(String(item.id));
+
+      setCreatingActionId(actionId);
+
       setActionMessage("");
 
+ 
+
       await createAction({
-        recommendation_id: item.id,
-        title: item.title,
-        description: item.detail,
-        priority: item.priority,
+
+        recommendation_id: item.id || null,
+
+        title: cleanTitle(item.title || "Executive intelligence action"),
+
+        description: firstText(item.detail, item.description, item.summary),
+
+        priority: item.priority || "high",
+
         workspace_id: item.workspace_id || activeWorkspaceId || null,
-        route: item.route,
+
+        route: safeRoute(item.route, "/command-center"),
+
       });
 
-      setActionMessage("Executive action created in Mission Control.");
+ 
+
+      setActionMessage("Executive action created in Command Center.");
+
     } catch (actionError) {
+
       setActionMessage(
-        actionError?.response?.data?.error ||
-          actionError?.message ||
-          "Failed to create executive action."
+
+        actionError?.response?.data?.error || actionError?.message || "Failed to create executive action."
+
       );
+
     } finally {
+
       setCreatingActionId("");
+
     }
+
   }
 
+ 
+
   return (
+
     <PageShell
+
       eyebrow="Unified Executive Intelligence Layer"
+
       title="Unified Executive Intelligence"
-      description="One executive operating picture across campaign workspaces, tasks, political signals, alerts, strategy recommendations, missions, source freshness, and execution risk."
-      tickerItems={[
-        {
-          label: "Executive Health",
-          value: pct(health.overall_score),
-          dotClass: dotClass(health.status),
-        },
-        {
-          label: "Readiness",
-          value: pct(health.readiness_score),
-          dotClass:
-            Number(health.readiness_score || 0) >= 75
-              ? "vs-live-dot-success"
-              : "vs-live-dot-warning",
-        },
-        {
-          label: "Risk",
-          value: pct(health.national_risk),
-          dotClass:
-            Number(health.national_risk || 0) >= 60
-              ? "vs-live-dot-danger"
-              : "vs-live-dot-warning",
-        },
-        {
-          label: "Sources",
-          value: `${sourceStatus.length - degradedSources.length}/${sourceStatus.length || 0}`,
-          dotClass: degradedSources.length
-            ? "vs-live-dot-warning"
-            : "vs-live-dot-success",
-        },
-        {
-          label: "Updated",
-          value: refreshing ? "Live" : formatTime(lastUpdated),
-          dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success",
-        },
-      ]}
+
+      description="A concise, evidence-backed executive briefing that explains what matters now, why it matters, and what leadership should do next."
+
     >
+
       <style>{`
-        .uei-command {
-          display: grid;
-          grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(150px, .45fr));
-          gap: 14px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          border-radius: 30px;
-          padding: 20px;
-          background:
-            radial-gradient(circle at top left, rgba(37, 99, 235, .2), transparent 34%),
-            radial-gradient(circle at bottom right, rgba(251, 146, 60, .14), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, .96), rgba(2, 6, 23, .88));
-          box-shadow: 0 24px 80px rgba(2, 6, 23, .34);
-        }
 
-        .uei-command-primary span,
-        .uei-command-metric span,
-        .uei-source-card span {
-          display: block;
-          color: rgba(147, 197, 253, .84);
-          font-size: 10px;
-          font-weight: 950;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-        }
+        .uei-page { display: grid; gap: 18px; }
 
-        .uei-command-primary strong {
-          display: block;
-          margin-top: 8px;
-          color: white;
-          font-size: clamp(32px, 5vw, 58px);
-          line-height: .95;
-          letter-spacing: -.075em;
-        }
+        .uei-scope, .uei-actions, .uei-meta, .uei-evidence, .uei-finding-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 
-        .uei-command-primary p {
-          max-width: 850px;
-          margin: 12px 0 0;
-          color: rgba(203, 213, 225, .76);
-          line-height: 1.7;
-        }
+        .uei-scope { justify-content: space-between; padding: 14px; border: 1px solid rgba(148,163,184,.14); border-radius: 18px; background: rgba(15,23,42,.42); }
 
-        .uei-command-metric {
-          border: 1px solid rgba(148, 163, 184, .12);
-          border-radius: 18px;
-          background: rgba(2, 6, 23, .3);
-          padding: 14px;
-        }
+        .uei-scope-fields { display: flex; flex-wrap: wrap; gap: 10px; }
 
-        .uei-command-metric strong {
-          display: block;
-          margin-top: 7px;
-          color: white;
-          font-size: 24px;
-          font-weight: 950;
-        }
+        .uei-scope select { min-width: 170px; border: 1px solid rgba(148,163,184,.18); border-radius: 12px; padding: 10px 12px; background: rgba(2,6,23,.74); color: white; }
 
-        .uei-toolbar,
-        .uei-toolbar-actions,
-        .uei-filter-grid,
-        .uei-row-actions,
-        .uei-source-status {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          align-items: center;
-        }
+        .uei-brief { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0,1fr) minmax(250px,.34fr); gap: 22px; padding: 26px; border: 1px solid rgba(96,165,250,.24); border-radius: 28px; background: radial-gradient(circle at top right,rgba(59,130,246,.22),transparent 36%),linear-gradient(135deg,rgba(15,23,42,.96),rgba(2,6,23,.82)); box-shadow: 0 24px 70px rgba(2,6,23,.28); }
 
-        .uei-toolbar {
-          justify-content: space-between;
-        }
+        .uei-brief h2 { max-width: 920px; margin: 8px 0 12px; color: white; font-size: clamp(29px,4.5vw,52px); line-height: 1; letter-spacing: -.055em; }
 
-        .uei-filter-grid select {
-          min-width: 170px;
-          border: 1px solid rgba(148, 163, 184, .16);
-          border-radius: 13px;
-          background: rgba(15, 23, 42, .78);
-          color: white;
-          padding: 10px 12px;
-        }
+        .uei-brief p { max-width: 900px; margin: 0; color: rgba(203,213,225,.8); line-height: 1.72; }
 
-        .uei-layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr);
-          gap: 18px;
-          align-items: start;
-        }
+        .uei-recommendation { margin-top: 18px; padding: 16px 18px; border-left: 3px solid #fb923c; border-radius: 0 16px 16px 0; background: rgba(251,146,60,.09); }
 
-        .uei-stack {
-          display: grid;
-          gap: 14px;
-        }
+        .uei-recommendation span, .uei-side-label { display: block; color: #fdba74; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 
-        .uei-row {
-          overflow: hidden;
-          border: 1px solid rgba(148, 163, 184, .15);
-          border-radius: 19px;
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, .09), transparent 35%),
-            rgba(15, 23, 42, .5);
-        }
+        .uei-recommendation strong { display: block; margin-top: 6px; color: white; font-size: 18px; line-height: 1.35; }
 
-        .uei-row .vs-responsive-row {
-          border: 0;
-          background: transparent;
-        }
+        .uei-brief-side { display: grid; align-content: start; gap: 10px; }
 
-        .uei-row.is-critical,
-        .uei-row.is-high {
-          border-color: rgba(248, 113, 113, .34);
-        }
+        .uei-fact { padding: 14px; border: 1px solid rgba(148,163,184,.13); border-radius: 16px; background: rgba(2,6,23,.34); }
 
-        .uei-row.is-elevated {
-          border-color: rgba(251, 191, 36, .3);
-        }
+        .uei-fact strong { display: block; margin-top: 6px; color: white; font-size: 18px; }
 
-        .uei-row.is-stable {
-          border-color: rgba(34, 197, 94, .22);
-        }
+        .uei-grid { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(330px,.8fr); gap: 18px; align-items: start; }
 
-        .uei-brief {
-          border: 1px solid rgba(96, 165, 250, .24);
-          border-radius: 24px;
-          padding: 20px;
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, .14), transparent 35%),
-            linear-gradient(135deg, rgba(15, 23, 42, .78), rgba(2, 6, 23, .56));
-        }
+        .uei-stack { display: grid; gap: 12px; }
 
-        .uei-brief h2 {
-          margin: 8px 0 10px;
-          color: white;
-          font-size: clamp(25px, 4vw, 42px);
-          line-height: 1.05;
-          letter-spacing: -.055em;
-        }
+        .uei-finding, .uei-implication { padding: 16px; border: 1px solid rgba(148,163,184,.14); border-radius: 18px; background: rgba(15,23,42,.45); }
 
-        .uei-brief p {
-          color: rgba(203, 213, 225, .76);
-          line-height: 1.7;
-        }
+        .uei-finding h3, .uei-implication h3 { margin: 8px 0 7px; color: white; font-size: 16px; line-height: 1.35; }
 
-        .uei-source-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-          gap: 10px;
-        }
+        .uei-finding p, .uei-implication p { margin: 0; color: rgba(203,213,225,.74); font-size: 12px; line-height: 1.6; }
 
-        .uei-source-card {
-          border: 1px solid rgba(148, 163, 184, .13);
-          border-radius: 16px;
-          background: rgba(15, 23, 42, .48);
-          padding: 12px;
-        }
+        .uei-finding-top, .uei-implication-footer { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 
-        .uei-source-card strong {
-          display: block;
-          margin-top: 6px;
-          color: white;
-          font-size: 13px;
-          overflow-wrap: anywhere;
-        }
+        .uei-finding-meta { margin-top: 12px; color: rgba(148,163,184,.74); font-size: 10px; }
 
-        .uei-source-card small {
-          display: block;
-          margin-top: 5px;
-          color: rgba(148, 163, 184, .7);
-          font-size: 9px;
-          line-height: 1.4;
-        }
+        .uei-evidence { align-items: stretch; }
 
-        .uei-recommendation {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 12px;
-          align-items: center;
-          border: 1px solid rgba(148, 163, 184, .13);
-          border-radius: 17px;
-          background: rgba(15, 23, 42, .48);
-          padding: 14px;
-        }
+        .uei-evidence-card { flex: 1 1 120px; padding: 13px; border: 1px solid rgba(148,163,184,.13); border-radius: 15px; background: rgba(15,23,42,.42); }
 
-        .uei-recommendation strong {
-          color: white;
-        }
+        .uei-evidence-card span { display: block; color: rgba(148,163,184,.76); font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 
-        .uei-recommendation p {
-          margin: 6px 0 0;
-          color: rgba(203, 213, 225, .72);
-          font-size: 11px;
-          line-height: 1.5;
-        }
+        .uei-evidence-card strong { display: block; margin-top: 5px; color: white; font-size: 20px; }
 
-        @media (max-width: 1180px) {
-          .uei-command,
-          .uei-layout {
-            grid-template-columns: 1fr;
-          }
-        }
+        .uei-source-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 
-        @media (max-width: 760px) {
-          .uei-recommendation {
-            grid-template-columns: 1fr;
-          }
-        }
+        .uei-context-note { color: rgba(148,163,184,.72); font-size: 11px; line-height: 1.55; }
+
+        @media (max-width: 1000px) { .uei-brief, .uei-grid { grid-template-columns: 1fr; } }
+
+        @media (max-width: 700px) { .uei-scope { align-items: stretch; } .uei-scope-fields, .uei-scope-fields select, .uei-actions { width: 100%; } .uei-scope-fields select, .uei-actions .vs-button { flex: 1 1 100%; } .uei-brief { padding: 20px; } .uei-finding-top, .uei-implication-footer { align-items: flex-start; flex-direction: column; } }
+
       `}</style>
 
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-      {actionMessage ? <div className="vs-banner">{actionMessage}</div> : null}
+ 
 
-      <div className="uei-command">
-        <div className="uei-command-primary">
-          <span>National Executive Posture</span>
-          <strong>{health.status || "Intelligence Ready"}</strong>
-          <p>
-            {briefing.strategic_summary ||
-              "The unified layer is consolidating workspace pressure, operational execution, political signals, alerts, recommendations, and data-source readiness."}
-          </p>
-        </div>
+      <div className="uei-page">
 
-        <div className="uei-command-metric">
-          <span>Executive Health</span>
-          <strong>{pct(health.overall_score)}</strong>
-        </div>
+        {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
-        <div className="uei-command-metric">
-          <span>Execution Score</span>
-          <strong>{pct(health.execution_score)}</strong>
-        </div>
+        {actionMessage ? <div className="vs-banner">{actionMessage}</div> : null}
 
-        <div className="uei-command-metric">
-          <span>Intelligence Confidence</span>
-          <strong>{pct(health.intelligence_confidence)}</strong>
-        </div>
-      </div>
+ 
 
-      <SectionCard
-        title="Executive Scope"
-        subtitle="Workspace and executive filters now drive one shared intelligence response."
-      >
-        <div className="uei-toolbar">
-          <div className="uei-filter-grid">
-            <select
-              value={activeWorkspaceId || ""}
-              onChange={(event) => setActiveWorkspaceId(event.target.value)}
-            >
+        <div className="uei-scope">
+
+          <div className="uei-scope-fields">
+
+            <select value={activeWorkspaceId || ""} onChange={(event) => setActiveWorkspaceId(event.target.value)} aria-label="Executive workspace">
+
               <option value="">All workspaces</option>
-              {workspaceOptions.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name} • {workspace.state || "National"}
-                </option>
+
+              {arr(workspaces).map((workspace) => (
+
+                <option key={workspace.id} value={workspace.id}>{workspace.name} • {workspace.state || "National"}</option>
+
               ))}
+
             </select>
 
-            <select
-              value={filters.state || ""}
-              onChange={(event) => setFilters({ state: event.target.value })}
-            >
+ 
+
+            <select value={filters.state || ""} onChange={(event) => setFilters({ state: event.target.value })} aria-label="State filter">
+
               <option value="">All states</option>
-              {[...new Set(workspaceOptions.map((item) => item.state).filter(Boolean))]
-                .sort()
-                .map((state) => (
-                  <option key={state}>{state}</option>
-                ))}
+
+              {states.map((state) => <option key={state} value={state}>{state}</option>)}
+
             </select>
 
-            <select
-              value={filters.risk || ""}
-              onChange={(event) => setFilters({ risk: event.target.value })}
-            >
+ 
+
+            <select value={filters.risk || ""} onChange={(event) => setFilters({ risk: event.target.value })} aria-label="Risk filter">
+
               <option value="">All risk levels</option>
-              <option>Critical</option>
-              <option>High</option>
-              <option>Elevated</option>
-              <option>Stable</option>
+
+              <option value="Critical">Critical</option>
+
+              <option value="High">High</option>
+
+              <option value="Elevated">Elevated</option>
+
+              <option value="Stable">Stable</option>
+
             </select>
+
           </div>
 
-          <div className="uei-toolbar-actions">
-            <button
-              className="vs-button vs-button-secondary"
-              type="button"
-              onClick={clearFilters}
-            >
-              Clear Filters
+ 
+
+          <div className="uei-actions">
+
+            <button className="vs-button vs-button-secondary" type="button" onClick={clearFilters}>Clear Scope</button>
+
+            <button className="vs-button" type="button" onClick={refresh} disabled={refreshing}>
+
+              {refreshing ? "Refreshing Briefing..." : "Refresh Executive Briefing"}
+
             </button>
 
-            <button
-              className="vs-button"
-              type="button"
-              onClick={refresh}
-              disabled={refreshing}
-            >
-              {refreshing ? "Refreshing..." : "Refresh Intelligence"}
-            </button>
-
-            <Link
-              className="vs-button vs-button-secondary"
-              to="/executive-ai-command-platform"
-            >
-              Consult Executive AI
-            </Link>
-
-            <Link
-              className="vs-button vs-button-secondary"
-              to="/mission-control"
-            >
-              Mission Control
-            </Link>
           </div>
+
         </div>
-      </SectionCard>
 
-      <div className="vs-grid-4">
-        <StatCard
-          label="Unified Workspaces"
-          value={fmt(summary.total_workspaces)}
-          delta={`${fmt(summary.high_risk_workspaces)} high risk`}
-          tone={summary.high_risk_workspaces ? "down" : "up"}
-        />
-        <StatCard
-          label="Open Tasks"
-          value={fmt(summary.open_tasks)}
-          delta={`${fmt(summary.blocked_tasks)} blocked`}
-          tone={summary.blocked_tasks ? "down" : "neutral"}
-        />
-        <StatCard
-          label="Political Intelligence"
-          value={fmt(kpis.total_signals || signals.length)}
-          delta={`${fmt(kpis.critical_signals)} high priority`}
-          tone={kpis.critical_signals ? "down" : "up"}
-        />
-        <StatCard
-          label="Executive Alerts"
-          value={fmt(kpis.total_alerts || alerts.length)}
-          delta={`${fmt(kpis.critical_alerts)} critical`}
-          tone={kpis.critical_alerts ? "down" : "up"}
-        />
+ 
+
+        {loading ? (
+
+          <EmptyState text="Building the Unified Executive Intelligence briefing..." />
+
+        ) : (
+
+          <>
+
+            <section className="uei-brief" aria-labelledby="uei-brief-title">
+
+              <div>
+
+                <div className="vs-page-eyebrow">Executive Assessment</div>
+
+                <h2 id="uei-brief-title">{briefing.headline || health.status || "Executive intelligence is ready"}</h2>
+
+                <p>{briefing.strategic_summary || "The unified intelligence layer is consolidating operational, political, and strategic evidence into one leadership briefing."}</p>
+
+ 
+
+                <div className="uei-recommendation">
+
+                  <span>Recommended leadership response</span>
+
+                  <strong>{briefing.recommended_action || "Maintain executive oversight and review the highest-ranked findings."}</strong>
+
+                </div>
+
+              </div>
+
+ 
+
+              <aside className="uei-brief-side" aria-label="Briefing facts">
+
+                <div className="uei-fact"><span className="uei-side-label">Decision window</span><strong>{briefing.decision_window || "Next review cycle"}</strong></div>
+
+                <div className="uei-fact"><span className="uei-side-label">Confidence</span><strong>{pct(briefing.confidence_percentage || health.intelligence_confidence)}</strong></div>
+
+                <div className="uei-fact"><span className="uei-side-label">Executive posture</span><strong>{health.status || "Operational"}</strong></div>
+
+                <div className="uei-fact"><span className="uei-side-label">Updated</span><strong>{formatTime(lastUpdated)}</strong></div>
+
+              </aside>
+
+            </section>
+
+ 
+
+            <div className="uei-grid">
+
+              <SectionCard title="Material Findings" subtitle="The five highest-ranked alerts and political signals requiring leadership awareness." right={<Link className="vs-button vs-button-secondary" to="/political-signals">Political Signals</Link>}>
+
+                {findings.length ? (
+
+                  <div className="uei-stack">
+
+                    {findings.map((item) => (
+
+                      <article className="uei-finding" key={item.findingId}>
+
+                        <div className="uei-finding-top"><Badge tone={tone(item.level)}>{item.kind}</Badge><Badge tone={tone(item.level)}>{item.level}</Badge></div>
+
+                        <h3>{item.title}</h3>
+
+                        <p>{item.detail}</p>
+
+                        <div className="uei-finding-meta"><span>{item.source || item.provider || "Unified intelligence"}</span>{item.score > 0 ? <span>Rank {Math.round(item.score)}</span> : null}<Link to={item.route}>Review evidence</Link></div>
+
+                      </article>
+
+                    ))}
+
+                  </div>
+
+                ) : <EmptyState text="No material findings match the current executive scope." />}
+
+              </SectionCard>
+
+ 
+
+              <div className="uei-stack">
+
+                <SectionCard title="Executive Implications" subtitle="The three most important leadership responses supported by the current briefing.">
+
+                  {executiveImplications.length ? (
+
+                    <div className="uei-stack">
+
+                      {executiveImplications.map((item, index) => {
+
+                        const actionId = String(item.id || index);
+
+                        return (
+
+                          <article className="uei-implication" key={actionId}>
+
+                            <Badge tone={tone(item.priority)}>{item.priority || "Recommended"}</Badge>
+
+                            <h3>{cleanTitle(item.title || "Executive recommendation")}</h3>
+
+                            <p>{firstText(item.detail, item.description, item.summary)}</p>
+
+                            <div className="uei-implication-footer" style={{ marginTop: 12 }}>
+
+                              <Link className="vs-button vs-button-secondary" to={safeRoute(item.route, "/strategy-recommendations")}>Review</Link>
+
+                              <button className="vs-button vs-button-secondary" type="button" onClick={() => handleCreateAction(item, index)} disabled={creatingActionId === actionId}>{creatingActionId === actionId ? "Creating..." : "Create Action"}</button>
+
+                            </div>
+
+                          </article>
+
+                        );
+
+                      })}
+
+                    </div>
+
+                  ) : <EmptyState text="No executive implications match the current scope." />}
+
+                </SectionCard>
+
+ 
+
+                <SectionCard title="Evidence Coverage" subtitle="A concise confidence check for this briefing—not a source-administration dashboard.">
+
+                  <div className="uei-evidence">
+
+                    <div className="uei-evidence-card"><span>Sources reporting</span><strong>{evidence.available}/{evidence.sources.length}</strong></div>
+
+                    <div className="uei-evidence-card"><span>Degraded</span><strong>{evidence.degraded}</strong></div>
+
+                    <div className="uei-evidence-card"><span>Workspaces in scope</span><strong>{number(summary.total_workspaces)}</strong></div>
+
+                  </div>
+
+                  <div className="uei-source-list">
+
+                    {evidence.sources.slice(0, 8).map((item, index) => <Badge key={item.key || item.name || index} tone={tone(item.status)}>{item.label || item.name || item.key || "Source"}: {item.status || "unknown"}</Badge>)}
+
+                  </div>
+
+                  <p className="uei-context-note">Detailed provider diagnostics remain in the authorized data-health tools. Operational tasks, notifications, political signals, and strategy workflows remain authoritative on their dedicated pages.</p>
+
+                </SectionCard>
+
+              </div>
+
+            </div>
+
+          </>
+
+        )}
+
       </div>
 
-      {loading ? (
-        <EmptyState text="Loading Unified Executive Intelligence..." />
-      ) : (
-        <>
-          <div className="uei-layout">
-            <div className="uei-stack">
-              <SectionCard
-                title="Unified Executive Brief"
-                subtitle="The recommended executive action generated from the shared operating picture."
-                right={<Badge tone={tone(health.status)}>{health.status || "Ready"}</Badge>}
-              >
-                <div className="uei-brief">
-                  <div className="vs-page-eyebrow">Recommended Executive Action</div>
-                  <h2>{briefing.recommended_action || "Maintain executive oversight"}</h2>
-                  <p>{briefing.headline || "The unified layer is online."}</p>
-                  <div className="uei-source-status">
-                    <Badge tone="accent">{briefing.decision_window || "Next review"}</Badge>
-                    <Badge tone="active">
-                      Confidence {pct(briefing.confidence_percentage)}
-                    </Badge>
-                    <Badge tone={degradedSources.length ? "demo" : "active"}>
-                      {degradedSources.length} Degraded
-                    </Badge>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                title="Workspace Risk Rankings"
-                subtitle="Every campaign workspace ranked by operational pressure."
-                right={<Badge tone="accent">{workspaces.length} Workspaces</Badge>}
-              >
-                <div className="uei-stack">
-                  {workspaces.length ? (
-                    workspaces.map((item) => <WorkspaceRow key={item.id} item={item} />)
-                  ) : (
-                    <EmptyState text="No workspaces match the current scope." />
-                  )}
-                </div>
-              </SectionCard>
-            </div>
-
-            <div className="uei-stack">
-              <SectionCard
-                title="Executive Recommendations"
-                subtitle="Cross-platform actions ready for Mission Control."
-                right={
-                  <Badge tone={recommendations.length ? "demo" : "active"}>
-                    {recommendations.length}
-                  </Badge>
-                }
-              >
-                <div className="uei-stack">
-                  {recommendations.length ? (
-                    recommendations.slice(0, 10).map((item) => (
-                      <div key={item.id} className="uei-recommendation">
-                        <div>
-                          <strong>{item.title}</strong>
-                          <p>{item.detail || "Executive recommendation details unavailable."}</p>
-                          <div className="uei-source-status">
-                            <Badge tone={tone(item.priority)}>
-                              {item.priority || "Medium"}
-                            </Badge>
-                            <Badge tone="info">
-                              {item.owner || "Executive Operations"}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="uei-row-actions">
-                          {item.route ? (
-                            <Link
-                              className="vs-button vs-button-secondary"
-                              to={item.route}
-                            >
-                              Review
-                            </Link>
-                          ) : null}
-
-                          <button
-                            type="button"
-                            className="vs-button"
-                            disabled={creatingActionId === String(item.id)}
-                            onClick={() => handleCreateAction(item)}
-                          >
-                            {creatingActionId === String(item.id)
-                              ? "Creating..."
-                              : "Create Action"}
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <EmptyState text="No executive recommendations detected." />
-                  )}
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                title="Urgent Workspaces"
-                subtitle="Campaigns requiring executive attention first."
-                right={<Badge tone={urgent.length ? "danger" : "active"}>{urgent.length}</Badge>}
-              >
-                <div className="uei-stack">
-                  {urgent.length ? (
-                    urgent.slice(0, 6).map((item) => (
-                      <WorkspaceRow key={item.id} item={item} />
-                    ))
-                  ) : (
-                    <EmptyState text="No urgent workspace escalation detected." />
-                  )}
-                </div>
-              </SectionCard>
-            </div>
-          </div>
-
-          <SectionCard
-            title="Intelligence Source Status"
-            subtitle="Each source degrades independently so one missing module cannot crash the unified layer."
-            right={
-              <Badge tone={degradedSources.length ? "demo" : "active"}>
-                {sourceStatus.length - degradedSources.length}/{sourceStatus.length} Available
-              </Badge>
-            }
-          >
-            <div className="uei-source-grid">
-              {sourceStatus.map((item) => (
-                <div key={item.key} className="uei-source-card">
-                  <span>{item.key}</span>
-                  <strong>{item.status || "unknown"}</strong>
-                  <div className="uei-source-status">
-                    <Badge tone={tone(item.status)}>
-                      {item.freshness || "unknown"}
-                    </Badge>
-                  </div>
-                  <small>
-                    {item.error ||
-                      (item.last_seen
-                        ? `Last seen ${new Date(item.last_seen).toLocaleString()}`
-                        : "No timestamp available")}
-                  </small>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <div className="vs-grid-3">
-            <SectionCard
-              title="Task Pressure"
-              subtitle="Highest-priority tasks in the active executive scope."
-              right={<Badge tone="accent">{tasks.length}</Badge>}
-            >
-              <div className="uei-stack">
-                {tasks.slice(0, 6).map((task) => (
-                  <div key={task.id} className="uei-row">
-                    <ResponsiveRow
-                      title={task.title || "Task"}
-                      subtitle={task.description || "No task description."}
-                      meta={[
-                        { label: "Priority", value: task.priority || "Normal" },
-                        { label: "Status", value: task.status || "Open" },
-                        { label: "Workspace", value: task.workspace_id || "—" },
-                      ]}
-                      right={
-                        <Badge tone={tone(task.priority || task.status)}>
-                          {task.status || "Open"}
-                        </Badge>
-                      }
-                    />
-                  </div>
-                ))}
-                {!tasks.length ? <EmptyState text="No tasks in scope." /> : null}
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Political Intelligence"
-              subtitle="High-impact political developments, narrative shifts, risks, and opportunities informing the executive operating picture."
-              right={<Badge tone="accent">{signals.length}</Badge>}
-            >
-              <div className="uei-stack">
-                {signals.slice(0, 6).map((signal) => {
-                  const intelligenceTitle = cleanPoliticalIntelligenceTitle(
-                    signal.title ||
-                      signal.headline ||
-                      signal.name ||
-                      ""
-                  );
-
-                  const intelligenceSummary = cleanPoliticalIntelligenceText(
-                    signal.executive_summary ||
-                      signal.summary ||
-                      signal.description ||
-                      signal.detail ||
-                      signal.content ||
-                      ""
-                  );
-
-                  return (
-                    <div key={signal.id} className="uei-row">
-                      <ResponsiveRow
-                        title={
-                          intelligenceTitle ||
-                          "Political Intelligence Event"
-                        }
-                        subtitle={
-                          intelligenceSummary ||
-                          "Executive intelligence details are not yet available."
-                        }
-                        meta={[
-                          {
-                            label: "Geography",
-                            value:
-                              signal.state ||
-                              signal.state_code ||
-                              "National",
-                          },
-                          {
-                            label: "Strategic Priority",
-                            value:
-                              signal.risk ||
-                              signal.severity ||
-                              signal.priority ||
-                              "Monitor",
-                          },
-                          {
-                            label: "Intelligence Score",
-                            value:
-                              signal.signal_score ??
-                              signal.confidence_score ??
-                              signal.score ??
-                              0,
-                          },
-                        ]}
-                      />
-                    </div>
-                  );
-                })}
-
-                {!signals.length ? (
-                  <EmptyState text="No political intelligence events detected in the current executive scope." />
-                ) : null}
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Executive Alerts"
-              subtitle="Critical notifications elevated into the shared intelligence layer."
-              right={<Badge tone={alerts.length ? "demo" : "active"}>{alerts.length}</Badge>}
-            >
-              <div className="uei-stack">
-                {alerts.slice(0, 6).map((alert) => (
-                  <div key={alert.id} className="uei-row">
-                    <ResponsiveRow
-                      title={alert.title || alert.message || "Executive Alert"}
-                      subtitle={
-                        alert.description ||
-                        alert.detail ||
-                        "Alert details unavailable."
-                      }
-                      meta={[
-                        { label: "Level", value: alert.level || "Info" },
-                        { label: "Source", value: alert.source || "Platform" },
-                        { label: "State", value: alert.state || "National" },
-                      ]}
-                    />
-                  </div>
-                ))}
-                {!alerts.length ? (
-                  <EmptyState text="No executive alerts in scope." />
-                ) : null}
-              </div>
-            </SectionCard>
-          </div>
-        </>
-      )}
     </PageShell>
+
   );
+
 }
