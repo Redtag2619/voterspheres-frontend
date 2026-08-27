@@ -3,7 +3,7 @@ import { navigationSections } from "./navigation";
 
  
 
-const PLATFORM_HOME = "/executive-workspace";
+const PLATFORM_HOME = "/executive-workspace"; 
 
  
 
