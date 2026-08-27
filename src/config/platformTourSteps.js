@@ -1,4 +1,4 @@
-
+﻿
 import { navigationSections } from "./navigation";
 
  
@@ -421,7 +421,7 @@ const PAGE_GUIDES = {
 
   },
 
-  "/Political-Money-Exposure": {
+  "/dark-money-exposure": {
 
     heading: "Political Money Exposure",
 
@@ -1371,4 +1371,6 @@ export function getTourSteps(mode = "platform") {
  
 
 export default getTourSteps;
+
+
 
