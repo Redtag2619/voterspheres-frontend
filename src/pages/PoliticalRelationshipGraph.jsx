@@ -764,59 +764,63 @@ function EdgeRow({ edge, nodesById }) {
 
   return (
 
-    <ResponsiveRow
+    <div className="pg-edge-row">
 
-      title={`${nodeTitle(from)} → ${nodeTitle(to)}`}
+      <ResponsiveRow
 
-      subtitle={edge.label || edge.type || "Relationship"}
+        title={`${nodeTitle(from)} → ${nodeTitle(to)}`}
 
-      meta={[
+        subtitle={labelize(edge.label || edge.type || "Relationship")}
 
-        {
+        meta={[
 
-          label: "From",
+          {
 
-          value: from.type || "Unknown",
+            label: "From",
 
-        },
+            value: labelize(from.type || "Unknown"),
 
-        {
+          },
 
-          label: "To",
+          {
 
-          value: to.type || "Unknown",
+            label: "To",
 
-        },
+            value: labelize(to.type || "Unknown"),
 
-        {
+          },
 
-          label: "Strength",
+          {
 
-          value: `${Number(edge.strength || 50)}/100`,
+            label: "Strength",
 
-        },
+            value: `${Number(edge.strength || 50)}/100`,
 
-        {
+          },
 
-          label: "Value",
+          {
 
-          value: edge.value ? formatMoney(edge.value) : "N/A",
+            label: "Value",
 
-        },
+            value: edge.value ? formatMoney(edge.value) : "N/A",
 
-      ]}
+          },
 
-      right={
+        ]}
 
-        <Badge tone={scoreTone(edge.strength)}>
+        right={
 
-          {edge.type || edge.label || "link"}
+          <Badge tone={scoreTone(edge.strength)}>
 
-        </Badge>
+            {labelize(edge.type || edge.label || "link")}
 
-      }
+          </Badge>
 
-    />
+        }
+
+      />
+
+    </div>
 
   );
 
@@ -2025,6 +2029,52 @@ export default function PoliticalRelationshipGraph() {
         .pg-network-legend i { width: 7px; height: 7px; border-radius: 999px; }
 
         .pg-inspector-actions .vs-button { flex: 1 1 190px; text-align: center; }
+
+ 
+
+        .pg-edge-row {
+
+          min-width: 0;
+
+          max-width: 100%;
+
+          overflow: hidden;
+
+        }
+
+ 
+
+        .pg-edge-row .vs-responsive-row,
+
+        .pg-edge-row .vs-responsive-row > *,
+
+        .pg-edge-row .vs-responsive-row * {
+
+          min-width: 0;
+
+          max-width: 100%;
+
+        }
+
+ 
+
+        .pg-edge-row .vs-responsive-row strong,
+
+        .pg-edge-row .vs-responsive-row span,
+
+        .pg-edge-row .vs-responsive-row small,
+
+        .pg-edge-row .vs-responsive-row p,
+
+        .pg-edge-row .vs-badge {
+
+          white-space: normal;
+
+          overflow-wrap: anywhere;
+
+          word-break: break-word;
+
+        }
 
  
 
