@@ -82,6 +82,30 @@ function normalizeText(value = "") {
 
  
 
+function labelize(value = "") {
+
+  const normalized = normalizeText(value)
+
+    .replace(/[_-]+/g, " ")
+
+    .replace(/\s+/g, " ");
+
+ 
+
+  if (!normalized) return "Relationship";
+
+ 
+
+  return normalized.replace(/\b\w/g, (character) =>
+
+    character.toUpperCase()
+
+  );
+
+}
+
+ 
+
 function toNumber(value, fallback = 0) {
 
   const next = Number(value);
