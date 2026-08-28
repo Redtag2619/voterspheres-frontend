@@ -673,7 +673,7 @@ export default function IntelligenceReports() {
           <CollapsibleSection
             id="reports-viewer"
             title={selectedReport?.title || "Report Viewer"}
-            subtitle={selectedReport ? `${prettyType(selectedReport.report_type)} â€¢ ${selectedReport.state || "National"}` : "Generate or select a report."}
+            subtitle={selectedReport ? `${prettyType(selectedReport.report_type)} ${selectedReport.state || "National"}` : "Generate or select a report."}
             right={selectedReport ? <Badge tone="active">{selectedReport.status || "generated"}</Badge> : null}
           >
             {!selectedReport ? (
