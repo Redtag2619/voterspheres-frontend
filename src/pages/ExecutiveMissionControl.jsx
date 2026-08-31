@@ -1,1017 +1,867 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { Link } from "react-router-dom";
+
 import { api } from "../services/api";
 
+ 
+
 import PageShell from "../components/ui/PageShell";
+
 import SectionCard from "../components/ui/SectionCard";
+
 import StatCard from "../components/ui/StatCard";
+
 import Badge from "../components/ui/Badge";
+
 import EmptyState from "../components/ui/EmptyState";
+
 import ResponsiveRow from "../components/ui/ResponsiveRow";
-import ExecutivePageNav from "../components/ui/ExecutivePageNav";
-import CollapsibleSection from "../components/ui/CollapsibleSection";
-import BackToTopButton from "../components/ui/BackToTopButton";
-import ShowMoreList from "../components/ui/ShowMoreList";
 
-function fmt(value) {
-  return Number(value || 0).toLocaleString();
-}
-
-function pct(value) {
-  return `${Number(value || 0).toFixed(0)}%`;
-}
-
-function clean(value = "") {
-  return String(value || "")
-    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1")
-    .replace(/<font\b[^>]*>(.*?)<\/font>/gi, "$1")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+ 
 
 function arr(value) {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.results)) return value.results;
-  if (Array.isArray(value?.rows)) return value.rows;
-  return [];
+
+  return Array.isArray(value) ? value : [];
+
 }
 
-function tone(value) {
-  const v = String(value || "").toLowerCase();
-  if (["critical", "high", "danger", "blocked"].includes(v)) return "danger";
-  if (["elevated", "medium", "open", "pending"].includes(v)) return "demo";
-  if (["stable", "complete", "completed", "done", "resolved"].includes(v)) return "active";
+ 
+
+function number(value = 0) {
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+
+}
+
+ 
+
+function fmt(value) {
+
+  return number(value).toLocaleString();
+
+}
+
+ 
+
+function pct(value) {
+
+  return `${Math.round(number(value))}%`;
+
+}
+
+ 
+
+function clean(value = "", fallback = "") {
+
+  const normalized = String(value ?? "")
+
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1")
+
+    .replace(/<font\b[^>]*>(.*?)<\/font>/gi, "$1")
+
+    .replace(/<[^>]+>/g, " ")
+
+    .replace(/&nbsp;/gi, " ")
+
+    .replace(/&amp;/gi, "&")
+
+    .replace(/&quot;/gi, '"')
+
+    .replace(/&#39;|&apos;/gi, "'")
+
+    .replace(/\s+/g, " ")
+
+    .trim();
+
+ 
+
+  return normalized || fallback;
+
+}
+
+ 
+
+function tone(value = "") {
+
+  const normalized = String(value || "").toLowerCase();
+
+ 
+
+  if (["critical", "high", "danger", "overdue"].some((item) => normalized.includes(item))) {
+
+    return "danger";
+
+  }
+
+ 
+
+  if (["elevated", "medium", "watch", "gap", "open"].some((item) => normalized.includes(item))) {
+
+    return "demo";
+
+  }
+
+ 
+
+  if (["stable", "ready", "active", "complete", "resolved"].some((item) => normalized.includes(item))) {
+
+    return "active";
+
+  }
+
+ 
+
   return "accent";
+
 }
 
-function MissionItemRow({ item }) {
+ 
+
+function priorityRank(item = {}) {
+
+  const priority = String(item.priority || item.risk || item.severity || "").toLowerCase();
+
+  if (priority.includes("critical")) return 5;
+
+  if (priority.includes("high")) return 4;
+
+  if (priority.includes("elevated")) return 3;
+
+  if (priority.includes("medium")) return 2;
+
+  return 1;
+
+}
+
+ 
+
+function formatTime(value) {
+
+  if (!value) return "Ready";
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return "Ready";
+
+  return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+}
+
+ 
+
+function routeForType(type = "") {
+
+  const normalized = String(type || "").toLowerCase();
+
+  if (normalized.includes("signal")) return "/political-signals";
+
+  if (normalized.includes("rapid") || normalized.includes("narrative")) return "/narrative-response";
+
+  if (normalized.includes("crm") || normalized.includes("follow")) return "/campaign-crm";
+
+  if (normalized.includes("vendor")) return "/vendors";
+
+  return "/command-center";
+
+}
+
+ 
+
+function MissionQueueRow({ item, index }) {
+
+  const itemType = clean(item.type, "Mission item");
+
+ 
+
   return (
-    <div className={`emc-row emc-${String(item.priority || "stable").toLowerCase()}`}>
+
+    <div className="emc-row">
+
       <ResponsiveRow
-        title={clean(item.title || "Mission item")}
-        subtitle={clean(item.description || item.action || "Review mission item.")}
+
+        title={clean(item.title, "Mission item")}
+
+        subtitle={clean(item.description || item.action, "Review the operating evidence and coordinate the response.")}
+
         meta={[
-          { label: "Type", value: item.type || "Mission" },
-          { label: "Priority", value: item.priority || "Medium" },
-          { label: "State", value: item.state || "National" },
-          { label: "Source", value: item.source || "VoterSpheres" },
+
+          { label: "Rank", value: index + 1 },
+
+          { label: "Priority", value: clean(item.priority, "Monitor") },
+
+          { label: "State", value: clean(item.state, "National") },
+
+          { label: "Source", value: clean(item.source, itemType) },
+
         ]}
+
         right={
-          <div className="emc-row-actions">
-            <Badge tone={tone(item.priority)}>{item.priority || "Mission"}</Badge>
-            {item.url ? (
-              <a className="vs-button vs-button-secondary" href={item.url} target="_blank" rel="noreferrer">
-                Read
-              </a>
-            ) : null}
-          </div>
+
+          <Link className="vs-button vs-button-secondary" to={routeForType(itemType)}>
+
+            Open
+
+          </Link>
+
         }
+
       />
+
     </div>
+
   );
+
 }
 
-function WorkspaceHealthRow({ item }) {
-  return (
-    <div className={`emc-row emc-${String(item.risk || "stable").toLowerCase()}`}>
-      <ResponsiveRow
-        title={item.name || "Workspace"}
-        subtitle={`${item.state || "National"} â€¢ ${item.office || "Campaign"} â€¢ ${item.cycle || "2026"}`}
-        meta={[
-          { label: "Pressure", value: pct(item.pressure_score || 0) },
-          { label: "Risk", value: item.risk || "Stable" },
-          { label: "Open Tasks", value: item.open_tasks || 0 },
-          { label: "Signals", value: item.signals || 0 },
-        ]}
-        right={<Badge tone={tone(item.risk)}>{item.risk || "Stable"}</Badge>}
-      />
-    </div>
-  );
-}
+ 
 
-function SignalRow({ signal }) {
-  return (
-    <div className="emc-row">
-      <ResponsiveRow
-        title={clean(signal.title || "Political signal")}
-        subtitle={clean(signal.summary || signal.source || "Signal")}
-        meta={[
-          { label: "Type", value: signal.signal_type || "signal" },
-          { label: "Risk", value: signal.risk || signal.severity || "Stable" },
-          { label: "State", value: signal.state || "National" },
-          { label: "Score", value: signal.signal_score || 0 },
-        ]}
-        right={<Badge tone={tone(signal.risk || signal.severity)}>{signal.risk || signal.severity || "Signal"}</Badge>}
-      />
-    </div>
-  );
-}
-
-function TaskRow({ task }) {
-  return (
-    <div className="emc-row">
-      <ResponsiveRow
-        title={task.title || "Open task"}
-        subtitle={task.description || task.source || "Execution task"}
-        meta={[
-          { label: "Status", value: task.status || "open" },
-          { label: "Priority", value: task.priority || "medium" },
-          { label: "Owner", value: task.assigned_to || "Unassigned" },
-          { label: "State", value: task.state || "National" },
-        ]}
-        right={<Badge tone={tone(task.priority || task.status)}>{task.priority || task.status || "Task"}</Badge>}
-      />
-    </div>
-  );
-}
-
-function MissionControlExecutiveHeader({
-  summary,
-  missionItems,
-  criticalSignals,
-  openTasks,
-  workspaceHealth,
-  recommendations,
-  rapidResponses,
-  crmFollowups,
-  vendorGaps,
-  loading,
-  refreshing,
-  lastUpdated,
-  onRefresh,
-}) {
-  const pressure = Number(summary.pressure_score || 0);
-  const critical = Number(summary.critical_signals || criticalSignals.length || 0);
-  const tasks = Number(summary.open_tasks || openTasks.length || 0);
-  const crm = Number(summary.crm_followups || crmFollowups.length || 0);
-  const gaps = Number(vendorGaps.length || 0);
-  const workspaceRisk = workspaceHealth.filter((item) =>
-    ["critical", "high", "elevated"].includes(String(item.risk || "").toLowerCase())
-  ).length;
-
-  const readinessScore = Math.max(
-    5,
-    Math.min(
-      100,
-      Math.round(
-        96 -
-          Math.min(28, pressure * 0.28) -
-          Math.min(20, critical * 4) -
-          Math.min(14, tasks * 0.85) -
-          Math.min(10, crm * 0.7) -
-          Math.min(10, gaps * 1.6) -
-          Math.min(10, workspaceRisk * 2) +
-          Math.min(8, recommendations.length * 1.2)
-      )
-    )
-  );
+function ExceptionRow({ title, description, label, value, route, badgeTone = "demo" }) {
 
   return (
-    <div className="emc-exec-ribbon" id="mission-overview">
-      <div className="emc-exec-copy">
-        <span>Mission Control Readiness</span>
-        <strong>{readinessScore}% Ready</strong>
-        <p>
-          Executive operating center for the next 24 hours: critical signals, ranked mission actions,
-          execution tasks, CRM follow-ups, workspace health, rapid response, vendor gaps, and AI recommendations.
-        </p>
 
-        <div className="emc-exec-badges">
-          <Badge tone={tone(summary.mission_risk)}>{summary.mission_risk || "Stable"} Mission Risk</Badge>
-          <Badge tone={critical ? "danger" : "active"}>{critical} Critical Signals</Badge>
-          <Badge tone={tasks ? "demo" : "active"}>{tasks} Open Tasks</Badge>
-          <Badge tone={gaps ? "demo" : "active"}>{gaps} Vendor Gaps</Badge>
-          <Badge tone="accent">{missionItems.length} Mission Items</Badge>
-          <Badge tone="info">{recommendations.length} AI Recommendations</Badge>
-        </div>
+    <div className="emc-exception">
+
+      <div className="emc-exception-copy">
+
+        <span>{label}</span>
+
+        <strong>{clean(title, "Operational exception")}</strong>
+
+        <p>{clean(description, "Review the authoritative record for details.")}</p>
+
       </div>
 
-      <div className="emc-exec-grid">
-        <div>
-          <span>Pressure Score</span>
-          <strong>{pct(pressure)}</strong>
-        </div>
-        <div>
-          <span>Workspace Risk</span>
-          <strong>{fmt(workspaceRisk)}</strong>
-        </div>
-        <div>
-          <span>Rapid Response</span>
-          <strong>{fmt(rapidResponses.length)}</strong>
-        </div>
-        <div>
-          <span>Live Status</span>
-          <strong>{loading || refreshing ? "Refreshing" : "Ready"}</strong>
-        </div>
+      <div className="emc-exception-action">
+
+        <Badge tone={badgeTone}>{value}</Badge>
+
+        <Link to={route}>Review</Link>
+
       </div>
 
-      <div className="emc-exec-actions">
-        <button type="button" onClick={onRefresh} disabled={loading || refreshing}>
-          {refreshing ? "Refreshing Mission..." : "Refresh Mission Control"}
-        </button>
-        <Link to="/command-center">Command Center</Link>
-        <Link to="/ai-war-room">AI War Room</Link>
-        <Link to="/campaign-crm">Campaign CRM</Link>
-        <Link to="/political-intelligence">Political Intelligence</Link>
-        <Link to="/state-operations">State Operations</Link>
-        <Link to="/vendors">Vendors</Link>
-      </div>
-
-      <div className="emc-exec-footer">
-        <span>Updated: {lastUpdated || "Ready"}</span>
-        <span>Auto Refresh: 30 seconds</span>
-      </div>
     </div>
+
   );
+
 }
 
-
-function ExecutiveBrief({ summary, missionItems, criticalSignals, openTasks, crmFollowups, vendorGaps, rapidResponses }) {
-  const pressure = Number(summary?.pressure_score || 0);
-  const readiness = Math.max(5, Math.min(100, Math.round(96 - Math.min(30, pressure * 0.3) - Math.min(18, criticalSignals.length * 4) - Math.min(14, openTasks.length) - Math.min(10, vendorGaps.length * 2))));
-
-  const briefItems = [
-    criticalSignals.length ? `${criticalSignals.length} critical political signal${criticalSignals.length === 1 ? "" : "s"} require review.` : "No critical political signals are currently open.",
-    vendorGaps.length ? `${vendorGaps.length} vendor coverage gap${vendorGaps.length === 1 ? "" : "s"} need assignment.` : "Vendor coverage is currently stable.",
-    crmFollowups.length ? `${crmFollowups.length} CRM follow-up${crmFollowups.length === 1 ? "" : "s"} remain open.` : "No CRM follow-ups are overdue.",
-    rapidResponses.length ? `${rapidResponses.length} rapid-response item${rapidResponses.length === 1 ? "" : "s"} need follow-through.` : "No rapid-response items require action.",
-  ];
-
-  return (
-    <div className="emc-brief">
-      <div className="emc-brief-copy">
-        <span>AI Executive Brief</span>
-        <h2>What needs attention now</h2>
-        <p>{missionItems.length ? `${missionItems.length} ranked mission items are active across the next operating cycle.` : "The current mission queue is stable."}</p>
-      </div>
-      <div className="emc-brief-list">
-        {briefItems.map((item) => <div key={item}>{item}</div>)}
-      </div>
-      <div className="emc-brief-score">
-        <span>Estimated Readiness</span>
-        <strong>{readiness}%</strong>
-        <small>{pressure >= 65 ? "Elevated operating pressure" : "Operational posture stable"}</small>
-      </div>
-    </div>
-  );
-}
-
-function ExecutiveTimeline({ activeWindow, onChange }) {
-  const windows = [
-    { id: "hour", label: "Last Hour" },
-    { id: "today", label: "Today" },
-    { id: "week", label: "This Week" },
-    { id: "month", label: "30 Days" },
-  ];
-
-  return (
-    <div className="emc-timeline" aria-label="Executive timeline filter">
-      {windows.map((item) => (
-        <button key={item.id} type="button" className={activeWindow === item.id ? "is-active" : ""} onClick={() => onChange(item.id)}>
-          {item.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function MissionActionCenter({ onRefresh }) {
-  return (
-    <div className="emc-action-center">
-      <button type="button" onClick={onRefresh}>Refresh Mission Control</button>
-      <Link to="/command-center">Open Command Center</Link>
-      <Link to="/ai-war-room">Open AI War Room</Link>
-      <Link to="/campaign-crm">Open Campaign CRM</Link>
-      <Link to="/political-intelligence">Open Political Intelligence</Link>
-      <Link to="/executive-decision-intelligence">Executive Intelligence</Link>
-      <Link to="/state-operations">Open State Operations</Link>
-      <Link to="/vendors">Open Vendor Network</Link>
-      <Link to="/narrative-response">Open Rapid Response</Link>
-    </div>
-  );
-}
+ 
 
 export default function ExecutiveMissionControl() {
+
   const [data, setData] = useState({
+
     summary: {},
+
     mission_items: [],
+
     critical_signals: [],
+
     open_tasks: [],
+
     rapid_responses: [],
+
     crm_followups: [],
+
     workspace_health: [],
+
     vendor_gaps: [],
+
     ai_recommendations: [],
+
+    updated_at: "",
+
   });
 
   const [loading, setLoading] = useState(true);
+
   const [refreshing, setRefreshing] = useState(false);
+
   const [error, setError] = useState("");
-  const [lastUpdated, setLastUpdated] = useState("");
-  const [timelineWindow, setTimelineWindow] = useState("today");
+
+ 
 
   const load = useCallback(async ({ quiet = false } = {}) => {
+
     try {
+
       if (quiet) setRefreshing(true);
+
       else setLoading(true);
+
+ 
 
       setError("");
 
       const result = await api.executiveMissionControl();
 
+ 
+
       setData({
+
         summary: result?.summary || {},
+
         mission_items: arr(result?.mission_items),
+
         critical_signals: arr(result?.critical_signals),
+
         open_tasks: arr(result?.open_tasks),
+
         rapid_responses: arr(result?.rapid_responses),
+
         crm_followups: arr(result?.crm_followups),
+
         workspace_health: arr(result?.workspace_health),
+
         vendor_gaps: arr(result?.vendor_gaps),
+
         ai_recommendations: arr(result?.ai_recommendations),
-        updated_at: result?.updated_at,
+
+        updated_at: result?.updated_at || new Date().toISOString(),
+
       });
 
-      setLastUpdated(
-        new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
     } catch (err) {
+
       setError(
+
         err?.response?.data?.error ||
+
           err?.response?.data?.detail ||
+
           err?.message ||
+
           "Failed to load Executive Mission Control."
+
       );
+
     } finally {
+
       setLoading(false);
+
       setRefreshing(false);
+
     }
+
   }, []);
 
+ 
+
   useEffect(() => {
+
     load();
-    const interval = setInterval(() => load({ quiet: true }), 30000);
-    return () => clearInterval(interval);
+
+    const interval = window.setInterval(() => load({ quiet: true }), 30000);
+
+    return () => window.clearInterval(interval);
+
   }, [load]);
 
+ 
+
   const summary = data.summary || {};
+
   const missionItems = arr(data.mission_items);
+
   const criticalSignals = arr(data.critical_signals);
+
   const openTasks = arr(data.open_tasks);
-  const workspaceHealth = arr(data.workspace_health);
-  const recommendations = arr(data.ai_recommendations);
+
   const rapidResponses = arr(data.rapid_responses);
+
   const crmFollowups = arr(data.crm_followups);
+
+  const workspaceHealth = arr(data.workspace_health);
+
   const vendorGaps = arr(data.vendor_gaps);
 
-  const topMissionItems = useMemo(() => missionItems.slice(0, 12), [missionItems]);
+ 
 
-  const backlogTotal =
-    openTasks.length +
-    rapidResponses.length +
-    crmFollowups.length +
-    vendorGaps.length;
+  const rankedMissionItems = useMemo(
 
-  const navSections = [
-    { id: "mission-overview", label: "Overview" },
-    { id: "mission-metrics", label: "Metrics" },
-    { id: "mission-hero", label: "Command" },
-    { id: "mission-queue", label: "Mission Queue", badge: missionItems.length },
-    { id: "mission-workspaces", label: "Workspaces", badge: workspaceHealth.length },
-    { id: "mission-signals", label: "Signals", badge: criticalSignals.length },
-    { id: "mission-ai", label: "AI Recommendations", badge: recommendations.length },
-    { id: "mission-tasks", label: "Tasks", badge: openTasks.length },
-    { id: "mission-rapid-response", label: "Rapid Response", badge: rapidResponses.length },
-    { id: "mission-crm", label: "CRM", badge: crmFollowups.length },
-    { id: "mission-vendors", label: "Vendor Gaps", badge: vendorGaps.length },
-    { id: "mission-actions", label: "Actions", badge: backlogTotal },
+    () =>
+
+      missionItems
+
+        .slice()
+
+        .sort((a, b) => priorityRank(b) - priorityRank(a))
+
+        .slice(0, 6),
+
+    [missionItems]
+
+  );
+
+ 
+
+  const atRiskWorkspaces = useMemo(
+
+    () =>
+
+      workspaceHealth
+
+        .filter((item) => ["critical", "high", "elevated"].includes(String(item.risk || "").toLowerCase()))
+
+        .sort((a, b) => number(b.pressure_score) - number(a.pressure_score))
+
+        .slice(0, 3),
+
+    [workspaceHealth]
+
+  );
+
+ 
+
+  const riskDrivingSignals = useMemo(
+
+    () => criticalSignals.slice().sort((a, b) => number(b.signal_score) - number(a.signal_score)).slice(0, 3),
+
+    [criticalSignals]
+
+  );
+
+ 
+
+  const activeEscalations = useMemo(() => rapidResponses.slice(0, 3), [rapidResponses]);
+
+  const criticalVendorGaps = useMemo(() => vendorGaps.slice(0, 3), [vendorGaps]);
+
+ 
+
+  const pressureScore = number(summary.pressure_score);
+
+  const missionRisk = clean(summary.mission_risk, "Stable");
+
+  const exceptionCount =
+
+    atRiskWorkspaces.length +
+
+    riskDrivingSignals.length +
+
+    activeEscalations.length +
+
+    criticalVendorGaps.length;
+
+ 
+
+  const handoffs = [
+
+    { label: "Command Center", detail: "Execution ownership and completion", count: number(summary.open_tasks || openTasks.length), route: "/command-center", countLabel: "open tasks" },
+
+    { label: "Political Signals", detail: "Evidence and signal investigation", count: number(summary.critical_signals || criticalSignals.length), route: "/political-signals", countLabel: "critical signals" },
+
+    { label: "Rapid Response", detail: "Narrative response development", count: number(summary.rapid_responses || rapidResponses.length), route: "/narrative-response", countLabel: "active responses" },
+
+    { label: "Campaign CRM", detail: "Stakeholder follow-up records", count: number(summary.crm_followups || crmFollowups.length), route: "/campaign-crm", countLabel: "follow-ups" },
+
+    { label: "Vendor Network", detail: "Capacity and coverage management", count: number(summary.vendor_gaps || vendorGaps.length), route: "/vendors", countLabel: "coverage gaps" },
+
   ];
 
+ 
+
   return (
+
     <PageShell
+
       eyebrow="Executive Mission Control"
-      title="Executive Mission Control"
-      description="The next-24-hours operating center for critical signals, execution tasks, rapid responses, CRM follow-ups, workspace health, vendor gaps, and AI recommendations."
+
+      title="Mission Control"
+
+      description="The next-24-hours operating center for mission readiness, ranked interventions and exceptions requiring coordinated action."
+
       tickerItems={[
-        {
-          label: "Mission Risk",
-          value: summary.mission_risk || "Stable",
-          dotClass: ["Critical", "High"].includes(summary.mission_risk)
-            ? "vs-live-dot-warning"
-            : "vs-live-dot-success",
-        },
-        {
-          label: "Pressure",
-          value: pct(summary.pressure_score || 0),
-          dotClass: Number(summary.pressure_score || 0) >= 65
-            ? "vs-live-dot-warning"
-            : "vs-live-dot-success",
-        },
-        {
-          label: "Critical Signals",
-          value: `${summary.critical_signals || 0}`,
-          dotClass: summary.critical_signals ? "vs-live-dot-warning" : "vs-live-dot-success",
-        },
-        {
-          label: "Open Tasks",
-          value: `${summary.open_tasks || 0}`,
-          dotClass: summary.open_tasks ? "vs-live-dot-warning" : "vs-live-dot-success",
-        },
-        {
-          label: "Updated",
-          value: refreshing ? "Live" : lastUpdated || "Ready",
-          dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success",
-        },
+
+        { label: "Mission Risk", value: missionRisk, dotClass: ["Critical", "High"].includes(missionRisk) ? "vs-live-dot-warning" : "vs-live-dot-success" },
+
+        { label: "Pressure", value: pct(pressureScore), dotClass: pressureScore >= 65 ? "vs-live-dot-warning" : "vs-live-dot-success" },
+
+        { label: "Exceptions", value: String(exceptionCount), dotClass: exceptionCount ? "vs-live-dot-warning" : "vs-live-dot-success" },
+
+        { label: "Updated", value: refreshing ? "Refreshing" : formatTime(data.updated_at), dotClass: refreshing ? "vs-live-dot-warning" : "vs-live-dot-success" },
+
       ]}
+
     >
+
       <style>{`
 
-        .emc-brief {
+        .emc-command {
+
           display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(190px, 0.55fr);
-          gap: 16px;
-          align-items: stretch;
-          border: 1px solid rgba(96, 165, 250, 0.22);
-          border-radius: 24px;
-          padding: 18px;
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.68));
-        }
 
-        .emc-brief-copy span,
-        .emc-brief-score span {
-          color: rgba(125, 211, 252, 0.92);
-          font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
+          grid-template-columns: minmax(0, 1fr) auto;
 
-        .emc-brief-copy h2 { margin: 7px 0 0; color: white; font-size: 24px; letter-spacing: -0.04em; }
-        .emc-brief-copy p { margin: 8px 0 0; color: rgba(203, 213, 225, 0.76); line-height: 1.55; }
-        .emc-brief-list { display: grid; gap: 8px; }
-        .emc-brief-list div { border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); background: rgba(2, 6, 23, 0.3); padding: 10px 12px; color: rgba(226, 232, 240, 0.88); font-size: 13px; }
-        .emc-brief-score { border-radius: 18px; border: 1px solid rgba(34, 197, 94, 0.22); background: rgba(22, 163, 74, 0.1); padding: 14px; }
-        .emc-brief-score strong { display: block; margin-top: 8px; color: white; font-size: 34px; letter-spacing: -0.06em; }
-        .emc-brief-score small { display: block; margin-top: 6px; color: rgba(203, 213, 225, 0.7); }
+          gap: 22px;
 
-        .emc-timeline { display: flex; gap: 8px; flex-wrap: wrap; }
-        .emc-timeline button { border: 1px solid rgba(148, 163, 184, 0.18); background: rgba(15, 23, 42, 0.72); color: rgba(226, 232, 240, 0.82); border-radius: 999px; padding: 9px 12px; font-size: 12px; font-weight: 850; cursor: pointer; }
-        .emc-timeline button.is-active { border-color: rgba(96, 165, 250, 0.62); background: rgba(37, 99, 235, 0.28); color: white; }
-
-        .emc-exec-ribbon {
-          display: grid;
-          grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.15fr);
-          gap: 18px;
-          align-items: stretch;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 28px;
-          background:
-            radial-gradient(circle at top right, rgba(239, 68, 68, 0.18), transparent 34%),
-            radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.16), transparent 30%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.86));
-          box-shadow: 0 28px 80px rgba(2, 6, 23, 0.32);
-          padding: 20px;
-          min-width: 0;
-          overflow: hidden;
-        }
-
-        .emc-exec-copy { min-width: 0; }
-
-        .emc-exec-copy span,
-        .emc-exec-grid span,
-        .emc-exec-footer span {
-          display: block;
-          color: rgba(147, 197, 253, 0.86);
-          font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-
-        .emc-exec-copy strong {
-          display: block;
-          margin-top: 8px;
-          color: white;
-          font-size: clamp(30px, 4vw, 50px);
-          line-height: 1;
-          font-weight: 950;
-          letter-spacing: -0.07em;
-        }
-
-        .emc-exec-copy p {
-          margin: 12px 0 0;
-          color: rgba(226, 232, 240, 0.78);
-          line-height: 1.6;
-          max-width: 820px;
-        }
-
-        .emc-exec-badges,
-        .emc-exec-actions,
-        .emc-exec-footer,
-        .emc-action-center {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
           align-items: center;
-        }
 
-        .emc-exec-badges { margin-top: 14px; }
+          margin-bottom: 18px;
 
-        .emc-exec-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-          min-width: 0;
-        }
+          padding: 24px;
 
-        .emc-exec-grid div {
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          border-radius: 18px;
-          background: rgba(2, 6, 23, 0.34);
-          padding: 14px;
-          min-width: 0;
-        }
+          border: 1px solid rgba(251, 146, 60, 0.28);
 
-        .emc-exec-grid strong {
-          display: block;
-          margin-top: 7px;
-          color: white;
-          font-size: 20px;
-          font-weight: 950;
-          overflow-wrap: anywhere;
-        }
-
-        .emc-exec-actions,
-        .emc-exec-footer {
-          grid-column: 1 / -1;
-          border-top: 1px solid rgba(148, 163, 184, 0.12);
-          padding-top: 14px;
-        }
-
-        .emc-exec-actions button,
-        .emc-exec-actions a,
-        .emc-action-center button,
-        .emc-action-center a {
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.74);
-          color: rgba(226, 232, 240, 0.92);
-          border-radius: 15px;
-          padding: 11px 12px;
-          font-size: 12px;
-          font-weight: 850;
-          cursor: pointer;
-          text-decoration: none;
-        }
-
-        .emc-exec-actions button:hover,
-        .emc-exec-actions a:hover,
-        .emc-action-center button:hover,
-        .emc-action-center a:hover {
-          border-color: rgba(248, 113, 113, 0.44);
-          background: rgba(239, 68, 68, 0.14);
-          color: white;
-        }
-
-        .emc-exec-actions button:disabled { opacity: 0.62; cursor: not-allowed; }
-
-        .emc-exec-stack {
-          display: grid;
-          gap: 18px;
-          min-width: 0;
-        }
-
-
-        .emc-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.65fr);
-          gap: 18px;
-          align-items: start;
-        }
-
-        .emc-stack {
-          display: grid;
-          gap: 14px;
-        }
-
-        .emc-hero {
-          border-radius: 30px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          background:
-            radial-gradient(circle at top left, rgba(37, 99, 235, 0.24), transparent 34%),
-            radial-gradient(circle at bottom right, rgba(239, 68, 68, 0.14), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.84));
-          padding: 22px;
-        }
-
-        .emc-hero-top {
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          align-items: flex-start;
-        }
-
-        .emc-hero h2 {
-          margin: 0;
-          color: white;
-          font-size: 32px;
-          font-weight: 950;
-          letter-spacing: -0.05em;
-        }
-
-        .emc-hero p {
-          margin: 8px 0 0;
-          color: rgba(203, 213, 225, 0.72);
-          font-size: 13px;
-          line-height: 1.55;
-        }
-
-        .emc-pressure {
-          margin-top: 18px;
-          color: white;
-          font-size: 72px;
-          line-height: 1;
-          font-weight: 950;
-          letter-spacing: -0.08em;
-        }
-
-        .emc-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-top: 18px;
-        }
-
-        .emc-row {
-          border-radius: 20px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 34%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.54));
-          overflow: hidden;
-        }
-
-        .emc-row .vs-responsive-row {
-          border: 0;
-          background: transparent;
-        }
-
-        .emc-critical,
-        .emc-high {
-          border-color: rgba(248, 113, 113, 0.38);
-        }
-
-        .emc-elevated,
-        .emc-medium {
-          border-color: rgba(251, 191, 36, 0.32);
-        }
-
-        .emc-row-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .emc-recommendation {
-          border-radius: 18px;
-          border: 1px solid rgba(96, 165, 250, 0.24);
-          background: rgba(37, 99, 235, 0.14);
-          padding: 14px;
-          color: rgba(226, 232, 240, 0.92);
-          font-size: 13px;
-          line-height: 1.55;
-        }
-
-        @media (max-width: 1100px) {
-          .emc-grid,
-  
-        .emc-brief {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(190px, 0.55fr);
-          gap: 16px;
-          align-items: stretch;
-          border: 1px solid rgba(96, 165, 250, 0.22);
           border-radius: 24px;
-          padding: 18px;
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.68));
+
+          background:
+
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.15), transparent 34%),
+
+            linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.84));
+
         }
 
-        .emc-brief-copy span,
-        .emc-brief-score span {
-          color: rgba(125, 211, 252, 0.92);
-          font-size: 11px;
+        .emc-command span,
+
+        .emc-exception-copy span,
+
+        .emc-handoff-copy span {
+
+          color: var(--vs-brand-orange, #fb923c);
+
+          font-size: 10px;
+
           font-weight: 950;
-          letter-spacing: 0.1em;
+
+          letter-spacing: 0.12em;
+
           text-transform: uppercase;
+
         }
 
-        .emc-brief-copy h2 { margin: 7px 0 0; color: white; font-size: 24px; letter-spacing: -0.04em; }
-        .emc-brief-copy p { margin: 8px 0 0; color: rgba(203, 213, 225, 0.76); line-height: 1.55; }
-        .emc-brief-list { display: grid; gap: 8px; }
-        .emc-brief-list div { border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.12); background: rgba(2, 6, 23, 0.3); padding: 10px 12px; color: rgba(226, 232, 240, 0.88); font-size: 13px; }
-        .emc-brief-score { border-radius: 18px; border: 1px solid rgba(34, 197, 94, 0.22); background: rgba(22, 163, 74, 0.1); padding: 14px; }
-        .emc-brief-score strong { display: block; margin-top: 8px; color: white; font-size: 34px; letter-spacing: -0.06em; }
-        .emc-brief-score small { display: block; margin-top: 6px; color: rgba(203, 213, 225, 0.7); }
+        .emc-command h2 { margin: 7px 0 8px; color: var(--vs-text, #f8fafc); font-size: clamp(24px, 3vw, 38px); line-height: 1.12; }
 
-        .emc-timeline { display: flex; gap: 8px; flex-wrap: wrap; }
-        .emc-timeline button { border: 1px solid rgba(148, 163, 184, 0.18); background: rgba(15, 23, 42, 0.72); color: rgba(226, 232, 240, 0.82); border-radius: 999px; padding: 9px 12px; font-size: 12px; font-weight: 850; cursor: pointer; }
-        .emc-timeline button.is-active { border-color: rgba(96, 165, 250, 0.62); background: rgba(37, 99, 235, 0.28); color: white; }
+        .emc-command p { margin: 0; max-width: 760px; color: var(--vs-text-muted, #94a3b8); line-height: 1.65; }
 
-        .emc-exec-ribbon {
-            grid-template-columns: 1fr;
-          }
+        .emc-command-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
-          .emc-exec-grid {
-            grid-template-columns: 1fr;
-          }
-        }
+        .emc-metrics { margin-bottom: 18px; }
+
+        .emc-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr); gap: 18px; align-items: start; }
+
+        .emc-stack { display: grid; gap: 14px; }
+
+        .emc-row { min-width: 0; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 18px; overflow: hidden; }
+
+        .emc-row .vs-card-muted { border: 0; background: rgba(15, 23, 42, 0.44); }
+
+        .emc-exception { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 15px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 17px; background: rgba(15, 23, 42, 0.52); }
+
+        .emc-exception-copy { min-width: 0; }
+
+        .emc-exception-copy strong { display: block; margin-top: 5px; color: var(--vs-text, #f8fafc); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+
+        .emc-exception-copy p { margin: 5px 0 0; color: var(--vs-text-muted, #94a3b8); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+
+        .emc-exception-action { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+        .emc-exception-action a { color: #bfdbfe; font-size: 11px; font-weight: 900; text-decoration: none; }
+
+        .emc-exception-action a:hover { color: white; }
+
+        .emc-handoffs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+
+        .emc-handoff { display: flex; min-width: 0; min-height: 150px; flex-direction: column; justify-content: space-between; gap: 14px; padding: 16px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 18px; background: rgba(15, 23, 42, 0.52); }
+
+        .emc-handoff-copy strong { display: block; margin-top: 6px; color: var(--vs-text, #f8fafc); font-size: 15px; }
+
+        .emc-handoff-copy p { margin: 6px 0 0; color: var(--vs-text-muted, #94a3b8); font-size: 11px; line-height: 1.45; }
+
+        .emc-handoff strong.emc-handoff-count { color: white; font-size: 24px; }
+
+        .emc-handoff a { align-self: flex-start; color: #bfdbfe; font-size: 11px; font-weight: 900; text-decoration: none; }
+
+        .emc-source-note { margin: 14px 0 0; color: var(--vs-text-muted, #94a3b8); font-size: 11px; line-height: 1.55; }
+
+        @media (max-width: 1180px) { .emc-handoffs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+        @media (max-width: 900px) { .emc-layout, .emc-command { grid-template-columns: 1fr; } .emc-command-actions { justify-content: flex-start; } }
+
+        @media (max-width: 720px) { .emc-handoffs { grid-template-columns: 1fr; } .emc-exception { grid-template-columns: 1fr; } .emc-exception-action { align-items: flex-start; flex-direction: row; } }
+
       `}</style>
 
-      <div className="emc-exec-stack">
-        <ExecutiveBrief
-          summary={summary}
-          missionItems={missionItems}
-          criticalSignals={criticalSignals}
-          openTasks={openTasks}
-          crmFollowups={crmFollowups}
-          vendorGaps={vendorGaps}
-          rapidResponses={rapidResponses}
-        />
+ 
 
-        <ExecutiveTimeline activeWindow={timelineWindow} onChange={setTimelineWindow} />
+      {error ? (
 
-        <MissionControlExecutiveHeader
-          summary={summary}
-          missionItems={missionItems}
-          criticalSignals={criticalSignals}
-          openTasks={openTasks}
-          workspaceHealth={workspaceHealth}
-          recommendations={recommendations}
-          rapidResponses={rapidResponses}
-          crmFollowups={crmFollowups}
-          vendorGaps={vendorGaps}
-          loading={loading}
-          refreshing={refreshing}
-          lastUpdated={lastUpdated}
-          onRefresh={() => load({ quiet: true })}
-        />
+        <div className="vs-banner vs-banner-danger">
 
-        <ExecutivePageNav sections={navSections} />
+          {error}
+
+          <button className="vs-button vs-button-secondary" type="button" onClick={() => load()}>
+
+            Try Again
+
+          </button>
+
+        </div>
+
+      ) : null}
+
+ 
+
+      <section className="emc-command" aria-labelledby="mission-command-title">
+
+        <div>
+
+          <span>Next 24 Hours</span>
+
+          <h2 id="mission-command-title">
+
+            {missionRisk === "Stable" ? "Operating posture is stable" : `${missionRisk} mission conditions require coordination`}
+
+          </h2>
+
+          <p>
+
+            Mission Control ranks cross-system exceptions for coordinated response. Execution ownership and completion remain authoritative in Command Center.
+
+          </p>
+
+        </div>
+
+        <div className="emc-command-actions">
+
+          <Link className="vs-button" to="/command-center">Open Command Center</Link>
+
+          <button className="vs-button vs-button-secondary" type="button" onClick={() => load({ quiet: true })} disabled={refreshing || loading}>
+
+            {refreshing ? "Refreshing..." : "Refresh"}
+
+          </button>
+
+        </div>
+
+      </section>
+
+ 
+
+      <div className="emc-metrics vs-grid-4">
+
+        <StatCard label="Mission Pressure" value={pct(pressureScore)} delta={missionRisk} tone={pressureScore >= 65 ? "down" : "up"} />
+
+        <StatCard label="Ranked Interventions" value={fmt(missionItems.length)} delta="Next 24 hours" tone={missionItems.length ? "neutral" : "up"} />
+
+        <StatCard label="At-Risk Workspaces" value={fmt(atRiskWorkspaces.length)} delta={`${workspaceHealth.length} monitored`} tone={atRiskWorkspaces.length ? "down" : "up"} />
+
+        <StatCard label="Active Escalations" value={fmt(activeEscalations.length)} delta={`${exceptionCount} exceptions shown`} tone={activeEscalations.length ? "down" : "up"} />
+
       </div>
 
-      {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
-
-      <CollapsibleSection
-        id="mission-metrics"
-        title="Mission Control Metrics"
-        subtitle="Pressure score, critical signals, execution queue, and stakeholder follow-ups."
-        defaultOpen
-        right={<Badge tone={tone(summary.mission_risk)}>{summary.mission_risk || "Stable"}</Badge>}
-      >
-      <div className="vs-grid-4">
-        <StatCard label="Pressure Score" value={pct(summary.pressure_score || 0)} delta={summary.mission_risk || "Stable"} tone={Number(summary.pressure_score || 0) >= 65 ? "down" : "up"} />
-        <StatCard label="Critical Signals" value={fmt(summary.critical_signals)} delta="Needs review" tone={summary.critical_signals ? "down" : "up"} />
-        <StatCard label="Open Tasks" value={fmt(summary.open_tasks)} delta="Execution queue" tone={summary.open_tasks ? "neutral" : "up"} />
-        <StatCard label="CRM Follow-Ups" value={fmt(summary.crm_followups)} delta="Stakeholder touches" tone={summary.crm_followups ? "neutral" : "up"} />
-      </div>
-      </CollapsibleSection>
+ 
 
       {loading ? (
-        <EmptyState text="Loading Executive Mission Control..." />
+
+        <EmptyState text="Loading Mission Control..." />
+
       ) : (
-        <div className="emc-grid">
-          <div className="emc-stack">
-            <div id="mission-hero" className="emc-hero">
-              <div className="emc-hero-top">
-                <div>
-                  <h2>What should the firm do in the next 24 hours?</h2>
-                  <p>
-                    Mission Control converts live political signals, workspaces, tasks, CRM follow-ups,
-                    rapid responses, and vendor gaps into a ranked action queue.
-                  </p>
-                </div>
 
-                <Badge tone={tone(summary.mission_risk)}>{summary.mission_risk || "Stable"}</Badge>
-              </div>
+        <div className="emc-layout">
 
-              <div className="emc-pressure">{pct(summary.pressure_score || 0)}</div>
+          <SectionCard
 
-              <div className="emc-actions">
-                <Link className="vs-button" to="/command-center">Open Command Center</Link>
-                <Link className="vs-button vs-button-secondary" to="/campaign-crm">Campaign CRM</Link>
-                <Link className="vs-button vs-button-secondary" to="/political-signals">Political Signals</Link>
-                <Link className="vs-button vs-button-secondary" to="/narrative-response">Rapid Response</Link>
-                <button type="button" className="vs-button vs-button-secondary" onClick={() => load({ quiet: true })}>
-                  Refresh
-                </button>
-              </div>
+            title="Next 24 Hours Mission Queue"
+
+            subtitle="The six highest-ranked interventions requiring coordinated leadership attention."
+
+            right={<Badge tone={rankedMissionItems.length ? "demo" : "active"}>{rankedMissionItems.length} shown</Badge>}
+
+          >
+
+            <div className="emc-stack">
+
+              {!rankedMissionItems.length ? (
+
+                <EmptyState text="No urgent mission interventions are currently ranked." />
+
+              ) : (
+
+                rankedMissionItems.map((item, index) => (
+
+                  <MissionQueueRow key={item.id || `${item.type}-${index}`} item={item} index={index} />
+
+                ))
+
+              )}
+
             </div>
 
-            <CollapsibleSection
-              id="mission-queue"
-              title="Next 24 Hours Mission Queue"
-              subtitle="Ranked action items from signals, tasks, rapid response, and CRM follow-ups."
-              right={<Badge tone={missionItems.length ? "demo" : "active"}>{missionItems.length} items</Badge>}
-            >
-              {!topMissionItems.length ? (
-                <EmptyState text="No urgent mission items detected." />
-              ) : (
-                <ShowMoreList
-                  items={missionItems}
-                  initialCount={12}
-                  showAllLabel={(count) => `Show All ${count} Mission Items`}
-                  className="emc-stack"
-                  renderItem={(item) => <MissionItemRow item={item} />}
-                />
-              )}
-            </CollapsibleSection>
+          </SectionCard>
 
-            <CollapsibleSection
-              id="mission-workspaces"
-              title="Workspace Health"
-              subtitle="Pressure by campaign workspace."
-              right={<Badge tone="accent">{workspaceHealth.length} workspaces</Badge>}
-            >
-              {!workspaceHealth.length ? (
-                <EmptyState text="No workspace health records available." />
-              ) : (
-                <ShowMoreList
-                  items={workspaceHealth}
-                  initialCount={8}
-                  showAllLabel={(count) => `Show All ${count} Workspaces`}
-                  className="emc-stack"
-                  renderItem={(item) => <WorkspaceHealthRow item={item} />}
-                />
-              )}
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              id="mission-signals"
-              title="Critical Political Signals"
-              subtitle="Highest pressure political signals currently driving mission risk."
-              right={<Badge tone={criticalSignals.length ? "danger" : "active"}>{criticalSignals.length} signals</Badge>}
-            >
-              {!criticalSignals.length ? (
-                <EmptyState text="No critical political signals detected." />
-              ) : (
-                <ShowMoreList
-                  items={criticalSignals}
-                  initialCount={8}
-                  showAllLabel={(count) => `Show All ${count} Signals`}
-                  className="emc-stack"
-                  renderItem={(signal) => <SignalRow signal={signal} />}
-                />
-              )}
-            </CollapsibleSection>
-          </div>
+ 
 
           <div className="emc-stack">
-            <CollapsibleSection
-              id="mission-ai"
-              title="AI Strategic Recommendations"
-              subtitle="Recommended moves for the next operating cycle."
-            >
-              {!recommendations.length ? (
-                <EmptyState text="No AI strategic recommendations available." />
-              ) : (
-                <ShowMoreList
-                  items={recommendations}
-                  initialCount={6}
-                  showAllLabel={(count) => `Show All ${count} AI Recommendations`}
-                  className="emc-stack"
-                  renderItem={(item) => (
-                    <div className="emc-recommendation">
-                      {typeof item === "string" ? item : item.title || item.recommendation || item.detail || "AI recommendation"}
-                    </div>
-                  )}
-                />
-              )}
-            </CollapsibleSection>
 
-            <CollapsibleSection
-              id="mission-tasks"
-              title="Open Execution Tasks"
-              subtitle="Tasks that still need owner action."
-              right={<Badge tone={openTasks.length ? "demo" : "active"}>{openTasks.length} open</Badge>}
-            >
-              {!openTasks.length ? (
-                <EmptyState text="No open execution tasks." />
-              ) : (
-                <ShowMoreList
-                  items={openTasks}
-                  initialCount={8}
-                  showAllLabel={(count) => `Show All ${count} Tasks`}
-                  className="emc-stack"
-                  renderItem={(task) => <TaskRow task={task} />}
-                />
-              )}
-            </CollapsibleSection>
+            <SectionCard
 
-            <CollapsibleSection
-              id="mission-rapid-response"
-              title="Rapid Response Queue"
-              subtitle="Narrative response items requiring follow-through."
-              right={<Badge tone={rapidResponses.length ? "demo" : "active"}>{rapidResponses.length} responses</Badge>}
-            >
-              {!rapidResponses.length ? (
-                <EmptyState text="No open rapid responses." />
-              ) : (
-                <div className="emc-stack">
-                  {rapidResponses.slice(0, 12).map((item) => (
-                    <MissionItemRow
-                      key={item.id}
-                      item={{
-                        id: item.id,
-                        type: "Rapid Response",
-                        title: item.title || "Rapid response",
-                        description: item.response_strategy || item.narrative_summary || "Narrative response",
-                        priority: item.threat_level || item.status || "Medium",
-                        state: item.state || "National",
-                        source: "Narrative Rapid Response",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
+              title="Operational Exceptions"
 
-            <CollapsibleSection
-              id="mission-crm"
-              title="CRM Follow-Ups"
-              subtitle="Stakeholder touches and activities still open."
-              right={<Badge tone={crmFollowups.length ? "demo" : "active"}>{crmFollowups.length} follow-ups</Badge>}
-            >
-              {!crmFollowups.length ? (
-                <EmptyState text="No CRM follow-ups open." />
-              ) : (
-                <div className="emc-stack">
-                  {crmFollowups.slice(0, 12).map((item) => (
-                    <MissionItemRow
-                      key={item.id}
-                      item={{
-                        id: item.id,
-                        type: "CRM Follow-Up",
-                        title: item.title || "CRM follow-up",
-                        description: item.body || item.outcome || item.contact_name || "Follow up with stakeholder.",
-                        priority: "Medium",
-                        state: item.state || "National",
-                        source: "Campaign CRM",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
+              subtitle="Only conditions materially contributing to mission pressure."
 
-            <CollapsibleSection
-              id="mission-vendors"
-              title="Vendor Gaps"
-              subtitle="Potential vendor coverage or operational capacity issues."
-              right={<Badge tone={vendorGaps.length ? "demo" : "active"}>{vendorGaps.length} gaps</Badge>}
+              right={<Badge tone={exceptionCount ? "danger" : "active"}>{exceptionCount}</Badge>}
+
             >
-              {!vendorGaps.length ? (
-                <EmptyState text="No vendor gaps detected." />
-              ) : (
-                <div className="emc-stack">
-                  {vendorGaps.slice(0, 12).map((vendor) => (
-                    <MissionItemRow
-                      key={vendor.id}
-                      item={{
-                        id: vendor.id,
-                        type: "Vendor Gap",
-                        title: vendor.name || vendor.vendor_name || "Vendor gap",
-                        description: vendor.category || vendor.notes || "Review vendor coverage.",
-                        priority: vendor.risk || vendor.coverage_tier || "Medium",
-                        state: vendor.state || "National",
-                        source: "Vendor Intelligence",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
+
+              <div className="emc-stack">
+
+                {riskDrivingSignals.map((signal, index) => (
+
+                  <ExceptionRow
+
+                    key={signal.id || `signal-${index}`}
+
+                    label="Risk-Driving Signal"
+
+                    title={signal.title}
+
+                    description={signal.summary || signal.source}
+
+                    value={clean(signal.risk || signal.severity, "Elevated")}
+
+                    route="/political-signals"
+
+                    badgeTone="danger"
+
+                  />
+
+                ))}
+
+ 
+
+                {atRiskWorkspaces.map((workspace, index) => (
+
+                  <ExceptionRow
+
+                    key={workspace.id || `workspace-${index}`}
+
+                    label="At-Risk Workspace"
+
+                    title={workspace.name}
+
+                    description={`${workspace.state || "National"} | ${workspace.office || "Campaign"} | ${workspace.cycle || "2026"}`}
+
+                    value={workspace.risk || "Elevated"}
+
+                    route="/command-center"
+
+                    badgeTone={tone(workspace.risk)}
+
+                  />
+
+                ))}
+
+ 
+
+                {activeEscalations.map((response, index) => (
+
+                  <ExceptionRow
+
+                    key={response.id || `response-${index}`}
+
+                    label="Rapid-Response Escalation"
+
+                    title={response.title}
+
+                    description={response.response_strategy || response.narrative_summary}
+
+                    value={clean(response.threat_level || response.status, "Open")}
+
+                    route="/narrative-response"
+
+                    badgeTone={tone(response.threat_level || response.status)}
+
+                  />
+
+                ))}
+
+ 
+
+                {criticalVendorGaps.map((vendor, index) => (
+
+                  <ExceptionRow
+
+                    key={vendor.id || `vendor-${index}`}
+
+                    label="Vendor Capacity Gap"
+
+                    title={vendor.name || vendor.vendor_name}
+
+                    description={vendor.category || vendor.notes}
+
+                    value={clean(vendor.risk || vendor.coverage_tier, "Gap")}
+
+                    route="/vendors"
+
+                    badgeTone="demo"
+
+                  />
+
+                ))}
+
+ 
+
+                {!exceptionCount ? <EmptyState text="No material operational exceptions are active." /> : null}
+
+              </div>
+
+            </SectionCard>
+
           </div>
+
         </div>
+
       )}
 
-      <CollapsibleSection
-        id="mission-actions"
-        title="Executive Action Center"
-        subtitle="Move Mission Control signals into the connected VoterSpheres command modules."
-        defaultOpen={false}
-        right={<Badge tone="active">Mission Handoff</Badge>}
-      >
-        <MissionActionCenter onRefresh={() => load({ quiet: true })} />
-      </CollapsibleSection>
+ 
 
-      <BackToTopButton />
+      <SectionCard
+
+        title="Authoritative Operating Systems"
+
+        subtitle="Mission Control summarizes operating pressure; detailed investigation and execution remain in the connected system of record."
+
+      >
+
+        <div className="emc-handoffs">
+
+          {handoffs.map((item) => (
+
+            <article className="emc-handoff" key={item.label}>
+
+              <div className="emc-handoff-copy">
+
+                <span>{item.label}</span>
+
+                <strong className="emc-handoff-count">{fmt(item.count)}</strong>
+
+                <p>{item.countLabel} | {item.detail}</p>
+
+              </div>
+
+              <Link to={item.route}>Open authoritative page</Link>
+
+            </article>
+
+          ))}
+
+        </div>
+
+        <p className="emc-source-note">
+
+          Political Signals owns signal evidence. Command Center owns tasks and execution. Campaign CRM owns stakeholder follow-ups. Vendor Network owns capacity records. Rapid Response owns narrative-response workflows.
+
+        </p>
+
+      </SectionCard>
+
     </PageShell>
+
   );
+
 }
