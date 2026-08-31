@@ -455,11 +455,12 @@ function IntelligenceRecommendationRow({ item, index }) {
   );
 
   const sourceType = clean(
+  item.source ||
     item.type ||
-      item.category ||
-      item.source_type,
-    "strategy recommendation"
-  );
+    item.category ||
+    item.source_type,
+  "strategy recommendation"
+);
 
   return (
     <article className="emc-intelligence-item">
