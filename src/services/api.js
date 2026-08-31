@@ -840,6 +840,11 @@ export const tasksApi = {
       params: withWorkspaceParams(params),
     }),
 
+  firmWide: (params = {}) =>
+    tryGet(["/tasks"], {
+      params,
+    }),
+
   create: (payload) => tryPost(["/tasks"], withWorkspacePayload(payload)),
 
   update: (taskId, payload) =>
@@ -988,6 +993,7 @@ export const api = {
   updateMailOpsEvent: mailOpsApi.updateEvent,
 
   tasks: tasksApi.list,
+  firmWideTasks: tasksApi.firmWide,
   createTask: tasksApi.create,
   updateTask: tasksApi.update,
   taskComments: tasksApi.comments,
@@ -1390,5 +1396,3 @@ export {
 };
 
 export default http;
-
-
