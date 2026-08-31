@@ -45,6 +45,8 @@ function setActiveWorkspaceId(workspaceId = "") {
 }
 
 function shouldInjectWorkspace(config = {}) {
+  if (config.skipWorkspaceInjection === true) return false;
+
   const url = String(config.url || "");
 
   if (!url) return false;
@@ -841,9 +843,10 @@ export const tasksApi = {
     }),
 
   firmWide: (params = {}) =>
-    tryGet(["/tasks"], {
-      params,
-    }),
+  tryGet(["/tasks"], {
+    params,
+    skipWorkspaceInjection: true,
+  }),
 
   create: (payload) => tryPost(["/tasks"], withWorkspacePayload(payload)),
 
