@@ -261,6 +261,173 @@ async function safeLoad(loader, fallback) {
   }
 }
 
+function normalizeAlertToken(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+}
+
+function getExplicitAlertRoute(alert = null) {
+  if (!alert) return "";
+
+  const metadata = getTaskMetadata(alert);
+  const candidates = [
+    alert.route,
+    alert.link,
+    alert.action_route,
+    alert.actionRoute,
+    alert.destination,
+    metadata.route,
+    metadata.link,
+    metadata.action_route,
+    metadata.actionRoute,
+    metadata.destination,
+  ];
+
+  return candidates.find((value) => String(value || "").startsWith("/")) || "";
+}
+
+function getSmartAlertRoute(alert = null) {
+  if (!alert) return "/executive-decision-intelligence";
+
+  const explicitRoute = getExplicitAlertRoute(alert);
+  if (explicitRoute) return explicitRoute;
+
+  const type = normalizeAlertToken(alert.type);
+  const source = normalizeAlertToken(alert.source);
+  const title = normalizeAlertToken(alert.title);
+  const searchable = `${type} ${source} ${title}`;
+
+  if (searchable.includes("dark-money") || searchable.includes("darkmoney")) {
+    return "/dark-money-exposure";
+  }
+
+  if (
+    searchable.includes("relationship") ||
+    searchable.includes("relationship-graph") ||
+    type.includes("relationship-signal")
+  ) {
+    return "/relationship-graph";
+  }
+
+  if (searchable.includes("consultant")) {
+    return "/consultant-intel";
+  }
+
+  if (searchable.includes("vendor")) {
+    return "/vendors";
+  }
+
+  if (searchable.includes("fundraising") || searchable.includes("finance")) {
+    return "/fundraising-dashboard";
+  }
+
+  if (
+    searchable.includes("battleground") ||
+    searchable.includes("race-pressure") ||
+    searchable.includes("national-command")
+  ) {
+    return "/national-command";
+  }
+
+  if (
+    searchable.includes("political-signal") ||
+    searchable.includes("news-signal") ||
+    searchable.includes("news-intelligence") ||
+    searchable.includes("narrative")
+  ) {
+    return "/political-signals";
+  }
+
+  if (searchable.includes("campaign-crm") || searchable.includes("crm")) {
+    return "/campaign-crm";
+  }
+
+  if (searchable.includes("candidate")) {
+    return "/candidates";
+  }
+
+  if (
+    searchable.includes("county") ||
+    searchable.includes("state-operations") ||
+    searchable.includes("operations-map")
+  ) {
+    return "/operations-map";
+  }
+
+  return "/executive-decision-intelligence";
+}
+
+function getSmartAlertSourceLabel(alert = null, route = "") {
+  const source = String(alert?.source || "").trim();
+  if (source) return source;
+
+  const routeLabels = {
+    "/dark-money-exposure": "Dark Money Exposure",
+    "/relationship-graph": "Relationship Graph",
+    "/consultant-intel": "Consultant Intelligence",
+    "/vendors": "Vendor Network",
+    "/fundraising-dashboard": "Fundraising Dashboard",
+    "/national-command": "National Command",
+    "/political-signals": "Political Signals",
+    "/campaign-crm": "Campaign CRM",
+    "/candidates": "Candidates",
+    "/operations-map": "Operations Map",
+    "/executive-decision-intelligence": "Executive Decision Intelligence",
+  };
+
+  return routeLabels[route] || "Source Intelligence";
+}
+
+function getSmartAlertActions(alert = null, route = "") {
+  if (route === "/relationship-graph") {
+    return ["Open Relationship Graph", "Inspect source/target pathway", "Assign analyst review"];
+  }
+
+  if (route === "/dark-money-exposure") {
+    return ["Open Dark Money Exposure", "Audit committee pathways", "Escalate compliance review"];
+  }
+
+  if (route === "/consultant-intel") {
+    return ["Open Consultant Intelligence", "Review candidate relationships", "Assign analyst review"];
+  }
+
+  if (route === "/vendors") {
+    return ["Open Vendor Network", "Review coverage gap", "Assign procurement owner"];
+  }
+
+  if (route === "/fundraising-dashboard") {
+    return ["Open Fundraising Dashboard", "Review finance movement", "Assign finance review"];
+  }
+
+  if (route === "/national-command") {
+    return ["Open National Command", "Review battleground pressure", "Assign race owner"];
+  }
+
+  if (route === "/political-signals") {
+    return ["Open Political Signals", "Review supporting evidence", "Assign monitoring owner"];
+  }
+
+  if (route === "/campaign-crm") {
+    return ["Open Campaign CRM", "Review follow-up context", "Assign relationship owner"];
+  }
+
+  if (route === "/operations-map") {
+    return ["Open Operations Map", "Review geographic pressure", "Assign operations owner"];
+  }
+
+  if (route === "/candidates") {
+    return ["Open Candidates", "Review candidate context", "Assign campaign review"];
+  }
+
+  return [
+    alert?.recommendation || "Open Executive Decision Intelligence",
+    "Review supporting intelligence",
+    "Assign an owner",
+  ];
+}
+
 function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, darkMoneyIntel = fallbackDarkMoneyIntel) {
   const darkMoneyExposure = arr(darkMoneyIntel?.top_exposure).find((item) => number(item.exposure_score) >= 80) || null;
 
@@ -268,8 +435,9 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
     return {
       level: "CRITICAL",
       title: `${darkMoneyExposure.committee_name || darkMoneyExposure.committee_id || "Committee"} shows critical dark money exposure`,
-      actions: ["Review committee relationships", "Audit consultant overlap", "Escalate compliance review"],
+      actions: ["Open Dark Money Exposure", "Audit consultant overlap", "Escalate compliance review"],
       link: "/dark-money-exposure",
+      sourceLabel: "Dark Money Exposure",
     };
   }
 
@@ -281,17 +449,22 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
       title: `${consultantExposure.name || consultantExposure.firm_name || "Consultant"} consultant relationship needs review`,
       actions: ["Open Consultant Intelligence", "Review candidate relationships", "Assign analyst review"],
       link: "/consultant-intel",
+      sourceLabel: "Consultant Intelligence",
     };
   }
 
   const urgent = arr(feed).find((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase()));
 
   if (urgent) {
+    const link = getSmartAlertRoute(urgent);
+
     return {
       level: String(urgent.severity || "HIGH").toUpperCase(),
       title: urgent.title || "High-priority alert detected",
-      actions: ["Assign an owner", "Review response plan", "Monitor impact"],
-      link: "/command-center",
+      actions: getSmartAlertActions(urgent, link),
+      link,
+      sourceLabel: getSmartAlertSourceLabel(urgent, link),
+      alert: urgent,
     };
   }
 
@@ -299,7 +472,8 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
     level: "STABLE",
     title: "No urgent executive action required",
     actions: ["Monitor recent updates", "Refresh intelligence", "Review active priorities"],
-    link: "/relationship-graph",
+    link: "/executive-decision-intelligence",
+    sourceLabel: "Executive Decision Intelligence",
   };
 }
 
@@ -1068,7 +1242,7 @@ function CommandExecutiveHeader({
         </button>
         <Link to="/executive-decision-intelligence">Decision Center</Link>
         <Link to="/political-graph">Political Graph</Link>
-        <Link to={executiveDecision?.link || "/command-center"}>Open Suggested Page</Link>
+        <Link to={executiveDecision?.link || "/executive-decision-intelligence"}>Open Source System</Link>
       </div>
 
       <div className="command-exec-metrics">
@@ -2219,7 +2393,7 @@ export default function CommandCenter() {
         title="Executive Command Metrics"
         subtitle="Primary campaign command metrics from the live intelligence command layer."
         defaultOpen
-        right={<Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} Urgent Alerts` : "Stable"}</Badge>}
+        right={<Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} High-Priority Alerts` : "Stable"}</Badge>}
       >
         <MetricGrid metrics={metrics} />
       </CollapsibleSection>
@@ -2251,6 +2425,9 @@ export default function CommandCenter() {
             <div style={{ color: "var(--vs-text)", fontSize: 18, fontWeight: 900, overflowWrap: "anywhere" }}>
               {executiveDecision?.title}
             </div>
+            <div style={{ color: "var(--vs-text-muted)", fontSize: 12, fontWeight: 800 }}>
+              Source system: {executiveDecision?.sourceLabel || "Executive Decision Intelligence"}
+            </div>
 
             <div className="vs-grid-3">
               {(executiveDecision?.actions || []).map((action) => (
@@ -2261,8 +2438,8 @@ export default function CommandCenter() {
             </div>
 
             <div>
-              <Link className="vs-button vs-button-secondary" to={executiveDecision?.link || "/command-center"}>
-                Open Suggested Page
+              <Link className="vs-button vs-button-secondary" to={executiveDecision?.link || "/executive-decision-intelligence"}>
+                Open Source System
               </Link>
             </div>
           </div>
@@ -2437,4 +2614,3 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
-
