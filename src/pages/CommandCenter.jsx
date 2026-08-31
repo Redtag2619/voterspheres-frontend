@@ -775,9 +775,19 @@ function DarkMoneyExposurePanel({ data, loading }) {
   );
 }
 
-function ExecutiveAlertEnginePanel({ alerts = [], loading }) {
-  const criticalCount = arr(alerts).filter((alert) => String(alert.severity || "").toLowerCase() === "critical").length;
-  const highCount = arr(alerts).filter((alert) => String(alert.severity || "").toLowerCase() === "high").length;
+function ExecutiveAlertEnginePanel({ alerts = [], counts = {}, loading }) {
+  const loadedCriticalCount = arr(alerts).filter((alert) => String(alert.severity || "").toLowerCase() === "critical").length;
+  const loadedHighCount = arr(alerts).filter((alert) => String(alert.severity || "").toLowerCase() === "high").length;
+
+  const criticalCount = counts?.critical !== undefined && counts?.critical !== null
+    ? number(counts.critical)
+    : loadedCriticalCount;
+  const highCount = counts?.high !== undefined && counts?.high !== null
+    ? number(counts.high)
+    : loadedHighCount;
+  const totalCount = counts?.total !== undefined && counts?.total !== null
+    ? number(counts.total)
+    : arr(alerts).length;
 
   return (
     <div data-tour="command-alert-engine">
@@ -786,8 +796,9 @@ function ExecutiveAlertEnginePanel({ alerts = [], loading }) {
         subtitle="Cross-signal operational alerts generated from consultant exposure, dark money, relationship strength, and campaign intelligence."
         right={
           <div className="vs-inline-actions command-panel-actions">
-            <Badge tone={criticalCount ? "danger" : highCount ? "warning" : "active"}>{criticalCount} critical</Badge>
-            <Badge tone={arr(alerts).length ? "info" : "default"}>{arr(alerts).length} active</Badge>
+            <Badge tone={criticalCount ? "danger" : "active"}>{criticalCount} critical</Badge>
+            <Badge tone={highCount ? "warning" : "active"}>{highCount} high</Badge>
+            <Badge tone={totalCount ? "info" : "default"}>{totalCount} active</Badge>
           </div>
         }
       >
@@ -918,8 +929,7 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
 }
 
 
-function ExecutiveSnapshot({ feed, tasks, battlegrounds, executiveDecision }) {
-  const criticalAlerts = arr(feed).filter((item) => ["critical", "high"].includes(String(item.severity || "").toLowerCase())).length;
+function ExecutiveSnapshot({ criticalAlertCount = 0, tasks, battlegrounds, executiveDecision }) {
   const openWork = arr(tasks).filter((task) => !isTaskCompleted(task)).length;
   const highestRisk = arr(battlegrounds).find((item) => ["critical", "high"].includes(String(item.risk || "").toLowerCase())) || battlegrounds?.[0];
 
@@ -931,7 +941,7 @@ function ExecutiveSnapshot({ feed, tasks, battlegrounds, executiveDecision }) {
         <p>Live summary generated from alerts, execution tasks, battleground pressure, consultant activity, and relationship intelligence.</p>
       </div>
       <div className="command-snapshot-grid">
-        <div><span>Critical Alerts</span><strong>{criticalAlerts}</strong></div>
+        <div><span>Critical Alerts</span><strong>{criticalAlertCount}</strong></div>
         <div><span>Open Work</span><strong>{openWork}</strong></div>
         <div><span>Highest Risk</span><strong>{highestRisk?.race || highestRisk?.state || "Stable"}</strong></div>
         <div><span>Decision Level</span><strong>{executiveDecision?.level || "STABLE"}</strong></div>
@@ -967,6 +977,8 @@ function LiveActivityFeed({ feed = [], tasks = [] }) {
 
 function CommandExecutiveHeader({
   metrics,
+  criticalAlertCount,
+  highAlertCount,
   highSeverityCount,
   taskCounts,
   relationshipCounts,
@@ -979,14 +991,24 @@ function CommandExecutiveHeader({
   onRefresh,
   onUpdateConsultants,
 }) {
+  // Alert Engine "high" signals are intentionally broader than literal critical alerts.
+  // Weight critical alerts heavily, high alerts moderately, and cap aggregate alert pressure
+  // so a large but non-critical monitoring queue cannot collapse readiness to zero by itself.
+  const alertPressurePenalty = Math.min(
+    40,
+    number(criticalAlertCount) * 12 + Math.min(number(highAlertCount), 20) * 1.5
+  );
+
   const readinessScore = Math.max(
     0,
     Math.min(
       100,
-      100 -
-        number(highSeverityCount * 8) -
-        number(taskCounts.county * 2) -
-        number(darkMoneySummary.critical_exposure * 10)
+      Math.round(
+        100 -
+          alertPressurePenalty -
+          number(taskCounts.county * 2) -
+          number(darkMoneySummary.critical_exposure * 10)
+      )
     )
   );
 
@@ -1081,6 +1103,7 @@ export default function CommandCenter() {
   const [darkMoneyLoading, setDarkMoneyLoading] = useState(true);
 
   const [executiveAlerts, setExecutiveAlerts] = useState(fallbackExecutiveAlerts.alerts);
+  const [executiveAlertCounts, setExecutiveAlertCounts] = useState(fallbackExecutiveAlerts.counts);
   const [executiveAlertsLoading, setExecutiveAlertsLoading] = useState(true);
 
   const [tasks, setTasks] = useState([]);
@@ -1202,18 +1225,41 @@ export default function CommandCenter() {
   async function loadExecutiveAlerts() {
     if (demoMode) {
       setExecutiveAlerts(fallbackExecutiveAlerts.alerts);
+      setExecutiveAlertCounts(fallbackExecutiveAlerts.counts);
       setExecutiveAlertsLoading(false);
       return;
     }
 
     setExecutiveAlertsLoading(true);
+
     const result = await safeLoad(
       () => api.executiveAlerts
-        ? api.executiveAlerts({ limit: 12 })
-        : api.get("/executive-alerts", { params: { limit: 12 } }).then((r) => r.data),
+        ? api.executiveAlerts({ limit: 50 })
+        : api.get("/executive-alerts", { params: { limit: 50 } }).then((r) => r.data),
       fallbackExecutiveAlerts
     );
-    setExecutiveAlerts(arr(result?.alerts));
+
+    const loadedAlerts = arr(result?.alerts);
+
+    setExecutiveAlerts(loadedAlerts);
+    setExecutiveAlertCounts({
+      total: result?.counts?.total !== undefined && result?.counts?.total !== null
+        ? number(result.counts.total)
+        : loadedAlerts.length,
+      critical: result?.counts?.critical !== undefined && result?.counts?.critical !== null
+        ? number(result.counts.critical)
+        : loadedAlerts.filter((alert) => String(alert.severity || "").toLowerCase() === "critical").length,
+      high: result?.counts?.high !== undefined && result?.counts?.high !== null
+        ? number(result.counts.high)
+        : loadedAlerts.filter((alert) => String(alert.severity || "").toLowerCase() === "high").length,
+      medium: result?.counts?.medium !== undefined && result?.counts?.medium !== null
+        ? number(result.counts.medium)
+        : loadedAlerts.filter((alert) => String(alert.severity || "").toLowerCase() === "medium").length,
+      low: result?.counts?.low !== undefined && result?.counts?.low !== null
+        ? number(result.counts.low)
+        : loadedAlerts.filter((alert) => String(alert.severity || "").toLowerCase() === "low").length,
+    });
+
     setExecutiveAlertsLoading(false);
   }
 
@@ -1367,6 +1413,17 @@ export default function CommandCenter() {
     return arr(feed).filter((item) => String(item.state || "").toUpperCase() === mapBridgeState || String(item.title || "").toUpperCase().includes(mapBridgeState));
   }, [feed, isExecutiveMapBridge, mapBridgeState]);
 
+  const stateScopedExecutiveAlerts = useMemo(() => {
+    if (!isExecutiveMapBridge || !mapBridgeState) return executiveAlerts;
+
+    return arr(executiveAlerts).filter((item) => {
+      const state = String(item.state || "").toUpperCase();
+      const title = String(item.title || "").toUpperCase();
+
+      return state === mapBridgeState || title.includes(mapBridgeState);
+    });
+  }, [executiveAlerts, isExecutiveMapBridge, mapBridgeState]);
+
   const stateScopedActions = useMemo(() => {
     if (!isExecutiveMapBridge || !mapBridgeState) return actions;
     return arr(actions).filter((item) => String(item.state || "").toUpperCase() === mapBridgeState || String(item.title || item.detail || "").toUpperCase().includes(mapBridgeState));
@@ -1377,9 +1434,29 @@ export default function CommandCenter() {
     return arr(battlegrounds).filter((item) => String(item.state || "").toUpperCase() === mapBridgeState || String(item.race || item.office || "").toUpperCase().includes(mapBridgeState));
   }, [battlegrounds, isExecutiveMapBridge, mapBridgeState]);
 
-  const executiveDecision = useMemo(() => buildDecision(stateScopedFeed, consultantIntel, darkMoneyIntel), [stateScopedFeed, consultantIntel, darkMoneyIntel]);
+  const executiveDecision = useMemo(
+    () => buildDecision(stateScopedExecutiveAlerts, consultantIntel, darkMoneyIntel),
+    [stateScopedExecutiveAlerts, consultantIntel, darkMoneyIntel]
+  );
 
-  const highSeverityCount = arr(stateScopedFeed).filter((item) => ["high", "critical"].includes(String(item.severity || "").toLowerCase())).length;
+  const scopedCriticalAlertCount = arr(stateScopedExecutiveAlerts).filter(
+    (item) => String(item.severity || "").toLowerCase() === "critical"
+  ).length;
+  const scopedHighAlertCount = arr(stateScopedExecutiveAlerts).filter(
+    (item) => String(item.severity || "").toLowerCase() === "high"
+  ).length;
+
+  const criticalAlertCount = isExecutiveMapBridge
+    ? scopedCriticalAlertCount
+    : number(executiveAlertCounts.critical);
+  const highAlertCount = isExecutiveMapBridge
+    ? scopedHighAlertCount
+    : number(executiveAlertCounts.high);
+  const executiveAlertTotal = isExecutiveMapBridge
+    ? stateScopedExecutiveAlerts.length
+    : number(executiveAlertCounts.total, executiveAlerts.length);
+  const highSeverityCount = criticalAlertCount + highAlertCount;
+
   const relationshipCounts = relationshipGraph?.counts || {};
   const darkMoneySummary = darkMoneyIntel?.summary || {};
 
@@ -1393,7 +1470,7 @@ export default function CommandCenter() {
     { id: "command-relationships-section", label: "Relationships", badge: relationshipCounts.links || 0 },
     { id: "command-cross-signal-section", label: "Cross Signal", badge: crossSignal?.summary?.critical_states || 0 },
     { id: "command-dark-money-section", label: "Dark Money", badge: darkMoneySummary.critical_exposure || 0 },
-    { id: "command-alerts-section", label: "Alerts", badge: executiveAlerts.length },
+    { id: "command-alerts-section", label: "Alerts", badge: executiveAlertTotal },
     { id: "command-battlegrounds-section", label: "Battlegrounds", badge: stateScopedBattlegrounds.length },
     { id: "command-live-activity-section", label: "Live Activity", badge: stateScopedFeed.length },
     { id: "command-feed-section", label: "Feed", badge: stateScopedFeed.length },
@@ -2111,7 +2188,7 @@ export default function CommandCenter() {
 
       <div className="command-section-stack">
         <ExecutiveSnapshot
-          feed={stateScopedFeed}
+          criticalAlertCount={criticalAlertCount}
           tasks={bridgeScopedTasks}
           battlegrounds={stateScopedBattlegrounds}
           executiveDecision={executiveDecision}
@@ -2119,6 +2196,8 @@ export default function CommandCenter() {
 
         <CommandExecutiveHeader
           metrics={metrics}
+          criticalAlertCount={criticalAlertCount}
+          highAlertCount={highAlertCount}
           highSeverityCount={highSeverityCount}
           taskCounts={taskCounts}
           relationshipCounts={relationshipCounts}
@@ -2300,9 +2379,23 @@ export default function CommandCenter() {
         title="Executive Alert Engine"
         subtitle="Cross-signal operational alerts from consultant exposure, dark money, relationships, and campaign intelligence."
         defaultOpen={false}
-        right={<Badge tone={executiveAlerts.length ? "info" : "default"}>{executiveAlerts.length} Alerts</Badge>}
+        right={<Badge tone={executiveAlertTotal ? "info" : "default"}>{executiveAlertTotal} Alerts</Badge>}
       >
-        <ExecutiveAlertEnginePanel alerts={executiveAlerts} loading={executiveAlertsLoading} />
+        <ExecutiveAlertEnginePanel
+          alerts={stateScopedExecutiveAlerts}
+          counts={
+            isExecutiveMapBridge
+              ? {
+                  total: executiveAlertTotal,
+                  critical: criticalAlertCount,
+                  high: highAlertCount,
+                  medium: stateScopedExecutiveAlerts.filter((alert) => String(alert.severity || "").toLowerCase() === "medium").length,
+                  low: stateScopedExecutiveAlerts.filter((alert) => String(alert.severity || "").toLowerCase() === "low").length,
+                }
+              : executiveAlertCounts
+          }
+          loading={executiveAlertsLoading}
+        />
       </CollapsibleSection>
 
 
@@ -2344,3 +2437,4 @@ export default function CommandCenter() {
     </PageShell>
   );
 }
+
