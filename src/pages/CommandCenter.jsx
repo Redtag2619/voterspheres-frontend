@@ -1218,22 +1218,25 @@ export default function CommandCenter() {
   }
 
   async function loadTasks() {
-    if (demoMode) {
-      setTasks([]);
-      setTasksLoading(false);
-      return;
-    }
-
-    setTasksLoading(true);
-    const result = await safeLoad(
-      () => api.tasks
-        ? api.tasks({ limit: 100 })
-        : api.get("/tasks", { params: { limit: 100 } }).then((r) => r.data),
-      []
-    );
-    setTasks(normalizeList(result));
+  if (demoMode) {
+    setTasks([]);
     setTasksLoading(false);
+    return;
   }
+
+  setTasksLoading(true);
+
+  const result = await safeLoad(
+    () =>
+      api.firmWideTasks
+        ? api.firmWideTasks({ limit: 100 })
+        : api.get("/tasks", { params: { limit: 100 } }).then((r) => r.data),
+    []
+  );
+
+  setTasks(normalizeList(result));
+  setTasksLoading(false);
+}
 
   async function refreshAll() {
     await Promise.all([
