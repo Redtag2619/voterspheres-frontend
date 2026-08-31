@@ -704,10 +704,21 @@ export default function ExecutiveMissionControl() {
   );
 
   const exceptionCount =
-    allAtRiskWorkspaces.length +
-    allRiskDrivingSignals.length +
-    allActiveEscalations.length +
-    allCriticalVendorGaps.length;
+    summary.operational_exceptions !== undefined &&
+    summary.operational_exceptions !== null
+      ? number(summary.operational_exceptions)
+      : (
+          allAtRiskWorkspaces.length +
+          allRiskDrivingSignals.length +
+          allActiveEscalations.length +
+          allCriticalVendorGaps.length
+        );
+
+  const atRiskWorkspaceCount =
+    summary.at_risk_workspaces !== undefined &&
+    summary.at_risk_workspaces !== null
+      ? number(summary.at_risk_workspaces)
+      : allAtRiskWorkspaces.length;
 
   const displayedExceptionCount =
     atRiskWorkspaces.length +
@@ -737,10 +748,12 @@ export default function ExecutiveMissionControl() {
       label: "Political Signals",
       detail: "Evidence and signal investigation",
       count:
-        number(summary.critical_signals) ||
-        criticalSignals.length,
+        summary.material_signals !== undefined &&
+        summary.material_signals !== null
+          ? number(summary.material_signals)
+          : criticalSignals.length,
       route: "/political-signals",
-      countLabel: "critical signals",
+      countLabel: "material signals",
     },
     {
       label: "Rapid Response",
@@ -1225,10 +1238,10 @@ export default function ExecutiveMissionControl() {
 
         <StatCard
           label="At-Risk Workspaces"
-          value={fmt(allAtRiskWorkspaces.length)}
+          value={fmt(atRiskWorkspaceCount)}
           delta={`${workspaceHealth.length} monitored`}
           tone={
-            allAtRiskWorkspaces.length
+            atRiskWorkspaceCount
               ? "down"
               : "up"
           }
@@ -1536,3 +1549,4 @@ export default function ExecutiveMissionControl() {
     </PageShell>
   );
 }
+
