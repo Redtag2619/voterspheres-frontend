@@ -1,4 +1,4 @@
-
+import { useMemo, useState } from "react"; 
 
 import { Link } from "react-router-dom";
 
@@ -412,7 +412,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
     const degraded = sources.filter((item) =>
 
-      ["degraded", "offline", "unavailable", "error"].includes(
+      ["degraded", "offline", "error"].includes(
 
         String(item.status || "").toLowerCase()
 
@@ -420,9 +420,13 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
     ).length;
 
- 
+    const unavailable = sources.filter(
 
-    return { sources, available, degraded };
+      (item) => String(item.status || "").toLowerCase() === "unavailable"
+
+    ).length;
+
+    return { sources, available, degraded, unavailable };
 
   }, [sourceStatus]);
 
@@ -761,6 +765,8 @@ export default function CrossWorkspaceExecutiveDashboard() {
                     <div className="uei-evidence-card"><span>Sources reporting</span><strong>{evidence.available}/{evidence.sources.length}</strong></div>
 
                     <div className="uei-evidence-card"><span>Degraded</span><strong>{evidence.degraded}</strong></div>
+
+                    <div className="uei-evidence-card"><span>Unavailable</span><strong>{evidence.unavailable}</strong></div>
 
                     <div className="uei-evidence-card"><span>Workspaces in scope</span><strong>{number(summary.total_workspaces)}</strong></div>
 
