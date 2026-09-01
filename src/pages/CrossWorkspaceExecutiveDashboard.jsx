@@ -170,6 +170,53 @@ function safeRoute(value, fallback) {
 
  
 
+
+const GENERIC_EXECUTIVE_ROUTES = new Set([
+  "/command-center",
+  "/executive-workspace",
+  "/executive-decision-intelligence",
+  "/strategy-recommendations",
+]);
+
+function executiveRoute(item = {}, fallback = "/executive-decision-intelligence") {
+  const explicitRoute = safeRoute(item.route, "");
+
+  if (explicitRoute && !GENERIC_EXECUTIVE_ROUTES.has(explicitRoute)) {
+    return explicitRoute;
+  }
+
+  const context = cleanText([
+    item.title,
+    item.name,
+    item.headline,
+    item.detail,
+    item.description,
+    item.summary,
+    item.message,
+    item.category,
+    item.type,
+    item.signal_type,
+    item.recommendation_type,
+    item.action_type,
+    item.source,
+    item.provider,
+  ].filter(Boolean).join(" ")).toLowerCase();
+
+  if (/relationship|network|influence graph|connection/.test(context)) return "/relationship-graph";
+  if (/dark money|fec|committee finance|independent expenditure|pac|super pac/.test(context)) return "/dark-money-exposure";
+  if (/consultant|consulting firm|strategist/.test(context)) return "/consultant-intel";
+  if (/vendor|media buy|direct mail|production vendor|capacity gap/.test(context)) return "/vendors";
+  if (/fundrais|receipt|donor|contribution|finance|cash on hand|burn rate/.test(context)) return "/fundraising-dashboard";
+  if (/crm|client update|follow[- ]?up|opportunity|contact/.test(context)) return "/campaign-crm";
+  if (/county|field|gotv|early vote|volunteer|turnout|state operation|operations/.test(context)) return "/operations-map";
+  if (/coalition|strategy|strategic plan|path to victory/.test(context)) return "/strategy";
+  if (/battleground|race pressure|national race|competitive race/.test(context)) return "/national-command";
+  if (/political signal|narrative|news|reporting|media narrative|public narrative/.test(context)) return "/political-signals";
+  if (/candidate|opponent|incumbent|challenger/.test(context)) return "/candidates";
+
+  return explicitRoute || fallback;
+}
+
 function findingScore(item = {}) {
 
   return Math.max(
@@ -258,6 +305,23 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   );
 
+
+  const activeWorkspace = useMemo(
+    () => arr(workspaces).find((workspace) => String(workspace.id) === String(activeWorkspaceId)) || null,
+    [workspaces, activeWorkspaceId]
+  );
+
+  const scopeLabel = useMemo(() => {
+    const parts = [
+      activeWorkspace?.name || "All workspaces",
+      filters.state || (activeWorkspace?.state && activeWorkspace.state !== "National" ? activeWorkspace.state : ""),
+      filters.office || "",
+      filters.risk ? `${filters.risk} risk` : "All risk levels",
+    ].filter(Boolean);
+
+    return parts.join(" • ");
+  }, [activeWorkspace, filters.office, filters.risk, filters.state]);
+
  
 
   const findings = useMemo(() => {
@@ -274,7 +338,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
       detail: firstText(item.detail, item.description, item.summary, item.message),
 
-      route: safeRoute(item.route, "/notifications"),
+      route: executiveRoute(item, "/notifications"),
 
       level: item.severity || item.priority || item.risk || "Alert",
 
@@ -296,7 +360,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
       detail: firstText(item.detail, item.description, item.summary, item.explanation),
 
-      route: safeRoute(item.route, "/political-signals"),
+      route: executiveRoute(item, "/political-signals"),
 
       level: item.severity || item.priority || item.risk || item.signal_type || "Signal",
 
@@ -390,7 +454,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
         workspace_id: item.workspace_id || activeWorkspaceId || null,
 
-        route: safeRoute(item.route, "/command-center"),
+        route: executiveRoute(item, "/executive-decision-intelligence"),
 
       });
 
@@ -445,6 +509,8 @@ export default function CrossWorkspaceExecutiveDashboard() {
         .uei-brief h2 { max-width: 920px; margin: 8px 0 12px; color: white; font-size: clamp(29px,4.5vw,52px); line-height: 1; letter-spacing: -.055em; }
 
         .uei-brief p { max-width: 900px; margin: 0; color: rgba(203,213,225,.8); line-height: 1.72; }
+
+        .uei-scope-summary { display: inline-flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 7px 10px; border: 1px solid rgba(96,165,250,.2); border-radius: 999px; background: rgba(59,130,246,.08); color: rgba(191,219,254,.9); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 
         .uei-recommendation { margin-top: 18px; padding: 16px 18px; border-left: 3px solid #fb923c; border-radius: 0 16px 16px 0; background: rgba(251,146,60,.09); }
 
@@ -576,6 +642,8 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
                 <div className="vs-page-eyebrow">Executive Assessment</div>
 
+                <div className="uei-scope-summary">Scope: {scopeLabel}</div>
+
                 <h2 id="uei-brief-title">{briefing.headline || health.status || "Executive intelligence is ready"}</h2>
 
                 <p>{briefing.strategic_summary || "The unified intelligence layer is consolidating operational, political, and strategic evidence into one leadership briefing."}</p>
@@ -666,7 +734,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
                             <div className="uei-implication-footer" style={{ marginTop: 12 }}>
 
-                              <Link className="vs-button vs-button-secondary" to={safeRoute(item.route, "/strategy-recommendations")}>Review</Link>
+                              <Link className="vs-button vs-button-secondary" to={executiveRoute(item, "/executive-decision-intelligence")}>Review</Link>
 
                               <button className="vs-button vs-button-secondary" type="button" onClick={() => handleCreateAction(item, index)} disabled={creatingActionId === actionId}>{creatingActionId === actionId ? "Creating..." : "Create Action"}</button>
 
@@ -723,4 +791,3 @@ export default function CrossWorkspaceExecutiveDashboard() {
   );
 
 }
-
