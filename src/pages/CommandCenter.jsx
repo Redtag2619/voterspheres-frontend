@@ -359,6 +359,32 @@ function getSmartAlertRoute(alert = null) {
   return "/executive-decision-intelligence";
 }
 
+function getSmartCommandRoute(item = null, fallback = "/executive-decision-intelligence") {
+  if (!item) return fallback;
+
+  const route = getSmartAlertRoute(item);
+  return route || fallback;
+}
+
+function getSmartCommandLabel(item = null, route = "") {
+  return getSmartAlertSourceLabel(item, route || getSmartCommandRoute(item));
+}
+
+function SmartSourceAction({ item = null, route = "", label = "Open Source" }) {
+  const destination = route || getSmartCommandRoute(item);
+  const sourceLabel = getSmartCommandLabel(item, destination);
+
+  return (
+    <Link
+      className="vs-button vs-button-secondary"
+      to={destination}
+      title={`Open ${sourceLabel}`}
+    >
+      {label}
+    </Link>
+  );
+}
+
 function getSmartAlertSourceLabel(alert = null, route = "") {
   const source = String(alert?.source || "").trim();
   if (source) return source;
@@ -594,6 +620,8 @@ function CountyEscalationTaskCard({ task, onStatusChange, changing, selected = f
           Open State
         </Link>
 
+        <SmartSourceAction item={task} route={`/state-operations/${String(state).toUpperCase()}`} label="Open Source" />
+
         <button
           type="button"
           className="vs-button vs-button-secondary"
@@ -635,6 +663,7 @@ function StandardTaskCard({ task, selected = false, onSelectTask }) {
         right={
           <div className="vs-inline-actions command-panel-actions">
             <Badge tone={toneFromSeverity(priority || status)}>{status}</Badge>
+            <SmartSourceAction item={task} label="Open Source" />
             <button
               type="button"
               className="vs-button vs-button-secondary"
@@ -719,7 +748,12 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                         { label: "Clients", value: item.clients_count || item.mapped_candidates || 0 },
                         { label: "Spend", value: money(item.total_fec_disbursements || item.mapped_amount) },
                       ]}
-                      right={<Badge tone={toneFromScore(item.influence_score)}>{item.influence_score || 0}</Badge>}
+                      right={
+                        <div className="vs-inline-actions command-panel-actions">
+                          <Badge tone={toneFromScore(item.influence_score)}>{item.influence_score || 0}</Badge>
+                          <SmartSourceAction item={item} route="/consultant-intel" label="Open Consultant" />
+                        </div>
+                      }
                     />
                   ))
                 ) : (
@@ -742,7 +776,12 @@ function ConsultantIntelligencePanel({ data, loading, onRefresh }) {
                         { label: "Risk", value: item.risk_label || "Signal" },
                         { label: "Influence", value: item.influence_score || 0 },
                       ]}
-                      right={<Badge tone={toneFromScore(item.exposure_score)}>{item.risk_label || "Watch"}</Badge>}
+                      right={
+                        <div className="vs-inline-actions command-panel-actions">
+                          <Badge tone={toneFromScore(item.exposure_score)}>{item.risk_label || "Watch"}</Badge>
+                          <SmartSourceAction item={item} route="/consultant-intel" label="Open Consultant" />
+                        </div>
+                      }
                     />
                   ))
                 ) : (
@@ -807,7 +846,12 @@ function RelationshipIntelligencePanel({ graph, loading }) {
                         { label: "Type", value: node.type || "Node" },
                         { label: "Influence", value: node.influence || 0 },
                       ]}
-                      right={<Badge tone="info">{node.influence || 0}</Badge>}
+                      right={
+                        <div className="vs-inline-actions command-panel-actions">
+                          <Badge tone="info">{node.influence || 0}</Badge>
+                          <SmartSourceAction item={node} route="/relationship-graph" label="Open Graph" />
+                        </div>
+                      }
                     />
                   ))
                 ) : (
@@ -831,7 +875,12 @@ function RelationshipIntelligencePanel({ graph, loading }) {
                           { label: "Strength", value: link.strength || 0 },
                           { label: "Type", value: link.type || "relationship" },
                         ]}
-                        right={<Badge tone="active">{link.strength || 0}</Badge>}
+                        right={
+                          <div className="vs-inline-actions command-panel-actions">
+                            <Badge tone="active">{link.strength || 0}</Badge>
+                            <SmartSourceAction item={link} route="/relationship-graph" label="Open Graph" />
+                          </div>
+                        }
                       />
                     );
                   })
@@ -882,7 +931,12 @@ function CrossSignalPanel({ data, loading }) {
                     { label: "Vendors", value: item.vendors?.coverage_status || "N/A" },
                     { label: "Mail Risk", value: item.mailops?.mail_risks || 0 },
                   ]}
-                  right={<Badge tone={toneFromSeverity(item.severity)}>{item.risk || "Watch"}</Badge>}
+                  right={
+                    <div className="vs-inline-actions command-panel-actions">
+                      <Badge tone={toneFromSeverity(item.severity)}>{item.risk || "Watch"}</Badge>
+                      <SmartSourceAction item={item} route="/national-command" label="Open State Command" />
+                    </div>
+                  }
                 />
               ))
             ) : (
@@ -936,7 +990,12 @@ function DarkMoneyExposurePanel({ data, loading }) {
                     { label: "Candidates", value: item.candidate_count || 0 },
                     { label: "Money Flow", value: money(item.total_amount) },
                   ]}
-                  right={<Badge tone={toneFromSeverity(item.severity)}>{item.exposure_tier || "Exposure"}</Badge>}
+                  right={
+                    <div className="vs-inline-actions command-panel-actions">
+                      <Badge tone={toneFromSeverity(item.severity)}>{item.exposure_tier || "Exposure"}</Badge>
+                      <SmartSourceAction item={item} route="/dark-money-exposure" label="Open Exposure" />
+                    </div>
+                  }
                 />
               ))
             ) : (
@@ -981,22 +1040,33 @@ function ExecutiveAlertEnginePanel({ alerts = [], counts = {}, loading }) {
         ) : (
           <div className="vs-stack">
             {arr(alerts).length ? (
-              arr(alerts).slice(0, 8).map((alert) => (
-                <PremiumRow
-                  key={alert.id || `${alert.type}-${alert.title}`}
-                  title={alert.title || "Executive alert"}
-                  subtitle={alert.recommendation || alert.source || "Review and assign owner."}
-                  tone={toneFromSeverity(alert.severity)}
-                  live={["critical", "high"].includes(String(alert.severity || "").toLowerCase())}
-                  meta={[
-                    { label: "Severity", value: alert.severity || "medium" },
-                    { label: "Type", value: alert.type || "signal" },
-                    { label: "State", value: alert.state || "National" },
-                    { label: "Risk", value: alert.risk || "Monitor" },
-                  ]}
-                  right={<Badge tone={toneFromSeverity(alert.severity)}>{alert.severity || "Signal"}</Badge>}
-                />
-              ))
+              <ShowMoreList
+                items={arr(alerts)}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Executive Alerts`}
+                className="vs-stack"
+                renderItem={(alert) => (
+                  <PremiumRow
+                    key={alert.id || `${alert.type}-${alert.title}`}
+                    title={alert.title || "Executive alert"}
+                    subtitle={alert.recommendation || alert.source || "Review and assign owner."}
+                    tone={toneFromSeverity(alert.severity)}
+                    live={["critical", "high"].includes(String(alert.severity || "").toLowerCase())}
+                    meta={[
+                      { label: "Severity", value: alert.severity || "medium" },
+                      { label: "Type", value: alert.type || "signal" },
+                      { label: "State", value: alert.state || "National" },
+                      { label: "Risk", value: alert.risk || "Monitor" },
+                    ]}
+                    right={
+                      <div className="vs-inline-actions command-panel-actions">
+                        <Badge tone={toneFromSeverity(alert.severity)}>{alert.severity || "Signal"}</Badge>
+                        <SmartSourceAction item={alert} label="Open Source" />
+                      </div>
+                    }
+                  />
+                )}
+              />
             ) : (
               <EmptyState text="No executive alerts detected." />
             )}
@@ -1025,7 +1095,12 @@ function BattlegroundPanel({ rows = [] }) {
                   { label: "Risk", value: row.risk || "Watch" },
                   { label: "Priority", value: row.priority || "Tier 2" },
                 ]}
-                right={<Badge tone={toneFromSeverity(row.risk)}>{row.risk || "Watch"}</Badge>}
+                right={
+                  <div className="vs-inline-actions command-panel-actions">
+                    <Badge tone={toneFromSeverity(row.risk)}>{row.risk || "Watch"}</Badge>
+                    <SmartSourceAction item={row} route="/national-command" label="Open Race" />
+                  </div>
+                }
               />
             ))
           ) : (
@@ -1055,7 +1130,12 @@ function ActionPanel({ actions = [] }) {
                   { label: "State", value: item.state || "National" },
                   { label: "Risk", value: item.risk || "Watch" },
                 ]}
-                right={<Badge tone="accent">{item.due || "Today"}</Badge>}
+                right={
+                  <div className="vs-inline-actions command-panel-actions">
+                    <Badge tone="accent">{item.due || "Today"}</Badge>
+                    <SmartSourceAction item={item} label="Open Source" />
+                  </div>
+                }
               />
             ))
           ) : (
@@ -1089,7 +1169,12 @@ function ExecutiveFeedPanel({ feed = [], loading }) {
                     { label: "State", value: item.state || "National" },
                     { label: "Risk", value: item.risk || "Watch" },
                   ]}
-                  right={<Badge tone={toneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>}
+                  right={
+                    <div className="vs-inline-actions command-panel-actions">
+                      <Badge tone={toneFromSeverity(item.severity)}>{item.severity || "Info"}</Badge>
+                      <SmartSourceAction item={item} label="Open Source" />
+                    </div>
+                  }
                 />
               ))
             ) : (
@@ -1130,6 +1215,8 @@ function LiveActivityFeed({ feed = [], tasks = [] }) {
     time: task.updated_at ? new Date(task.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Now",
     title: getTaskTitle(task),
     source: task.source || "Execution Board",
+    type: task.type || task.category || "execution_task",
+    route: getSmartCommandRoute(task),
   }));
 
   const items = [...arr(feed).slice(0, 6), ...taskEvents].slice(0, 8);
@@ -1143,6 +1230,7 @@ function LiveActivityFeed({ feed = [], tasks = [] }) {
             <strong>{item.title || "Executive activity"}</strong>
             <small>{item.source || item.type || "VoterSpheres"}</small>
           </div>
+          <SmartSourceAction item={item} route={item.route || ""} label="Open" />
         </div>
       )) : <EmptyState text="No live activity events available." />}
     </div>
