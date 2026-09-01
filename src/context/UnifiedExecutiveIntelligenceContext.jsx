@@ -48,7 +48,7 @@ const EMPTY_DATA = {
   source_status: [],
 };
 
-function readCache() {
+function readCache(requestKey = "") {
   if (typeof window === "undefined") {
     return null;
   }
@@ -66,7 +66,9 @@ function readCache() {
     if (
       !parsed ||
       !parsed.data ||
-      !parsed.stored_at
+      !parsed.stored_at ||
+      !parsed.request_key ||
+      parsed.request_key !== requestKey
     ) {
       return null;
     }
@@ -79,7 +81,8 @@ function readCache() {
 
 function writeCache(
   data,
-  storedAt
+  storedAt,
+  requestKey
 ) {
   if (typeof window === "undefined") {
     return;
@@ -91,6 +94,7 @@ function writeCache(
       JSON.stringify({
         data,
         stored_at: storedAt,
+        request_key: requestKey,
       })
     );
   } catch {
@@ -210,9 +214,45 @@ export function UnifiedExecutiveIntelligenceProvider({
     filters,
   } = useExecutiveFilters();
 
+  const requestFilters =
+    useMemo(
+      () => ({
+        workspace_id:
+          activeWorkspaceId ||
+          "",
+
+        state:
+          filters?.state ||
+          "",
+
+        office:
+          filters?.office ||
+          "",
+
+        risk:
+          filters?.risk ||
+          "",
+      }),
+      [
+        activeWorkspaceId,
+        filters?.state,
+        filters?.office,
+        filters?.risk,
+      ]
+    );
+
+  const requestKey =
+    useMemo(
+      () =>
+        JSON.stringify(
+          requestFilters
+        ),
+      [requestFilters]
+    );
+
   const cached = useMemo(
-    () => readCache(),
-    []
+    () => readCache(requestKey),
+    [requestKey]
   );
 
   const [data, setData] =
@@ -291,42 +331,6 @@ export function UnifiedExecutiveIntelligenceProvider({
       `${Date.now()}-${Math.random()
         .toString(36)
         .slice(2)}`
-    );
-
-  const requestFilters =
-    useMemo(
-      () => ({
-        workspace_id:
-          activeWorkspaceId ||
-          "",
-
-        state:
-          filters?.state ||
-          "",
-
-        office:
-          filters?.office ||
-          "",
-
-        risk:
-          filters?.risk ||
-          "",
-      }),
-      [
-        activeWorkspaceId,
-        filters?.state,
-        filters?.office,
-        filters?.risk,
-      ]
-    );
-
-  const requestKey =
-    useMemo(
-      () =>
-        JSON.stringify(
-          requestFilters
-        ),
-      [requestFilters]
     );
 
   const dataAgeMs =
@@ -486,7 +490,8 @@ export function UnifiedExecutiveIntelligenceProvider({
 
               writeCache(
                 normalized,
-                updatedAt
+                updatedAt,
+                requestKey
               );
 
               if (broadcast) {
@@ -685,8 +690,11 @@ export function UnifiedExecutiveIntelligenceProvider({
     }
 
     if (scopeChanged) {
+      setData(EMPTY_DATA);
+      setLastUpdated("");
+
       load({
-        quiet: true,
+        quiet: false,
         force: true,
         reason:
           "scope-changed",
@@ -879,6 +887,17 @@ export function UnifiedExecutiveIntelligenceProvider({
             EXECUTIVE_INTELLIGENCE_EVENTS.REFRESH_COMPLETED &&
           event.payload?.data
         ) {
+          const eventRequestKey =
+            event.payload?.request_key ||
+            "";
+
+          if (
+            !eventRequestKey ||
+            eventRequestKey !== requestKey
+          ) {
+            return;
+          }
+
           const normalized =
             normalizeData(
               event.payload.data
@@ -916,7 +935,8 @@ export function UnifiedExecutiveIntelligenceProvider({
 
           writeCache(
             normalized,
-            updatedAt
+            updatedAt,
+            requestKey
           );
 
           return;
