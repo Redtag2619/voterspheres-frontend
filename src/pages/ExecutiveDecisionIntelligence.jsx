@@ -1,2614 +1,1013 @@
-import { pool } from "../db/pool.js";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { fetchDecisionIntelligence, seedDecisionIntelligence } from "../api/decisionIntelligenceApi";
 
- 
+import PageShell from "../components/ui/PageShell";
+import SectionCard from "../components/ui/SectionCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
 
-import { getUnifiedExecutiveIntelligence } from "./unifiedExecutiveIntelligence.service.js";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 
-import { getExecutiveMissionControl } from "./executiveMissionControl.service.js";
+const STATE_NAMES = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
+};
 
-import { getExecutiveWorkspaceDashboard } from "./executiveWorkspace.service.js";
+const MODULE_NAMES = {
+  forecast: "Executive Forecast Engine",
+  forecasts: "Executive Forecast Engine",
+  coalition: "National Coalition Intelligence",
+  coalitions: "National Coalition Intelligence",
+  influence: "Influence Intelligence Engine",
+  operations: "Executive Operations Center",
+  vendors: "Vendor Intelligence Network",
+  vendor: "Vendor Intelligence Network",
+  strategy: "AI Strategy Recommendation Engine",
+  command_center: "Executive Command Center",
+  "command center": "Executive Command Center",
+  "political graph": "National Political Graph Engine",
+  political_graph: "National Political Graph Engine",
+  intelligence: "Cross-Module Intelligence Layer",
+};
 
-import { getStrategyRecommendations } from "./strategyRecommendation.service.js";
+const DECISION_TYPE_NAMES = {
+  resource_allocation: "Executive Resource Allocation",
+  coalition_activation: "Coalition Activation Strategy",
+  risk_control: "Executive Risk Control",
+  strategic: "Strategic Executive Decision",
+  forecast_opportunity: "Forecast Opportunity Decision",
+  vendor_execution: "Vendor Execution Decision",
+  donor_growth: "Donor Growth Decision",
+};
 
-import { getForecastBattlegrounds, getForecastSummary } from "./forecast.service.js";
+const PRIORITY_NAMES = {
+  critical: "Critical Executive Alert",
+  high: "High Priority Executive Alert",
+  medium: "Medium Priority Executive Monitoring Alert",
+  low: "Low Priority Informational Executive Signal",
+  open: "Open Executive Review",
+  active: "Active Executive Review",
+  stable: "Stable Executive Posture",
+  planning: "Executive Planning Stage",
+  pending: "Pending Executive Action",
+  completed: "Completed Executive Action",
+  complete: "Completed Executive Action",
+};
 
-import { getCoalitionActions, getCoalitionRankings } from "./coalitionIntelligence.service.js";
+const MODULE_CONTRIBUTIONS = {
+  forecast: "Forecast volatility and probability movement are shaping the recommendation.",
+  forecasts: "Forecast volatility and probability movement are shaping the recommendation.",
+  coalitions: "Coalition movement and voter bloc instability are influencing urgency.",
+  coalition: "Coalition movement and voter bloc instability are influencing urgency.",
+  influence: "Influence concentration and relationship momentum are changing strategic exposure.",
+  operations: "Operational capacity and state-level execution readiness are part of the decision path.",
+  vendors: "Vendor coverage and execution capacity are being validated before action.",
+  vendor: "Vendor coverage and execution capacity are being validated before action.",
+  strategy: "AI strategy recommendations are being converted into executive action paths.",
+  command_center: "Command Center execution routing is available for operational follow-through.",
+};
 
-import { getInfluenceAlerts, getInfluenceRankings } from "./influence.service.js";
+const fallbackDecisionData = {
+  ok: true,
+  source: "frontend-enterprise-fallback",
+  summary: {
+    openDecisions: 3,
+    highPriority: 2,
+    avgConfidence: 85,
+    avgRisk: 31,
+    liveSignals: 3,
+  },
+  decisions: [
+    {
+      id: "fallback-1",
+      title: "Reallocate resources toward high-volatility battleground states",
+      decision_type: "resource_allocation",
+      priority: "high",
+      status: "open",
+      confidence_score: 91,
+      risk_score: 34,
+      impact_score: 88,
+      urgency_score: 86,
+      recommendation: "Shift field, vendor, and executive review capacity toward the highest volatility states while preserving national monitoring coverage.",
+      rationale: "Forecast, coalition, influence, and operations indicators are clustering around competitive states with rising pressure.",
+      source_modules: ["forecast", "coalitions", "influence", "operations"],
+      options: [
+        { id: "fallback-option-1", label: "Balanced executive resource shift", description: "Move 10-15% of resources into priority states while preserving national coverage.", projected_impact: 86, projected_risk: 32, confidence: 88, timeline: "7-14 days", cost_level: "medium" },
+        { id: "fallback-option-2", label: "Aggressive executive resource shift", description: "Move 20-30% of available resources into the highest volatility states.", projected_impact: 94, projected_risk: 55, confidence: 81, timeline: "3-7 days", cost_level: "high" },
+      ],
+      actions: [
+        { id: "fallback-action-1", action_label: "Review battleground allocation model", owner: "Executive Operations", status: "pending", due_window: "24 hours" },
+        { id: "fallback-action-2", action_label: "Validate vendor readiness in priority states", owner: "Vendor Operations", status: "pending", due_window: "72 hours" },
+      ],
+    },
+    {
+      id: "fallback-2",
+      title: "Convert coalition instability into targeted field actions",
+      decision_type: "coalition_activation",
+      priority: "high",
+      status: "open",
+      confidence_score: 84,
+      risk_score: 29,
+      impact_score: 81,
+      urgency_score: 78,
+      recommendation: "Assign coalition owners to the most unstable voter blocs and convert each movement signal into Command Center tasks.",
+      rationale: "Coalition movement suggests a time-sensitive opening for persuasion and turnout coordination.",
+      source_modules: ["coalitions", "strategy", "command_center"],
+      options: [
+        { id: "fallback-option-3", label: "Activate coalition owners", description: "Assign responsible owners to top coalition opportunities and track weekly movement.", projected_impact: 82, projected_risk: 25, confidence: 84, timeline: "5-10 days", cost_level: "medium" },
+      ],
+      actions: [
+        { id: "fallback-action-3", action_label: "Create coalition response tasks", owner: "Coalition Director", status: "pending", due_window: "48 hours" },
+      ],
+    },
+    {
+      id: "fallback-3",
+      title: "Reduce decision risk before expanding digital spend",
+      decision_type: "risk_control",
+      priority: "medium",
+      status: "planning",
+      confidence_score: 79,
+      risk_score: 30,
+      impact_score: 73,
+      urgency_score: 67,
+      recommendation: "Hold major budget expansion until forecast confidence and message testing improve above executive threshold.",
+      rationale: "Digital opportunity is present, but uncertainty remains in audience response and vendor capacity.",
+      source_modules: ["forecast", "vendors", "influence"],
+      options: [],
+      actions: [],
+    },
+  ],
+  signals: [
+    { id: "fallback-signal-1", signal_type: "forecast_shift", title: "Forecast volatility rising", description: "Competitive movement detected across battleground modeling.", severity: "high", source_module: "forecast", state_code: "GA" },
+    { id: "fallback-signal-2", signal_type: "coalition_movement", title: "Coalition instability detected", description: "Suburban and turnout-sensitive blocs require executive monitoring.", severity: "medium", source_module: "coalitions", state_code: "PA" },
+    { id: "fallback-signal-3", signal_type: "vendor_capacity", title: "Vendor readiness gap", description: "Execution capacity needs verification before resource expansion.", severity: "medium", source_module: "vendors", state_code: "AZ" },
+  ],
+};
 
- 
-
-/**
-
- * VoterSpheres Executive Decision Intelligence 2.0
-
- *
-
- * This service replaces the old seeded/fallback architecture with live synthesis.
-
- * It intentionally does NOT read from executive_decisions / executive_decision_*.
-
- * Empty authoritative evidence may legitimately produce zero decisions.
-
- */
-
- 
-
-const BUILD = "2.0.0-live-synthesis";
-
-const SOURCE_TIMEOUT_MS = Number(process.env.DECISION_INTELLIGENCE_SOURCE_TIMEOUT_MS || 12000);
-
-const MAX_DECISIONS = Number(process.env.DECISION_INTELLIGENCE_MAX_DECISIONS || 8);
-
-const MAX_SIGNALS = Number(process.env.DECISION_INTELLIGENCE_MAX_SIGNALS || 20);
-
-const MATERIALITY_THRESHOLD = Number(process.env.DECISION_INTELLIGENCE_MATERIALITY_THRESHOLD || 68);
-
- 
-
-const NATIONAL_VALUES = new Set([
-
-  "",
-
-  "national",
-
-  "nationwide",
-
-  "us",
-
-  "u.s.",
-
-  "u.s",
-
-  "united states",
-
-]);
-
- 
-
-const clean = (value = "") => String(value ?? "").trim();
-
-const lower = (value = "") => clean(value).toLowerCase();
-
-const arr = (value) => (Array.isArray(value) ? value : []);
-
-const obj = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
-
-const nowIso = () => new Date().toISOString();
-
- 
+function arr(value) {
+  return Array.isArray(value) ? value : [];
+}
 
 function number(value, fallback = 0) {
-
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed) ? parsed : fallback;
-
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
 }
 
- 
-
-function integer(value, fallback = 0) {
-
-  return Math.round(number(value, fallback));
-
+function pct(value) {
+  return `${Math.round(number(value))}%`;
 }
 
- 
-
-function clamp(value, min = 0, max = 100) {
-
-  return Math.max(min, Math.min(max, number(value, 0)));
-
+function labelize(value = "") {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
- 
-
-function average(values = []) {
-
-  const valid = arr(values).map(Number).filter(Number.isFinite);
-
-  if (!valid.length) return 0;
-
-  return Math.round(valid.reduce((sum, value) => sum + value, 0) / valid.length);
-
+function fullStateName(value = "") {
+  const code = String(value || "").trim().toUpperCase();
+  return STATE_NAMES[code] || (code ? labelize(code) : "National Coverage");
 }
 
- 
-
-function unique(values = []) {
-
-  return [...new Set(arr(values).filter(Boolean))];
-
+function fullModuleName(value = "") {
+  const key = String(value || "").trim().toLowerCase();
+  return MODULE_NAMES[key] || labelize(value || "Cross-Module Intelligence Layer");
 }
 
- 
-
-function firstDefined(...values) {
-
-  for (const value of values) {
-
-    if (value !== undefined && value !== null && value !== "") return value;
-
-  }
-
-  return null;
-
+function fullDecisionType(value = "") {
+  const key = String(value || "").trim().toLowerCase();
+  return DECISION_TYPE_NAMES[key] || labelize(value || "Strategic Executive Decision");
 }
 
- 
-
-function firstText(...values) {
-
-  for (const value of values) {
-
-    const text = clean(value);
-
-    if (text) return text;
-
-  }
-
-  return "";
-
+function fullPriorityLabel(value = "") {
+  const key = String(value || "").trim().toLowerCase();
+  return PRIORITY_NAMES[key] || labelize(value || "Executive Monitoring Priority");
 }
 
- 
-
-function safeDate(value) {
-
-  if (!value) return null;
-
-  const date = new Date(value);
-
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-
+function toneFromPriority(value = "") {
+  const next = String(value || "").toLowerCase();
+  if (["critical", "high"].includes(next)) return "danger";
+  if (["medium", "watch", "warning", "planning"].includes(next)) return "accent";
+  if (["open", "active", "stable", "complete", "completed"].includes(next)) return "active";
+  return "default";
 }
 
- 
-
-function isNational(value = "") {
-
-  return NATIONAL_VALUES.has(lower(value));
-
-}
-
- 
-
-function normalizeState(value = "") {
-
-  const text = clean(value);
-
-  if (!text || isNational(text)) return "";
-
-  return text.toUpperCase();
-
-}
-
- 
-
-function getFirmId(user = {}) {
-
-  return Number(
-
-    user?.firm_id ||
-
-      user?.firmId ||
-
-      user?.workspace?.firm_id ||
-
-      user?.organization?.firm_id ||
-
-      0
-
-  );
-
-}
-
- 
-
-function canonicalPriority(value = "") {
-
-  const normalized = lower(value);
-
-  if (["critical", "urgent", "severe"].includes(normalized)) return "critical";
-
-  if (["high", "elevated"].includes(normalized)) return "high";
-
-  if (["medium", "moderate", "normal"].includes(normalized)) return "medium";
-
-  if (["low", "stable", "monitor"].includes(normalized)) return "low";
-
-  return normalized || "medium";
-
-}
-
- 
-
-function priorityWeight(priority = "") {
-
-  switch (canonicalPriority(priority)) {
-
-    case "critical": return 100;
-
-    case "high": return 86;
-
-    case "medium": return 66;
-
-    case "low": return 42;
-
-    default: return 55;
-
-  }
-
-}
-
- 
-
-function canonicalRisk(value = "") {
-
-  const normalized = lower(value);
-
-  if (["critical", "severe"].includes(normalized)) return "Critical";
-
-  if (["high", "elevated"].includes(normalized)) return "High";
-
-  if (["medium", "moderate"].includes(normalized)) return "Medium";
-
-  if (["low", "stable"].includes(normalized)) return "Stable";
-
-  return clean(value) || "Stable";
-
-}
-
- 
-
-function statusFromPriority(priority = "") {
-
-  const normalized = canonicalPriority(priority);
-
-  if (["critical", "high"].includes(normalized)) return "open";
-
-  if (normalized === "medium") return "review";
-
-  return "monitoring";
-
-}
-
- 
-
-function smartRoute(text = "", explicitRoute = "") {
-
-  const explicit = clean(explicitRoute);
-
-  if (explicit.startsWith("/")) return explicit;
-
- 
-
-  const value = lower(text);
-
-  if (/relationship|network|influence graph/.test(value)) return "/relationship-graph";
-
-  if (/dark money|fec|pac|campaign finance/.test(value)) return "/dark-money-exposure";
-
-  if (/consultant/.test(value)) return "/consultant-intel";
-
-  if (/vendor|media|direct mail|capacity/.test(value)) return "/vendors";
-
-  if (/fundrais|donor|finance|receivable/.test(value)) return "/fundraising-dashboard";
-
-  if (/crm|client|follow.?up|contact/.test(value)) return "/campaign-crm";
-
-  if (/county|field|gotv|operation|execution|task|backlog/.test(value)) return "/operations-map";
-
-  if (/coalition|strategy|path to victory/.test(value)) return "/strategy";
-
-  if (/battleground|forecast|race pressure|race/.test(value)) return "/national-command";
-
-  if (/political signal|narrative|news|signal/.test(value)) return "/political-signals";
-
-  if (/candidate|opponent/.test(value)) return "/candidates";
-
-  return "/command-center";
-
-}
-
- 
-
-function withTimeout(promise, timeoutMs, label) {
-
-  let timeoutId;
-
-  const timeout = new Promise((_, reject) => {
-
-    timeoutId = setTimeout(() => {
-
-      const error = new Error(`${label} timed out after ${timeoutMs}ms.`);
-
-      error.code = "SOURCE_TIMEOUT";
-
-      reject(error);
-
-    }, timeoutMs);
-
-  });
-
- 
-
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
-
-}
-
- 
-
-async function runSource(key, loader, { optional = false } = {}) {
-
-  const startedAt = Date.now();
-
-  try {
-
-    const data = await withTimeout(Promise.resolve().then(loader), SOURCE_TIMEOUT_MS, key);
-
-    return {
-
-      key,
-
-      ok: true,
-
-      status: "available",
-
-      optional,
-
-      duration_ms: Date.now() - startedAt,
-
-      error: "",
-
-      data,
-
-    };
-
-  } catch (error) {
-
-    console.warn(`[decision-intelligence] ${key} unavailable:`, error.message);
-
-    return {
-
-      key,
-
-      ok: false,
-
-      status: optional ? "unavailable" : "degraded",
-
-      optional,
-
-      duration_ms: Date.now() - startedAt,
-
-      error: clean(error?.message).slice(0, 500),
-
-      data: null,
-
-    };
-
-  }
-
-}
-
- 
-
-async function resolveWorkspace(workspaceId) {
-
-  const id = Number(workspaceId);
-
-  if (!Number.isFinite(id) || id <= 0) return null;
-
- 
-
-  const result = await pool.query(
-
-    `
-
-      SELECT
-
-        id,
-
-        firm_id,
-
-        name,
-
-        slug,
-
-        candidate_name,
-
-        state,
-
-        office,
-
-        cycle,
-
-        status,
-
-        description,
-
-        metadata,
-
-        created_at,
-
-        updated_at
-
-      FROM workspaces
-
-      WHERE id = $1
-
-      LIMIT 1
-
-    `,
-
-    [id]
-
-  );
-
- 
-
-  return result.rows?.[0] || null;
-
-}
-
- 
-
-function normalizeRequest(input = {}) {
-
-  if (typeof input === "number" || typeof input === "string") {
-
-    return {
-
-      workspaceId: Number(input) || null,
-
-      user: {},
-
-      state: "",
-
-      office: "",
-
-      risk: "",
-
-      legacyControllerCall: true,
-
-    };
-
-  }
-
- 
-
-  const source = obj(input);
-
+function normalizeDecisionPayload(payload) {
+  const source = payload && typeof payload === "object" ? payload : fallbackDecisionData;
   return {
-
-    workspaceId: Number(source.workspaceId || source.workspace_id || source.user?.workspace_id || 0) || null,
-
-    user: obj(source.user),
-
-    state: clean(source.state),
-
-    office: clean(source.office),
-
-    risk: clean(source.risk),
-
-    legacyControllerCall: false,
-
+    ...fallbackDecisionData,
+    ...source,
+    summary: { ...fallbackDecisionData.summary, ...(source.summary || {}) },
+    decisions: arr(source.decisions).length ? arr(source.decisions) : fallbackDecisionData.decisions,
+    signals: arr(source.signals).length ? arr(source.signals) : fallbackDecisionData.signals,
   };
-
 }
 
- 
-
-async function resolveExecutionContext(input = {}) {
-
-  const request = normalizeRequest(input);
-
-  const requestedWorkspace = request.workspaceId ? await resolveWorkspace(request.workspaceId) : null;
-
- 
-
-  if (request.workspaceId && !requestedWorkspace) {
-
-    const error = new Error("Workspace not found.");
-
-    error.statusCode = 404;
-
-    throw error;
-
-  }
-
- 
-
-  const authenticatedFirmId = getFirmId(request.user);
-
-  const workspaceFirmId = Number(requestedWorkspace?.firm_id || 0);
-
- 
-
-  if (authenticatedFirmId && workspaceFirmId && authenticatedFirmId !== workspaceFirmId) {
-
-    const error = new Error("Workspace is outside the authenticated firm.");
-
-    error.statusCode = 403;
-
-    throw error;
-
-  }
-
- 
-
-  const firmId = authenticatedFirmId || workspaceFirmId;
-
-  if (!firmId) {
-
-    const error = new Error("Missing firm context.");
-
-    error.statusCode = 401;
-
-    throw error;
-
-  }
-
- 
-
-  // Backward compatibility for the existing controller, which historically
-
-  // passed only workspaceId. A controller update should later pass req.user.
-
-  const user = authenticatedFirmId
-
-    ? request.user
-
-    : {
-
-        ...request.user,
-
-        firm_id: firmId,
-
-        workspace_id: request.workspaceId || undefined,
-
-      };
-
- 
-
-  return {
-
-    ...request,
-
-    user,
-
-    firmId,
-
-    requestedWorkspace,
-
-    state: request.state || (isNational(requestedWorkspace?.state) ? "" : clean(requestedWorkspace?.state)),
-
-    office: request.office || clean(requestedWorkspace?.office),
-
-  };
-
-}
-
- 
-
-function normalizeSourceStatus(sourceResults = [], uei = {}) {
-
-  const map = new Map();
-
- 
-
-  for (const item of arr(uei?.source_status)) {
-
-    const key = clean(item?.key);
-
-    if (!key) continue;
-
-    map.set(key, {
-
-      key,
-
-      ok: Boolean(item?.ok),
-
-      status: clean(item?.status) || (item?.ok ? "available" : "unavailable"),
-
-      freshness: clean(item?.freshness),
-
-      last_seen: safeDate(item?.last_seen),
-
-      error: clean(item?.error),
-
-      duration_ms: null,
-
-      origin: "unified-executive-intelligence",
-
-    });
-
-  }
-
- 
-
-  for (const item of arr(sourceResults)) {
-
-    map.set(item.key, {
-
-      key: item.key,
-
-      ok: item.ok,
-
-      status: item.status,
-
-      freshness: item.ok ? "request-live" : "",
-
-      last_seen: item.ok ? nowIso() : null,
-
-      error: item.error,
-
-      duration_ms: item.duration_ms,
-
-      origin: "decision-intelligence",
-
-    });
-
-  }
-
- 
-
-  return [...map.values()];
-
-}
-
- 
-
-function normalizeSignals(uei = {}, workspace = {}) {
-
-  const output = [];
-
- 
-
-  for (const item of arr(uei?.signals)) {
-
-    const severity = canonicalPriority(firstText(item?.severity, item?.risk, "low"));
-
-    output.push({
-
-      id: `political-signal-${item?.id ?? output.length + 1}`,
-
-      raw_id: item?.id ?? null,
-
-      workspace_id: item?.workspace_id ?? null,
-
-      signal_type: clean(item?.signal_type) || "political_signal",
-
-      title: firstText(item?.title, "Political signal"),
-
-      description: firstText(item?.summary, item?.description),
-
-      severity,
-
-      signal_score: clamp(item?.signal_score),
-
-      source_module: "political_signals",
-
-      source_name: clean(item?.source),
-
-      state_code: normalizeState(item?.state),
-
-      route: "/political-signals",
-
-      metadata: {
-
-        risk: canonicalRisk(item?.risk),
-
-        county: clean(item?.county),
-
-        url: clean(item?.url),
-
-        observed_at: safeDate(item?.observed_at),
-
-        original_workspace_id: item?.workspace_id ?? null,
-
-      },
-
-      created_at: safeDate(item?.observed_at) || safeDate(item?.updated_at) || safeDate(item?.created_at),
-
-    });
-
-  }
-
- 
-
-  for (const item of arr(workspace?.material_alerts)) {
-
-    const severity = canonicalPriority(firstText(item?.severity, item?.priority, item?.risk, "high"));
-
-    output.push({
-
-      id: `workspace-alert-${item?.id ?? output.length + 1}`,
-
-      raw_id: item?.id ?? null,
-
-      workspace_id: item?.workspace_id ?? workspace?.selected_workspace?.id ?? null,
-
-      signal_type: "material_alert",
-
-      title: firstText(item?.title, item?.label, "Material workspace alert"),
-
-      description: firstText(item?.detail, item?.description, item?.summary),
-
-      severity,
-
-      signal_score: clamp(firstDefined(item?.signal_score, item?.score, priorityWeight(severity))),
-
-      source_module: "executive_workspace",
-
-      source_name: firstText(item?.source, "Executive Workspace"),
-
-      state_code: normalizeState(firstText(item?.state, workspace?.selected_workspace?.state)),
-
-      route: smartRoute(`${item?.title || ""} ${item?.detail || ""}`, item?.route || item?.path),
-
-      metadata: {
-
-        source_scope: clean(item?.scope),
-
-        risk: canonicalRisk(item?.risk),
-
-      },
-
-      created_at: safeDate(item?.updated_at) || safeDate(item?.created_at) || nowIso(),
-
-    });
-
-  }
-
- 
-
-  const seen = new Set();
-
-  return output.filter((item) => {
-
-    const key = `${lower(item.title)}|${item.state_code}|${item.signal_type}`;
-
-    if (seen.has(key)) return false;
-
-    seen.add(key);
-
-    return true;
-
-  });
-
-}
-
- 
-
-function materialSignals(signals = []) {
-
-  return arr(signals).filter((item) => {
-
-    const severity = canonicalPriority(item?.severity);
-
-    const score = number(item?.signal_score);
-
-    return severity === "critical" || severity === "high" || score >= 60;
-
-  });
-
-}
-
- 
-
-function evidenceRef({ source, id = null, title = "", detail = "", route = "", state = "", score = null, priority = "", observedAt = null }) {
-
-  return {
-
-    source: clean(source),
-
-    id,
-
-    title: clean(title),
-
-    detail: clean(detail),
-
-    route: clean(route),
-
-    state: normalizeState(state),
-
-    score: score === null || score === undefined ? null : clamp(score),
-
-    priority: canonicalPriority(priority),
-
-    observed_at: safeDate(observedAt),
-
-  };
-
-}
-
- 
-
-function createCandidate({
-
-  key,
-
-  title,
-
-  decisionType,
-
-  priority = "medium",
-
-  recommendation,
-
-  rationale,
-
-  sourceModules = [],
-
-  route = "",
-
-  evidence = [],
-
-  confidence = 70,
-
-  risk = 40,
-
-  impact = 65,
-
-  urgency = 60,
-
-  state = "",
-
-  metadata = {},
-
-}) {
-
-  const normalizedPriority = canonicalPriority(priority);
-
-  const normalizedEvidence = arr(evidence).filter(Boolean);
-
-  const corroborationBonus = Math.min(12, Math.max(0, unique(sourceModules).length - 1) * 4);
-
-  const materiality = clamp(
-
-    impact * 0.3 +
-
-      urgency * 0.25 +
-
-      confidence * 0.2 +
-
-      risk * 0.15 +
-
-      priorityWeight(normalizedPriority) * 0.1 +
-
-      corroborationBonus
-
+function FieldBlock({ label, value, tone = "default" }) {
+  return (
+    <div className="edi-field-block">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {tone !== "none" ? <Badge tone={tone}>{value}</Badge> : null}
+    </div>
   );
-
- 
-
-  return {
-
-    key: clean(key),
-
-    title: clean(title),
-
-    decision_type: clean(decisionType) || "executive_review",
-
-    priority: normalizedPriority,
-
-    status: statusFromPriority(normalizedPriority),
-
-    confidence_score: clamp(confidence),
-
-    risk_score: clamp(risk),
-
-    impact_score: clamp(impact),
-
-    urgency_score: clamp(urgency),
-
-    materiality_score: Math.round(materiality),
-
-    recommendation: clean(recommendation),
-
-    rationale: clean(rationale),
-
-    source_modules: unique(sourceModules),
-
-    route: smartRoute(`${title} ${recommendation} ${rationale}`, route),
-
-    state: normalizeState(state),
-
-    evidence: normalizedEvidence,
-
-    metadata: {
-
-      ...obj(metadata),
-
-      evidence_count: normalizedEvidence.length,
-
-      corroborating_sources: unique(sourceModules).length,
-
-    },
-
-  };
-
 }
 
- 
-
-function buildWorkspaceExecutionCandidate(workspace = {}) {
-
-  const summary = obj(workspace?.summary);
-
-  const urgentTasks = integer(summary?.urgent_tasks);
-
-  const openTasks = integer(summary?.open_tasks);
-
-  const pressure = clamp(summary?.pressure_score);
-
-  const readiness = clamp(summary?.workspace_readiness_score);
-
- 
-
-  if (urgentTasks <= 0 && pressure < 75) return null;
-
- 
-
-  const evidence = arr(workspace?.executive_actions).slice(0, 5).map((item) =>
-
-    evidenceRef({
-
-      source: firstText(item?.source, "executive_workspace"),
-
-      id: item?.id,
-
-      title: item?.title,
-
-      detail: item?.detail,
-
-      route: firstText(item?.path, item?.route, "/command-center"),
-
-      state: item?.state,
-
-      priority: item?.priority,
-
-    })
-
+function ScoreBar({ value = 0, inverse = false }) {
+  const width = Math.max(0, Math.min(100, number(value)));
+  return (
+    <div className={inverse ? "edi-score-bar inverse" : "edi-score-bar"}>
+      <span style={{ width: `${width}%` }} />
+    </div>
   );
+}
 
- 
-
-  evidence.unshift(
-
-    evidenceRef({
-
-      source: "executive_workspace",
-
-      id: "workspace-summary",
-
-      title: "Workspace execution posture",
-
-      detail: `${openTasks} open tasks, ${urgentTasks} urgent tasks, pressure ${Math.round(pressure)}%, readiness ${Math.round(readiness)}%.`,
-
-      route: "/command-center",
-
-      priority: pressure >= 90 || urgentTasks >= 8 ? "critical" : "high",
-
-      score: pressure,
-
-    })
-
+function ExecutivePercentCard({ title, value, subtitle, inverse = false }) {
+  return (
+    <div className="edi-score-card">
+      <div className="edi-score-card-head">
+        <span>{title}</span>
+        <strong>{pct(value)}</strong>
+      </div>
+      <p>{subtitle}</p>
+      <ScoreBar value={value} inverse={inverse} />
+    </div>
   );
-
- 
-
-  const priority = pressure >= 90 || urgentTasks >= 8
-
-    ? "critical"
-
-    : pressure >= 75 || urgentTasks >= 3
-
-      ? "high"
-
-      : "medium";
-
- 
-
-  return createCandidate({
-
-    key: "workspace-execution-pressure",
-
-    title: "Stabilize workspace execution pressure",
-
-    decisionType: "execution_control",
-
-    priority,
-
-    recommendation: "Review the urgent execution backlog, confirm owners and sequencing, and resolve the highest-pressure operational dependencies before adding new commitments.",
-
-    rationale: `Executive Workspace reports ${openTasks} open tasks, ${urgentTasks} urgent tasks, ${Math.round(pressure)}% pressure, and ${Math.round(readiness)}% readiness.`,
-
-    sourceModules: ["executive_workspace", "command_center"],
-
-    route: "/command-center",
-
-    evidence,
-
-    confidence: clamp(70 + Math.min(20, urgentTasks * 2)),
-
-    risk: clamp(Math.max(pressure, urgentTasks * 8)),
-
-    impact: clamp(70 + Math.min(25, urgentTasks * 2)),
-
-    urgency: clamp(Math.max(pressure, 65 + urgentTasks * 3)),
-
-    state: workspace?.selected_workspace?.state,
-
-    metadata: {
-
-      open_tasks: openTasks,
-
-      urgent_tasks: urgentTasks,
-
-      pressure_score: pressure,
-
-      readiness_score: readiness,
-
-    },
-
-  });
-
 }
 
- 
-
-function buildClientRiskCandidate(workspace = {}) {
-
-  const summary = obj(workspace?.summary);
-
-  const clients = integer(summary?.clients);
-
-  const atRiskClients = integer(summary?.at_risk_clients);
-
-  if (atRiskClients <= 0) return null;
-
- 
-
-  const ratio = clients > 0 ? atRiskClients / clients : 0;
-
-  const risk = clamp(50 + ratio * 45);
-
-  const impact = clamp(60 + atRiskClients * 6);
-
-  const urgency = clamp(55 + atRiskClients * 7);
-
- 
-
-  const evidence = [
-
-    evidenceRef({
-
-      source: "executive_workspace",
-
-      id: "client-risk-summary",
-
-      title: "Client risk exposure",
-
-      detail: `${atRiskClients} of ${clients || atRiskClients} scoped clients are currently at risk.`,
-
-      route: "/campaign-crm",
-
-      priority: ratio >= 0.3 ? "high" : "medium",
-
-      score: risk,
-
-    }),
-
-  ];
-
- 
-
-  return createCandidate({
-
-    key: "client-risk-exposure",
-
-    title: "Resolve material client risk exposure",
-
-    decisionType: "client_risk_control",
-
-    priority: ratio >= 0.3 || atRiskClients >= 4 ? "high" : "medium",
-
-    recommendation: "Review at-risk client accounts, confirm ownership of each recovery action, and sequence client-facing follow-up before risk compounds.",
-
-    rationale: `Executive Workspace reports ${atRiskClients} at-risk clients across ${clients || atRiskClients} scoped client records.`,
-
-    sourceModules: ["executive_workspace", "crm"],
-
-    route: "/campaign-crm",
-
-    evidence,
-
-    confidence: 84,
-
-    risk,
-
-    impact,
-
-    urgency,
-
-    state: workspace?.selected_workspace?.state,
-
-    metadata: {
-
-      clients,
-
-      at_risk_clients: atRiskClients,
-
-      at_risk_ratio: ratio,
-
-    },
-
-  });
-
-}
-
- 
-
-function buildMaterialAlertCandidate(workspace = {}, signals = []) {
-
-  const alerts = arr(workspace?.material_alerts);
-
-  const material = materialSignals(signals).filter((item) => item.signal_type === "material_alert");
-
-  if (!alerts.length && !material.length) return null;
-
- 
-
-  const top = [...material].sort((a, b) => number(b.signal_score) - number(a.signal_score)).slice(0, 6);
-
-  const evidence = top.map((item) =>
-
-    evidenceRef({
-
-      source: item.source_module,
-
-      id: item.raw_id || item.id,
-
-      title: item.title,
-
-      detail: item.description,
-
-      route: item.route,
-
-      state: item.state_code,
-
-      priority: item.severity,
-
-      score: item.signal_score,
-
-      observedAt: item.created_at,
-
-    })
-
+function DecisionRow({ decision, active, onClick }) {
+  return (
+    <button type="button" className={active ? "edi-decision-row is-active" : "edi-decision-row"} onClick={onClick}>
+      <div className="edi-row-header">
+        <div>
+          <div className="edi-kicker">Executive Decision Brief</div>
+          <h3>{decision.title || "Executive decision"}</h3>
+          <p>{decision.rationale || decision.recommendation || "Executive decision requires review."}</p>
+        </div>
+      </div>
+      <div className="edi-field-grid">
+        <FieldBlock label="Decision Category" value={fullDecisionType(decision.decision_type)} tone="info" />
+        <FieldBlock label="Executive Priority" value={fullPriorityLabel(decision.priority)} tone={toneFromPriority(decision.priority)} />
+        <FieldBlock label="Projected Strategic Impact Percentage" value={pct(decision.impact_score)} tone="active" />
+        <FieldBlock label="Projected Execution Risk Percentage" value={pct(decision.risk_score)} tone="danger" />
+      </div>
+    </button>
   );
-
- 
-
-  return createCandidate({
-
-    key: "material-alert-response",
-
-    title: "Resolve material workspace alerts",
-
-    decisionType: "material_alert_response",
-
-    priority: top.some((item) => item.severity === "critical") ? "critical" : "high",
-
-    recommendation: "Review each material alert, validate the underlying evidence, and assign an accountable response path for every unresolved high-severity item.",
-
-    rationale: `${Math.max(alerts.length, material.length)} material workspace alerts require executive review.`,
-
-    sourceModules: ["executive_workspace", "political_signals"],
-
-    route: top[0]?.route || "/command-center",
-
-    evidence,
-
-    confidence: top.length ? 88 : 78,
-
-    risk: top.length ? Math.max(...top.map((item) => number(item.signal_score))) : 75,
-
-    impact: 82,
-
-    urgency: 88,
-
-    state: workspace?.selected_workspace?.state,
-
-  });
-
 }
 
- 
-
-function buildPoliticalSignalCandidate(uei = {}, signals = []) {
-
-  const scopedSummary = obj(uei?.scoped_summary || uei?.summary);
-
-  const material = materialSignals(signals).filter((item) => item.signal_type !== "material_alert");
-
-  const criticalCount = integer(scopedSummary?.critical_signals);
-
-  const totalSignals = integer(scopedSummary?.political_signals);
-
- 
-
-  // Signal volume by itself is not a decision. Material evidence is required.
-
-  if (!material.length && criticalCount <= 0) return null;
-
- 
-
-  const top = [...material]
-
-    .sort((a, b) => {
-
-      const severityDelta = priorityWeight(b.severity) - priorityWeight(a.severity);
-
-      return severityDelta || number(b.signal_score) - number(a.signal_score);
-
-    })
-
-    .slice(0, 6);
-
- 
-
-  const evidence = top.map((item) =>
-
-    evidenceRef({
-
-      source: firstText(item.source_name, item.source_module),
-
-      id: item.raw_id || item.id,
-
-      title: item.title,
-
-      detail: item.description,
-
-      route: item.route,
-
-      state: item.state_code,
-
-      priority: item.severity,
-
-      score: item.signal_score,
-
-      observedAt: item.created_at,
-
-    })
-
+function SignalRow({ signal }) {
+  return (
+    <div className="edi-signal-row">
+      <div className="edi-row-header">
+        <div>
+          <div className="edi-kicker">Live Executive Decision Signal</div>
+          <h3>{signal.title || "Executive intelligence signal"}</h3>
+          <p>{signal.description || "Review signal details."}</p>
+        </div>
+        <span className={String(signal.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"} />
+      </div>
+      <div className="edi-field-grid single-column-fields">
+        <FieldBlock label="Intelligence Source" value={fullModuleName(signal.source_module || signal.signal_type)} tone="info" />
+        <FieldBlock label="Geographic Coverage" value={fullStateName(signal.state_code)} tone="accent" />
+        <FieldBlock label="Executive Alert Level" value={fullPriorityLabel(signal.severity)} tone={toneFromPriority(signal.severity)} />
+      </div>
+    </div>
   );
-
- 
-
-  const topScore = top.length ? Math.max(...top.map((item) => number(item.signal_score))) : 70;
-
- 
-
-  return createCandidate({
-
-    key: "political-signal-review",
-
-    title: "Review material political signal changes",
-
-    decisionType: "intelligence_review",
-
-    priority: top.some((item) => item.severity === "critical") || criticalCount > 0 ? "critical" : "high",
-
-    recommendation: "Validate the highest-severity political signals against corroborating evidence and determine whether the current operating posture should change.",
-
-    rationale: `${material.length || criticalCount} material signals are present within ${totalSignals} scoped political signals.`,
-
-    sourceModules: ["political_signals", "unified_executive_intelligence"],
-
-    route: "/political-signals",
-
-    evidence,
-
-    confidence: clamp(72 + Math.min(20, evidence.length * 3)),
-
-    risk: clamp(Math.max(65, topScore)),
-
-    impact: clamp(70 + Math.min(20, evidence.length * 3)),
-
-    urgency: clamp(68 + Math.min(25, evidence.length * 4)),
-
-    state: uei?.scope?.effective_state || uei?.scope?.workspace_state,
-
-    metadata: {
-
-      scoped_signal_count: totalSignals,
-
-      material_signal_count: material.length,
-
-      critical_signal_count: criticalCount,
-
-    },
-
-  });
-
 }
 
- 
-
-function buildUeiRecommendationCandidate(uei = {}) {
-
-  const recommendations = [
-
-    ...arr(uei?.recommendations),
-
-    ...arr(uei?.strategy?.recommendations),
-
-  ].filter(Boolean);
-
- 
-
-  const material = recommendations.filter((item) => {
-
-    const priority = canonicalPriority(firstText(item?.priority, item?.severity, item?.risk));
-
-    return priority === "critical" || priority === "high";
-
-  });
-
- 
-
-  const briefingRecommendation = clean(uei?.briefing?.recommended_action);
-
-  if (!material.length && !briefingRecommendation) return null;
-
- 
-
-  const evidence = material.slice(0, 5).map((item) =>
-
-    evidenceRef({
-
-      source: firstText(item?.source, "unified_executive_intelligence"),
-
-      id: item?.id,
-
-      title: item?.title,
-
-      detail: firstText(item?.detail, item?.recommendation, item?.summary),
-
-      route: item?.route,
-
-      state: item?.state,
-
-      priority: item?.priority,
-
-      score: item?.score,
-
-      observedAt: item?.updated_at || item?.created_at,
-
-    })
-
+function DecisionOption({ option }) {
+  return (
+    <div className="edi-option-card">
+      <div className="edi-row-header">
+        <div>
+          <div className="edi-kicker">Executive Decision Option</div>
+          <h3>{option.label || "Executive decision option"}</h3>
+          <p>{option.description || "Scenario path requires executive review."}</p>
+        </div>
+      </div>
+      <div className="edi-field-grid option-fields">
+        <FieldBlock label="Projected Strategic Impact Percentage" value={pct(option.projected_impact)} tone="active" />
+        <FieldBlock label="Projected Execution Risk Percentage" value={pct(option.projected_risk)} tone="danger" />
+        <FieldBlock label="Option Confidence Percentage" value={pct(option.confidence)} tone="info" />
+        <FieldBlock label="Execution Timeline" value={option.timeline || "7 days"} tone="accent" />
+        <FieldBlock label="Resource Cost Level" value={labelize(option.cost_level || "medium")} tone="default" />
+      </div>
+    </div>
   );
-
- 
-
-  const explicitPriority = material.length
-
-    ? material.map((item) => canonicalPriority(item?.priority)).sort((a, b) => priorityWeight(b) - priorityWeight(a))[0]
-
-    : "medium";
-
- 
-
-  return createCandidate({
-
-    key: "uei-recommended-review",
-
-    title: "Review unified executive recommendation",
-
-    decisionType: "strategic_review",
-
-    priority: explicitPriority,
-
-    recommendation: briefingRecommendation || firstText(material[0]?.detail, material[0]?.recommendation, "Review the highest-priority unified executive recommendation."),
-
-    rationale: clean(uei?.briefing?.strategic_summary) || `${material.length} material Unified Executive Intelligence recommendations are active.`,
-
-    sourceModules: [
-
-      "unified_executive_intelligence",
-
-      ...material.map((item) => clean(item?.source)).filter(Boolean),
-
-    ],
-
-    route: smartRoute(`${briefingRecommendation} ${material[0]?.title || ""}`, material[0]?.route),
-
-    evidence,
-
-    confidence: clamp(firstDefined(uei?.briefing?.confidence_percentage, 82)),
-
-    risk: clamp(firstDefined(uei?.health?.national_risk, uei?.summary?.national_pressure_score, 45)),
-
-    impact: material.length ? 78 : 64,
-
-    urgency: material.length ? 76 : 60,
-
-    state: firstText(uei?.scope?.effective_state, uei?.scope?.workspace_state),
-
-    metadata: {
-
-      briefing_headline: clean(uei?.briefing?.headline),
-
-      recommendation_count: material.length,
-
-    },
-
-  });
-
 }
 
- 
-
-function buildStrategyCandidate(strategyResult = {}, uei = {}) {
-
-  const direct = arr(strategyResult);
-
-  const scoped = arr(uei?.strategy?.recommendations);
-
-  const recommendations = scoped.length ? scoped : direct;
-
- 
-
-  const material = recommendations
-
-    .filter((item) => ["critical", "high"].includes(canonicalPriority(firstText(item?.priority, item?.severity))))
-
-    .slice(0, 5);
-
- 
-
-  if (!material.length) return null;
-
- 
-
-  const evidence = material.map((item) =>
-
-    evidenceRef({
-
-      source: "strategy_recommendations",
-
-      id: firstDefined(item?.id, item?.key, item?.recommendation_key),
-
-      title: firstText(item?.title, item?.recommendation),
-
-      detail: firstText(item?.detail, item?.rationale, item?.summary),
-
-      route: firstText(item?.route, "/strategy"),
-
-      state: item?.state,
-
-      priority: item?.priority,
-
-      score: firstDefined(item?.score, item?.confidence),
-
-      observedAt: item?.updated_at || item?.created_at,
-
-    })
-
+function ExecutiveAction({ action }) {
+  return (
+    <div className="edi-action-card">
+      <div className="edi-action-left">
+        <span className="edi-live-dot" />
+        <div>
+          <strong>{action.action_label || "Executive action"}</strong>
+          <p>{action.owner || "Executive Team"} · {action.due_window || "72 hours"}</p>
+        </div>
+      </div>
+      <Badge tone={toneFromPriority(action.status || "pending")}>{fullPriorityLabel(action.status || "pending")}</Badge>
+    </div>
   );
-
- 
-
-  return createCandidate({
-
-    key: "strategy-recommendation-review",
-
-    title: "Resolve high-priority strategy recommendations",
-
-    decisionType: "strategy_review",
-
-    priority: material.some((item) => canonicalPriority(item?.priority) === "critical") ? "critical" : "high",
-
-    recommendation: "Review the active high-priority strategy recommendations, validate their evidence, and select which recommendations should be converted into accountable execution.",
-
-    rationale: `${material.length} high-priority strategy recommendations are active in the current evidence set.`,
-
-    sourceModules: ["strategy_recommendations", "unified_executive_intelligence"],
-
-    route: "/strategy",
-
-    evidence,
-
-    confidence: 82,
-
-    risk: 62,
-
-    impact: 82,
-
-    urgency: 76,
-
-    state: firstText(uei?.scope?.effective_state, uei?.scope?.workspace_state),
-
-  });
-
 }
 
- 
-
-function buildForecastCandidate(forecastSummary = {}, battlegrounds = [], state = "") {
-
-  const summary = obj(forecastSummary);
-
-  const rows = arr(battlegrounds);
-
- 
-
-  const materialRows = rows
-
-    .filter((item) => {
-
-      const volatility = number(firstDefined(item?.volatility_score, item?.volatility, item?.pressure_score, item?.risk_score, item?.score));
-
-      const risk = canonicalPriority(firstText(item?.risk, item?.severity, item?.status));
-
-      return volatility >= 70 || risk === "critical" || risk === "high";
-
-    })
-
-    .slice(0, 5);
-
- 
-
-  const summaryRisk = number(firstDefined(summary?.risk_score, summary?.national_risk, summary?.volatility_score, 0));
-
-  if (!materialRows.length && summaryRisk < 70) return null;
-
- 
-
-  const evidence = materialRows.map((item) =>
-
-    evidenceRef({
-
-      source: "forecast",
-
-      id: firstDefined(item?.id, item?.key),
-
-      title: firstText(item?.title, item?.race_name, item?.state_name, item?.state, "Forecast battleground"),
-
-      detail: firstText(item?.summary, item?.detail, item?.rationale, item?.status),
-
-      route: "/national-command",
-
-      state: firstText(item?.state, item?.state_code),
-
-      priority: firstText(item?.risk, item?.severity, "high"),
-
-      score: firstDefined(item?.volatility_score, item?.pressure_score, item?.risk_score, item?.score),
-
-      observedAt: item?.updated_at || item?.created_at,
-
-    })
-
+function TimelineStep({ label, active }) {
+  return (
+    <div className={active ? "edi-timeline-step active" : "edi-timeline-step"}>
+      <span />
+      <strong>{label}</strong>
+    </div>
   );
-
- 
-
-  return createCandidate({
-
-    key: "forecast-volatility-review",
-
-    title: "Review material forecast volatility",
-
-    decisionType: "forecast_review",
-
-    priority: "high",
-
-    recommendation: "Review material forecast changes and validate whether current resource and execution assumptions remain aligned with the latest evidence.",
-
-    rationale: `${materialRows.length || 1} forecast indicators exceed the materiality threshold.`,
-
-    sourceModules: ["forecast"],
-
-    route: "/national-command",
-
-    evidence,
-
-    confidence: 78,
-
-    risk: clamp(Math.max(summaryRisk, 70)),
-
-    impact: 80,
-
-    urgency: 72,
-
-    state,
-
-  });
-
 }
 
- 
-
-function buildCoalitionCandidate(rankings = [], actions = [], state = "") {
-
-  const materialActions = arr(actions)
-
-    .filter((item) => ["critical", "high"].includes(canonicalPriority(firstText(item?.priority, item?.severity, item?.risk))))
-
-    .slice(0, 5);
-
- 
-
-  if (!materialActions.length) return null;
-
- 
-
-  const evidence = materialActions.map((item) =>
-
-    evidenceRef({
-
-      source: "coalitions",
-
-      id: firstDefined(item?.id, item?.key, item?.coalition_key),
-
-      title: firstText(item?.title, item?.action, item?.coalition_name),
-
-      detail: firstText(item?.detail, item?.rationale, item?.summary),
-
-      route: "/strategy",
-
-      state: item?.state,
-
-      priority: item?.priority,
-
-      score: firstDefined(item?.score, item?.urgency_score),
-
-      observedAt: item?.updated_at || item?.created_at,
-
-    })
-
+function ModuleContribution({ source }) {
+  const key = String(source || "").trim().toLowerCase();
+  return (
+    <div className="edi-module-card">
+      <strong>{fullModuleName(source)}</strong>
+      <p>{MODULE_CONTRIBUTIONS[key] || "This intelligence system contributes context to the executive decision path."}</p>
+    </div>
   );
-
- 
-
-  const topRanking = arr(rankings)[0];
-
-  if (topRanking) {
-
-    evidence.push(
-
-      evidenceRef({
-
-        source: "coalitions",
-
-        id: firstDefined(topRanking?.id, topRanking?.coalition_key),
-
-        title: firstText(topRanking?.coalition_name, topRanking?.title, "Coalition ranking context"),
-
-        detail: firstText(topRanking?.summary, topRanking?.detail),
-
-        route: "/strategy",
-
-        state: topRanking?.state,
-
-        priority: firstText(topRanking?.priority, topRanking?.risk, "medium"),
-
-        score: firstDefined(topRanking?.score, topRanking?.movement_score),
-
-      })
-
-    );
-
-  }
-
- 
-
-  return createCandidate({
-
-    key: "coalition-action-review",
-
-    title: "Review high-priority coalition actions",
-
-    decisionType: "coalition_review",
-
-    priority: materialActions.some((item) => canonicalPriority(item?.priority) === "critical") ? "critical" : "high",
-
-    recommendation: "Review the highest-priority coalition actions and determine which items warrant accountable execution within the current operating plan.",
-
-    rationale: `${materialActions.length} coalition actions are currently high priority.`,
-
-    sourceModules: ["coalitions", "strategy"],
-
-    route: "/strategy",
-
-    evidence,
-
-    confidence: 80,
-
-    risk: 64,
-
-    impact: 78,
-
-    urgency: 76,
-
-    state,
-
-  });
-
 }
 
- 
-
-function buildInfluenceCandidate(rankings = [], alerts = [], state = "") {
-
-  const materialAlerts = arr(alerts)
-
-    .filter((item) => ["critical", "high"].includes(canonicalPriority(firstText(item?.severity, item?.priority, item?.risk))))
-
-    .slice(0, 5);
-
- 
-
-  if (!materialAlerts.length) return null;
-
- 
-
-  const evidence = materialAlerts.map((item) =>
-
-    evidenceRef({
-
-      source: "influence",
-
-      id: firstDefined(item?.id, item?.key),
-
-      title: firstText(item?.title, item?.entity_name, "Influence alert"),
-
-      detail: firstText(item?.detail, item?.summary, item?.description),
-
-      route: "/relationship-graph",
-
-      state: item?.state,
-
-      priority: firstText(item?.severity, item?.priority),
-
-      score: firstDefined(item?.score, item?.influence_score, item?.risk_score),
-
-      observedAt: item?.updated_at || item?.created_at,
-
-    })
-
-  );
-
- 
-
-  const topRanking = arr(rankings)[0];
-
-  if (topRanking) {
-
-    evidence.push(
-
-      evidenceRef({
-
-        source: "influence",
-
-        id: firstDefined(topRanking?.id, topRanking?.entity_key),
-
-        title: firstText(topRanking?.entity_name, topRanking?.title, "Influence ranking context"),
-
-        detail: firstText(topRanking?.summary, topRanking?.detail),
-
-        route: "/relationship-graph",
-
-        state: topRanking?.state,
-
-        priority: firstText(topRanking?.risk, "medium"),
-
-        score: firstDefined(topRanking?.score, topRanking?.influence_score),
-
-      })
-
-    );
-
-  }
-
- 
-
-  return createCandidate({
-
-    key: "influence-alert-review",
-
-    title: "Review material influence-network alerts",
-
-    decisionType: "influence_review",
-
-    priority: materialAlerts.some((item) => canonicalPriority(item?.severity || item?.priority) === "critical") ? "critical" : "high",
-
-    recommendation: "Review the material influence alerts, validate the affected relationships, and determine whether operational or relationship-management action is required.",
-
-    rationale: `${materialAlerts.length} influence alerts exceed the high-severity threshold.`,
-
-    sourceModules: ["influence", "relationship_graph"],
-
-    route: "/relationship-graph",
-
-    evidence,
-
-    confidence: 80,
-
-    risk: 70,
-
-    impact: 76,
-
-    urgency: 72,
-
-    state,
-
-  });
-
-}
-
- 
-
-function candidateSimilarityKey(candidate = {}) {
-
-  const title = lower(candidate?.title)
-
-    .replace(/\b(review|resolve|material|high-priority|workspace)\b/g, "")
-
-    .replace(/\s+/g, " ")
-
-    .trim();
-
-  return `${clean(candidate?.decision_type)}|${title}`;
-
-}
-
- 
-
-function mergeCandidates(candidates = []) {
-
-  const map = new Map();
-
- 
-
-  for (const candidate of arr(candidates).filter(Boolean)) {
-
-    const key = candidateSimilarityKey(candidate);
-
-    if (!map.has(key)) {
-
-      map.set(key, candidate);
-
-      continue;
-
+export default function ExecutiveDecisionIntelligence() {
+  const [data, setData] = useState(fallbackDecisionData);
+  const [activeDecisionId, setActiveDecisionId] = useState(fallbackDecisionData.decisions[0]?.id || null);
+  const [loading, setLoading] = useState(true);
+  const [seedLoading, setSeedLoading] = useState(false);
+  const [apiWarning, setApiWarning] = useState("");
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      setApiWarning("");
+      const result = normalizeDecisionPayload(await fetchDecisionIntelligence(1));
+      setData(result);
+      setActiveDecisionId((current) => {
+        if (current && arr(result.decisions).some((item) => String(item.id) === String(current))) return current;
+        return result.decisions?.[0]?.id || null;
+      });
+    } catch (error) {
+      setData(fallbackDecisionData);
+      setActiveDecisionId(fallbackDecisionData.decisions[0]?.id || null);
+      setApiWarning(error?.response?.data?.error || error?.message || "Decision Intelligence API returned an error. Showing local executive fallback data.");
+    } finally {
+      setLoading(false);
     }
-
- 
-
-    const existing = map.get(key);
-
-    const preferred = number(candidate?.materiality_score) > number(existing?.materiality_score) ? candidate : existing;
-
-    const secondary = preferred === candidate ? existing : candidate;
-
- 
-
-    map.set(key, {
-
-      ...preferred,
-
-      source_modules: unique([...arr(preferred?.source_modules), ...arr(secondary?.source_modules)]),
-
-      evidence: [...arr(preferred?.evidence), ...arr(secondary?.evidence)].slice(0, 10),
-
-      metadata: { ...obj(secondary?.metadata), ...obj(preferred?.metadata) },
-
-    });
-
   }
 
- 
-
-  return [...map.values()];
-
-}
-
- 
-
-function materialCandidates(candidates = []) {
-
-  return arr(candidates).filter((candidate) => {
-
-    const priority = canonicalPriority(candidate?.priority);
-
-    const score = number(candidate?.materiality_score);
-
-    const evidenceCount = arr(candidate?.evidence).length;
-
-    if (evidenceCount <= 0) return false;
-
- 
-
-    return (
-
-      priority === "critical" ||
-
-      (priority === "high" && score >= MATERIALITY_THRESHOLD - 5) ||
-
-      score >= MATERIALITY_THRESHOLD
-
-    );
-
-  });
-
-}
-
- 
-
-function decisionOptions(candidate = {}) {
-
-  const baseImpact = clamp(candidate?.impact_score);
-
-  const baseRisk = clamp(candidate?.risk_score);
-
-  const baseConfidence = clamp(candidate?.confidence_score);
-
- 
-
-  return [
-
-    {
-
-      id: `${candidate.key}-option-1`,
-
-      label: "Act on the recommended path",
-
-      description: "Convert the recommendation into accountable execution now using the linked executive workflow.",
-
-      projected_impact: baseImpact,
-
-      projected_risk: baseRisk,
-
-      confidence: baseConfidence,
-
-      cost_level: "context-dependent",
-
-      timeline: candidate.urgency_score >= 85 ? "Immediate" : candidate.urgency_score >= 70 ? "24-72 hours" : "Next executive review",
-
-      rank_order: 1,
-
-    },
-
-    {
-
-      id: `${candidate.key}-option-2`,
-
-      label: "Validate before committing",
-
-      description: "Run a focused evidence and ownership review before committing additional resources or changing operating posture.",
-
-      projected_impact: clamp(baseImpact - 8),
-
-      projected_risk: clamp(baseRisk - 12),
-
-      confidence: clamp(baseConfidence + 4),
-
-      cost_level: "low",
-
-      timeline: "24-72 hours",
-
-      rank_order: 2,
-
-    },
-
-    {
-
-      id: `${candidate.key}-option-3`,
-
-      label: "Monitor without changing posture",
-
-      description: "Keep the current operating posture and increase monitoring until the evidence crosses a stronger threshold.",
-
-      projected_impact: clamp(baseImpact - 25),
-
-      projected_risk: clamp(baseRisk - 22),
-
-      confidence: clamp(baseConfidence - 5),
-
-      cost_level: "low",
-
-      timeline: "Next review cycle",
-
-      rank_order: 3,
-
-    },
-
-  ];
-
-}
-
- 
-
-function decisionActions(candidate = {}, workspaceId = null) {
-
-  return [
-
-    {
-
-      id: `${candidate.key}-action-1`,
-
-      action_label: firstText(candidate?.recommendation, `Review ${candidate?.title}`),
-
-      owner: "Executive Operations",
-
-      status: "pending",
-
-      due_window: candidate?.urgency_score >= 85 ? "24 hours" : candidate?.urgency_score >= 70 ? "72 hours" : "Next executive review",
-
-      route: candidate?.route || "/command-center",
-
-      workspace_id: workspaceId,
-
-    },
-
-  ];
-
-}
-
- 
-
-function finalizeDecisions(candidates = [], workspaceId = null) {
-
-  return materialCandidates(mergeCandidates(candidates))
-
-    .sort((a, b) => {
-
-      const materialityDelta = number(b?.materiality_score) - number(a?.materiality_score);
-
-      if (materialityDelta) return materialityDelta;
-
-      const urgencyDelta = number(b?.urgency_score) - number(a?.urgency_score);
-
-      if (urgencyDelta) return urgencyDelta;
-
-      return number(b?.confidence_score) - number(a?.confidence_score);
-
-    })
-
-    .slice(0, MAX_DECISIONS)
-
-    .map((candidate, index) => ({
-
-      id: `live-${workspaceId || "firm"}-${candidate.key}`,
-
-      workspace_id: workspaceId,
-
-      rank_order: index + 1,
-
-      title: candidate.title,
-
-      decision_type: candidate.decision_type,
-
-      priority: candidate.priority,
-
-      status: candidate.status,
-
-      confidence_score: Math.round(candidate.confidence_score),
-
-      risk_score: Math.round(candidate.risk_score),
-
-      impact_score: Math.round(candidate.impact_score),
-
-      urgency_score: Math.round(candidate.urgency_score),
-
-      materiality_score: Math.round(candidate.materiality_score),
-
-      recommendation: candidate.recommendation,
-
-      rationale: candidate.rationale,
-
-      source_modules: candidate.source_modules,
-
-      route: candidate.route,
-
-      state: candidate.state,
-
-      evidence: candidate.evidence,
-
-      metadata: {
-
-        ...candidate.metadata,
-
-        synthesis_mode: "live-evidence",
-
-        build: BUILD,
-
-      },
-
-      options: decisionOptions(candidate),
-
-      actions: decisionActions(candidate, workspaceId),
-
-      created_at: null,
-
-      updated_at: nowIso(),
-
-    }));
-
-}
-
- 
-
-export async function getDecisionIntelligence(input = {}) {
-
-  const context = await resolveExecutionContext(input);
-
-  const {
-
-    workspaceId,
-
-    user,
-
-    firmId,
-
-    requestedWorkspace,
-
-    state,
-
-    office,
-
-    risk,
-
-    legacyControllerCall,
-
-  } = context;
-
- 
-
-  const sourceResults = await Promise.all([
-
-    runSource("unified_executive_intelligence", () =>
-
-      getUnifiedExecutiveIntelligence({ user, workspaceId, state, office, risk })
-
-    ),
-
-    runSource("executive_workspace", () =>
-
-      getExecutiveWorkspaceDashboard({ user, workspaceId })
-
-    ),
-
-    runSource("executive_mission_control", () =>
-
-      getExecutiveMissionControl({ user }),
-
-      { optional: true }
-
-    ),
-
-    runSource("strategy_recommendations", () =>
-
-      getStrategyRecommendations({ state, limit: 40 }),
-
-      { optional: true }
-
-    ),
-
-    runSource("forecast_summary", () => getForecastSummary(), { optional: true }),
-
-    runSource("forecast_battlegrounds", () => getForecastBattlegrounds(), { optional: true }),
-
-    runSource("coalition_rankings", () => getCoalitionRankings({ state, limit: 30 }), { optional: true }),
-
-    runSource("coalition_actions", () => getCoalitionActions({ state, limit: 30 }), { optional: true }),
-
-    runSource("influence_rankings", () => getInfluenceRankings({ state, limit: 30 }), { optional: true }),
-
-    runSource("influence_alerts", () => getInfluenceAlerts({ state, limit: 30 }), { optional: true }),
-
-  ]);
-
- 
-
-  const sourceMap = Object.fromEntries(sourceResults.map((item) => [item.key, item]));
-
-  const uei = obj(sourceMap.unified_executive_intelligence?.data);
-
-  const workspace = obj(sourceMap.executive_workspace?.data);
-
-  const missionControl = obj(sourceMap.executive_mission_control?.data);
-
- 
-
-  if (!sourceMap.unified_executive_intelligence?.ok) {
-
-    const error = new Error("Unified Executive Intelligence is unavailable; Decision Intelligence cannot synthesize authoritative decisions.");
-
-    error.statusCode = 503;
-
-    error.detail = sourceMap.unified_executive_intelligence?.error || "";
-
-    throw error;
-
-  }
-
- 
-
-  if (!sourceMap.executive_workspace?.ok) {
-
-    const error = new Error("Executive Workspace is unavailable; Decision Intelligence cannot validate workspace execution context.");
-
-    error.statusCode = 503;
-
-    error.detail = sourceMap.executive_workspace?.error || "";
-
-    throw error;
-
-  }
-
- 
-
-  const selectedWorkspace = obj(workspace?.selected_workspace).id
-
-    ? obj(workspace?.selected_workspace)
-
-    : requestedWorkspace || {};
-
- 
-
-  const effectiveWorkspaceId = Number(selectedWorkspace?.id || workspaceId || 0) || null;
-
- 
-
-  if (workspaceId && effectiveWorkspaceId && Number(workspaceId) !== Number(effectiveWorkspaceId)) {
-
-    const error = new Error("Resolved Executive Workspace does not match the requested workspace.");
-
-    error.statusCode = 409;
-
-    throw error;
-
-  }
-
- 
-
-  const signals = normalizeSignals(uei, workspace);
-
-  const materialSignalRows = materialSignals(signals);
-
- 
-
-  const candidates = [
-
-    buildWorkspaceExecutionCandidate(workspace),
-
-    buildClientRiskCandidate(workspace),
-
-    buildMaterialAlertCandidate(workspace, signals),
-
-    buildPoliticalSignalCandidate(uei, signals),
-
-    buildUeiRecommendationCandidate(uei),
-
-    buildStrategyCandidate(sourceMap.strategy_recommendations?.data, uei),
-
-    buildForecastCandidate(sourceMap.forecast_summary?.data, sourceMap.forecast_battlegrounds?.data, state),
-
-    buildCoalitionCandidate(sourceMap.coalition_rankings?.data, sourceMap.coalition_actions?.data, state),
-
-    buildInfluenceCandidate(sourceMap.influence_rankings?.data, sourceMap.influence_alerts?.data, state),
-
-  ].filter(Boolean);
-
- 
-
-  const decisions = finalizeDecisions(candidates, effectiveWorkspaceId);
-
-  const sourceStatus = normalizeSourceStatus(sourceResults, uei);
-
- 
-
-  const availableSources = sourceStatus.filter((item) => item.status === "available").length;
-
-  const degradedSources = sourceStatus.filter((item) => item.status === "degraded").length;
-
-  const unavailableSources = sourceStatus.filter((item) => item.status === "unavailable").length;
-
- 
-
-  const summary = {
-
-    openDecisions: decisions.filter((item) => ["open", "review"].includes(lower(item?.status))).length,
-
-    highPriority: decisions.filter((item) => ["critical", "high"].includes(canonicalPriority(item?.priority))).length,
-
-    avgConfidence: average(decisions.map((item) => item.confidence_score)),
-
-    avgRisk: average(decisions.map((item) => item.risk_score)),
-
-    liveSignals: materialSignalRows.length,
-
-    totalDecisions: decisions.length,
-
-    criticalDecisions: decisions.filter((item) => canonicalPriority(item?.priority) === "critical").length,
-
-    materialSignals: materialSignalRows.length,
-
-    scopedSignals: signals.length,
-
-    sourceCount: sourceStatus.length,
-
-    availableSources,
-
-    degradedSources,
-
-    unavailableSources,
-
-  };
-
- 
-
-  const primaryDecision = decisions[0] || null;
-
-  const mode = decisions.length > 0 ? "live-synthesis" : "live-no-material-decisions";
-
- 
-
-  return {
-
-    ok: true,
-
-    build: BUILD,
-
-    mode,
-
-    source: "live-authoritative-synthesis",
-
-    generated_at: nowIso(),
-
-    workspace_id: effectiveWorkspaceId,
-
-    firm_id: firmId,
-
-    scope: {
-
-      firm_id: firmId,
-
-      workspace_id: effectiveWorkspaceId,
-
-      workspace_name: firstText(selectedWorkspace?.name, uei?.scope?.workspace_name),
-
-      workspace_state: firstText(selectedWorkspace?.state, uei?.scope?.workspace_state),
-
-      workspace_office: firstText(selectedWorkspace?.office, uei?.scope?.workspace_office),
-
-      workspace_cycle: firstText(selectedWorkspace?.cycle, uei?.scope?.workspace_cycle),
-
-      effective_state: firstText(uei?.scope?.effective_state, state, selectedWorkspace?.state),
-
-      effective_office: firstText(uei?.scope?.effective_office, office, selectedWorkspace?.office),
-
-      risk: clean(risk || uei?.scope?.risk),
-
-      workspace_scope_mode: clean(workspace?.scope?.mode),
-
-      legacy_controller_context: legacyControllerCall,
-
-    },
-
-    summary,
-
-    briefing: {
-
-      headline: primaryDecision?.title || "No material executive decision is currently required.",
-
-      strategic_summary: primaryDecision?.rationale || "Authoritative sources were reviewed and no evidence-backed decision crossed the current materiality threshold.",
-
-      recommended_action: primaryDecision?.recommendation || "Maintain the current operating posture and continue monitoring authoritative intelligence sources.",
-
-      decision_window: primaryDecision?.urgency_score >= 85
-
-        ? "24 hours"
-
-        : primaryDecision?.urgency_score >= 70
-
-          ? "72 hours"
-
-          : "Next executive review",
-
-      confidence_percentage: primaryDecision?.confidence_score ?? clamp(uei?.briefing?.confidence_percentage),
-
-    },
-
-    decisions,
-
-    signals: [...materialSignalRows]
-
-      .sort((a, b) => {
-
-        const priorityDelta = priorityWeight(b?.severity) - priorityWeight(a?.severity);
-
-        return priorityDelta || number(b?.signal_score) - number(a?.signal_score);
-
-      })
-
-      .slice(0, MAX_SIGNALS),
-
-    evidence: {
-
-      source_status: sourceStatus,
-
-      materiality_threshold: MATERIALITY_THRESHOLD,
-
-      candidates_evaluated: candidates.length,
-
-      candidates_materialized: decisions.length,
-
-      authoritative_zero_preserved: true,
-
-      auto_seed_enabled: false,
-
-      fallback_decisions_enabled: false,
-
-      legacy_seed_tables_used: false,
-
-    },
-
-    context: {
-
-      unified_executive_intelligence: {
-
-        health: obj(uei?.health),
-
-        scoped_summary: obj(uei?.scoped_summary || uei?.summary),
-
-        briefing: obj(uei?.briefing),
-
-      },
-
-      executive_workspace: {
-
-        summary: obj(workspace?.summary),
-
-        portfolio_summary: obj(workspace?.portfolio_summary),
-
-        scope: obj(workspace?.scope),
-
-      },
-
-      executive_mission_control: {
-
-        available: sourceMap.executive_mission_control?.ok || false,
-
-        summary: obj(missionControl?.summary || missionControl?.portfolio_summary),
-
-      },
-
-    },
-
-  };
-
-}
-
- 
-
-/**
-
- * Production seeding is intentionally disabled.
-
- * This export remains only for compatibility with the existing controller.
-
- */
-
-export async function seedDecisionIntelligence(workspaceId = null) {
-
-  return {
-
-    ok: false,
-
-    seeded: false,
-
-    workspace_id: Number(workspaceId) || null,
-
-    mode: "disabled",
-
-    reason: "Automatic Executive Decision Intelligence seeding is disabled. Decisions are synthesized from authoritative live evidence.",
-
-    build: BUILD,
-
-  };
-
-}
-
- 
-
-export async function getDecisionIntelligenceHealth() {
-
-  let legacySeedRows = 0;
-
-  let legacyTablesPresent = false;
-
- 
-
-  try {
-
-    const tableResult = await pool.query(`SELECT to_regclass('public.executive_decisions') AS table_name`);
-
-    legacyTablesPresent = Boolean(tableResult.rows?.[0]?.table_name);
-
- 
-
-    if (legacyTablesPresent) {
-
-      const countResult = await pool.query(`SELECT COUNT(*)::int AS count FROM executive_decisions`);
-
-      legacySeedRows = integer(countResult.rows?.[0]?.count);
-
+  async function handleSeed() {
+    try {
+      setSeedLoading(true);
+      setApiWarning("");
+      await seedDecisionIntelligence(1);
+      await loadData();
+    } catch (error) {
+      setApiWarning(error?.response?.data?.error || error?.message || "Unable to seed Executive Decision Intelligence. Backend migration may not be deployed yet.");
+    } finally {
+      setSeedLoading(false);
     }
-
-  } catch (error) {
-
-    console.warn("[decision-intelligence] health legacy-table check skipped:", error.message);
-
   }
 
- 
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  return {
+  const decisions = arr(data.decisions);
+  const signals = arr(data.signals);
+  const activeDecision = useMemo(() => decisions.find((item) => String(item.id) === String(activeDecisionId)) || decisions[0] || null, [decisions, activeDecisionId]);
+  const summary = data.summary || fallbackDecisionData.summary;
 
-    ok: true,
+  const executiveNavSections = [
+    { id: "edi-overview", label: "Overview" },
+    { id: "edi-decision-queue", label: "Decision Queue", badge: decisions.length },
+    { id: "edi-ai-recommendation", label: "AI Recommendation" },
+    { id: "edi-workflow", label: "Workflow" },
+    { id: "edi-options", label: "Options", badge: arr(activeDecision?.options).length },
+    { id: "edi-modules", label: "Intelligence" },
+    { id: "edi-actions", label: "Actions", badge: arr(activeDecision?.actions).length },
+    { id: "edi-signals", label: "Signals", badge: signals.length },
+  ];
 
-    build: BUILD,
+  return (
+    <PageShell
+      eyebrow="Executive Decision Intelligence"
+      title="Executive Decision Intelligence"
+      description="A VoterSpheres enterprise command module for ranking strategic choices, comparing decision paths, scoring operational risk, and converting cross-module intelligence into executive action."
+      demo={Boolean(apiWarning) || String(data.source || "").includes("fallback")}
+      demoText="Fallback executive intelligence is active while the live Decision Intelligence API is unavailable."
+    >
+      <style>{`
+        .edi-enterprise-shell {
+          display: grid;
+          gap: 26px;
+        }
 
-    mode: "live-authoritative-synthesis",
+        .edi-toolbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 18px;
+          flex-wrap: wrap;
+        }
 
-    generated_at: nowIso(),
+        .edi-toolbar-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
 
-    auto_seed_enabled: false,
+        .edi-command-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 24px;
+        }
 
-    fallback_decisions_enabled: false,
+        .edi-primary-grid {
+          display: grid;
+          grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.55fr);
+          gap: 24px;
+          align-items: start;
+        }
 
-    legacy_seed_tables_used: false,
+        .edi-secondary-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.35fr) minmax(420px, 0.9fr);
+          gap: 24px;
+          align-items: start;
+        }
 
-    legacy_seed_tables_present: legacyTablesPresent,
+        .edi-decision-row,
+        .edi-signal-row,
+        .edi-option-card,
+        .edi-action-card,
+        .edi-score-card,
+        .edi-module-card,
+        .edi-timeline-panel {
+          border: 1px solid var(--vs-exec-border, var(--vs-border));
+          border-radius: 22px;
+          background: rgba(15, 23, 42, 0.54);
+          min-width: 0;
+          overflow: hidden;
+        }
 
-    legacy_seed_row_count: legacySeedRows,
+        .edi-decision-row {
+          width: 100%;
+          color: inherit;
+          padding: 18px;
+          text-align: left;
+          cursor: pointer;
+          transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+        }
 
-    materiality_threshold: MATERIALITY_THRESHOLD,
+        .edi-decision-row:hover,
+        .edi-decision-row.is-active {
+          border-color: rgba(251, 146, 60, 0.50);
+          background: rgba(251, 146, 60, 0.085);
+          transform: translateY(-1px);
+          box-shadow: 0 0 0 1px rgba(251, 146, 60, 0.16);
+        }
 
-    max_decisions: MAX_DECISIONS,
+        .edi-row-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
+          min-width: 0;
+        }
 
-    max_signals: MAX_SIGNALS,
+        .edi-kicker {
+          color: var(--vs-brand-orange, #fb923c);
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-bottom: 7px;
+        }
 
-    source_timeout_ms: SOURCE_TIMEOUT_MS,
+        .edi-row-header h3 {
+          margin: 0;
+          color: var(--vs-text);
+          font-size: 16px;
+          line-height: 1.35;
+          letter-spacing: -0.03em;
+          overflow-wrap: anywhere;
+        }
 
-    primary_sources: [
+        .edi-row-header p {
+          margin: 8px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.65;
+          overflow-wrap: anywhere;
+        }
 
-      "unified_executive_intelligence",
+        .edi-field-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 16px;
+        }
 
-      "executive_workspace",
+        .single-column-fields {
+          grid-template-columns: 1fr;
+        }
 
-    ],
+        .option-fields {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
 
-    supporting_sources: [
+        .edi-field-block {
+          border: 1px solid rgba(148, 163, 184, 0.13);
+          background: rgba(2, 6, 23, 0.28);
+          border-radius: 16px;
+          padding: 12px;
+          min-width: 0;
+          display: grid;
+          gap: 6px;
+        }
 
-      "executive_mission_control",
+        .edi-field-block span {
+          color: var(--vs-text-muted);
+          font-size: 10px;
+          line-height: 1.35;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.10em;
+          overflow-wrap: anywhere;
+        }
 
-      "strategy_recommendations",
+        .edi-field-block strong {
+          color: var(--vs-text);
+          font-size: 13px;
+          line-height: 1.38;
+          font-weight: 850;
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
 
-      "forecast",
+        .edi-field-block .vs-badge {
+          width: fit-content;
+          max-width: 100%;
+          white-space: normal;
+          text-align: left;
+          justify-content: flex-start;
+          line-height: 1.3;
+        }
 
-      "coalitions",
+        .edi-recommendation-panel {
+          border: 1px solid rgba(251, 146, 60, 0.30);
+          border-radius: 26px;
+          background:
+            radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 36%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.58));
+          padding: 22px;
+        }
 
-      "influence",
+        .edi-recommendation-panel h3 {
+          margin: 8px 0 12px;
+          color: var(--vs-text);
+          font-size: clamp(20px, 2vw, 28px);
+          line-height: 1.2;
+          font-weight: 950;
+          letter-spacing: -0.055em;
+          overflow-wrap: anywhere;
+        }
 
-    ],
+        .edi-module-row {
+          display: flex;
+          gap: 9px;
+          flex-wrap: wrap;
+          margin-top: 16px;
+        }
 
-  };
+        .edi-module-row .vs-badge {
+          white-space: normal;
+          line-height: 1.3;
+        }
 
+        .edi-score-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .edi-score-card {
+          padding: 16px;
+          display: grid;
+          gap: 10px;
+        }
+
+        .edi-score-card-head {
+          display: grid;
+          gap: 8px;
+        }
+
+        .edi-score-card-head span {
+          color: var(--vs-text-muted);
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          line-height: 1.4;
+          overflow-wrap: anywhere;
+        }
+
+        .edi-score-card-head strong {
+          color: var(--vs-text);
+          font-size: 34px;
+          font-weight: 950;
+          letter-spacing: -0.06em;
+          white-space: nowrap;
+        }
+
+        .edi-score-card p {
+          margin: 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.55;
+        }
+
+        .edi-score-bar {
+          height: 9px;
+          border-radius: 999px;
+          background: rgba(148, 163, 184, 0.16);
+          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.10);
+        }
+
+        .edi-score-bar span {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #fb923c, #22c55e);
+        }
+
+        .edi-score-bar.inverse span {
+          background: linear-gradient(90deg, #f59e0b, #ef4444);
+        }
+
+        .edi-signal-row,
+        .edi-option-card {
+          padding: 18px;
+        }
+
+        .edi-action-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 16px;
+        }
+
+        .edi-action-left {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .edi-action-left strong {
+          display: block;
+          color: var(--vs-text);
+          font-size: 14px;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
+        }
+
+        .edi-action-left p {
+          margin: 5px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        .edi-live-dot {
+          width: 10px;
+          height: 10px;
+          margin-top: 5px;
+          border-radius: 999px;
+          background: var(--vs-brand-orange, #fb923c);
+          box-shadow: 0 0 16px rgba(251, 146, 60, 0.65);
+          flex: 0 0 auto;
+        }
+
+        .edi-timeline-panel {
+          padding: 18px;
+        }
+
+        .edi-timeline-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .edi-timeline-step {
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 16px;
+          padding: 12px;
+          min-width: 0;
+          background: rgba(2, 6, 23, 0.24);
+        }
+
+        .edi-timeline-step span {
+          display: block;
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          background: rgba(148, 163, 184, 0.8);
+          margin-bottom: 10px;
+        }
+
+        .edi-timeline-step.active span {
+          background: var(--vs-brand-orange, #fb923c);
+          box-shadow: 0 0 16px rgba(251, 146, 60, 0.72);
+        }
+
+        .edi-timeline-step strong {
+          color: var(--vs-text);
+          font-size: 12px;
+          line-height: 1.4;
+          overflow-wrap: anywhere;
+        }
+
+        .edi-module-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .edi-module-card {
+          padding: 15px;
+        }
+
+        .edi-module-card strong {
+          color: var(--vs-text);
+          display: block;
+          font-size: 14px;
+          line-height: 1.35;
+          overflow-wrap: anywhere;
+        }
+
+        .edi-module-card p {
+          margin: 8px 0 0;
+          color: var(--vs-text-muted);
+          font-size: 12px;
+          line-height: 1.55;
+        }
+
+        .edi-section-stack {
+          display: grid;
+          gap: 18px;
+        }
+
+        .edi-recommendation-shell {
+          display: grid;
+          gap: 16px;
+        }
+
+        .edi-section-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+          gap: 18px;
+          align-items: start;
+        }
+
+        @media (max-width: 1500px) {
+          .edi-score-grid,
+          .edi-timeline-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 1280px) {
+          .edi-primary-grid,
+          .edi-secondary-grid,
+          .edi-section-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .edi-field-grid,
+          .option-fields,
+          .edi-score-grid,
+          .edi-timeline-grid,
+          .edi-module-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .edi-action-card {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+        }
+      `}</style>
+
+      <div className="edi-enterprise-shell">
+        <div className="edi-toolbar">
+          <div className="vs-chip-row">
+            <Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Executive Intelligence" : "Live Executive Intelligence Application Programming Interface"}</Badge>
+            <Badge tone="accent">Executive Decision Intelligence Layer</Badge>
+            <Badge tone="info">Cross-Module Intelligence Synthesis</Badge>
+          </div>
+
+          <div className="edi-toolbar-actions">
+            <button type="button" className="vs-button vs-button-secondary" onClick={loadData} disabled={loading}>
+              {loading ? "Refreshing Executive Intelligence..." : "Refresh Executive Intelligence"}
+            </button>
+            <button type="button" className="vs-button vs-button-primary" onClick={handleSeed} disabled={seedLoading}>
+              {seedLoading ? "Seeding Executive Intelligence..." : "Seed Executive Intelligence"}
+            </button>
+            <Link className="vs-button vs-button-secondary" to="/command-center">Open Executive Command Center</Link>
+            <Link className="vs-button vs-button-secondary" to="/forecast">Open Executive Forecast Dashboard</Link>
+            <Link className="vs-button vs-button-secondary" to="/relationship-graph">Open National Political Graph</Link>
+          </div>
+        </div>
+
+        {apiWarning ? <div className="vs-banner vs-banner-danger">{apiWarning}</div> : null}
+
+        <ExecutivePageNav sections={executiveNavSections} />
+
+        <CollapsibleSection
+          id="edi-overview"
+          title="Executive Decision Overview"
+          subtitle="Always-visible executive readout for open decisions, priority alerts, confidence, and operational risk."
+          defaultOpen
+          right={<Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Mode" : "Live Mode"}</Badge>}
+        >
+          <div className="vs-grid-4" data-tour="decision-intelligence-kpis">
+            <StatCard label="Open Executive Decisions" value={summary.openDecisions || decisions.length || 0} subtext="Executive decisions requiring leadership review" />
+            <StatCard label="High Priority Executive Alerts" value={summary.highPriority || 0} subtext="Decisions requiring elevated executive attention" />
+            <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full confidence percentage across active recommendations" />
+            <StatCard label="Average Operational Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage across ${summary.liveSignals || signals.length || 0} live decision signals`} />
+          </div>
+        </CollapsibleSection>
+
+        <div className="edi-section-stack">
+          <CollapsibleSection
+            id="edi-decision-queue"
+            title="Executive Decision Queue"
+            subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, vendor, political graph, and operations intelligence."
+            defaultOpen
+            right={<Badge tone="info">{decisions.length} Active Executive Decisions</Badge>}
+          >
+            {loading ? (
+              <EmptyState text="Loading Executive Decision Intelligence..." />
+            ) : decisions.length ? (
+              <ShowMoreList
+                items={decisions}
+                initialCount={8}
+                showAllLabel={(count) => `Show All ${count} Executive Decisions`}
+                renderItem={(decision) => (
+                  <DecisionRow
+                    decision={decision}
+                    active={String(activeDecision?.id) === String(decision.id)}
+                    onClick={() => setActiveDecisionId(decision.id)}
+                  />
+                )}
+              />
+            ) : (
+              <EmptyState text="No executive decisions are currently available." />
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="edi-ai-recommendation"
+            title="AI Executive Recommendation"
+            subtitle="Primary recommended action with rationale, full percentage scoring, and source-module traceability."
+            defaultOpen
+            right={<Badge tone={toneFromPriority(activeDecision?.status || activeDecision?.priority)}>{fullPriorityLabel(activeDecision?.status || activeDecision?.priority || "open")}</Badge>}
+          >
+            {activeDecision ? (
+              <div className="edi-recommendation-shell">
+                <div className="edi-recommendation-panel">
+                  <div className="vs-page-eyebrow">Recommended Executive Decision Path</div>
+                  <h3>{activeDecision.recommendation || activeDecision.title}</h3>
+                  <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale || "No executive rationale available."}</p>
+                  <div className="edi-module-row">
+                    {arr(activeDecision.source_modules).map((source) => <Badge key={source} tone="accent">{fullModuleName(source)}</Badge>)}
+                  </div>
+                </div>
+
+                <div className="edi-score-grid">
+                  <ExecutivePercentCard title="Recommendation Confidence Percentage" value={activeDecision.confidence_score} subtitle="Reliability level for this executive recommendation." />
+                  <ExecutivePercentCard title="Strategic Impact Percentage" value={activeDecision.impact_score} subtitle="Projected strategic value if this decision path is executed." />
+                  <ExecutivePercentCard title="Executive Urgency Percentage" value={activeDecision.urgency_score} subtitle="How quickly leadership should act on this decision path." />
+                  <ExecutivePercentCard title="Operational Risk Percentage" value={activeDecision.risk_score} subtitle="Downside exposure or operational execution risk." inverse />
+                </div>
+              </div>
+            ) : (
+              <EmptyState text="No executive decision is currently selected." />
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="edi-workflow"
+            title="Executive Decision Workflow Timeline"
+            subtitle="Where the selected decision sits inside the VoterSpheres executive operating model."
+            defaultOpen={false}
+            right={<Badge tone="accent">Workflow</Badge>}
+          >
+            <div className="edi-timeline-panel">
+              <div className="edi-timeline-grid">
+                <TimelineStep label="Intelligence Signals Received" active />
+                <TimelineStep label="Artificial Intelligence Analysis Complete" active />
+                <TimelineStep label="Executive Review Active" active={Boolean(activeDecision)} />
+                <TimelineStep label="Command Center Action Routing" active={arr(activeDecision?.actions).length > 0} />
+                <TimelineStep label="Operational Execution Monitoring" active={String(activeDecision?.status || "").toLowerCase() === "active"} />
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <div className="edi-section-grid">
+            <div className="edi-section-stack">
+              <CollapsibleSection
+                id="edi-options"
+                title="Executive Decision Options"
+                subtitle="Alternative decision paths with full projected impact, risk, confidence, timeline, and cost labels."
+                defaultOpen={false}
+                right={<Badge tone="accent">{arr(activeDecision?.options).length} Executive Options</Badge>}
+              >
+                {arr(activeDecision?.options).length ? (
+                  <ShowMoreList
+                    items={arr(activeDecision.options)}
+                    initialCount={4}
+                    showAllLabel={(count) => `Show All ${count} Executive Options`}
+                    renderItem={(option) => <DecisionOption option={option} />}
+                  />
+                ) : (
+                  <EmptyState text="No executive decision options have been generated for this decision yet." />
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="edi-modules"
+                title="Cross-Module Intelligence Contribution"
+                subtitle="How each VoterSpheres intelligence system contributed to the selected executive decision."
+                defaultOpen={false}
+                right={<Badge tone="info">{arr(activeDecision?.source_modules).length} Modules</Badge>}
+              >
+                {arr(activeDecision?.source_modules).length ? (
+                  <ShowMoreList
+                    items={arr(activeDecision.source_modules)}
+                    initialCount={6}
+                    showAllLabel={(count) => `Show All ${count} Intelligence Modules`}
+                    className="edi-module-grid"
+                    renderItem={(source) => <ModuleContribution source={source} />}
+                  />
+                ) : (
+                  <EmptyState text="No cross-module intelligence contribution is available for this decision." />
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="edi-actions"
+                title="Executive Action Path"
+                subtitle="Operational follow-through connected to the selected executive decision."
+                defaultOpen={false}
+                right={<Badge tone="info">{arr(activeDecision?.actions).length} Executive Actions</Badge>}
+              >
+                {arr(activeDecision?.actions).length ? (
+                  <ShowMoreList
+                    items={arr(activeDecision.actions)}
+                    initialCount={5}
+                    showAllLabel={(count) => `Show All ${count} Executive Actions`}
+                    renderItem={(action) => <ExecutiveAction action={action} />}
+                  />
+                ) : (
+                  <EmptyState text="No executive action path has been generated for this decision yet." />
+                )}
+              </CollapsibleSection>
+            </div>
+
+            <CollapsibleSection
+              id="edi-signals"
+              title="Live Executive Decision Signals"
+              subtitle="Fully labeled intelligence signals driving executive recommendations across the VoterSpheres platform."
+              defaultOpen={false}
+              right={<Badge tone="accent">{signals.length} Live Executive Signals</Badge>}
+            >
+              {signals.length ? (
+                <ShowMoreList
+                  items={signals}
+                  initialCount={8}
+                  showAllLabel={(count) => `Show All ${count} Executive Signals`}
+                  renderItem={(signal) => <SignalRow signal={signal} />}
+                />
+              ) : (
+                <EmptyState text="No live executive decision signals are currently available." />
+              )}
+            </CollapsibleSection>
+          </div>
+        </div>      </div>
+
+      <BackToTopButton />
+    </PageShell>
+  );
 }
-
