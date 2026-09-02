@@ -1,47 +1,47 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchDecisionIntelligence, seedDecisionIntelligence } from "../api/decisionIntelligenceApi";
+
+import { fetchDecisionIntelligence } from "../api/decisionIntelligenceApi";
+import { useWorkspace } from "../context/WorkspaceContext";
 
 import PageShell from "../components/ui/PageShell";
-import SectionCard from "../components/ui/SectionCard";
+import CollapsibleSection from "../components/ui/CollapsibleSection";
+import ExecutivePageNav from "../components/ui/ExecutivePageNav";
+import BackToTopButton from "../components/ui/BackToTopButton";
+import ShowMoreList from "../components/ui/ShowMoreList";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
 import EmptyState from "../components/ui/EmptyState";
 
-import ExecutivePageNav from "../components/ui/ExecutivePageNav";
-import CollapsibleSection from "../components/ui/CollapsibleSection";
-import BackToTopButton from "../components/ui/BackToTopButton";
-import ShowMoreList from "../components/ui/ShowMoreList";
-
-const STATE_NAMES = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
-};
-
 const MODULE_NAMES = {
-  forecast: "Executive Forecast Engine",
-  forecasts: "Executive Forecast Engine",
-  coalition: "National Coalition Intelligence",
-  coalitions: "National Coalition Intelligence",
-  influence: "Influence Intelligence Engine",
-  operations: "Executive Operations Center",
-  vendors: "Vendor Intelligence Network",
-  vendor: "Vendor Intelligence Network",
-  strategy: "AI Strategy Recommendation Engine",
+  executive_workspace: "Executive Workspace",
   command_center: "Executive Command Center",
-  "command center": "Executive Command Center",
-  "political graph": "National Political Graph Engine",
-  political_graph: "National Political Graph Engine",
-  intelligence: "Cross-Module Intelligence Layer",
-};
-
-const DECISION_TYPE_NAMES = {
-  resource_allocation: "Executive Resource Allocation",
-  coalition_activation: "Coalition Activation Strategy",
-  risk_control: "Executive Risk Control",
-  strategic: "Strategic Executive Decision",
-  forecast_opportunity: "Forecast Opportunity Decision",
-  vendor_execution: "Vendor Execution Decision",
-  donor_growth: "Donor Growth Decision",
+  crm: "Campaign CRM",
+  political_signals: "Political Signals",
+  unified_executive_intelligence: "Unified Executive Intelligence",
+  executive_mission_control: "Executive Mission Control",
+  strategy_recommendations: "AI Strategy Recommendations",
+  strategy: "AI Strategy Recommendations",
+  forecast_summary: "Executive Forecast",
+  forecast_battlegrounds: "Battleground Forecast",
+  forecast: "Executive Forecast",
+  coalition_rankings: "Coalition Intelligence",
+  coalition_actions: "Coalition Intelligence",
+  coalition: "Coalition Intelligence",
+  influence_rankings: "Influence Intelligence",
+  influence_alerts: "Influence Intelligence",
+  influence: "Influence Intelligence",
+  candidates: "Candidate Intelligence",
+  fec: "FEC Intelligence",
+  workspaces: "Workspaces",
+  tasks: "Task Operations",
+  alerts: "Executive Alerts",
+  clients: "Client Intelligence",
+  reports: "Intelligence Reports",
+  notification_events: "Notification Events",
+  workspace_activity: "Workspace Activity",
+  executive_ai_missions: "Executive AI Missions",
+  decision_intelligence: "Legacy Decision Intelligence Source",
 };
 
 const PRIORITY_NAMES = {
@@ -51,6 +51,7 @@ const PRIORITY_NAMES = {
   low: "Low Priority Informational Executive Signal",
   open: "Open Executive Review",
   active: "Active Executive Review",
+  review: "Executive Review",
   stable: "Stable Executive Posture",
   planning: "Executive Planning Stage",
   pending: "Pending Executive Action",
@@ -58,94 +59,44 @@ const PRIORITY_NAMES = {
   complete: "Completed Executive Action",
 };
 
-const MODULE_CONTRIBUTIONS = {
-  forecast: "Forecast volatility and probability movement are shaping the recommendation.",
-  forecasts: "Forecast volatility and probability movement are shaping the recommendation.",
-  coalitions: "Coalition movement and voter bloc instability are influencing urgency.",
-  coalition: "Coalition movement and voter bloc instability are influencing urgency.",
-  influence: "Influence concentration and relationship momentum are changing strategic exposure.",
-  operations: "Operational capacity and state-level execution readiness are part of the decision path.",
-  vendors: "Vendor coverage and execution capacity are being validated before action.",
-  vendor: "Vendor coverage and execution capacity are being validated before action.",
-  strategy: "AI strategy recommendations are being converted into executive action paths.",
-  command_center: "Command Center execution routing is available for operational follow-through.",
+const DECISION_TYPE_NAMES = {
+  execution_control: "Execution Control",
+  client_risk_control: "Client Risk Control",
+  strategic_review: "Strategic Review",
+  material_alert_review: "Material Alert Review",
+  political_signal_review: "Political Signal Review",
+  strategy_execution: "Strategy Execution",
+  forecast_response: "Forecast Response",
+  coalition_response: "Coalition Response",
+  influence_response: "Influence Response",
+  resource_allocation: "Executive Resource Allocation",
+  coalition_activation: "Coalition Activation Strategy",
+  risk_control: "Executive Risk Control",
 };
 
-const fallbackDecisionData = {
-  ok: true,
-  source: "frontend-enterprise-fallback",
-  summary: {
-    openDecisions: 3,
-    highPriority: 2,
-    avgConfidence: 85,
-    avgRisk: 31,
-    liveSignals: 3,
-  },
-  decisions: [
-    {
-      id: "fallback-1",
-      title: "Reallocate resources toward high-volatility battleground states",
-      decision_type: "resource_allocation",
-      priority: "high",
-      status: "open",
-      confidence_score: 91,
-      risk_score: 34,
-      impact_score: 88,
-      urgency_score: 86,
-      recommendation: "Shift field, vendor, and executive review capacity toward the highest volatility states while preserving national monitoring coverage.",
-      rationale: "Forecast, coalition, influence, and operations indicators are clustering around competitive states with rising pressure.",
-      source_modules: ["forecast", "coalitions", "influence", "operations"],
-      options: [
-        { id: "fallback-option-1", label: "Balanced executive resource shift", description: "Move 10-15% of resources into priority states while preserving national coverage.", projected_impact: 86, projected_risk: 32, confidence: 88, timeline: "7-14 days", cost_level: "medium" },
-        { id: "fallback-option-2", label: "Aggressive executive resource shift", description: "Move 20-30% of available resources into the highest volatility states.", projected_impact: 94, projected_risk: 55, confidence: 81, timeline: "3-7 days", cost_level: "high" },
-      ],
-      actions: [
-        { id: "fallback-action-1", action_label: "Review battleground allocation model", owner: "Executive Operations", status: "pending", due_window: "24 hours" },
-        { id: "fallback-action-2", action_label: "Validate vendor readiness in priority states", owner: "Vendor Operations", status: "pending", due_window: "72 hours" },
-      ],
-    },
-    {
-      id: "fallback-2",
-      title: "Convert coalition instability into targeted field actions",
-      decision_type: "coalition_activation",
-      priority: "high",
-      status: "open",
-      confidence_score: 84,
-      risk_score: 29,
-      impact_score: 81,
-      urgency_score: 78,
-      recommendation: "Assign coalition owners to the most unstable voter blocs and convert each movement signal into Command Center tasks.",
-      rationale: "Coalition movement suggests a time-sensitive opening for persuasion and turnout coordination.",
-      source_modules: ["coalitions", "strategy", "command_center"],
-      options: [
-        { id: "fallback-option-3", label: "Activate coalition owners", description: "Assign responsible owners to top coalition opportunities and track weekly movement.", projected_impact: 82, projected_risk: 25, confidence: 84, timeline: "5-10 days", cost_level: "medium" },
-      ],
-      actions: [
-        { id: "fallback-action-3", action_label: "Create coalition response tasks", owner: "Coalition Director", status: "pending", due_window: "48 hours" },
-      ],
-    },
-    {
-      id: "fallback-3",
-      title: "Reduce decision risk before expanding digital spend",
-      decision_type: "risk_control",
-      priority: "medium",
-      status: "planning",
-      confidence_score: 79,
-      risk_score: 30,
-      impact_score: 73,
-      urgency_score: 67,
-      recommendation: "Hold major budget expansion until forecast confidence and message testing improve above executive threshold.",
-      rationale: "Digital opportunity is present, but uncertainty remains in audience response and vendor capacity.",
-      source_modules: ["forecast", "vendors", "influence"],
-      options: [],
-      actions: [],
-    },
-  ],
-  signals: [
-    { id: "fallback-signal-1", signal_type: "forecast_shift", title: "Forecast volatility rising", description: "Competitive movement detected across battleground modeling.", severity: "high", source_module: "forecast", state_code: "GA" },
-    { id: "fallback-signal-2", signal_type: "coalition_movement", title: "Coalition instability detected", description: "Suburban and turnout-sensitive blocs require executive monitoring.", severity: "medium", source_module: "coalitions", state_code: "PA" },
-    { id: "fallback-signal-3", signal_type: "vendor_capacity", title: "Vendor readiness gap", description: "Execution capacity needs verification before resource expansion.", severity: "medium", source_module: "vendors", state_code: "AZ" },
-  ],
+const MODULE_CONTRIBUTIONS = {
+  executive_workspace:
+    "Workspace execution pressure, readiness, tasks, client exposure, and current operating posture contributed directly to this decision.",
+  command_center:
+    "Command Center execution ownership and operational follow-through are connected to this decision path.",
+  crm:
+    "Campaign CRM client and relationship exposure contributed to the recommended action.",
+  political_signals:
+    "Scoped political signals were evaluated for materiality before being allowed to influence the decision queue.",
+  unified_executive_intelligence:
+    "Unified Executive Intelligence supplied the scoped executive briefing, source health, and cross-workspace context.",
+  executive_mission_control:
+    "Mission Control supplied firm-wide portfolio pressure and operational exception context.",
+  strategy_recommendations:
+    "AI Strategy Recommendation intelligence was evaluated as corroborating strategic evidence.",
+  strategy:
+    "AI Strategy Recommendation intelligence was evaluated as corroborating strategic evidence.",
+  forecast:
+    "Forecast intelligence was evaluated for material battleground movement and decision relevance.",
+  coalition:
+    "Coalition intelligence was evaluated for material voter-bloc movement and execution opportunity.",
+  influence:
+    "Influence intelligence was evaluated for material network movement and strategic exposure.",
 };
 
 function arr(value) {
@@ -161,57 +112,95 @@ function pct(value) {
   return `${Math.round(number(value))}%`;
 }
 
+function clean(value = "") {
+  return String(value ?? "").trim();
+}
+
 function labelize(value = "") {
-  return String(value || "")
+  return clean(value)
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function fullStateName(value = "") {
-  const code = String(value || "").trim().toUpperCase();
-  return STATE_NAMES[code] || (code ? labelize(code) : "National Coverage");
-}
-
 function fullModuleName(value = "") {
-  const key = String(value || "").trim().toLowerCase();
-  return MODULE_NAMES[key] || labelize(value || "Cross-Module Intelligence Layer");
-}
-
-function fullDecisionType(value = "") {
-  const key = String(value || "").trim().toLowerCase();
-  return DECISION_TYPE_NAMES[key] || labelize(value || "Strategic Executive Decision");
+  const key = clean(value).toLowerCase();
+  return MODULE_NAMES[key] || labelize(value || "Cross-Module Intelligence");
 }
 
 function fullPriorityLabel(value = "") {
-  const key = String(value || "").trim().toLowerCase();
+  const key = clean(value).toLowerCase();
   return PRIORITY_NAMES[key] || labelize(value || "Executive Monitoring Priority");
 }
 
+function fullDecisionType(value = "") {
+  const key = clean(value).toLowerCase();
+  return DECISION_TYPE_NAMES[key] || labelize(value || "Strategic Executive Decision");
+}
+
 function toneFromPriority(value = "") {
-  const next = String(value || "").toLowerCase();
-  if (["critical", "high"].includes(next)) return "danger";
-  if (["medium", "watch", "warning", "planning"].includes(next)) return "accent";
-  if (["open", "active", "stable", "complete", "completed"].includes(next)) return "active";
+  const next = clean(value).toLowerCase();
+  if (["critical", "high", "danger", "unavailable", "error"].includes(next)) return "danger";
+  if (["medium", "watch", "warning", "planning", "degraded"].includes(next)) return "accent";
+  if (["open", "active", "stable", "complete", "completed", "available", "live"].includes(next)) return "active";
   return "default";
 }
 
-function normalizeDecisionPayload(payload) {
-  const source = payload && typeof payload === "object" ? payload : fallbackDecisionData;
-  return {
-    ...fallbackDecisionData,
-    ...source,
-    summary: { ...fallbackDecisionData.summary, ...(source.summary || {}) },
-    decisions: arr(source.decisions).length ? arr(source.decisions) : fallbackDecisionData.decisions,
-    signals: arr(source.signals).length ? arr(source.signals) : fallbackDecisionData.signals,
-  };
+function safeRoute(value, fallback = "/executive-decision-intelligence") {
+  const route = clean(value);
+  if (route.startsWith("/") && !route.startsWith("//")) return route;
+  return fallback;
+}
+
+function executiveRoute(item = {}, fallback = "/executive-decision-intelligence") {
+  const explicit = clean(item.route);
+  if (explicit.startsWith("/") && !explicit.startsWith("//")) return explicit;
+
+  const haystack = [
+    item.title,
+    item.action_label,
+    item.recommendation,
+    item.rationale,
+    item.decision_type,
+    item.source,
+    item.source_module,
+    ...arr(item.source_modules),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (haystack.includes("relationship") || haystack.includes("influence graph")) return "/relationship-graph";
+  if (haystack.includes("dark money") || haystack.includes("fec") || haystack.includes("pac")) return "/dark-money-exposure";
+  if (haystack.includes("consultant")) return "/consultant-intel";
+  if (haystack.includes("vendor") || haystack.includes("media buy") || haystack.includes("direct mail")) return "/vendors";
+  if (haystack.includes("fundrais") || haystack.includes("donor") || haystack.includes("finance")) return "/fundraising-dashboard";
+  if (haystack.includes("crm") || haystack.includes("client") || haystack.includes("follow-up") || haystack.includes("contact")) return "/campaign-crm";
+  if (haystack.includes("county") || haystack.includes("field") || haystack.includes("gotv") || haystack.includes("operations")) return "/operations-map";
+  if (haystack.includes("coalition") || haystack.includes("strategy") || haystack.includes("path to victory")) return "/strategy";
+  if (haystack.includes("battleground") || haystack.includes("race pressure") || haystack.includes("forecast")) return "/national-command";
+  if (haystack.includes("political signal") || haystack.includes("narrative") || haystack.includes("news")) return "/political-signals";
+  if (haystack.includes("candidate") || haystack.includes("opponent")) return "/candidates";
+  if (haystack.includes("task") || haystack.includes("execution") || haystack.includes("command center")) return "/command-center";
+
+  return safeRoute(fallback);
+}
+
+function formatTime(value) {
+  if (!value) return "Awaiting refresh";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Awaiting refresh";
+  return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
+
+function workspaceTitle(workspace = {}) {
+  return clean(workspace.name) || clean(workspace.candidate_name) || `Workspace ${workspace.id || ""}`.trim();
 }
 
 function FieldBlock({ label, value, tone = "default" }) {
   return (
     <div className="edi-field-block">
       <span>{label}</span>
-      <strong>{value}</strong>
-      {tone !== "none" ? <Badge tone={tone}>{value}</Badge> : null}
+      <Badge tone={tone}>{value}</Badge>
     </div>
   );
 }
@@ -258,26 +247,6 @@ function DecisionRow({ decision, active, onClick }) {
   );
 }
 
-function SignalRow({ signal }) {
-  return (
-    <div className="edi-signal-row">
-      <div className="edi-row-header">
-        <div>
-          <div className="edi-kicker">Live Executive Decision Signal</div>
-          <h3>{signal.title || "Executive intelligence signal"}</h3>
-          <p>{signal.description || "Review signal details."}</p>
-        </div>
-        <span className={String(signal.severity || "").toLowerCase() === "high" ? "vs-live-dot" : "vs-live-dot-warning"} />
-      </div>
-      <div className="edi-field-grid single-column-fields">
-        <FieldBlock label="Intelligence Source" value={fullModuleName(signal.source_module || signal.signal_type)} tone="info" />
-        <FieldBlock label="Geographic Coverage" value={fullStateName(signal.state_code)} tone="accent" />
-        <FieldBlock label="Executive Alert Level" value={fullPriorityLabel(signal.severity)} tone={toneFromPriority(signal.severity)} />
-      </div>
-    </div>
-  );
-}
-
 function DecisionOption({ option }) {
   return (
     <div className="edi-option-card">
@@ -292,24 +261,45 @@ function DecisionOption({ option }) {
         <FieldBlock label="Projected Strategic Impact Percentage" value={pct(option.projected_impact)} tone="active" />
         <FieldBlock label="Projected Execution Risk Percentage" value={pct(option.projected_risk)} tone="danger" />
         <FieldBlock label="Option Confidence Percentage" value={pct(option.confidence)} tone="info" />
-        <FieldBlock label="Execution Timeline" value={option.timeline || "7 days"} tone="accent" />
-        <FieldBlock label="Resource Cost Level" value={labelize(option.cost_level || "medium")} tone="default" />
+        <FieldBlock label="Execution Timeline" value={option.timeline || "Not specified"} tone="accent" />
+        <FieldBlock label="Resource Cost Level" value={labelize(option.cost_level || "Context dependent")} tone="default" />
       </div>
     </div>
   );
 }
 
-function ExecutiveAction({ action }) {
+function EvidenceRow({ evidence }) {
+  const route = executiveRoute(evidence, evidence.route || "/executive-decision-intelligence");
+  return (
+    <div className="edi-evidence-card">
+      <div>
+        <div className="edi-kicker">{fullModuleName(evidence.source)}</div>
+        <strong>{evidence.title || "Decision evidence"}</strong>
+        <p>{evidence.detail || "Evidence detail is not available."}</p>
+      </div>
+      <div className="edi-evidence-actions">
+        {evidence.priority ? <Badge tone={toneFromPriority(evidence.priority)}>{fullPriorityLabel(evidence.priority)}</Badge> : null}
+        <Link className="vs-button vs-button-secondary" to={route}>Open Source</Link>
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveAction({ action, decision }) {
+  const route = executiveRoute({ ...decision, ...action }, action.route || decision?.route || "/command-center");
   return (
     <div className="edi-action-card">
       <div className="edi-action-left">
         <span className="edi-live-dot" />
         <div>
           <strong>{action.action_label || "Executive action"}</strong>
-          <p>{action.owner || "Executive Team"} · {action.due_window || "72 hours"}</p>
+          <p>{action.owner || "Executive Team"} · {action.due_window || "Next review cycle"}</p>
         </div>
       </div>
-      <Badge tone={toneFromPriority(action.status || "pending")}>{fullPriorityLabel(action.status || "pending")}</Badge>
+      <div className="edi-action-controls">
+        <Badge tone={toneFromPriority(action.status || "pending")}>{fullPriorityLabel(action.status || "pending")}</Badge>
+        <Link className="vs-button vs-button-primary" to={route}>Open Action</Link>
+      </div>
     </div>
   );
 }
@@ -324,62 +314,94 @@ function TimelineStep({ label, active }) {
 }
 
 function ModuleContribution({ source }) {
-  const key = String(source || "").trim().toLowerCase();
+  const key = clean(source).toLowerCase();
   return (
     <div className="edi-module-card">
       <strong>{fullModuleName(source)}</strong>
-      <p>{MODULE_CONTRIBUTIONS[key] || "This intelligence system contributes context to the executive decision path."}</p>
+      <p>{MODULE_CONTRIBUTIONS[key] || "This intelligence system supplied corroborating evidence or operating context to the executive synthesis."}</p>
+    </div>
+  );
+}
+
+function SourceHealthRow({ source }) {
+  const status = clean(source.status || (source.ok ? "available" : "unavailable")).toLowerCase();
+  return (
+    <div className="edi-source-row">
+      <div>
+        <strong>{fullModuleName(source.key)}</strong>
+        <p>
+          {labelize(source.freshness || "unknown freshness")}
+          {source.duration_ms != null ? ` · ${number(source.duration_ms)} ms` : ""}
+          {source.origin ? ` · ${labelize(source.origin)}` : ""}
+        </p>
+      </div>
+      <Badge tone={toneFromPriority(status)}>{labelize(status)}</Badge>
     </div>
   );
 }
 
 export default function ExecutiveDecisionIntelligence() {
-  const [data, setData] = useState(fallbackDecisionData);
-  const [activeDecisionId, setActiveDecisionId] = useState(fallbackDecisionData.decisions[0]?.id || null);
-  const [loading, setLoading] = useState(true);
-  const [seedLoading, setSeedLoading] = useState(false);
-  const [apiWarning, setApiWarning] = useState("");
+  const { workspaces, activeWorkspaceId, setActiveWorkspaceId, loadingWorkspaces } = useWorkspace();
 
-  async function loadData() {
+  const [data, setData] = useState(null);
+  const [activeDecisionId, setActiveDecisionId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+
+  const selectedWorkspace = useMemo(
+    () => arr(workspaces).find((item) => String(item.id) === String(activeWorkspaceId)) || null,
+    [workspaces, activeWorkspaceId]
+  );
+
+  const loadData = useCallback(async ({ quiet = false } = {}) => {
+    if (loadingWorkspaces) return;
     try {
-      setLoading(true);
-      setApiWarning("");
-      const result = normalizeDecisionPayload(await fetchDecisionIntelligence(1));
+      quiet ? setRefreshing(true) : setLoading(true);
+      setError("");
+      const result = await fetchDecisionIntelligence({ workspaceId: activeWorkspaceId || null });
       setData(result);
       setActiveDecisionId((current) => {
-        if (current && arr(result.decisions).some((item) => String(item.id) === String(current))) return current;
-        return result.decisions?.[0]?.id || null;
+        const decisions = arr(result.decisions);
+        if (current && decisions.some((item) => String(item.id) === String(current))) return current;
+        return decisions[0]?.id || null;
       });
-    } catch (error) {
-      setData(fallbackDecisionData);
-      setActiveDecisionId(fallbackDecisionData.decisions[0]?.id || null);
-      setApiWarning(error?.response?.data?.error || error?.message || "Decision Intelligence API returned an error. Showing local executive fallback data.");
+    } catch (loadError) {
+      setData(null);
+      setActiveDecisionId(null);
+      setError(loadError?.message || "Unable to load live Executive Decision Intelligence.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
-
-  async function handleSeed() {
-    try {
-      setSeedLoading(true);
-      setApiWarning("");
-      await seedDecisionIntelligence(1);
-      await loadData();
-    } catch (error) {
-      setApiWarning(error?.response?.data?.error || error?.message || "Unable to seed Executive Decision Intelligence. Backend migration may not be deployed yet.");
-    } finally {
-      setSeedLoading(false);
-    }
-  }
+  }, [activeWorkspaceId, loadingWorkspaces]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
-  const decisions = arr(data.decisions);
-  const signals = arr(data.signals);
-  const activeDecision = useMemo(() => decisions.find((item) => String(item.id) === String(activeDecisionId)) || decisions[0] || null, [decisions, activeDecisionId]);
-  const summary = data.summary || fallbackDecisionData.summary;
+  const decisions = arr(data?.decisions);
+  const signals = arr(data?.signals);
+  const summary = data?.summary || {};
+  const evidence = data?.evidence || {};
+  const sourceStatus = arr(evidence.source_status);
+
+  const activeDecision = useMemo(
+    () => decisions.find((item) => String(item.id) === String(activeDecisionId)) || decisions[0] || null,
+    [decisions, activeDecisionId]
+  );
+
+  const availableSources = number(summary.availableSources, sourceStatus.filter((item) => clean(item.status).toLowerCase() === "available").length);
+  const degradedSources = number(summary.degradedSources, sourceStatus.filter((item) => clean(item.status).toLowerCase() === "degraded").length);
+  const unavailableSources = number(summary.unavailableSources, sourceStatus.filter((item) => clean(item.status).toLowerCase() === "unavailable").length);
+
+  const scope = data?.scope || {};
+  const scopeName =
+    clean(scope.workspace_name) ||
+    (selectedWorkspace ? workspaceTitle(selectedWorkspace) : "") ||
+    (activeWorkspaceId ? `Workspace ${activeWorkspaceId}` : "Executive Scope");
+
+  const activeRoute = activeDecision ? executiveRoute(activeDecision, activeDecision.route || "/command-center") : "/command-center";
 
   const executiveNavSections = [
     { id: "edi-overview", label: "Overview" },
@@ -387,465 +409,132 @@ export default function ExecutiveDecisionIntelligence() {
     { id: "edi-ai-recommendation", label: "AI Recommendation" },
     { id: "edi-workflow", label: "Workflow" },
     { id: "edi-options", label: "Options", badge: arr(activeDecision?.options).length },
-    { id: "edi-modules", label: "Intelligence" },
+    { id: "edi-evidence", label: "Evidence", badge: arr(activeDecision?.evidence).length },
+    { id: "edi-modules", label: "Intelligence", badge: arr(activeDecision?.source_modules).length },
     { id: "edi-actions", label: "Actions", badge: arr(activeDecision?.actions).length },
     { id: "edi-signals", label: "Signals", badge: signals.length },
+    { id: "edi-health", label: "Source Health", badge: sourceStatus.length },
   ];
 
   return (
     <PageShell
       eyebrow="Executive Decision Intelligence"
       title="Executive Decision Intelligence"
-      description="A VoterSpheres enterprise command module for ranking strategic choices, comparing decision paths, scoring operational risk, and converting cross-module intelligence into executive action."
-      demo={Boolean(apiWarning) || String(data.source || "").includes("fallback")}
-      demoText="Fallback executive intelligence is active while the live Decision Intelligence API is unavailable."
+      description="Live evidence-backed executive decision synthesis for ranking strategic choices, comparing decision paths, scoring operational risk, and routing accountable action across VoterSpheres."
+      demo={false}
     >
       <style>{`
-        .edi-enterprise-shell {
-          display: grid;
-          gap: 26px;
-        }
-
-        .edi-toolbar {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 18px;
-          flex-wrap: wrap;
-        }
-
-        .edi-toolbar-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .edi-command-layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 24px;
-        }
-
-        .edi-primary-grid {
-          display: grid;
-          grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.55fr);
-          gap: 24px;
-          align-items: start;
-        }
-
-        .edi-secondary-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.35fr) minmax(420px, 0.9fr);
-          gap: 24px;
-          align-items: start;
-        }
-
-        .edi-decision-row,
-        .edi-signal-row,
-        .edi-option-card,
-        .edi-action-card,
-        .edi-score-card,
-        .edi-module-card,
-        .edi-timeline-panel {
-          border: 1px solid var(--vs-exec-border, var(--vs-border));
-          border-radius: 22px;
-          background: rgba(15, 23, 42, 0.54);
-          min-width: 0;
-          overflow: hidden;
-        }
-
-        .edi-decision-row {
-          width: 100%;
-          color: inherit;
-          padding: 18px;
-          text-align: left;
-          cursor: pointer;
-          transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-        }
-
-        .edi-decision-row:hover,
-        .edi-decision-row.is-active {
-          border-color: rgba(251, 146, 60, 0.50);
-          background: rgba(251, 146, 60, 0.085);
-          transform: translateY(-1px);
-          box-shadow: 0 0 0 1px rgba(251, 146, 60, 0.16);
-        }
-
-        .edi-row-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 16px;
-          min-width: 0;
-        }
-
-        .edi-kicker {
-          color: var(--vs-brand-orange, #fb923c);
-          font-size: 10px;
-          font-weight: 950;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          margin-bottom: 7px;
-        }
-
-        .edi-row-header h3 {
-          margin: 0;
-          color: var(--vs-text);
-          font-size: 16px;
-          line-height: 1.35;
-          letter-spacing: -0.03em;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-row-header p {
-          margin: 8px 0 0;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.65;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-field-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-          margin-top: 16px;
-        }
-
-        .single-column-fields {
-          grid-template-columns: 1fr;
-        }
-
-        .option-fields {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .edi-field-block {
-          border: 1px solid rgba(148, 163, 184, 0.13);
-          background: rgba(2, 6, 23, 0.28);
-          border-radius: 16px;
-          padding: 12px;
-          min-width: 0;
-          display: grid;
-          gap: 6px;
-        }
-
-        .edi-field-block span {
-          color: var(--vs-text-muted);
-          font-size: 10px;
-          line-height: 1.35;
-          font-weight: 950;
-          text-transform: uppercase;
-          letter-spacing: 0.10em;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-field-block strong {
-          color: var(--vs-text);
-          font-size: 13px;
-          line-height: 1.38;
-          font-weight: 850;
-          overflow-wrap: anywhere;
-          white-space: normal;
-        }
-
-        .edi-field-block .vs-badge {
-          width: fit-content;
-          max-width: 100%;
-          white-space: normal;
-          text-align: left;
-          justify-content: flex-start;
-          line-height: 1.3;
-        }
-
-        .edi-recommendation-panel {
-          border: 1px solid rgba(251, 146, 60, 0.30);
-          border-radius: 26px;
-          background:
-            radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 36%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.58));
-          padding: 22px;
-        }
-
-        .edi-recommendation-panel h3 {
-          margin: 8px 0 12px;
-          color: var(--vs-text);
-          font-size: clamp(20px, 2vw, 28px);
-          line-height: 1.2;
-          font-weight: 950;
-          letter-spacing: -0.055em;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-module-row {
-          display: flex;
-          gap: 9px;
-          flex-wrap: wrap;
-          margin-top: 16px;
-        }
-
-        .edi-module-row .vs-badge {
-          white-space: normal;
-          line-height: 1.3;
-        }
-
-        .edi-score-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 16px;
-        }
-
-        .edi-score-card {
-          padding: 16px;
-          display: grid;
-          gap: 10px;
-        }
-
-        .edi-score-card-head {
-          display: grid;
-          gap: 8px;
-        }
-
-        .edi-score-card-head span {
-          color: var(--vs-text-muted);
-          font-size: 10px;
-          font-weight: 950;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          line-height: 1.4;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-score-card-head strong {
-          color: var(--vs-text);
-          font-size: 34px;
-          font-weight: 950;
-          letter-spacing: -0.06em;
-          white-space: nowrap;
-        }
-
-        .edi-score-card p {
-          margin: 0;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.55;
-        }
-
-        .edi-score-bar {
-          height: 9px;
-          border-radius: 999px;
-          background: rgba(148, 163, 184, 0.16);
-          overflow: hidden;
-          border: 1px solid rgba(148, 163, 184, 0.10);
-        }
-
-        .edi-score-bar span {
-          display: block;
-          height: 100%;
-          border-radius: inherit;
-          background: linear-gradient(90deg, #fb923c, #22c55e);
-        }
-
-        .edi-score-bar.inverse span {
-          background: linear-gradient(90deg, #f59e0b, #ef4444);
-        }
-
-        .edi-signal-row,
-        .edi-option-card {
-          padding: 18px;
-        }
-
-        .edi-action-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
-          padding: 16px;
-        }
-
-        .edi-action-left {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          min-width: 0;
-        }
-
-        .edi-action-left strong {
-          display: block;
-          color: var(--vs-text);
-          font-size: 14px;
-          line-height: 1.35;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-action-left p {
-          margin: 5px 0 0;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.45;
-        }
-
-        .edi-live-dot {
-          width: 10px;
-          height: 10px;
-          margin-top: 5px;
-          border-radius: 999px;
-          background: var(--vs-brand-orange, #fb923c);
-          box-shadow: 0 0 16px rgba(251, 146, 60, 0.65);
-          flex: 0 0 auto;
-        }
-
-        .edi-timeline-panel {
-          padding: 18px;
-        }
-
-        .edi-timeline-grid {
-          display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 12px;
-        }
-
-        .edi-timeline-step {
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          border-radius: 16px;
-          padding: 12px;
-          min-width: 0;
-          background: rgba(2, 6, 23, 0.24);
-        }
-
-        .edi-timeline-step span {
-          display: block;
-          width: 10px;
-          height: 10px;
-          border-radius: 999px;
-          background: rgba(148, 163, 184, 0.8);
-          margin-bottom: 10px;
-        }
-
-        .edi-timeline-step.active span {
-          background: var(--vs-brand-orange, #fb923c);
-          box-shadow: 0 0 16px rgba(251, 146, 60, 0.72);
-        }
-
-        .edi-timeline-step strong {
-          color: var(--vs-text);
-          font-size: 12px;
-          line-height: 1.4;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-module-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px;
-        }
-
-        .edi-module-card {
-          padding: 15px;
-        }
-
-        .edi-module-card strong {
-          color: var(--vs-text);
-          display: block;
-          font-size: 14px;
-          line-height: 1.35;
-          overflow-wrap: anywhere;
-        }
-
-        .edi-module-card p {
-          margin: 8px 0 0;
-          color: var(--vs-text-muted);
-          font-size: 12px;
-          line-height: 1.55;
-        }
-
-        .edi-section-stack {
-          display: grid;
-          gap: 18px;
-        }
-
-        .edi-recommendation-shell {
-          display: grid;
-          gap: 16px;
-        }
-
-        .edi-section-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
-          gap: 18px;
-          align-items: start;
-        }
-
-        @media (max-width: 1500px) {
-          .edi-score-grid,
-          .edi-timeline-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 1280px) {
-          .edi-primary-grid,
-          .edi-secondary-grid,
-          .edi-section-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (max-width: 760px) {
-          .edi-field-grid,
-          .option-fields,
-          .edi-score-grid,
-          .edi-timeline-grid,
-          .edi-module-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .edi-action-card {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-        }
+        .edi-enterprise-shell { display: grid; gap: 24px; }
+        .edi-toolbar, .edi-toolbar-actions, .edi-action-controls, .edi-evidence-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .edi-toolbar { justify-content: space-between; align-items: flex-start; }
+        .edi-toolbar-actions { justify-content: flex-end; }
+        .edi-scope-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 16px; align-items: end; border: 1px solid var(--vs-exec-border, var(--vs-border)); border-radius: 20px; padding: 16px; background: rgba(15, 23, 42, 0.54); }
+        .edi-scope-copy span, .edi-field-block span, .edi-score-card-head span { color: var(--vs-text-muted); font-size: 10px; line-height: 1.35; font-weight: 950; text-transform: uppercase; letter-spacing: 0.10em; }
+        .edi-scope-copy strong { display: block; margin-top: 6px; color: var(--vs-text); font-size: 18px; }
+        .edi-scope-copy p { margin: 6px 0 0; color: var(--vs-text-muted); font-size: 12px; line-height: 1.55; }
+        .edi-workspace-select { width: 100%; border: 1px solid var(--vs-exec-border, var(--vs-border)); border-radius: 14px; background: rgba(2, 6, 23, 0.68); color: var(--vs-text); padding: 11px 12px; font: inherit; }
+        .edi-section-stack { display: grid; gap: 18px; }
+        .edi-section-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr); gap: 18px; align-items: start; }
+        .edi-decision-row, .edi-option-card, .edi-action-card, .edi-score-card, .edi-module-card, .edi-evidence-card, .edi-source-row, .edi-timeline-panel, .edi-recommendation-panel { border: 1px solid var(--vs-exec-border, var(--vs-border)); border-radius: 20px; background: rgba(15, 23, 42, 0.54); min-width: 0; }
+        .edi-decision-row { width: 100%; color: inherit; padding: 18px; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
+        .edi-decision-row:hover, .edi-decision-row.is-active { border-color: rgba(251, 146, 60, 0.50); background: rgba(251, 146, 60, 0.085); transform: translateY(-1px); }
+        .edi-row-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .edi-kicker { color: var(--vs-brand-orange, #fb923c); font-size: 10px; font-weight: 950; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 7px; }
+        .edi-row-header h3, .edi-recommendation-panel h3 { margin: 0; color: var(--vs-text); line-height: 1.3; overflow-wrap: anywhere; }
+        .edi-row-header h3 { font-size: 16px; }
+        .edi-row-header p, .edi-module-card p, .edi-evidence-card p, .edi-source-row p, .edi-score-card p { margin: 7px 0 0; color: var(--vs-text-muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+        .edi-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+        .option-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .edi-field-block { border: 1px solid rgba(148, 163, 184, 0.13); background: rgba(2, 6, 23, 0.28); border-radius: 16px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+        .edi-field-block .vs-badge { width: fit-content; max-width: 100%; white-space: normal; text-align: left; }
+        .edi-recommendation-panel { padding: 22px; border-color: rgba(251, 146, 60, 0.30); background: radial-gradient(circle at top right, rgba(251, 146, 60, 0.16), transparent 36%), linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.58)); }
+        .edi-recommendation-panel h3 { margin-top: 8px; font-size: clamp(20px, 2vw, 28px); font-weight: 950; letter-spacing: -0.045em; }
+        .edi-recommendation-panel p { color: var(--vs-text-muted); line-height: 1.65; }
+        .edi-module-row { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 16px; }
+        .edi-score-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+        .edi-score-card { padding: 16px; display: grid; gap: 10px; }
+        .edi-score-card-head { display: grid; gap: 8px; }
+        .edi-score-card-head strong { color: var(--vs-text); font-size: 34px; font-weight: 950; letter-spacing: -0.06em; white-space: nowrap; }
+        .edi-score-bar { height: 9px; border-radius: 999px; background: rgba(148, 163, 184, 0.16); overflow: hidden; }
+        .edi-score-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #fb923c, #22c55e); }
+        .edi-score-bar.inverse span { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+        .edi-option-card, .edi-module-card { padding: 17px; }
+        .edi-action-card, .edi-evidence-card, .edi-source-row { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+        .edi-action-left { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+        .edi-action-left strong, .edi-evidence-card strong, .edi-source-row strong, .edi-module-card strong { color: var(--vs-text); font-size: 14px; line-height: 1.4; }
+        .edi-live-dot { width: 10px; height: 10px; margin-top: 5px; border-radius: 999px; background: var(--vs-brand-orange, #fb923c); box-shadow: 0 0 16px rgba(251, 146, 60, 0.65); flex: 0 0 auto; }
+        .edi-timeline-panel { padding: 18px; }
+        .edi-timeline-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+        .edi-timeline-step { border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 16px; padding: 12px; background: rgba(2, 6, 23, 0.24); }
+        .edi-timeline-step span { display: block; width: 10px; height: 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.8); margin-bottom: 10px; }
+        .edi-timeline-step.active span { background: var(--vs-brand-orange, #fb923c); box-shadow: 0 0 16px rgba(251, 146, 60, 0.72); }
+        .edi-timeline-step strong { color: var(--vs-text); font-size: 12px; line-height: 1.4; }
+        .edi-module-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .edi-health-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .edi-health-card { border: 1px solid var(--vs-exec-border, var(--vs-border)); border-radius: 16px; background: rgba(2, 6, 23, 0.28); padding: 14px; }
+        .edi-health-card span { display: block; color: var(--vs-text-muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .09em; }
+        .edi-health-card strong { display: block; margin-top: 7px; color: var(--vs-text); font-size: 24px; }
+        @media (max-width: 1280px) { .edi-section-grid, .edi-scope-panel { grid-template-columns: 1fr; } .edi-score-grid, .edi-timeline-grid, .edi-health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 760px) { .edi-field-grid, .option-fields, .edi-score-grid, .edi-timeline-grid, .edi-module-grid, .edi-health-grid { grid-template-columns: 1fr; } .edi-action-card, .edi-evidence-card, .edi-source-row { align-items: flex-start; flex-direction: column; } }
       `}</style>
 
       <div className="edi-enterprise-shell">
         <div className="edi-toolbar">
           <div className="vs-chip-row">
-            <Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Executive Intelligence" : "Live Executive Intelligence Application Programming Interface"}</Badge>
-            <Badge tone="accent">Executive Decision Intelligence Layer</Badge>
-            <Badge tone="info">Cross-Module Intelligence Synthesis</Badge>
+            <Badge tone="active">Live Authoritative Synthesis</Badge>
+            <Badge tone="accent">{data?.build || "Decision Intelligence 2.0"}</Badge>
+            <Badge tone="info">{data?.mode ? labelize(data.mode) : "Live Decision Intelligence"}</Badge>
           </div>
-
           <div className="edi-toolbar-actions">
-            <button type="button" className="vs-button vs-button-secondary" onClick={loadData} disabled={loading}>
-              {loading ? "Refreshing Executive Intelligence..." : "Refresh Executive Intelligence"}
-            </button>
-            <button type="button" className="vs-button vs-button-primary" onClick={handleSeed} disabled={seedLoading}>
-              {seedLoading ? "Seeding Executive Intelligence..." : "Seed Executive Intelligence"}
+            <button type="button" className="vs-button vs-button-secondary" onClick={() => loadData({ quiet: true })} disabled={loading || refreshing || loadingWorkspaces}>
+              {refreshing ? "Refreshing..." : "Refresh Executive Intelligence"}
             </button>
             <Link className="vs-button vs-button-secondary" to="/command-center">Open Executive Command Center</Link>
-            <Link className="vs-button vs-button-secondary" to="/forecast">Open Executive Forecast Dashboard</Link>
-            <Link className="vs-button vs-button-secondary" to="/relationship-graph">Open National Political Graph</Link>
+            <Link className="vs-button vs-button-secondary" to="/executive-intelligence">Open Unified Intelligence</Link>
           </div>
         </div>
 
-        {apiWarning ? <div className="vs-banner vs-banner-danger">{apiWarning}</div> : null}
+        <div className="edi-scope-panel">
+          <div className="edi-scope-copy">
+            <span>Authoritative Decision Scope</span>
+            <strong>{scopeName}</strong>
+            <p>
+              {scope.effective_state || scope.workspace_state || selectedWorkspace?.state || "National"} ·{" "}
+              {scope.effective_office || scope.workspace_office || selectedWorkspace?.office || "Campaign"} ·{" "}
+              {scope.workspace_cycle || selectedWorkspace?.cycle || "Current cycle"} ·{" "}
+              {scope.workspace_scope_mode ? labelize(scope.workspace_scope_mode) : "Workspace scoped"}
+            </p>
+          </div>
+          <select
+            className="edi-workspace-select"
+            value={activeWorkspaceId || ""}
+            onChange={(event) => setActiveWorkspaceId(event.target.value || null)}
+            disabled={loadingWorkspaces}
+            aria-label="Executive Decision Intelligence workspace"
+          >
+            {arr(workspaces).length === 0 ? <option value="">No workspace available</option> : null}
+            {arr(workspaces).map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>{workspaceTitle(workspace)}</option>
+            ))}
+          </select>
+        </div>
+
+        {error ? <div className="vs-banner vs-banner-danger">{error} No fallback or demo decisions were substituted.</div> : null}
 
         <ExecutivePageNav sections={executiveNavSections} />
 
         <CollapsibleSection
           id="edi-overview"
           title="Executive Decision Overview"
-          subtitle="Always-visible executive readout for open decisions, priority alerts, confidence, and operational risk."
+          subtitle="Authoritative readout for material decisions, confidence, risk, scoped signals, and source coverage."
           defaultOpen
-          right={<Badge tone={apiWarning ? "warning" : "active"}>{apiWarning ? "Fallback Mode" : "Live Mode"}</Badge>}
+          right={<Badge tone={error ? "danger" : "active"}>{error ? "Live API Error" : "Live Mode"}</Badge>}
         >
           <div className="vs-grid-4" data-tour="decision-intelligence-kpis">
-            <StatCard label="Open Executive Decisions" value={summary.openDecisions || decisions.length || 0} subtext="Executive decisions requiring leadership review" />
-            <StatCard label="High Priority Executive Alerts" value={summary.highPriority || 0} subtext="Decisions requiring elevated executive attention" />
-            <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Full confidence percentage across active recommendations" />
-            <StatCard label="Average Operational Risk Percentage" value={pct(summary.avgRisk)} subtext={`Full risk percentage across ${summary.liveSignals || signals.length || 0} live decision signals`} />
+            <StatCard label="Open Executive Decisions" value={number(summary.openDecisions, decisions.length)} subtext="Material decisions requiring leadership review" />
+            <StatCard label="High Priority Executive Alerts" value={number(summary.highPriority)} subtext={`${number(summary.criticalDecisions)} critical decisions`} />
+            <StatCard label="Average Recommendation Confidence Percentage" value={pct(summary.avgConfidence)} subtext="Average confidence across active live decisions" />
+            <StatCard label="Average Operational Risk Percentage" value={pct(summary.avgRisk)} subtext={`${number(summary.materialSignals)} material signals from ${number(summary.scopedSignals)} scoped signals`} />
           </div>
         </CollapsibleSection>
 
@@ -853,12 +542,14 @@ export default function ExecutiveDecisionIntelligence() {
           <CollapsibleSection
             id="edi-decision-queue"
             title="Executive Decision Queue"
-            subtitle="Ranked executive decisions from strategy, forecast, coalition, influence, vendor, political graph, and operations intelligence."
+            subtitle="Ranked live decisions generated only when retrieved evidence crosses the materiality threshold."
             defaultOpen
             right={<Badge tone="info">{decisions.length} Active Executive Decisions</Badge>}
           >
             {loading ? (
-              <EmptyState text="Loading Executive Decision Intelligence..." />
+              <EmptyState text="Loading live Executive Decision Intelligence..." />
+            ) : error ? (
+              <EmptyState text="Live Decision Intelligence could not be loaded. No fallback decisions are being shown." />
             ) : decisions.length ? (
               <ShowMoreList
                 items={decisions}
@@ -873,54 +564,66 @@ export default function ExecutiveDecisionIntelligence() {
                 )}
               />
             ) : (
-              <EmptyState text="No executive decisions are currently available." />
+              <EmptyState text="No material executive decisions currently cross the live synthesis threshold. This authoritative zero is preserved." />
             )}
           </CollapsibleSection>
 
           <CollapsibleSection
             id="edi-ai-recommendation"
             title="AI Executive Recommendation"
-            subtitle="Primary recommended action with rationale, full percentage scoring, and source-module traceability."
+            subtitle="Primary evidence-backed decision path with scoring, rationale, route, and source traceability."
             defaultOpen
-            right={<Badge tone={toneFromPriority(activeDecision?.status || activeDecision?.priority)}>{fullPriorityLabel(activeDecision?.status || activeDecision?.priority || "open")}</Badge>}
+            right={
+              activeDecision ? (
+                <Badge tone={toneFromPriority(activeDecision.priority)}>{fullPriorityLabel(activeDecision.priority)}</Badge>
+              ) : (
+                <Badge tone="active">No Material Decision</Badge>
+              )
+            }
           >
             {activeDecision ? (
-              <div className="edi-recommendation-shell">
+              <>
                 <div className="edi-recommendation-panel">
                   <div className="vs-page-eyebrow">Recommended Executive Decision Path</div>
                   <h3>{activeDecision.recommendation || activeDecision.title}</h3>
-                  <p className="vs-page-subtitle" style={{ margin: 0 }}>{activeDecision.rationale || "No executive rationale available."}</p>
+                  <p>{activeDecision.rationale || "No additional executive rationale is available."}</p>
                   <div className="edi-module-row">
-                    {arr(activeDecision.source_modules).map((source) => <Badge key={source} tone="accent">{fullModuleName(source)}</Badge>)}
+                    {arr(activeDecision.source_modules).map((source) => (
+                      <Badge key={source} tone="accent">{fullModuleName(source)}</Badge>
+                    ))}
+                  </div>
+                  <div className="edi-toolbar-actions" style={{ marginTop: 18 }}>
+                    <Link className="vs-button vs-button-primary" to={activeRoute}>Open Recommended Workflow</Link>
+                    <Link className="vs-button vs-button-secondary" to="/command-center">Open Command Center</Link>
                   </div>
                 </div>
 
                 <div className="edi-score-grid">
-                  <ExecutivePercentCard title="Recommendation Confidence Percentage" value={activeDecision.confidence_score} subtitle="Reliability level for this executive recommendation." />
-                  <ExecutivePercentCard title="Strategic Impact Percentage" value={activeDecision.impact_score} subtitle="Projected strategic value if this decision path is executed." />
-                  <ExecutivePercentCard title="Executive Urgency Percentage" value={activeDecision.urgency_score} subtitle="How quickly leadership should act on this decision path." />
+                  <ExecutivePercentCard title="Recommendation Confidence Percentage" value={activeDecision.confidence_score} subtitle="Reliability level for this live executive recommendation." />
+                  <ExecutivePercentCard title="Strategic Impact Percentage" value={activeDecision.impact_score} subtitle="Projected strategic value if this path is executed." />
+                  <ExecutivePercentCard title="Executive Urgency Percentage" value={activeDecision.urgency_score} subtitle="How quickly leadership should act on this decision." />
                   <ExecutivePercentCard title="Operational Risk Percentage" value={activeDecision.risk_score} subtitle="Downside exposure or operational execution risk." inverse />
                 </div>
-              </div>
+              </>
             ) : (
-              <EmptyState text="No executive decision is currently selected." />
+              <EmptyState text="No material executive recommendation is active for the selected workspace." />
             )}
           </CollapsibleSection>
 
           <CollapsibleSection
             id="edi-workflow"
             title="Executive Decision Workflow Timeline"
-            subtitle="Where the selected decision sits inside the VoterSpheres executive operating model."
+            subtitle="Where the selected live decision sits inside the VoterSpheres executive operating model."
             defaultOpen={false}
-            right={<Badge tone="accent">Workflow</Badge>}
+            right={<Badge tone="accent">Live Workflow</Badge>}
           >
             <div className="edi-timeline-panel">
               <div className="edi-timeline-grid">
-                <TimelineStep label="Intelligence Signals Received" active />
-                <TimelineStep label="Artificial Intelligence Analysis Complete" active />
+                <TimelineStep label="Authoritative Evidence Retrieved" active={Boolean(data)} />
+                <TimelineStep label="Materiality Analysis Complete" active={Boolean(data)} />
                 <TimelineStep label="Executive Review Active" active={Boolean(activeDecision)} />
-                <TimelineStep label="Command Center Action Routing" active={arr(activeDecision?.actions).length > 0} />
-                <TimelineStep label="Operational Execution Monitoring" active={String(activeDecision?.status || "").toLowerCase() === "active"} />
+                <TimelineStep label="Action Routing Available" active={arr(activeDecision?.actions).length > 0 || Boolean(activeDecision?.route)} />
+                <TimelineStep label="Operational Execution Monitoring" active={["active", "completed", "complete"].includes(clean(activeDecision?.status).toLowerCase())} />
               </div>
             </div>
           </CollapsibleSection>
@@ -930,7 +633,7 @@ export default function ExecutiveDecisionIntelligence() {
               <CollapsibleSection
                 id="edi-options"
                 title="Executive Decision Options"
-                subtitle="Alternative decision paths with full projected impact, risk, confidence, timeline, and cost labels."
+                subtitle="Alternative live decision paths with impact, risk, confidence, timeline, and cost."
                 defaultOpen={false}
                 right={<Badge tone="accent">{arr(activeDecision?.options).length} Executive Options</Badge>}
               >
@@ -942,14 +645,33 @@ export default function ExecutiveDecisionIntelligence() {
                     renderItem={(option) => <DecisionOption option={option} />}
                   />
                 ) : (
-                  <EmptyState text="No executive decision options have been generated for this decision yet." />
+                  <EmptyState text="No alternative decision options are available for the selected decision." />
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="edi-evidence"
+                title="Decision Evidence Trace"
+                subtitle="Retrieved evidence supporting the selected decision, with direct routing back to the operating source."
+                defaultOpen={false}
+                right={<Badge tone="info">{arr(activeDecision?.evidence).length} Evidence Items</Badge>}
+              >
+                {arr(activeDecision?.evidence).length ? (
+                  <ShowMoreList
+                    items={arr(activeDecision.evidence)}
+                    initialCount={8}
+                    showAllLabel={(count) => `Show All ${count} Evidence Items`}
+                    renderItem={(item) => <EvidenceRow evidence={item} />}
+                  />
+                ) : (
+                  <EmptyState text="No evidence trace is attached to the selected decision." />
                 )}
               </CollapsibleSection>
 
               <CollapsibleSection
                 id="edi-modules"
                 title="Cross-Module Intelligence Contribution"
-                subtitle="How each VoterSpheres intelligence system contributed to the selected executive decision."
+                subtitle="Authoritative VoterSpheres systems that contributed to the selected decision."
                 defaultOpen={false}
                 right={<Badge tone="info">{arr(activeDecision?.source_modules).length} Modules</Badge>}
               >
@@ -962,14 +684,14 @@ export default function ExecutiveDecisionIntelligence() {
                     renderItem={(source) => <ModuleContribution source={source} />}
                   />
                 ) : (
-                  <EmptyState text="No cross-module intelligence contribution is available for this decision." />
+                  <EmptyState text="No source-module contribution is attached to the selected decision." />
                 )}
               </CollapsibleSection>
 
               <CollapsibleSection
                 id="edi-actions"
                 title="Executive Action Path"
-                subtitle="Operational follow-through connected to the selected executive decision."
+                subtitle="Accountable operational follow-through connected to the selected decision."
                 defaultOpen={false}
                 right={<Badge tone="info">{arr(activeDecision?.actions).length} Executive Actions</Badge>}
               >
@@ -978,34 +700,78 @@ export default function ExecutiveDecisionIntelligence() {
                     items={arr(activeDecision.actions)}
                     initialCount={5}
                     showAllLabel={(count) => `Show All ${count} Executive Actions`}
-                    renderItem={(action) => <ExecutiveAction action={action} />}
+                    renderItem={(action) => <ExecutiveAction action={action} decision={activeDecision} />}
                   />
                 ) : (
-                  <EmptyState text="No executive action path has been generated for this decision yet." />
+                  <EmptyState text="No action path has been generated for the selected decision." />
                 )}
               </CollapsibleSection>
             </div>
 
-            <CollapsibleSection
-              id="edi-signals"
-              title="Live Executive Decision Signals"
-              subtitle="Fully labeled intelligence signals driving executive recommendations across the VoterSpheres platform."
-              defaultOpen={false}
-              right={<Badge tone="accent">{signals.length} Live Executive Signals</Badge>}
-            >
-              {signals.length ? (
-                <ShowMoreList
-                  items={signals}
-                  initialCount={8}
-                  showAllLabel={(count) => `Show All ${count} Executive Signals`}
-                  renderItem={(signal) => <SignalRow signal={signal} />}
-                />
-              ) : (
-                <EmptyState text="No live executive decision signals are currently available." />
-              )}
-            </CollapsibleSection>
+            <div className="edi-section-stack">
+              <CollapsibleSection
+                id="edi-signals"
+                title="Material Executive Decision Signals"
+                subtitle="Only signals that crossed the backend materiality threshold. Authoritative zero values are preserved."
+                defaultOpen={false}
+                right={<Badge tone="accent">{signals.length} Material Signals</Badge>}
+              >
+                {signals.length ? (
+                  <ShowMoreList
+                    items={signals}
+                    initialCount={8}
+                    showAllLabel={(count) => `Show All ${count} Material Signals`}
+                    renderItem={(signal) => (
+                      <EvidenceRow
+                        evidence={{
+                          ...signal,
+                          source: signal.source_module || signal.signal_type,
+                          detail: signal.description || signal.summary,
+                        }}
+                      />
+                    )}
+                  />
+                ) : (
+                  <EmptyState text={`No material decision signals are active. ${number(summary.scopedSignals)} scoped signals were evaluated without manufacturing fallback signals.`} />
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="edi-health"
+                title="Decision Intelligence Source Health"
+                subtitle="Live source coverage used by Decision Intelligence 2.0."
+                defaultOpen
+                right={<Badge tone={unavailableSources > 0 ? "accent" : "active"}>{availableSources}/{number(summary.sourceCount, sourceStatus.length)} Available</Badge>}
+              >
+                <div className="edi-health-grid">
+                  <div className="edi-health-card"><span>Available Sources</span><strong>{availableSources}</strong></div>
+                  <div className="edi-health-card"><span>Degraded Sources</span><strong>{degradedSources}</strong></div>
+                  <div className="edi-health-card"><span>Unavailable Sources</span><strong>{unavailableSources}</strong></div>
+                  <div className="edi-health-card"><span>Materiality Threshold</span><strong>{number(evidence.materiality_threshold)}%</strong></div>
+                </div>
+
+                {sourceStatus.length ? (
+                  <ShowMoreList
+                    items={sourceStatus}
+                    initialCount={14}
+                    showAllLabel={(count) => `Show All ${count} Intelligence Sources`}
+                    renderItem={(source) => <SourceHealthRow source={source} />}
+                  />
+                ) : (
+                  <EmptyState text="Source-health detail is not currently available." />
+                )}
+              </CollapsibleSection>
+            </div>
           </div>
-        </div>      </div>
+        </div>
+
+        <div className="vs-chip-row">
+          <Badge tone="active">{evidence.authoritative_zero_preserved ? "Authoritative Zero Preserved" : "Authoritative Live Data"}</Badge>
+          <Badge tone="info">Auto Seed {evidence.auto_seed_enabled ? "Enabled" : "Disabled"}</Badge>
+          <Badge tone="info">Fallback Decisions {evidence.fallback_decisions_enabled ? "Enabled" : "Disabled"}</Badge>
+          <Badge tone="accent">Updated {formatTime(data?.generated_at)}</Badge>
+        </div>
+      </div>
 
       <BackToTopButton />
     </PageShell>
