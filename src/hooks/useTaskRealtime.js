@@ -1,49 +1,143 @@
 import { useEffect } from "react";
-import { io } from "socket.io-client";
 
-function getSocketBase() {
-  const apiBase =
-    import.meta.env?.VITE_API_BASE_URL ||
-    "http://127.0.0.1:10000/api";
+import {
 
-  return apiBase.replace(/\/api\/?$/, "");
+  onRealtimeEvent,
+
+  subscribeRealtimeScope,
+
+} from "../services/realtimeClient";
+
+ 
+
+function normalizeType(value = "") {
+
+  return String(value || "").trim().toLowerCase();
+
 }
+
+ 
+
+function taskFromEvent(event = {}) {
+
+  return event?.payload?.task || event?.task || event?.payload || event;
+
+}
+
+ 
 
 export default function useTaskRealtime({
+
   onTaskCreated,
+
   onTaskUpdated,
+
   onCommentCreated,
-  onActivityCreated
+
+  onActivityCreated,
+
 } = {}) {
+
   useEffect(() => {
-    const socket = io(getSocketBase(), {
-      transports: ["websocket", "polling"],
-      withCredentials: true
+
+    const unsubscribeScope = subscribeRealtimeScope({
+
+      channel: "tasks",
+
     });
 
-    socket.on("connect", () => {
-      socket.emit("tasks:join");
+ 
+
+    const unsubscribeEvents = onRealtimeEvent((event = {}) => {
+
+      const type = normalizeType(event?.type);
+
+      const task = taskFromEvent(event);
+
+ 
+
+      if (type === "task.created" || type === "task:created") {
+
+        onTaskCreated?.(task);
+
+        return;
+
+      }
+
+ 
+
+      if (
+
+        type === "task.updated" ||
+
+        type === "task:updated" ||
+
+        type === "task.completed" ||
+
+        type === "task:completed"
+
+      ) {
+
+        onTaskUpdated?.(task);
+
+        return;
+
+      }
+
+ 
+
+      if (
+
+        type === "task.comment_created" ||
+
+        type === "task:comment_created"
+
+      ) {
+
+        onCommentCreated?.(event?.payload || event);
+
+        return;
+
+      }
+
+ 
+
+      if (
+
+        type === "task.activity_created" ||
+
+        type === "task:activity_created"
+
+      ) {
+
+        onActivityCreated?.(event?.payload || event);
+
+      }
+
     });
 
-    socket.on("task:created", (payload) => {
-      onTaskCreated?.(payload);
-    });
-
-    socket.on("task:updated", (payload) => {
-      onTaskUpdated?.(payload);
-    });
-
-    socket.on("task:comment_created", (payload) => {
-      onCommentCreated?.(payload);
-    });
-
-    socket.on("task:activity_created", (payload) => {
-      onActivityCreated?.(payload);
-    });
+ 
 
     return () => {
-      socket.emit("tasks:leave");
-      socket.disconnect();
+
+      unsubscribeEvents();
+
+      unsubscribeScope();
+
     };
-  }, [onTaskCreated, onTaskUpdated, onCommentCreated, onActivityCreated]);
+
+  }, [
+
+    onTaskCreated,
+
+    onTaskUpdated,
+
+    onCommentCreated,
+
+    onActivityCreated,
+
+  ]);
+
 }
+
+
