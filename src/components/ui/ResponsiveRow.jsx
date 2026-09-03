@@ -7,6 +7,7 @@ export default function ResponsiveRow({
   active = false,
   live = false,
   className = "",
+  expanded = false,
 }) {
   const normalizedMeta = [...meta];
 
@@ -20,12 +21,15 @@ export default function ResponsiveRow({
         "vs-card-muted",
         active ? "vs-row-active-pulse" : "",
         live ? "vs-row-live-flash" : "",
+        expanded ? "vs-responsive-row-expanded" : "",
         className,
-      ].filter(Boolean).join(" ")}
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={{
         width: "100%",
         maxWidth: "100%",
-        overflow: "hidden",
+        overflow: expanded ? "visible" : "hidden",
         minWidth: 0,
       }}
     >
@@ -34,14 +38,16 @@ export default function ResponsiveRow({
         style={{
           display: "grid",
           gridTemplateColumns: right
-            ? "minmax(0, 1fr) 132px"
+            ? expanded
+              ? "minmax(0, 1fr) minmax(132px, auto)"
+              : "minmax(0, 1fr) 132px"
             : "minmax(0, 1fr)",
           gap: "16px",
-          alignItems: "center",
+          alignItems: expanded ? "start" : "center",
           width: "100%",
           maxWidth: "100%",
           minWidth: 0,
-          overflow: "hidden",
+          overflow: expanded ? "visible" : "hidden",
         }}
       >
         <div
@@ -49,7 +55,7 @@ export default function ResponsiveRow({
           style={{
             minWidth: 0,
             maxWidth: "100%",
-            overflow: "hidden",
+            overflow: expanded ? "visible" : "hidden",
           }}
         >
           <div
@@ -69,8 +75,13 @@ export default function ResponsiveRow({
               style={{
                 minWidth: 0,
                 maxWidth: "100%",
+                width: "100%",
+                whiteSpace: "normal",
+                overflow: "visible",
+                textOverflow: "clip",
                 overflowWrap: "anywhere",
                 wordBreak: "break-word",
+                lineHeight: 1.45,
               }}
             >
               {title}
@@ -83,8 +94,13 @@ export default function ResponsiveRow({
               style={{
                 minWidth: 0,
                 maxWidth: "100%",
+                width: "100%",
+                whiteSpace: "normal",
+                overflow: "visible",
+                textOverflow: "clip",
                 overflowWrap: "anywhere",
                 wordBreak: "break-word",
+                lineHeight: 1.55,
               }}
             >
               {subtitle}
@@ -95,12 +111,14 @@ export default function ResponsiveRow({
             className="vs-responsive-meta"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              gap: "12px",
+              gridTemplateColumns: expanded
+                ? "repeat(2, minmax(0, 1fr))"
+                : "repeat(4, minmax(0, 1fr))",
+              gap: expanded ? "12px 18px" : "12px",
               width: "100%",
               maxWidth: "100%",
               minWidth: 0,
-              overflow: "hidden",
+              overflow: expanded ? "visible" : "hidden",
               marginTop: "12px",
             }}
           >
@@ -111,10 +129,12 @@ export default function ResponsiveRow({
                 style={{
                   minWidth: 0,
                   maxWidth: "100%",
-                  overflow: "hidden",
-                  paddingRight: index < 3 ? "10px" : 0,
+                  overflow: expanded ? "visible" : "hidden",
+                  paddingRight: expanded ? 0 : index < 3 ? "10px" : 0,
                   borderRight:
-                    index < 3 ? "1px solid rgba(148, 163, 184, 0.12)" : 0,
+                    expanded || index >= 3
+                      ? 0
+                      : "1px solid rgba(148, 163, 184, 0.12)",
                   opacity: item.label ? 1 : 0,
                 }}
               >
@@ -124,9 +144,11 @@ export default function ResponsiveRow({
                     display: "block",
                     width: "100%",
                     minWidth: 0,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    whiteSpace: expanded ? "normal" : "nowrap",
+                    overflow: expanded ? "visible" : "hidden",
+                    textOverflow: expanded ? "clip" : "ellipsis",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                   }}
@@ -137,7 +159,8 @@ export default function ResponsiveRow({
                 <div
                   className="vs-meta-value"
                   title={
-                    typeof item.value === "string" || typeof item.value === "number"
+                    typeof item.value === "string" ||
+                    typeof item.value === "number"
                       ? String(item.value)
                       : undefined
                   }
@@ -145,9 +168,12 @@ export default function ResponsiveRow({
                     display: "block",
                     width: "100%",
                     minWidth: 0,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    whiteSpace: expanded ? "normal" : "nowrap",
+                    overflow: expanded ? "visible" : "hidden",
+                    textOverflow: expanded ? "clip" : "ellipsis",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
+                    lineHeight: 1.45,
                   }}
                 >
                   {item.value ?? "—"}
@@ -161,14 +187,15 @@ export default function ResponsiveRow({
           <div
             className="vs-responsive-right"
             style={{
-              width: "132px",
-              minWidth: "132px",
-              maxWidth: "132px",
-              overflow: "hidden",
+              width: expanded ? "auto" : "132px",
+              minWidth: expanded ? "132px" : "132px",
+              maxWidth: expanded ? "none" : "132px",
+              overflow: "visible",
               justifySelf: "end",
               display: "flex",
               justifyContent: "flex-end",
               alignItems: "center",
+              flexWrap: "wrap",
             }}
           >
             {right}
