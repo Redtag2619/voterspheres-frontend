@@ -1,35 +1,135 @@
-import { io } from "socket.io-client";
+import {
 
-const SOCKET_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://voterspheres-backend.onrender.com";
+  getRealtimeSocket,
 
-let socket;
+  onRealtimeEvent,
+
+  subscribeRealtimeScope,
+
+} from "../services/realtimeClient";
+
+ 
+
+const channelSubscriptions = new Map();
+
+ 
+
+function cleanChannel(channel) {
+
+  return String(channel ?? "").trim();
+
+}
+
+ 
 
 export function getLiveClient() {
-  if (!socket) {
-    socket = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
-      withCredentials: true
-    });
-  }
 
-  return socket;
+  return getRealtimeSocket();
+
 }
+
+ 
 
 export function joinChannel(channel) {
-  const client = getLiveClient();
-  client.emit("join", channel);
+
+  const normalized = cleanChannel(channel);
+
+  if (!normalized) return () => {};
+
+ 
+
+  const existing = channelSubscriptions.get(normalized);
+
+ 
+
+  if (existing) {
+
+    existing.count += 1;
+
+    return existing.release;
+
+  }
+
+ 
+
+  const unsubscribe = subscribeRealtimeScope({
+
+    channel: normalized,
+
+  });
+
+ 
+
+  const release = () => {
+
+    leaveChannel(normalized);
+
+  };
+
+ 
+
+  channelSubscriptions.set(normalized, {
+
+    count: 1,
+
+    unsubscribe,
+
+    release,
+
+  });
+
+ 
+
+  return release;
+
 }
+
+ 
 
 export function leaveChannel(channel) {
-  const client = getLiveClient();
-  client.emit("leave", channel);
+
+  const normalized = cleanChannel(channel);
+
+  if (!normalized) return;
+
+ 
+
+  const existing = channelSubscriptions.get(normalized);
+
+  if (!existing) return;
+
+ 
+
+  existing.count -= 1;
+
+ 
+
+  if (existing.count > 0) return;
+
+ 
+
+  channelSubscriptions.delete(normalized);
+
+  existing.unsubscribe();
+
 }
 
+ 
+
 export function onLiveEvent(handler) {
-  const client = getLiveClient();
-  client.on("intelligence:event", handler);
-  return () => client.off("intelligence:event", handler);
+
+  if (typeof handler !== "function") {
+
+    return () => {};
+
+  }
+
+ 
+
+  return onRealtimeEvent((event) => {
+
+    handler(event);
+
+  });
+
 }
