@@ -1,143 +1,95 @@
 import { useEffect } from "react";
-
 import {
-
+  getRealtimeSocket,
   onRealtimeEvent,
-
-  subscribeRealtimeScope,
-
 } from "../services/realtimeClient";
 
- 
-
-function normalizeType(value = "") {
-
-  return String(value || "").trim().toLowerCase();
-
-}
-
- 
-
-function taskFromEvent(event = {}) {
-
-  return event?.payload?.task || event?.task || event?.payload || event;
-
-}
-
- 
-
 export default function useTaskRealtime({
-
   onTaskCreated,
-
   onTaskUpdated,
-
   onCommentCreated,
-
   onActivityCreated,
-
 } = {}) {
-
   useEffect(() => {
+    const socket = getRealtimeSocket();
 
-    const unsubscribeScope = subscribeRealtimeScope({
+    const offRealtime = onRealtimeEvent((event = {}) => {
+      const type = String(event?.type || "").toLowerCase();
+      const payload = event?.payload || {};
+      const task = payload?.task || payload;
 
-      channel: "tasks",
-
-    });
-
- 
-
-    const unsubscribeEvents = onRealtimeEvent((event = {}) => {
-
-      const type = normalizeType(event?.type);
-
-      const task = taskFromEvent(event);
-
- 
-
-      if (type === "task.created" || type === "task:created") {
-
+      if (
+        type === "task.created" ||
+        type === "task:created"
+      ) {
         onTaskCreated?.(task);
-
         return;
-
       }
 
- 
-
       if (
-
         type === "task.updated" ||
-
         type === "task:updated" ||
-
-        type === "task.completed" ||
-
-        type === "task:completed"
-
+        type === "task.completed"
       ) {
-
         onTaskUpdated?.(task);
-
         return;
-
       }
 
- 
-
       if (
-
         type === "task.comment_created" ||
-
         type === "task:comment_created"
-
       ) {
-
-        onCommentCreated?.(event?.payload || event);
-
+        onCommentCreated?.(payload);
         return;
-
       }
-
- 
 
       if (
-
         type === "task.activity_created" ||
-
         type === "task:activity_created"
-
       ) {
-
-        onActivityCreated?.(event?.payload || event);
-
+        onActivityCreated?.(payload);
       }
-
     });
 
- 
-
-    return () => {
-
-      unsubscribeEvents();
-
-      unsubscribeScope();
-
+    const handleLegacyTaskCreated = (payload) => {
+      onTaskCreated?.(payload);
     };
 
+    const handleLegacyTaskUpdated = (payload) => {
+      onTaskUpdated?.(payload);
+    };
+
+    const handleLegacyCommentCreated = (payload) => {
+      onCommentCreated?.(payload);
+    };
+
+    const handleLegacyActivityCreated = (payload) => {
+      onActivityCreated?.(payload);
+    };
+
+    socket.on("task:created", handleLegacyTaskCreated);
+    socket.on("task:updated", handleLegacyTaskUpdated);
+    socket.on("task:comment_created", handleLegacyCommentCreated);
+    socket.on("task:activity_created", handleLegacyActivityCreated);
+
+    return () => {
+      offRealtime?.();
+
+      socket.off("task:created", handleLegacyTaskCreated);
+      socket.off("task:updated", handleLegacyTaskUpdated);
+      socket.off(
+        "task:comment_created",
+        handleLegacyCommentCreated
+      );
+      socket.off(
+        "task:activity_created",
+        handleLegacyActivityCreated
+      );
+    };
   }, [
-
     onTaskCreated,
-
     onTaskUpdated,
-
     onCommentCreated,
-
     onActivityCreated,
-
   ]);
-
 }
-
-
