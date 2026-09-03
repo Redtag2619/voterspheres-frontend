@@ -66,4 +66,3 @@ export function onLiveEvent(handler) {
     handler(event);
   });
 }
-
