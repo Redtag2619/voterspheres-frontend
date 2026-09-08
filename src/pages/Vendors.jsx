@@ -668,7 +668,7 @@ function StateCoverageRow({ item, selectedGroup, onCreateTask }) {
         subtitle={`${item.status.label} | ${item.live_vendor_count} live vendors | ${item.vendor_count} total records`}
         meta={[
           { label: "Coverage", value: `${item.coverage_score}/100` },
-          { label: "Live Spend", value: fmtMoneyShort(item.total_spend) },
+          { label: "Live Spend", value: fmtMoney(item.total_spend) },
           { label: "Live Transactions", value: item.transaction_count },
           { label: "Groups", value: item.categories.join(", ") || "None" },
         ]}
@@ -740,7 +740,7 @@ function PerformanceRow({ item }) {
           { label: "On-Time", value: `${onTime}%` },
           { label: "Reliability", value: `${reliability}%` },
           { label: "Risk", value: `${risk}%` },
-          { label: "Spend", value: fmtMoneyShort(item.contract_value || 0) },
+          { label: "Spend", value: fmtMoney(item.contract_value || 0) },
         ]}
         right={<Badge tone={performanceTone(score)}>{performanceLabel(score)}</Badge>}
       />
@@ -807,7 +807,7 @@ function SpendCategoryRow({ item }) {
           { label: "Total Spend", value: fmtMoney(item.total_amount || 0) },
           { label: "Source", value: "FEC Schedule B" },
         ]}
-        right={<Badge tone="info">{fmtMoneyShort(item.total_amount || 0)}</Badge>}
+        right={<Badge tone="info">{fmtMoney(item.total_amount || 0)}</Badge>}
       />
     </div>
   );
@@ -823,7 +823,7 @@ function VendorMiniRow({ vendor }) {
       title={name}
       subtitle={`${group} | ${sourceLabel(vendor.source)}`}
       meta={[
-        { label: "Spend", value: isModeled ? "Modeled" : fmtMoneyShort(vendor.contract_value || vendor.fec_contract_value || vendor.amount || 0) },
+        { label: "Spend", value: isModeled ? "Modeled" : fmtMoney(vendor.contract_value || vendor.fec_contract_value || vendor.amount || 0) },
         { label: "Transactions", value: isModeled ? "Baseline" : vendor.transaction_count || vendor.fec_transaction_count || 1 },
         { label: "Committees", value: vendor.committee_count || "—" },
       ]}
@@ -857,7 +857,7 @@ function MapTooltip({ tooltip }) {
         <span>Total records</span>
         <strong>{state.vendor_count}</strong>
         <span>Live spend</span>
-        <strong>{fmtMoneyShort(state.total_spend)}</strong>
+        <strong>{fmtMoney(state.total_spend)}</strong>
         <span>Groups</span>
         <strong>{state.categories.length}</strong>
       </div>
@@ -938,7 +938,7 @@ function VendorExecutiveHeader({
         </div>
         <div>
           <span>FEC Spend</span>
-          <strong>{fmtMoneyShort(totalFecSpend)}</strong>
+          <strong>{fmtMoney(totalFecSpend)}</strong>
         </div>
         <div>
           <span>Strong Performance</span>
@@ -1622,7 +1622,7 @@ export default function Vendors() {
         },
         {
           label: "FEC Spend",
-          value: fmtMoneyShort(totalFecSpend),
+          value: fmtMoney(totalFecSpend),
           dotClass: fecRows.length ? "vs-live-dot-success" : "vs-live-dot-warning",
         },
         {
@@ -1888,9 +1888,38 @@ export default function Vendors() {
 
         .vs-vendor-map-side {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 14px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 18px;
           align-items: stretch;
+          min-width: 0;
+        }
+
+        .vs-vendor-map-side .vs-section-card,
+        .vs-vendor-map-side .vs-card {
+          width: 100%;
+          min-width: 0;
+        }
+
+        .vs-vendor-map-side .vs-row-title,
+        .vs-vendor-map-side .vs-row-subtitle,
+        .vs-vendor-map-side .vs-meta-label,
+        .vs-vendor-map-side .vs-meta-value {
+          white-space: normal !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+          overflow-wrap: anywhere;
+        }
+
+        .vs-vendor-map-side .vs-responsive-meta {
+          grid-template-columns: repeat(4, minmax(150px, 1fr)) !important;
+          overflow-x: auto !important;
+          padding-bottom: 4px;
+        }
+
+        .vs-vendor-map-side .vs-button {
+          min-height: 44px;
+          white-space: normal;
+          line-height: 1.35;
         }
 
         .vs-vendor-map-frame {
@@ -2062,6 +2091,15 @@ export default function Vendors() {
         }
 
         @media (max-width: 760px) {
+          .vs-vendor-map-side .vs-responsive-meta {
+            grid-template-columns: 1fr 1fr !important;
+          }
+
+          .vs-vendor-map-side .vs-grid-2,
+          .vs-vendor-map-side .vs-grid-3 {
+            grid-template-columns: 1fr !important;
+          }
+
           .vs-vendor-map-frame {
             height: 390px;
             min-height: 390px;
@@ -2158,7 +2196,7 @@ export default function Vendors() {
           />
           <StatCard
             label="FEC Spend"
-            value={fmtMoneyShort(totalFecSpend)}
+            value={fmtMoney(totalFecSpend)}
             delta="Imported live spending"
             tone="up"
           />
@@ -2368,12 +2406,12 @@ export default function Vendors() {
             <SectionCard
               title={
                 selectedStateCoverage
-                  ? `${selectedStateCoverage.state} Vendor Coverage`
+                  ? `${selectedStateCoverage.state_name} Vendor Coverage`
                   : "State Coverage Detail"
               }
               subtitle={
                 selectedStateCoverage
-                  ? `${selectedStateCoverage.state_name} | ${selectedGroup} | ${selectedStateCoverage.status.label}`
+                  ? `${selectedStateCoverage.state} | ${selectedGroup} | ${selectedStateCoverage.status.label}`
                   : "Select a state on the map."
               }
               right={
@@ -2403,7 +2441,7 @@ export default function Vendors() {
                     />
                     <StatCard
                       label="Live Spend"
-                      value={fmtMoneyShort(selectedStateCoverage.total_spend)}
+                      value={fmtMoney(selectedStateCoverage.total_spend)}
                       delta="FEC spend layer"
                       tone="up"
                     />
@@ -2490,7 +2528,7 @@ export default function Vendors() {
               ) : (
                 <div className="vs-stack">
                   <ResponsiveRow
-                    title={`${selectedStateCoverage.state} execution readiness`}
+                    title={`${selectedStateCoverage.state_name} execution readiness`}
                     subtitle={`${selectedStateCoverage.status.label} vendor coverage for ${selectedGroup}`}
                     meta={[
                       { label: "Coverage Score", value: `${selectedStateCoverage.coverage_score}/100` },
