@@ -1090,7 +1090,7 @@ export default function DarkMoneyExposure() {
 
  
 
-                    right={<div className="dm-score"><strong>{number(row.exposure_score)}</strong><Badge tone={tierTone(row.exposure_tier || row.severity)}>{row.exposure_tier || row.severity || "review"}</Badge></div>}
+                    right={<div className="dm-score"><strong>{number(row.exposure_score)}/100</strong><Badge tone={tierTone(row.exposure_tier || row.severity)}>{row.exposure_tier || row.severity || "review"}</Badge></div>}
 
  
 
@@ -1154,7 +1154,7 @@ export default function DarkMoneyExposure() {
 
  
 
-                  <span>{index + 1}</span><div><strong>{row.committee_name}</strong><small>{compactMoney(row.total_amount)} mapped flow</small></div><Badge tone={tierTone(row.exposure_tier)}>{number(row.exposure_score)}</Badge>
+                  <span>{index + 1}</span><div><strong>{row.committee_name}</strong><small>{compactMoney(row.total_amount)} mapped flow</small></div><Badge tone={tierTone(row.exposure_tier)}>{number(row.exposure_score)}/100</Badge>
 
  
 
@@ -1242,7 +1242,7 @@ export default function DarkMoneyExposure() {
 
  
 
-              <div><span>Exposure score</span><strong>{number(selected.exposure_score)}</strong></div>
+              <div><span>Exposure score</span><strong>{number(selected.exposure_score)}/100</strong></div>
 
  
 
@@ -1411,4 +1411,3 @@ export default function DarkMoneyExposure() {
  
 
 }
-
