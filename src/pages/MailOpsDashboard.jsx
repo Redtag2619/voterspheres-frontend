@@ -972,23 +972,71 @@ export default function MailOpsDashboard() {
 
             <SectionCard title="Attachments" subtitle="Store file names now. Real file upload storage can be wired next with multer/S3/Render disk.">
               <div className="vs-grid-3">
-                <label className="vs-card-muted" style={{ padding: 12 }}>
+                <div className="vs-card-muted" style={{ padding: 12 }}>
                   <div className="vs-stat-label">Mail Piece PDF/Image</div>
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ mail_piece_file_name: fileNameFromInput(e) })} />
-                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.mail_piece_file_name || "No file selected"}</div>
-                </label>
+                  <input
+                    id="mailops-mail-piece-attachment"
+                    name="mail_piece_attachment"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    style={{ display: "none" }}
+                    onChange={(e) => updateComposer({ mail_piece_file_name: fileNameFromInput(e) })}
+                  />
+                  <label
+                    htmlFor="mailops-mail-piece-attachment"
+                    className="vs-button vs-button-secondary"
+                    style={{ display: "inline-flex", marginTop: 10, cursor: "pointer" }}
+                  >
+                    Choose Mail Piece
+                  </label>
+                  <div style={{ marginTop: 8, fontSize: 12, overflowWrap: "anywhere" }}>
+                    {composer.mail_piece_file_name || "No file selected"}
+                  </div>
+                </div>
 
-                <label className="vs-card-muted" style={{ padding: 12 }}>
+                <div className="vs-card-muted" style={{ padding: 12 }}>
                   <div className="vs-stat-label">PS Form 3602</div>
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ ps_form_3602_file_name: fileNameFromInput(e) })} />
-                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.ps_form_3602_file_name || "No file selected"}</div>
-                </label>
+                  <input
+                    id="mailops-ps-form-3602-attachment"
+                    name="ps_form_3602_attachment"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    style={{ display: "none" }}
+                    onChange={(e) => updateComposer({ ps_form_3602_file_name: fileNameFromInput(e) })}
+                  />
+                  <label
+                    htmlFor="mailops-ps-form-3602-attachment"
+                    className="vs-button vs-button-secondary"
+                    style={{ display: "inline-flex", marginTop: 10, cursor: "pointer" }}
+                  >
+                    Attach PS Form 3602
+                  </label>
+                  <div style={{ marginTop: 8, fontSize: 12, overflowWrap: "anywhere" }}>
+                    {composer.ps_form_3602_file_name || "No file selected"}
+                  </div>
+                </div>
 
-                <label className="vs-card-muted" style={{ padding: 12 }}>
+                <div className="vs-card-muted" style={{ padding: 12 }}>
                   <div className="vs-stat-label">PS Form 3607</div>
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => updateComposer({ ps_form_3607_file_name: fileNameFromInput(e) })} />
-                  <div style={{ marginTop: 8, fontSize: 12 }}>{composer.ps_form_3607_file_name || "No file selected"}</div>
-                </label>
+                  <input
+                    id="mailops-ps-form-3607-attachment"
+                    name="ps_form_3607_attachment"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    style={{ display: "none" }}
+                    onChange={(e) => updateComposer({ ps_form_3607_file_name: fileNameFromInput(e) })}
+                  />
+                  <label
+                    htmlFor="mailops-ps-form-3607-attachment"
+                    className="vs-button vs-button-secondary"
+                    style={{ display: "inline-flex", marginTop: 10, cursor: "pointer" }}
+                  >
+                    Attach PS Form 3607
+                  </label>
+                  <div style={{ marginTop: 8, fontSize: 12, overflowWrap: "anywhere" }}>
+                    {composer.ps_form_3607_file_name || "No file selected"}
+                  </div>
+                </div>
               </div>
             </SectionCard>
 
