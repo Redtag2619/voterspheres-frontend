@@ -384,14 +384,60 @@ export default function ConsultantBusinessSuite() {
 
         .business-tabs {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: minmax(0, 1fr);
           gap: 14px;
+        }
+
+        .client-health-row {
+          padding: 18px;
+        }
+
+        .client-health-row .vs-responsive-row {
+          grid-template-columns: minmax(0, 1fr) auto !important;
+          align-items: start !important;
+        }
+
+        .client-health-row .vs-row-title,
+        .client-health-row .vs-row-subtitle,
+        .client-health-row .vs-meta-value {
+          white-space: normal !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+          overflow-wrap: anywhere;
+          word-break: normal !important;
+        }
+
+        .client-health-row .vs-responsive-meta {
+          grid-template-columns: repeat(4, minmax(120px, 1fr)) !important;
+          overflow: visible !important;
+        }
+
+        .client-health-row .vs-responsive-right {
+          width: auto !important;
+          min-width: 0 !important;
+          max-width: none !important;
+          overflow: visible !important;
         }
 
         @media (max-width: 1100px) {
           .business-grid,
           .business-tabs {
             grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .client-health-row .vs-responsive-row {
+            grid-template-columns: 1fr !important;
+          }
+
+          .client-health-row .vs-responsive-meta {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+
+          .client-health-row .vs-responsive-right {
+            justify-self: start !important;
+            justify-content: flex-start !important;
           }
         }
       `}</style>
@@ -445,7 +491,7 @@ export default function ConsultantBusinessSuite() {
                     <EmptyState text="No client health records yet." />
                   ) : (
                     clientHealth.slice(0, 8).map((client) => (
-                      <div key={client.id} className="business-row">
+                      <div key={client.id} className="business-row client-health-row">
                         <ResponsiveRow
                           title={client.client_name}
                           subtitle={`${client.organization || "Client"} • ${client.state || "National"}`}
