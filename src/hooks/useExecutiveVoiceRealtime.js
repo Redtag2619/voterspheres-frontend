@@ -48,6 +48,7 @@ export default function useExecutiveVoiceRealtime({
   const [assistantTranscript, setAssistantTranscript] = useState("");
   const [userTranscript, setUserTranscript] = useState("");
   const [speaking, setSpeaking] = useState(false);
+  const [speechPaused, setSpeechPaused] = useState(false);
   const mountedRef = useRef(true);
   const manualStopRef = useRef(false);
   const operationGenerationRef = useRef(0);
@@ -80,10 +81,11 @@ export default function useExecutiveVoiceRealtime({
           setStatus(nextStatus || "idle");
           setStatusDetail(detail || null);
           setSpeaking(
-            ["generating_voice_playback", "speaking_authoritative_answer"].includes(
+            ["generating_voice_playback", "speaking_authoritative_answer", "voice_playback_paused"].includes(
               nextStatus
             )
           );
+          setSpeechPaused(nextStatus === "voice_playback_paused");
           if (ACTIVE_STATUSES.has(nextStatus)) {
             setConnected(true);
           }
@@ -154,6 +156,7 @@ export default function useExecutiveVoiceRealtime({
     setStopping(true);
     setConnected(false);
     setSpeaking(false);
+    setSpeechPaused(false);
     setStatus("disconnecting");
     setStatusDetail(null);
     try {
@@ -188,10 +191,24 @@ export default function useExecutiveVoiceRealtime({
   const stopSpeaking = useCallback(
     (options = {}) => {
       setSpeaking(false);
+      setSpeechPaused(false);
       return client.interruptSpeech(options);
     },
     [client]
   );
+  const pauseSpeaking = useCallback(() => {
+    const paused = client.pauseSpeech();
+    if (paused) setSpeechPaused(true);
+    return paused;
+  }, [client]);
+  const resumeSpeaking = useCallback(async () => {
+    const resumed = await client.resumeSpeech();
+    if (resumed) {
+      setSpeaking(true);
+      setSpeechPaused(false);
+    }
+    return resumed;
+  }, [client]);
   const clearTranscripts = useCallback(() => {
     client.clearTranscripts();
     setAssistantTranscript("");
@@ -209,6 +226,7 @@ export default function useExecutiveVoiceRealtime({
     assistantTranscript,
     userTranscript,
     speaking,
+    speechPaused,
     liveToolsStatus: mode === "command" ? "copilot-pipeline" : "idle",
     liveToolsDetail: null,
     lastLiveTool: null,
@@ -219,6 +237,8 @@ export default function useExecutiveVoiceRealtime({
     interrupt: () => client.interrupt(),
     speak: (text, options) => client.speak(text, options),
     stopSpeaking,
+    pauseSpeaking,
+    resumeSpeaking,
     setMicrophoneEnabled,
     resumeAudio: () => client.resumeAudio(),
     clearTranscripts,
