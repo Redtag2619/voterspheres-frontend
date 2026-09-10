@@ -93,6 +93,61 @@ const DELIVERABLE_TYPES = [
 
 const BUILD_PHASES = ["Discovery", "Strategy", "Production", "Execution", "Measurement", "Launch"];
 
+const ELECTION_CYCLES = ["2024", "2025", "2026", "2027", "2028", "2029", "2030", "2032"];
+
+const STATE_OPTIONS = [
+  ["National", "National"],
+  ["AL", "Alabama"], ["AK", "Alaska"], ["AZ", "Arizona"], ["AR", "Arkansas"],
+  ["CA", "California"], ["CO", "Colorado"], ["CT", "Connecticut"], ["DE", "Delaware"],
+  ["DC", "District of Columbia"], ["FL", "Florida"], ["GA", "Georgia"], ["HI", "Hawaii"],
+  ["ID", "Idaho"], ["IL", "Illinois"], ["IN", "Indiana"], ["IA", "Iowa"],
+  ["KS", "Kansas"], ["KY", "Kentucky"], ["LA", "Louisiana"], ["ME", "Maine"],
+  ["MD", "Maryland"], ["MA", "Massachusetts"], ["MI", "Michigan"], ["MN", "Minnesota"],
+  ["MS", "Mississippi"], ["MO", "Missouri"], ["MT", "Montana"], ["NE", "Nebraska"],
+  ["NV", "Nevada"], ["NH", "New Hampshire"], ["NJ", "New Jersey"], ["NM", "New Mexico"],
+  ["NY", "New York"], ["NC", "North Carolina"], ["ND", "North Dakota"], ["OH", "Ohio"],
+  ["OK", "Oklahoma"], ["OR", "Oregon"], ["PA", "Pennsylvania"], ["RI", "Rhode Island"],
+  ["SC", "South Carolina"], ["SD", "South Dakota"], ["TN", "Tennessee"], ["TX", "Texas"],
+  ["UT", "Utah"], ["VT", "Vermont"], ["VA", "Virginia"], ["WA", "Washington"],
+  ["WV", "West Virginia"], ["WI", "Wisconsin"], ["WY", "Wyoming"],
+];
+
+const OFFICE_OPTIONS = [
+  "President / Vice President",
+  "U.S. Senate",
+  "U.S. House",
+  "Governor",
+  "Lieutenant Governor",
+  "Attorney General",
+  "Secretary of State",
+  "Other Statewide Office",
+  "State Senate",
+  "State House / Assembly",
+  "County Executive / Commission",
+  "Mayor",
+  "City Council",
+  "School Board",
+  "Judicial",
+  "Ballot Measure",
+  "Party Committee",
+  "PAC / Independent Expenditure",
+];
+
+const PRIMARY_GOAL_OPTIONS = [
+  "Win the primary election",
+  "Win the general election",
+  "Build name recognition",
+  "Persuade undecided voters",
+  "Increase voter turnout",
+  "Raise campaign funds",
+  "Grow the volunteer organization",
+  "Expand endorsements and coalition support",
+  "Strengthen digital acquisition",
+  "Respond to opposition or narrative risk",
+  "Register and mobilize voters",
+  "Launch the campaign",
+];
+
 const INTELLIGENCE_SOURCES = [
   "Mission Control",
   "Election War Room",
@@ -627,20 +682,47 @@ function ProjectSetup({ project, setProject }) {
 
   return (
     <div className="studio-project-grid">
-      <label><span>Campaign / Client</span><input value={project.campaign} onChange={(e) => update("campaign", e.target.value)} placeholder="Smith for Senate" /></label>
-      <label><span>Office</span><input value={project.office} onChange={(e) => update("office", e.target.value)} placeholder="U.S. Senate" /></label>
-      <label><span>State / Geography</span><input value={project.state} onChange={(e) => update("state", e.target.value)} placeholder="Georgia" /></label>
-      <label><span>Election Cycle</span><input value={project.cycle} onChange={(e) => update("cycle", e.target.value)} placeholder="2026" /></label>
-      <label>
-        <span>Build Phase</span>
-        <select value={project.phase} onChange={(e) => update("phase", e.target.value)}>
-          {BUILD_PHASES.map((phase) => <option key={phase}>{phase}</option>)}
+      <label htmlFor="studio-campaign-client"><span>Campaign / Client</span><input id="studio-campaign-client" name="campaign_client" value={project.campaign} onChange={(e) => update("campaign", e.target.value)} placeholder="Smith for Senate" /></label>
+      <label htmlFor="studio-office">
+        <span>Office</span>
+        <select id="studio-office" name="office" value={project.office} onChange={(e) => update("office", e.target.value)}>
+          <option value="">Select office</option>
+          {OFFICE_OPTIONS.map((office) => <option key={office} value={office}>{office}</option>)}
         </select>
       </label>
-      <label><span>Primary Goal</span><input value={project.goal} onChange={(e) => update("goal", e.target.value)} placeholder="Win the general election" /></label>
-      <label className="studio-project-wide">
+      <label htmlFor="studio-state">
+        <span>State / Geography</span>
+        <select id="studio-state" name="state_geography" value={project.state} onChange={(e) => update("state", e.target.value)}>
+          <option value="">Select geography</option>
+          {STATE_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {value === "National" ? label : `${label} (${value})`}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label htmlFor="studio-election-cycle">
+        <span>Election Cycle</span>
+        <select id="studio-election-cycle" name="election_cycle" value={project.cycle} onChange={(e) => update("cycle", e.target.value)}>
+          {ELECTION_CYCLES.map((cycle) => <option key={cycle} value={cycle}>{cycle}</option>)}
+        </select>
+      </label>
+      <label htmlFor="studio-build-phase">
+        <span>Build Phase</span>
+        <select id="studio-build-phase" name="build_phase" value={project.phase} onChange={(e) => update("phase", e.target.value)}>
+          {BUILD_PHASES.map((phase) => <option key={phase} value={phase}>{phase}</option>)}
+        </select>
+      </label>
+      <label htmlFor="studio-primary-goal">
+        <span>Primary Goal</span>
+        <select id="studio-primary-goal" name="primary_goal" value={project.goal} onChange={(e) => update("goal", e.target.value)}>
+          <option value="">Select primary goal</option>
+          {PRIMARY_GOAL_OPTIONS.map((goal) => <option key={goal} value={goal}>{goal}</option>)}
+        </select>
+      </label>
+      <label className="studio-project-wide" htmlFor="studio-campaign-notes">
         <span>Campaign Notes</span>
-        <textarea value={project.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Add strengths, risks, budget limits, target voters, deadlines, or client instructions." />
+        <textarea id="studio-campaign-notes" name="campaign_notes" value={project.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Add strengths, risks, budget limits, target voters, deadlines, or client instructions." />
       </label>
     </div>
   );
