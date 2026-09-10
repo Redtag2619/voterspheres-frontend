@@ -703,22 +703,34 @@ export class ExecutiveVoiceRealtimeClient {
       disclosure: "AI-generated voice",
     });
     try {
-      for (let index = 0; index < chunks.length; index += 1) {
-        if (generation !== this.speechGeneration || this.destroyed) break;
-        this.setStatus("generating_voice_playback", {
-          chunk: index + 1,
-          chunk_count: chunks.length,
-        });
-        const response = await api.post(
+      const requestChunk = (chunkText) =>
+        api.post(
           "/executive-voice/speak",
           {
-            text: chunks[index],
+            text: chunkText,
             voice,
             instructions,
           },
           { responseType: "blob" }
+        ).then(
+          (response) => ({ response }),
+          (error) => ({ error })
         );
+      let pendingResponse = requestChunk(chunks[0]);
+      for (let index = 0; index < chunks.length; index += 1) {
         if (generation !== this.speechGeneration || this.destroyed) break;
+        if (index === 0) {
+          this.setStatus("generating_voice_playback", {
+            chunk: 1,
+            chunk_count: chunks.length,
+          });
+        }
+        const chunkResult = await pendingResponse;
+        if (chunkResult?.error) throw chunkResult.error;
+        const response = chunkResult?.response;
+        if (generation !== this.speechGeneration || this.destroyed) break;
+        pendingResponse =
+          index + 1 < chunks.length ? requestChunk(chunks[index + 1]) : null;
         this.setStatus("speaking_authoritative_answer", {
           chunk: index + 1,
           chunk_count: chunks.length,
@@ -841,4 +853,3 @@ export function createExecutiveVoiceRealtimeClient(options = {}) {
   return new ExecutiveVoiceRealtimeClient(options);
 }
 export default ExecutiveVoiceRealtimeClient;
-
