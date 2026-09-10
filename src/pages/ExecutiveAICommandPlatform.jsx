@@ -824,7 +824,7 @@ async function askExecutiveAgent(payload = {}) {
 }
 function extractAgentAnswer(result) {
   const briefing = result?.briefing || result?.data?.briefing || {};
-  return (
+  const fallback =
     result?.answer ||
     result?.executive_summary ||
     result?.strategic_summary ||
@@ -840,8 +840,37 @@ function extractAgentAnswer(result) {
     result?.data?.strategic_summary ||
     result?.data?.summary ||
     result?.data?.message?.content ||
-    "The Executive Intelligence Orchestrator returned no readable response."
-  );
+    "The Executive Intelligence Orchestrator returned no readable response.";
+  const candidates = [
+    fallback,
+    result?.full_answer,
+    result?.complete_answer,
+    result?.detailed_answer,
+    result?.findings_text,
+    result?.detailed_findings,
+    briefing?.full_answer,
+    briefing?.complete_answer,
+    briefing?.detailed_answer,
+    briefing?.findings_text,
+    briefing?.detailed_findings,
+    result?.data?.full_answer,
+    result?.data?.complete_answer,
+    result?.data?.detailed_answer,
+    result?.data?.findings_text,
+    result?.data?.detailed_findings,
+    result?.data?.briefing?.full_answer,
+    result?.data?.briefing?.complete_answer,
+    result?.data?.briefing?.detailed_answer,
+    result?.data?.briefing?.findings_text,
+    result?.data?.briefing?.detailed_findings,
+  ]
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return candidates.reduce(
+    (longest, value) => (value.length > longest.length ? value : longest),
+    ""
+  ) || fallback;
 }
 function extractAgentSources(result) {
   const sources =
