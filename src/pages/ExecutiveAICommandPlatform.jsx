@@ -1916,6 +1916,7 @@ function ExecutiveAgentWorkspace({
             .cmd-voice-command-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
             .cmd-voice-command-button{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(249,115,22,.42);border-radius:12px;background:rgba(124,45,18,.16);color:#fed7aa;padding:10px 13px;font-size:11px;font-weight:900;cursor:pointer}
             .cmd-voice-command-button.is-live{background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;box-shadow:0 0 0 4px rgba(249,115,22,.1)}
+            .cmd-voice-command-button.is-paused{border-color:rgba(250,204,21,.55);background:rgba(161,98,7,.2);color:#fef08a}
             .cmd-voice-command-button:disabled{opacity:.5;cursor:not-allowed}
             .cmd-voice-command-dot{width:8px;height:8px;border-radius:999px;background:currentColor}
             .cmd-voice-command-button.is-live .cmd-voice-command-dot{animation:cmdVoicePulse 1.25s infinite}
@@ -1953,13 +1954,26 @@ function ExecutiveAgentWorkspace({
               {voice.microphoneEnabled ? "Mute" : "Unmute"}
             </button>
           ) : null}
+          {voice.status === "speaking_authoritative_answer" || voice.speechPaused ? (
+            <button
+              type="button"
+              className={`cmd-voice-command-button ${voice.speechPaused ? "is-paused" : ""}`}
+              onClick={() =>
+                voice.speechPaused
+                  ? voice.resumeSpeaking()
+                  : voice.pauseSpeaking()
+              }
+            >
+              {voice.speechPaused ? "Resume Voice" : "Pause Voice"}
+            </button>
+          ) : null}
           {voice.speaking ? (
             <button
               type="button"
               className="cmd-voice-command-button"
               onClick={() => voice.stopSpeaking({ resumeMicrophone: true })}
             >
-              Interrupt Voice
+              Stop Voice
             </button>
           ) : null}
           <label className="cmd-voice-command-toggle">
@@ -1980,7 +1994,9 @@ function ExecutiveAgentWorkspace({
           </label>
           <span className="cmd-voice-command-status">
             {voice.connected
-              ? voice.speaking
+              ? voice.speechPaused
+                ? "Voice playback paused"
+                : voice.speaking
                 ? "AI-generated voice playback"
                 : voice.status === "transcribing"
                   ? "Processing command…"
