@@ -28,34 +28,51 @@ function normalizeOutgoingEvent(event = {}) {
     },
   };
 }
-function splitSpeechText(value, maximumCharacters = 5500) {
+function splitSpeechText(
+  value,
+  { firstChunkCharacters = 700, maximumCharacters = 2400 } = {}
+) {
   const text = String(value || "").trim();
   if (!text) return [];
-  if (text.length <= maximumCharacters) return [text];
-  const paragraphs = text.split(/\n{2,}/).filter(Boolean);
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .flatMap((paragraph) =>
+      paragraph.match(/[^.!?]+(?:[.!?]+|$)/g) || [paragraph]
+    )
+    .map((part) => part.trim())
+    .filter(Boolean);
   const chunks = [];
   let current = "";
   for (const paragraph of paragraphs) {
+    const limit = chunks.length ? maximumCharacters : firstChunkCharacters;
     if (!current) {
       current = paragraph;
       continue;
     }
-    if (`${current}\n\n${paragraph}`.length <= maximumCharacters) {
-      current = `${current}\n\n${paragraph}`;
+    if (`${current} ${paragraph}`.length <= limit) {
+      current = `${current} ${paragraph}`;
       continue;
     }
     chunks.push(current);
     current = paragraph;
   }
   if (current) chunks.push(current);
-  return chunks.flatMap((chunk) => {
-    if (chunk.length <= maximumCharacters) return [chunk];
-    const pieces = [];
-    for (let index = 0; index < chunk.length; index += maximumCharacters) {
-      pieces.push(chunk.slice(index, index + maximumCharacters));
+  const output = [];
+  for (const chunk of chunks) {
+    let remaining = chunk;
+    while (remaining) {
+      const limit = output.length ? maximumCharacters : firstChunkCharacters;
+      if (remaining.length <= limit) {
+        output.push(remaining);
+        break;
+      }
+      const whitespace = remaining.lastIndexOf(" ", limit);
+      const cutAt = whitespace > Math.floor(limit * 0.6) ? whitespace : limit;
+      output.push(remaining.slice(0, cutAt).trim());
+      remaining = remaining.slice(cutAt).trim();
     }
-    return pieces;
-  });
+  }
+  return output.filter(Boolean);
 }
 export class ExecutiveVoiceRealtimeClient {
   constructor({
@@ -97,6 +114,8 @@ export class ExecutiveVoiceRealtimeClient {
     this.speechGeneration = 0;
     this.speakingAuthoritativeAnswer = false;
     this.speechResolve = null;
+    this.speechPaused = false;
+    this.speechChunkDetail = null;
     this.connectionGeneration = 0;
     this.handshakeAbortController = null;
   }
@@ -677,6 +696,7 @@ export class ExecutiveVoiceRealtimeClient {
     this.interruptSpeech({ resumeMicrophone: false });
     const generation = ++this.speechGeneration;
     this.speakingAuthoritativeAnswer = true;
+    this.speechPaused = false;
     this.setMicrophoneEnabled(false);
     this.setStatus("speaking_authoritative_answer", {
       chunk_count: chunks.length,
@@ -704,6 +724,11 @@ export class ExecutiveVoiceRealtimeClient {
           chunk_count: chunks.length,
           disclosure: "AI-generated voice",
         });
+        this.speechChunkDetail = {
+          chunk: index + 1,
+          chunk_count: chunks.length,
+          disclosure: "AI-generated voice",
+        };
         const blob = response?.data instanceof Blob ? response.data : response;
         await this.playSpeechBlob(blob, generation);
       }
@@ -720,6 +745,8 @@ export class ExecutiveVoiceRealtimeClient {
     } finally {
       if (generation === this.speechGeneration) {
         this.speakingAuthoritativeAnswer = false;
+        this.speechPaused = false;
+        this.speechChunkDetail = null;
         if (resumeMicrophone && this.connected) {
           this.setMicrophoneEnabled(true);
           this.setStatus("listening");
@@ -732,6 +759,8 @@ export class ExecutiveVoiceRealtimeClient {
   interruptSpeech({ resumeMicrophone = true } = {}) {
     this.speechGeneration += 1;
     this.speakingAuthoritativeAnswer = false;
+    this.speechPaused = false;
+    this.speechChunkDetail = null;
     this.speechResolve?.();
     if (this.speechAudioElement) {
       this.speechAudioElement.pause();
@@ -747,6 +776,24 @@ export class ExecutiveVoiceRealtimeClient {
       this.setMicrophoneEnabled(true);
       this.setStatus("listening");
     }
+  }
+  pauseSpeech() {
+    if (!this.speakingAuthoritativeAnswer || !this.speechAudioElement) {
+      return false;
+    }
+    this.speechAudioElement.pause();
+    this.speechPaused = true;
+    this.setStatus("voice_playback_paused", this.speechChunkDetail);
+    return true;
+  }
+  async resumeSpeech() {
+    if (!this.speakingAuthoritativeAnswer || !this.speechAudioElement || !this.speechPaused) {
+      return false;
+    }
+    await this.speechAudioElement.play();
+    this.speechPaused = false;
+    this.setStatus("speaking_authoritative_answer", this.speechChunkDetail);
+    return true;
   }
   async resumeAudio() {
     if (!this.audioElement) return;
@@ -794,3 +841,4 @@ export function createExecutiveVoiceRealtimeClient(options = {}) {
   return new ExecutiveVoiceRealtimeClient(options);
 }
 export default ExecutiveVoiceRealtimeClient;
+
