@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
+import useExecutiveVoiceRealtime from "../hooks/useExecutiveVoiceRealtime";
 
 import PageShell from "../components/ui/PageShell";
 import Badge from "../components/ui/Badge";
@@ -606,6 +607,37 @@ function clean(value = "") {
   return String(value || "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
 }
 
+function prepareExecutiveNarration(value) {
+  return String(value || "")
+    .replace(/```[a-z0-9_-]*\s*/gi, "")
+    .replace(/```/g, "")
+    .replace(/^\s*#{1,6}\s*/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "Next, ")
+    .replace(/^\s*(\d+)[.)]\s+/gm, "Item $1. ")
+    .replace(/\|/g, ", ")
+    .replace(/[*_~`]/g, "")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/\s*\n\s*/g, (match) => (match.includes("\n\n") ? ". " : " "))
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/([.!?]){2,}/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function cleanConversationContent(value) {
+  return String(value || "")
+    .replace(/```[a-z0-9_-]*\s*/gi, "")
+    .replace(/```/g, "")
+    .replace(/^\s*#{1,6}\s*/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
 function fmtDate(value) {
   if (!value) return "—";
   const date = new Date(value);
@@ -783,7 +815,11 @@ export default function CampaignOperationsStudioAI() {
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedDeliverable, setSelectedDeliverable] = useState(null);
   const [isReading, setIsReading] = useState(false);
-  const speechRef = useRef(null);
+  const executiveVoice = useExecutiveVoiceRealtime({
+    voice: "marin",
+    agent: "executive_chief_of_staff",
+    mode: "command",
+  });
   const [documentTemplate, setDocumentTemplate] = useState("executive-brief");
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentPreparedBy, setDocumentPreparedBy] = useState("VoterSpheres Campaign Operations Studio AI");
@@ -1074,14 +1110,6 @@ export default function CampaignOperationsStudioAI() {
     }
   }, [projectScopeKey, threadId]);
 
-  useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
   function buildStudioPrompt(value) {
     const details = [
       `Studio Module: ${activeModule.label}`,
@@ -1266,31 +1294,7 @@ export default function CampaignOperationsStudioAI() {
     return [...messages].reverse().find((item) => item.role === "assistant");
   }
 
-  function getPreferredVoice() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices?.() || [];
-    const preferredNames = [
-      "Microsoft Aria",
-      "Microsoft Jenny",
-      "Samantha",
-      "Victoria",
-      "Karen",
-      "Zira",
-      "Google US English",
-      "Google UK English Female",
-    ];
-
-    for (const preferred of preferredNames) {
-      const match = voices.find((voice) =>
-        String(voice.name || "").toLowerCase().includes(preferred.toLowerCase())
-      );
-      if (match) return match;
-    }
-
-    return voices.find((voice) => /^en(-|_)/i.test(voice.lang || "")) || voices[0] || null;
-  }
-
-  function readLatestAnswer() {
+  async function readLatestAnswer() {
     const latest = getLatestAssistantMessage();
 
     if (!latest?.content) {
@@ -1298,55 +1302,43 @@ export default function CampaignOperationsStudioAI() {
       return;
     }
 
-    if (
-      typeof window === "undefined" ||
-      !("speechSynthesis" in window) ||
-      typeof window.SpeechSynthesisUtterance === "undefined"
-    ) {
-      setMessage("Text-to-speech is not supported in this browser.");
+    const narration = prepareExecutiveNarration(latest.content);
+    if (!narration) {
+      setMessage("The latest answer does not contain readable content.");
       return;
     }
 
-    window.speechSynthesis.cancel();
-
-    const utterance = new window.SpeechSynthesisUtterance(clean(latest.content));
-    const voice = getPreferredVoice();
-
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang || "en-US";
-    } else {
-      utterance.lang = "en-US";
-    }
-
-    utterance.rate = 0.96;
-    utterance.pitch = 1.04;
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
+    try {
       setIsReading(true);
-      setMessage("Reading the latest AI Studio answer.");
-    };
+      setMessage("Reading the complete AI Studio answer.");
+      const result = await executiveVoice.speak(narration, {
+        voice: "marin",
+        resumeMicrophone: false,
+      });
 
-    utterance.onend = () => {
+      if (!result?.ok && !result?.interrupted) {
+        throw new Error("Executive voice playback was not generated.");
+      }
+
       setIsReading(false);
-      setMessage("Finished reading the latest answer.");
-    };
-
-    utterance.onerror = () => {
+      setMessage(
+        result?.interrupted
+          ? "Voice playback stopped."
+          : "Finished reading the complete answer."
+      );
+    } catch (speechError) {
       setIsReading(false);
-      setMessage("Voice playback stopped.");
-    };
-
-    speechRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+      setMessage(
+        speechError?.response?.data?.detail ||
+          speechError?.response?.data?.error ||
+          speechError?.message ||
+          "Executive voice playback could not be started."
+      );
+    }
   }
 
   function stopReading() {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-
+    executiveVoice.stopSpeaking({ resumeMicrophone: false });
     setIsReading(false);
     setMessage("Voice playback stopped.");
   }
@@ -3776,7 +3768,9 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
                 messages.map((item) => (
                   <div key={item.id || `${item.role}-${item.created_at}`} className={`studio-message ${item.role}`}>
                     <small>{item.role === "assistant" ? "Campaign Operations Studio AI" : "You"} • {fmtDate(item.created_at)}</small>
-                    {item.content}
+                    <div style={{ whiteSpace: "pre-wrap" }}>
+                      {cleanConversationContent(item.content)}
+                    </div>
                   </div>
                 ))
               )}
