@@ -1021,6 +1021,14 @@ export default function CampaignOperationsStudioAI() {
     goal: "",
     notes: "",
   });
+  const projectScopeKey = useMemo(
+    () =>
+      [project.campaign, project.office, project.state, project.cycle]
+        .map((value) => clean(value).toUpperCase())
+        .join("|"),
+    [project.campaign, project.office, project.state, project.cycle]
+  );
+  const previousProjectScopeRef = useRef(projectScopeKey);
 
   const [deliverables, setDeliverables] = useState([]);
   const [checklist, setChecklist] = useState([
@@ -1051,6 +1059,20 @@ export default function CampaignOperationsStudioAI() {
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
+
+  useEffect(() => {
+    if (previousProjectScopeRef.current === projectScopeKey) return;
+
+    previousProjectScopeRef.current = projectScopeKey;
+
+    if (threadId) {
+      setThreadId(null);
+      setMessages([]);
+      setMessage(
+        "Campaign scope changed. A new geographically isolated AI conversation will begin."
+      );
+    }
+  }, [projectScopeKey, threadId]);
 
   useEffect(() => {
     return () => {
@@ -1115,6 +1137,14 @@ export default function CampaignOperationsStudioAI() {
         prompt: buildStudioPrompt(value),
         thread_id: threadId || null,
         agent: agentForModule(),
+        campaign: project.campaign || null,
+        candidate: project.campaign || null,
+        state: project.state || null,
+        office: project.office || null,
+        cycle: project.cycle || null,
+        phase: project.phase || null,
+        goal: project.goal || null,
+        strict_geography: Boolean(project.state),
       });
 
       setThreadId(result?.thread_id || threadId);
@@ -2990,6 +3020,14 @@ Requirements:
       const result = await api.askAiCampaignCopilot({
         prompt: buildStudioPrompt(buildAssetPrompt()),
         thread_id: threadId || null,
+        campaign: project.campaign || null,
+        candidate: project.campaign || null,
+        state: project.state || null,
+        office: project.office || null,
+        cycle: project.cycle || null,
+        phase: project.phase || null,
+        goal: project.goal || null,
+        strict_geography: Boolean(project.state),
         agent:
           assetType === "press"
             ? "communications_director"
@@ -5967,3 +6005,4 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
     </PageShell>
   );
 }
+
