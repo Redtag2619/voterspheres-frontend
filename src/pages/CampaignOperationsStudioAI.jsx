@@ -94,7 +94,61 @@ const DELIVERABLE_TYPES = [
 
 const BUILD_PHASES = ["Discovery", "Strategy", "Production", "Execution", "Measurement", "Launch"];
 
-const ELECTION_CYCLES = ["2024", "2025", "2026", "2027", "2028", "2029", "2030", "2032"];
+const CURRENT_YEAR = new Date().getFullYear();
+const ELECTION_CYCLES = Array.from({ length: 9 }, (_, index) => String(CURRENT_YEAR + index));
+
+const GOVERNOR_CYCLE_GROUPS = {
+  presidential: new Set(["DE", "IN", "MO", "MT", "NC", "ND", "UT", "WA", "WV"]),
+  postPresidential: new Set(["NJ", "VA"]),
+  prePresidential: new Set(["KY", "LA", "MS"]),
+  everyEvenYear: new Set(["NH", "VT"]),
+};
+
+function electionOfficeCategory(value = "") {
+  const office = String(value || "").trim().toLowerCase();
+  if (office.includes("president")) return "president";
+  if (office.includes("u.s. house") || office === "house" || office.includes("congress")) return "usHouse";
+  if (office.includes("u.s. senate") || office === "senate") return "usSenate";
+  if (office.includes("governor") && !office.includes("lieutenant")) return "governor";
+  return "flexible";
+}
+
+function validGovernorCycle(state, year) {
+  if (!state || state === "National") return true;
+  if (GOVERNOR_CYCLE_GROUPS.everyEvenYear.has(state)) return year % 2 === 0;
+  if (GOVERNOR_CYCLE_GROUPS.postPresidential.has(state)) return year % 4 === 1;
+  if (GOVERNOR_CYCLE_GROUPS.prePresidential.has(state)) return year % 4 === 3;
+  if (GOVERNOR_CYCLE_GROUPS.presidential.has(state)) return year % 4 === 0;
+  return year % 4 === 2;
+}
+
+function validateElectionCycle(project = {}) {
+  const year = Number(project.cycle);
+  if (!Number.isInteger(year) || year < CURRENT_YEAR) {
+    return `Select ${CURRENT_YEAR} or a future election cycle.`;
+  }
+
+  const category = electionOfficeCategory(project.office);
+  const isValid =
+    category === "president"
+      ? year % 4 === 0
+      : category === "usHouse" || category === "usSenate"
+        ? year % 2 === 0
+        : category === "governor"
+          ? validGovernorCycle(project.state, year)
+          : true;
+
+  if (isValid) return "";
+
+  const suggested = ELECTION_CYCLES.map(Number).find((candidateYear) => {
+    if (category === "president") return candidateYear % 4 === 0;
+    if (category === "usHouse" || category === "usSenate") return candidateYear % 2 === 0;
+    if (category === "governor") return validGovernorCycle(project.state, candidateYear);
+    return true;
+  });
+
+  return `${project.office || "This office"} in ${project.state || "the selected jurisdiction"} is not regularly scheduled for ${year}. Select ${suggested || "the next valid cycle"}, or change the project to a governing or pre-election planning goal.`;
+}
 
 const STATE_OPTIONS = [
   ["National", "National"],
@@ -1052,7 +1106,7 @@ export default function CampaignOperationsStudioAI() {
     campaign: "",
     office: "",
     state: "",
-    cycle: "2026",
+    cycle: String(CURRENT_YEAR),
     phase: "Discovery",
     goal: "",
     notes: "",
@@ -1065,6 +1119,7 @@ export default function CampaignOperationsStudioAI() {
     [project.campaign, project.office, project.state, project.cycle]
   );
   const previousProjectScopeRef = useRef(projectScopeKey);
+  const electionCycleError = useMemo(() => validateElectionCycle(project), [project]);
 
   const [deliverables, setDeliverables] = useState([]);
   const [checklist, setChecklist] = useState([
@@ -1117,6 +1172,8 @@ export default function CampaignOperationsStudioAI() {
       `Office: ${project.office || "Not specified"}`,
       `Geography: ${project.state || "National"}`,
       `Election Cycle: ${project.cycle || "2026"}`,
+      `Planning Date: ${new Date().toISOString().slice(0, 10)}`,
+      `Authorized Planning Window: today through December 31, ${project.cycle || CURRENT_YEAR}`,
       `Build Phase: ${project.phase}`,
       `Primary Goal: ${project.goal || "Not specified"}`,
       project.notes ? `Campaign Notes: ${project.notes}` : "",
@@ -1124,6 +1181,8 @@ export default function CampaignOperationsStudioAI() {
       "Return the answer as a production-ready campaign deliverable.",
       "Use clear headings, priorities, owners, timing, risks, metrics, and next actions.",
       "Clearly distinguish assumptions from verified facts.",
+      "Do not create past milestones, expired dates, or dates outside the selected election cycle.",
+      "If historical information is necessary, label it as background and never place it in the action calendar.",
     ].filter(Boolean);
 
     return `${value}\n\nCampaign Operations Studio Context:\n${details.join("\n")}`;
@@ -1146,6 +1205,12 @@ export default function CampaignOperationsStudioAI() {
   async function ask(nextPrompt = prompt, options = {}) {
     const value = clean(nextPrompt);
     if (!value) return;
+
+    if (electionCycleError) {
+      setError(electionCycleError);
+      setMessage("Correct the election cycle before generating a strategy.");
+      return;
+    }
 
     const userMessage = {
       id: `local-user-${Date.now()}`,
@@ -1173,6 +1238,8 @@ export default function CampaignOperationsStudioAI() {
         phase: project.phase || null,
         goal: project.goal || null,
         strict_geography: Boolean(project.state),
+        strict_temporal: true,
+        planning_date: new Date().toISOString().slice(0, 10),
       });
 
       setThreadId(result?.thread_id || threadId);
@@ -1226,7 +1293,7 @@ export default function CampaignOperationsStudioAI() {
     setMessages([]);
     setPrompt("");
     setSelectedModule("strategy");
-    setProject({ campaign: "", office: "", state: "", cycle: "2026", phase: "Discovery", goal: "", notes: "" });
+    setProject({ campaign: "", office: "", state: "", cycle: String(CURRENT_YEAR), phase: "Discovery", goal: "", notes: "" });
     setDeliverables([]);
     setSelectedDeliverable(null);
     setMessage("Started a new Campaign Operations Studio project.");
