@@ -486,6 +486,252 @@ function RiskFlags({ flags = [] }) {
 
  
 
+function RelationshipRow({ row = {} }) {
+
+  const candidateName =
+
+    row.candidate_name ||
+
+    row.candidate_full_name ||
+
+    row.candidate_record_name ||
+
+    "Candidate";
+
+ 
+
+  const geography =
+
+    row.candidate_state ||
+
+    row.state ||
+
+    "State N/A";
+
+ 
+
+  const office =
+
+    row.candidate_office ||
+
+    row.office ||
+
+    "Office N/A";
+
+ 
+
+  const party =
+
+    row.candidate_party ||
+
+    row.party ||
+
+    "Party N/A";
+
+ 
+
+  const amount =
+
+    row.total_amount ??
+
+    row.amount ??
+
+    row.disbursement_amount ??
+
+    0;
+
+ 
+
+  const transactionCount =
+
+    row.transaction_count ??
+
+    row.transactions ??
+
+    row.disbursement_count ??
+
+    0;
+
+ 
+
+  const confidence =
+
+    row.confidence ??
+
+    row.confidence_score ??
+
+    row.relationship_confidence ??
+
+    0;
+
+ 
+
+  const lastActivity =
+
+    row.last_disbursement_date ||
+
+    row.last_transaction_date ||
+
+    row.updated_at ||
+
+    "";
+
+ 
+
+  const purpose =
+
+    row.purpose ||
+
+    row.description ||
+
+    row.disbursement_description ||
+
+    "";
+
+ 
+
+  return (
+
+    <div
+
+      className="vs-card-muted"
+
+      style={{ padding: 12, display: "grid", gap: 8, minWidth: 0 }}
+
+    >
+
+      <div
+
+        style={{
+
+          display: "flex",
+
+          justifyContent: "space-between",
+
+          gap: 10,
+
+          flexWrap: "wrap",
+
+          alignItems: "flex-start",
+
+        }}
+
+      >
+
+        <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+
+          <div
+
+            style={{
+
+              color: "var(--vs-text)",
+
+              fontWeight: 900,
+
+              overflowWrap: "anywhere",
+
+            }}
+
+          >
+
+            {candidateName}
+
+          </div>
+
+          <div
+
+            style={{
+
+              color: "var(--vs-text-muted)",
+
+              fontSize: 12,
+
+              marginTop: 4,
+
+              overflowWrap: "anywhere",
+
+            }}
+
+          >
+
+            {joinText([geography, office, party])}
+
+          </div>
+
+        </div>
+
+        <Badge tone="info">{money(amount)}</Badge>
+
+      </div>
+
+ 
+
+      <div className="vs-chip-row">
+
+        <Badge tone="accent">{row.category || row.service_category || "Consulting"}</Badge>
+
+        <Badge tone="info">{transactionCount} transactions</Badge>
+
+        <Badge tone="warning">Confidence {confidence}</Badge>
+
+        {lastActivity ? (
+
+          <Badge tone="default">
+
+            Last {String(lastActivity).slice(0, 10)}
+
+          </Badge>
+
+        ) : null}
+
+      </div>
+
+ 
+
+      {row.committee_name ? (
+
+        <div style={{ color: "var(--vs-text-muted)", fontSize: 12 }}>
+
+          <strong>Committee:</strong> {row.committee_name}
+
+        </div>
+
+      ) : null}
+
+ 
+
+      {purpose ? (
+
+        <div
+
+          style={{
+
+            color: "var(--vs-text-muted)",
+
+            fontSize: 12,
+
+            lineHeight: 1.45,
+
+            overflowWrap: "anywhere",
+
+          }}
+
+        >
+
+          {purpose}
+
+        </div>
+
+      ) : null}
+
+    </div>
+
+  );
+
+}
+
+ 
+
  
 
 function MixPanel({ title, subtitle, rows = [], labelKey, amountKey = "total_amount", countKey = "candidate_count" }) {
