@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:polling-temporal-scope-ui": "node --test tests/pollingTemporalScopeUi.contract.test.mjs"
   },
   "dependencies": {
     "axios": "^1.7.2",

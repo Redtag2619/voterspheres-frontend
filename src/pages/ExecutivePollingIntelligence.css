@@ -228,15 +228,53 @@
    Filters
 ------------------------------------------------------- */
 
+.epi-scope-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 12px;
+}
+
+.epi-scope-switch button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--epi-border);
+  border-radius: 16px;
+  color: var(--epi-text);
+  background: var(--epi-panel);
+  text-align: left;
+  cursor: pointer;
+}
+
+.epi-scope-switch button strong {
+  font-size: 0.95rem;
+}
+
+.epi-scope-switch button span {
+  color: var(--epi-muted);
+  font-size: 0.78rem;
+}
+
+.epi-scope-switch button b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--epi-text-soft);
+  font-size: 0.78rem;
+}
+
+.epi-scope-switch button.is-active {
+  border-color: rgba(249, 115, 22, 0.55);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.16), var(--epi-panel));
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.08);
+}
+
 .epi-filter-bar {
   display: grid;
 
-  grid-template-columns:
-    minmax(170px, 1fr)
-    minmax(170px, 1fr)
-    minmax(90px, 0.45fr)
-    minmax(220px, 1.35fr)
-    auto;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 
   gap: 12px;
 
@@ -1227,6 +1265,7 @@
   }
 
   .epi-filter-bar,
+  .epi-scope-switch,
   .epi-kpi-grid,
   .epi-poll-grid,
   .epi-pollster-list {
@@ -1275,6 +1314,7 @@
   }
 
   .epi-hero,
+  .epi-scope-switch button,
   .epi-filter-bar,
   .epi-panel,
   .epi-kpi,
@@ -1329,4 +1369,3 @@
     white-space: normal;
   }
 }
-

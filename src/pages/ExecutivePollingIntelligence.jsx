@@ -8,7 +8,7 @@ import {
 
 } from "react";
 
- 
+
 
 import {
 
@@ -16,25 +16,44 @@ import {
 
 } from "../api/executivePollingIntelligenceApi.js";
 
- 
+
 
 import "./ExecutivePollingIntelligence.css";
 
- 
 
-const BASE_POLL_TYPES = [
 
-  { value: "", label: "All Polling" },
-
-  { value: "generic-ballot", label: "Generic Ballot" },
-
-  { value: "approval", label: "Approval" },
-
-  { value: "favorability", label: "Favorability" },
-
+const TEMPORAL_SCOPES = [
+  {
+    value: "election_cycle",
+    label: "Election Polling",
+    description: "Cycle-bound races, ballots, and generic ballots",
+  },
+  {
+    value: "continuous_tracking",
+    label: "Approval & Favorability",
+    description: "Date-bound public opinion without an election cycle",
+  },
 ];
 
- 
+const POLL_TYPES_BY_SCOPE = {
+  election_cycle: [
+    { value: "", label: "All Election Polling" },
+    { value: "generic-ballot", label: "Generic Ballot" },
+    { value: "president", label: "President" },
+    { value: "us-senator", label: "U.S. Senate" },
+    { value: "us-representative", label: "U.S. House" },
+    { value: "governor", label: "Governor" },
+    { value: "attorney-general", label: "Attorney General" },
+    { value: "mayor", label: "Mayor" },
+  ],
+  continuous_tracking: [
+    { value: "", label: "All Continuous Tracking" },
+    { value: "approval", label: "Approval" },
+    { value: "favorability", label: "Favorability" },
+  ],
+};
+
+
 
 const POPULATIONS = [
 
@@ -48,29 +67,29 @@ const POPULATIONS = [
 
 ];
 
- 
+
 
 const formatNumber = (value) =>
 
   new Intl.NumberFormat("en-US").format(Number(value || 0));
 
- 
+
 
 const formatDate = (value) => {
 
   if (!value) return "No date";
 
- 
+
 
   const raw = String(value).slice(0, 10);
 
   const date = new Date(`${raw}T12:00:00`);
 
- 
+
 
   if (!Number.isFinite(date.getTime())) return String(value);
 
- 
+
 
   return date.toLocaleDateString("en-US", {
 
@@ -84,25 +103,25 @@ const formatDate = (value) => {
 
 };
 
- 
+
 
 const formatGeneratedAt = (value) => {
 
   if (!value) return "Awaiting polling refresh";
 
- 
+
 
   const date = new Date(value);
 
   if (!Number.isFinite(date.getTime())) return "Awaiting polling refresh";
 
- 
+
 
   return `Generated ${date.toLocaleString()}`;
 
 };
 
- 
+
 
 const labelize = (value = "") =>
 
@@ -112,17 +131,17 @@ const labelize = (value = "") =>
 
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
- 
+
 
 const cx = (...classes) => classes.filter(Boolean).join(" ");
 
- 
+
 
 function Gauge({ value = 0, label }) {
 
   const normalized = Math.max(0, Math.min(100, Number(value || 0)));
 
- 
+
 
   return (
 
@@ -144,7 +163,7 @@ function Gauge({ value = 0, label }) {
 
       </div>
 
- 
+
 
       <span>{label}</span>
 
@@ -154,7 +173,7 @@ function Gauge({ value = 0, label }) {
 
 }
 
- 
+
 
 function KpiCard({ label, value, detail, accent = false }) {
 
@@ -174,7 +193,7 @@ function KpiCard({ label, value, detail, accent = false }) {
 
 }
 
- 
+
 
 function GenericAverage({ averages = [] }) {
 
@@ -186,7 +205,7 @@ function GenericAverage({ averages = [] }) {
 
   );
 
- 
+
 
   if (!averages.length) {
 
@@ -202,7 +221,7 @@ function GenericAverage({ averages = [] }) {
 
   }
 
- 
+
 
   return (
 
@@ -212,7 +231,7 @@ function GenericAverage({ averages = [] }) {
 
         const average = Number(item.average || 0);
 
- 
+
 
         return (
 
@@ -226,7 +245,7 @@ function GenericAverage({ averages = [] }) {
 
             </div>
 
- 
+
 
             <div className="epi-average-track">
 
@@ -250,7 +269,7 @@ function GenericAverage({ averages = [] }) {
 
             </div>
 
- 
+
 
             <b>{average.toFixed(1)}%</b>
 
@@ -266,7 +285,7 @@ function GenericAverage({ averages = [] }) {
 
 }
 
- 
+
 
 function TrendChart({ trend = [] }) {
 
@@ -274,7 +293,7 @@ function TrendChart({ trend = [] }) {
 
     const counts = new Map();
 
- 
+
 
     trend.forEach((point) => {
 
@@ -286,7 +305,7 @@ function TrendChart({ trend = [] }) {
 
     });
 
- 
+
 
     return [...counts.entries()]
 
@@ -298,13 +317,13 @@ function TrendChart({ trend = [] }) {
 
   }, [trend]);
 
- 
+
 
   const width = 900;
 
   const height = 280;
 
- 
+
 
   const padding = {
 
@@ -318,7 +337,7 @@ function TrendChart({ trend = [] }) {
 
   };
 
- 
+
 
   const points = trend.slice(-40);
 
@@ -326,7 +345,7 @@ function TrendChart({ trend = [] }) {
 
   const yMax = 60;
 
- 
+
 
   const x = (index) =>
 
@@ -336,7 +355,7 @@ function TrendChart({ trend = [] }) {
 
       (width - padding.left - padding.right);
 
- 
+
 
   const y = (value) =>
 
@@ -346,7 +365,7 @@ function TrendChart({ trend = [] }) {
 
       (height - padding.top - padding.bottom);
 
- 
+
 
   const series = choices.map((choice) => ({
 
@@ -362,11 +381,11 @@ function TrendChart({ trend = [] }) {
 
         );
 
- 
+
 
         if (!found) return null;
 
- 
+
 
         return {
 
@@ -386,7 +405,7 @@ function TrendChart({ trend = [] }) {
 
   }));
 
- 
+
 
   if (points.length < 2 || choices.length === 0) {
 
@@ -402,7 +421,7 @@ function TrendChart({ trend = [] }) {
 
   }
 
- 
+
 
   return (
 
@@ -438,7 +457,7 @@ function TrendChart({ trend = [] }) {
 
             />
 
- 
+
 
             <text
 
@@ -460,7 +479,7 @@ function TrendChart({ trend = [] }) {
 
         ))}
 
- 
+
 
         {series.map((item, index) => {
 
@@ -476,7 +495,7 @@ function TrendChart({ trend = [] }) {
 
             .join(" ");
 
- 
+
 
           return (
 
@@ -490,7 +509,7 @@ function TrendChart({ trend = [] }) {
 
               <path d={path} className="epi-series-line" />
 
- 
+
 
               {item.points.map((point) => (
 
@@ -524,7 +543,7 @@ function TrendChart({ trend = [] }) {
 
         })}
 
- 
+
 
         <text
 
@@ -540,7 +559,7 @@ function TrendChart({ trend = [] }) {
 
         </text>
 
- 
+
 
         <text
 
@@ -560,7 +579,7 @@ function TrendChart({ trend = [] }) {
 
       </svg>
 
- 
+
 
       <div className="epi-chart-legend">
 
@@ -584,13 +603,13 @@ function TrendChart({ trend = [] }) {
 
 }
 
- 
+
 
 function PollCard({ poll }) {
 
   const pollDate = poll.poll_date || poll.end_date || poll.start_date;
 
- 
+
 
   return (
 
@@ -616,13 +635,13 @@ function PollCard({ poll }) {
 
         </div>
 
- 
+
 
         <time>{formatDate(pollDate)}</time>
 
       </header>
 
- 
+
 
       <div className="epi-poll-meta">
 
@@ -646,13 +665,13 @@ function PollCard({ poll }) {
 
         <span>{poll.state || "US"}</span>
 
- 
+
 
         {poll.partisan ? <span>Partisan: {poll.partisan}</span> : null}
 
       </div>
 
- 
+
 
       <div className="epi-poll-answers">
 
@@ -682,7 +701,7 @@ function PollCard({ poll }) {
 
       </div>
 
- 
+
 
       <footer className="epi-poll-card-footer">
 
@@ -698,7 +717,7 @@ function PollCard({ poll }) {
 
         </span>
 
- 
+
 
         {poll.source_url ? (
 
@@ -726,7 +745,7 @@ function PollCard({ poll }) {
 
 }
 
- 
+
 
 function PollsterCard({ pollster, index, selected, onSelect }) {
 
@@ -744,7 +763,7 @@ function PollsterCard({ pollster, index, selected, onSelect }) {
 
       <b className="epi-pollster-rank">{index + 1}</b>
 
- 
+
 
       <strong className="epi-pollster-name">
 
@@ -752,7 +771,7 @@ function PollsterCard({ pollster, index, selected, onSelect }) {
 
       </strong>
 
- 
+
 
       <span className="epi-pollster-meta">
 
@@ -762,7 +781,7 @@ function PollsterCard({ pollster, index, selected, onSelect }) {
 
       </span>
 
- 
+
 
       {pollster.poll_types?.length ? (
 
@@ -786,7 +805,7 @@ function PollsterCard({ pollster, index, selected, onSelect }) {
 
       ) : null}
 
- 
+
 
       <time className="epi-pollster-date">
 
@@ -800,11 +819,15 @@ function PollsterCard({ pollster, index, selected, onSelect }) {
 
 }
 
- 
+
 
 export default function ExecutivePollingIntelligence() {
 
   const [filters, setFilters] = useState({
+
+    temporal_scope: "election_cycle",
+
+    cycle: "",
 
     poll_type: "",
 
@@ -822,7 +845,7 @@ export default function ExecutivePollingIntelligence() {
 
   });
 
- 
+
 
   const [data, setData] = useState(null);
 
@@ -832,7 +855,7 @@ export default function ExecutivePollingIntelligence() {
 
   const [error, setError] = useState("");
 
- 
+
 
   async function load({ quiet = false } = {}) {
 
@@ -840,11 +863,11 @@ export default function ExecutivePollingIntelligence() {
 
     else setLoading(true);
 
- 
+
 
     setError("");
 
- 
+
 
     try {
 
@@ -872,7 +895,7 @@ export default function ExecutivePollingIntelligence() {
 
   }
 
- 
+
 
   useEffect(() => {
 
@@ -882,13 +905,17 @@ export default function ExecutivePollingIntelligence() {
 
     }, 250);
 
- 
+
 
     return () => window.clearTimeout(timer);
 
   }, [
 
     filters.poll_type,
+
+    filters.temporal_scope,
+
+    filters.cycle,
 
     filters.population,
 
@@ -900,7 +927,7 @@ export default function ExecutivePollingIntelligence() {
 
   ]);
 
- 
+
 
   const summary = data?.summary || {};
 
@@ -908,21 +935,31 @@ export default function ExecutivePollingIntelligence() {
 
   const pollsters = data?.pollsters || [];
 
- 
+  const scopeCounts = useMemo(
+    () => new Map(
+      (data?.temporal_scopes || []).map((item) => [
+        item.temporal_scope,
+        Number(item.polls || 0),
+      ])
+    ),
+    [data?.temporal_scopes]
+  );
+
+
 
   const pollTypeOptions = useMemo(() => {
 
     const values = new Map(
 
-      BASE_POLL_TYPES.map((item) => [item.value, item])
+      (POLL_TYPES_BY_SCOPE[filters.temporal_scope] || []).map((item) => [item.value, item])
 
     );
 
- 
+
 
     const incoming = data?.poll_types || summary.poll_types || [];
 
- 
+
 
     incoming.forEach((item) => {
 
@@ -936,11 +973,11 @@ export default function ExecutivePollingIntelligence() {
 
         .toLowerCase();
 
- 
+
 
       if (!value || values.has(value)) return;
 
- 
+
 
       values.set(value, {
 
@@ -952,23 +989,23 @@ export default function ExecutivePollingIntelligence() {
 
     });
 
- 
+
 
     return [...values.values()];
 
-  }, [data?.poll_types, summary.poll_types]);
+  }, [data?.poll_types, summary.poll_types, filters.temporal_scope]);
 
- 
+
 
   const averagePollType =
 
     data?.average_poll_type || filters.poll_type || "generic-ballot";
 
- 
+
 
   const averageLabel = labelize(averagePollType || "generic-ballot");
 
- 
+
 
   return (
 
@@ -980,7 +1017,7 @@ export default function ExecutivePollingIntelligence() {
 
           <h1>Executive Polling Intelligence</h1>
 
- 
+
 
           <p>
 
@@ -994,7 +1031,7 @@ export default function ExecutivePollingIntelligence() {
 
         </div>
 
- 
+
 
         <div className="epi-hero-actions">
 
@@ -1006,7 +1043,7 @@ export default function ExecutivePollingIntelligence() {
 
           </div>
 
- 
+
 
           <button
 
@@ -1026,7 +1063,30 @@ export default function ExecutivePollingIntelligence() {
 
       </section>
 
- 
+      <section className="epi-scope-switch" aria-label="Polling temporal scope">
+        {TEMPORAL_SCOPES.map((scope) => (
+          <button
+            type="button"
+            key={scope.value}
+            className={cx(filters.temporal_scope === scope.value && "is-active")}
+            aria-pressed={filters.temporal_scope === scope.value}
+            onClick={() =>
+              setFilters((current) => ({
+                ...current,
+                temporal_scope: scope.value,
+                cycle: "",
+                poll_type: "",
+              }))
+            }
+          >
+            <strong>{scope.label}</strong>
+            <span>{scope.description}</span>
+            <b>{formatNumber(scopeCounts.get(scope.value) || 0)} polls</b>
+          </button>
+        ))}
+      </section>
+
+
 
       <section className="epi-filter-bar">
 
@@ -1034,7 +1094,7 @@ export default function ExecutivePollingIntelligence() {
 
           <span>Poll type</span>
 
- 
+
 
           <select
 
@@ -1068,13 +1128,35 @@ export default function ExecutivePollingIntelligence() {
 
         </label>
 
- 
+        {filters.temporal_scope === "election_cycle" ? (
+          <label>
+            <span>Election cycle</span>
+            <select
+              value={filters.cycle}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  cycle: event.target.value,
+                }))
+              }
+            >
+              <option value="">All selectable cycles</option>
+              {(data?.available_cycles || []).map((item) => (
+                <option key={item.cycle} value={item.cycle}>
+                  {item.label || item.cycle}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+
 
         <label>
 
           <span>Population</span>
 
- 
+
 
           <select
 
@@ -1108,13 +1190,13 @@ export default function ExecutivePollingIntelligence() {
 
         </label>
 
- 
+
 
         <label>
 
           <span>State</span>
 
- 
+
 
           <input
 
@@ -1134,7 +1216,7 @@ export default function ExecutivePollingIntelligence() {
 
                 .slice(0, 2);
 
- 
+
 
               setFilters((current) => ({
 
@@ -1150,13 +1232,13 @@ export default function ExecutivePollingIntelligence() {
 
         </label>
 
- 
+
 
         <label className="epi-pollster-search">
 
           <span>Pollster</span>
 
- 
+
 
           <input
 
@@ -1180,7 +1262,7 @@ export default function ExecutivePollingIntelligence() {
 
         </label>
 
- 
+
 
         <label className="epi-toggle">
 
@@ -1204,7 +1286,7 @@ export default function ExecutivePollingIntelligence() {
 
           />
 
- 
+
 
           <span>Measured polls only</span>
 
@@ -1212,7 +1294,7 @@ export default function ExecutivePollingIntelligence() {
 
       </section>
 
- 
+
 
       {loading ? (
 
@@ -1232,7 +1314,7 @@ export default function ExecutivePollingIntelligence() {
 
           <span>{error}</span>
 
- 
+
 
           <button type="button" onClick={() => load()}>
 
@@ -1260,7 +1342,7 @@ export default function ExecutivePollingIntelligence() {
 
             />
 
- 
+
 
             <KpiCard
 
@@ -1272,7 +1354,7 @@ export default function ExecutivePollingIntelligence() {
 
             />
 
- 
+
 
             <KpiCard
 
@@ -1284,7 +1366,7 @@ export default function ExecutivePollingIntelligence() {
 
             />
 
- 
+
 
             <KpiCard
 
@@ -1296,7 +1378,7 @@ export default function ExecutivePollingIntelligence() {
 
             />
 
- 
+
 
             <div className="epi-kpi-gauges">
 
@@ -1308,7 +1390,7 @@ export default function ExecutivePollingIntelligence() {
 
               />
 
- 
+
 
               <Gauge
 
@@ -1322,7 +1404,7 @@ export default function ExecutivePollingIntelligence() {
 
           </section>
 
- 
+
 
           <section className="epi-main-grid">
 
@@ -1338,19 +1420,19 @@ export default function ExecutivePollingIntelligence() {
 
                 </div>
 
- 
+
 
                 <small>Latest {filters.average_window} polls</small>
 
               </header>
 
- 
+
 
               <GenericAverage averages={data?.averages || []} />
 
             </article>
 
- 
+
 
             <article className="epi-panel epi-trend-panel">
 
@@ -1364,7 +1446,7 @@ export default function ExecutivePollingIntelligence() {
 
                 </div>
 
- 
+
 
                 <small>
 
@@ -1374,7 +1456,7 @@ export default function ExecutivePollingIntelligence() {
 
               </header>
 
- 
+
 
               <TrendChart trend={data?.trend || []} />
 
@@ -1382,7 +1464,7 @@ export default function ExecutivePollingIntelligence() {
 
           </section>
 
- 
+
 
           <section className="epi-content-grid">
 
@@ -1398,13 +1480,13 @@ export default function ExecutivePollingIntelligence() {
 
                 </div>
 
- 
+
 
                 <small>{formatNumber(recentPolls.length)} displayed</small>
 
               </header>
 
- 
+
 
               <div className="epi-poll-grid">
 
@@ -1440,7 +1522,7 @@ export default function ExecutivePollingIntelligence() {
 
             </article>
 
- 
+
 
             <aside className="epi-panel epi-pollster-panel">
 
@@ -1454,13 +1536,13 @@ export default function ExecutivePollingIntelligence() {
 
                 </div>
 
- 
+
 
                 <small>{formatNumber(pollsters.length)} ranked</small>
 
               </header>
 
- 
+
 
               <div className="epi-pollster-list">
 
@@ -1518,7 +1600,7 @@ export default function ExecutivePollingIntelligence() {
 
           </section>
 
- 
+
 
           <footer className="epi-attribution">
 
@@ -1530,7 +1612,7 @@ export default function ExecutivePollingIntelligence() {
 
             </span>
 
- 
+
 
             <span>{formatGeneratedAt(data?.generated_at)}</span>
 

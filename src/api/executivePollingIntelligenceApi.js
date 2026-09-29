@@ -104,6 +104,12 @@ export function getExecutivePollingHealth() {
   );
 }
 
+export function getExecutivePollingScopes() {
+  return request(
+    "/executive-polling-intelligence/scopes"
+  );
+}
+
 export function listExecutivePollingRecords(params = {}) {
   return request(
     `/executive-polling-intelligence/records${buildQuery(
@@ -115,6 +121,6 @@ export function listExecutivePollingRecords(params = {}) {
 export default {
   getExecutivePollingDashboard,
   getExecutivePollingHealth,
+  getExecutivePollingScopes,
   listExecutivePollingRecords,
 };
-
