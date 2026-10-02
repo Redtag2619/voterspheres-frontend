@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:polling-temporal-scope-ui": "node --test tests/pollingTemporalScopeUi.contract.test.mjs",
-    "test:polling-date-integrity": "node --test tests/pollingDateDisplay.contract.test.mjs"
+    "test:polling-date-integrity": "node --test tests/pollingDateDisplay.contract.test.mjs",
+    "test:polling-read-integrity": "node --test tests/pollingReadDisplay.contract.test.mjs"
   },
   "dependencies": {
     "axios": "^1.7.2",

@@ -138,7 +138,7 @@ function Gauge({ value = 0, label }) {
 
       >
 
-        <strong>{Math.round(normalized)}%</strong>
+        <strong>{value == null ? "Unknown" : `${Math.round(normalized)}%`}</strong>
 
       </div>
 
@@ -692,7 +692,7 @@ function PollCard({ poll }) {
 
         <span>
 
-          Freshness {Math.round(poll.freshness_score || 0)}%
+          Freshness {poll.freshness_score == null ? "Unknown" : `${Math.round(poll.freshness_score)}%`}
 
         </span>
 
@@ -989,6 +989,28 @@ export default function ExecutivePollingIntelligence() {
   return (
 
     <div className="epi-page">
+      {/* Polling freshness and coverage: metrics exclude future-dated evidence. */}
+      {data?.result_coverage?.capped && (
+        <section className="epi-empty" role="status">
+          <strong>Results are capped — metrics describe the returned sample.</strong>
+          <p>{formatNumber(data.result_coverage.returned_answer_count)} of {formatNumber(data.result_coverage.matching_answer_count)} matching current answer records shown (limit {formatNumber(data.result_coverage.answer_row_limit)}). Narrow the filters for fuller coverage.</p>
+          {data.result_coverage.incomplete_boundary_answers_excluded > 0 && <p>Answers from a poll split by the limit were excluded from calculations.</p>}
+        </section>
+      )}
+      {data?.future_dated_answer_count > 0 && (
+        <section className="epi-empty" role="status">
+          <strong>Future-dated polling requires source verification.</strong>
+          <p>{formatNumber(data.future_dated_answer_count)} matching answer records are excluded from current counts, averages, trends and freshness as of {formatDate(data.freshness_as_of)}.</p>
+          <details>
+            <summary>Review flagged polls</summary>
+            <ul>{(data.future_dated_polls || []).map((poll, index) => <li key={String(poll.id) + ':' + index}>{poll.pollster} — {poll.race_name || poll.poll_type}: survey {formatDate(poll.start_date)} to {formatDate(poll.end_date)}; published {formatDate(poll.publication_date)} (future-dated; verify source)</li>)}</ul>
+            {data.future_date_coverage?.capped && <p>The flagged-poll list is also capped; its record count includes all matching future-dated answers.</p>}
+          </details>
+        </section>
+      )}
+      {data?.summary?.freshness_unknown_poll_count > 0 && (
+        <p role="status">Survey-date freshness is unknown for {formatNumber(data.summary.freshness_unknown_poll_count)} returned polls. Those polls are excluded from the freshness average.</p>
+      )}
 
       <section className="epi-hero">
 
