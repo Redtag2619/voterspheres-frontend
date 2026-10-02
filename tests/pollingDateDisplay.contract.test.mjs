@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {pollingDateKey} from '../src/utils/pollingDate.js';
+const source=fs.readFileSync(new URL('../src/pages/ExecutivePollingIntelligence.jsx',import.meta.url),'utf8');const start=source.indexOf('const formatDate ='),end=source.indexOf('const formatGeneratedAt',start);const ctx={Date,pollingDateKey};vm.createContext(ctx);vm.runInContext(source.slice(start,end)+';this.format=formatDate;',ctx);
+test('actual formatter renders canonical ISO dates without timezone day shift',()=>assert.equal(ctx.format('2025-09-25'),'Sep 25, 2025'));
+test('actual formatter accepts timestamp and legacy Date string',()=>{assert.equal(ctx.format('2025-10-29T00:00:00.000Z'),'Oct 29, 2025');assert.equal(ctx.format(new Date('2025-10-29').toString()),'Oct 29, 2025');});
+test('invalid and absent dates have a bounded display',()=>{assert.equal(ctx.format(null),'No date');assert.equal(ctx.format('invalid'),'No date');assert.equal(ctx.format('2025-02-30'),'No date');});

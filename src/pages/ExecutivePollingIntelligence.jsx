@@ -1,3 +1,4 @@
+import { pollingDateKey } from "../utils/pollingDate.js";
 import {
 
   useEffect,
@@ -76,34 +77,12 @@ const formatNumber = (value) =>
 
 
 const formatDate = (value) => {
-
-  if (!value) return "No date";
-
-
-
-  const raw = String(value).slice(0, 10);
-
-  const date = new Date(`${raw}T12:00:00`);
-
-
-
-  if (!Number.isFinite(date.getTime())) return String(value);
-
-
-
-  return date.toLocaleDateString("en-US", {
-
-    month: "short",
-
-    day: "numeric",
-
-    year: "numeric",
-
-  });
-
+ const key=pollingDateKey(value);
+ if (!key) return "No date";
+ return new Date(`${key}T12:00:00Z`).toLocaleDateString("en-US", {
+  month:"short",day:"numeric",year:"numeric",timeZone:"UTC"
+ });
 };
-
-
 
 const formatGeneratedAt = (value) => {
 
