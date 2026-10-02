@@ -1369,3 +1369,91 @@
     white-space: normal;
   }
 }
+
+/* Polling coverage notices use the same surfaces and accents as the dashboard. */
+.epi-coverage-notices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.epi-coverage-card {
+  min-width: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--epi-border);
+  border-left: 3px solid var(--epi-orange);
+  border-radius: 18px;
+  background: var(--epi-panel);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.16);
+  backdrop-filter: blur(14px);
+  color: var(--epi-text-soft);
+  overflow-wrap: anywhere;
+}
+.epi-coverage-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--epi-orange);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.epi-coverage-card > strong {
+  display: block;
+  color: var(--epi-text);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.epi-coverage-card p {
+  margin: 10px 0 0;
+  color: var(--epi-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.epi-coverage-card b { color: var(--epi-text-soft); }
+.epi-coverage-card .epi-coverage-number { color: var(--epi-orange); }
+.epi-coverage-card--warning {
+  border-color: var(--epi-orange-border);
+  background: linear-gradient(135deg, var(--epi-orange-soft), var(--epi-panel-strong));
+}
+.epi-coverage-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--epi-border);
+  padding-top: 12px;
+}
+.epi-coverage-details summary {
+  width: fit-content;
+  color: var(--epi-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.epi-coverage-details summary:hover { color: var(--epi-orange); }
+.epi-coverage-details summary:focus-visible {
+  outline: 2px solid var(--epi-orange);
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+.epi-coverage-details ul {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--epi-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.epi-coverage-unknown {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 12px 18px;
+  border: 1px solid var(--epi-border);
+  border-radius: 12px;
+  background: var(--epi-panel-soft);
+  color: var(--epi-muted);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .epi-coverage-notices { gap: 12px; margin: 14px 0; }
+  .epi-coverage-card { padding: 16px 18px; border-radius: 14px; }
+}

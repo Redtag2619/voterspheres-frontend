@@ -989,29 +989,6 @@ export default function ExecutivePollingIntelligence() {
   return (
 
     <div className="epi-page">
-      {/* Polling freshness and coverage: metrics exclude future-dated evidence. */}
-      {data?.result_coverage?.capped && (
-        <section className="epi-empty" role="status">
-          <strong>Results are capped — metrics describe the returned sample.</strong>
-          <p>{formatNumber(data.result_coverage.returned_answer_count)} of {formatNumber(data.result_coverage.matching_answer_count)} matching current answer records shown (limit {formatNumber(data.result_coverage.answer_row_limit)}). Narrow the filters for fuller coverage.</p>
-          {data.result_coverage.incomplete_boundary_answers_excluded > 0 && <p>Answers from a poll split by the limit were excluded from calculations.</p>}
-        </section>
-      )}
-      {data?.future_dated_answer_count > 0 && (
-        <section className="epi-empty" role="status">
-          <strong>Future-dated polling requires source verification.</strong>
-          <p>{formatNumber(data.future_dated_answer_count)} matching answer records are excluded from current counts, averages, trends and freshness as of {formatDate(data.freshness_as_of)}.</p>
-          <details>
-            <summary>Review flagged polls</summary>
-            <ul>{(data.future_dated_polls || []).map((poll, index) => <li key={String(poll.id) + ':' + index}>{poll.pollster} — {poll.race_name || poll.poll_type}: survey {formatDate(poll.start_date)} to {formatDate(poll.end_date)}; published {formatDate(poll.publication_date)} (future-dated; verify source)</li>)}</ul>
-            {data.future_date_coverage?.capped && <p>The flagged-poll list is also capped; its record count includes all matching future-dated answers.</p>}
-          </details>
-        </section>
-      )}
-      {data?.summary?.freshness_unknown_poll_count > 0 && (
-        <p role="status">Survey-date freshness is unknown for {formatNumber(data.summary.freshness_unknown_poll_count)} returned polls. Those polls are excluded from the freshness average.</p>
-      )}
-
       <section className="epi-hero">
 
         <div className="epi-hero-copy">
@@ -1063,6 +1040,35 @@ export default function ExecutivePollingIntelligence() {
         </div>
 
       </section>
+
+      {(data?.result_coverage?.capped || data?.future_dated_answer_count > 0 || data?.summary?.freshness_unknown_poll_count > 0) && (
+        <section className="epi-coverage-notices" aria-label="Polling data coverage">
+      {/* Polling freshness and coverage: metrics exclude future-dated evidence. */}
+      {data?.result_coverage?.capped && (
+        <section className="epi-coverage-card" role="status">
+          <span className="epi-coverage-label">Result coverage</span>
+          <strong>Results are capped — metrics describe the returned sample.</strong>
+          <p><b className="epi-coverage-number">{formatNumber(data.result_coverage.returned_answer_count)}</b> of <b>{formatNumber(data.result_coverage.matching_answer_count)}</b> matching current answer records shown (limit {formatNumber(data.result_coverage.answer_row_limit)}). Narrow the filters for fuller coverage.</p>
+          {data.result_coverage.incomplete_boundary_answers_excluded > 0 && <p>Answers from a poll split by the limit were excluded from calculations.</p>}
+        </section>
+      )}
+      {data?.future_dated_answer_count > 0 && (
+        <section className="epi-coverage-card epi-coverage-card--warning" role="status">
+          <span className="epi-coverage-label">Date verification</span>
+          <strong>Future-dated polling requires source verification.</strong>
+          <p>{formatNumber(data.future_dated_answer_count)} matching answer records are excluded from current counts, averages, trends and freshness as of {formatDate(data.freshness_as_of)}.</p>
+          <details className="epi-coverage-details">
+            <summary>Review flagged polls</summary>
+            <ul>{(data.future_dated_polls || []).map((poll, index) => <li key={String(poll.id) + ':' + index}>{poll.pollster} — {poll.race_name || poll.poll_type}: survey {formatDate(poll.start_date)} to {formatDate(poll.end_date)}; published {formatDate(poll.publication_date)} (future-dated; verify source)</li>)}</ul>
+            {data.future_date_coverage?.capped && <p>The flagged-poll list is also capped; its record count includes all matching future-dated answers.</p>}
+          </details>
+        </section>
+      )}
+      {data?.summary?.freshness_unknown_poll_count > 0 && (
+        <p className="epi-coverage-unknown" role="status">Survey-date freshness is unknown for {formatNumber(data.summary.freshness_unknown_poll_count)} returned polls. Those polls are excluded from the freshness average.</p>
+      )}
+        </section>
+      )}
 
       <section className="epi-scope-switch" aria-label="Polling temporal scope">
         {TEMPORAL_SCOPES.map((scope) => (
