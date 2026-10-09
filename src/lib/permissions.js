@@ -35,6 +35,8 @@ export function getPermissionsForRole(role) {
   const normalizedRole = String(role || "").trim().toLowerCase();
 
   switch (normalizedRole) {
+    case "platform_admin":
+    case "super_admin":
     case "admin":
       return [...ALL_PERMISSIONS];
 

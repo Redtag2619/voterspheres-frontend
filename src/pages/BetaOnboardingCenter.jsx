@@ -82,6 +82,7 @@ export default function BetaOnboardingCenter() {
       setData({
         summary: result?.summary || {},
         customers: arr(result?.customers),
+        result_coverage: result?.result_coverage || null,
       });
 
       setLastUpdated(
@@ -152,7 +153,7 @@ export default function BetaOnboardingCenter() {
       demo_status: customer.demo_status || "not_scheduled",
       workspace_status: customer.workspace_status || "not_started",
       billing_status: customer.billing_status || "not_started",
-      launch_confidence: customer.launch_confidence || 50,
+      launch_confidence: customer.launch_confidence ?? 50,
       priority: customer.priority || "medium",
       notes: customer.notes || "",
       feedback: customer.feedback || "",
@@ -441,6 +442,17 @@ export default function BetaOnboardingCenter() {
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
       {message ? <div className="vs-banner vs-banner-demo">{message}</div> : null}
+
+      <SectionCard title="Onboarding tracking" subtitle="Progress recorded by your team">
+        <p>Invitation, workspace, demo, and billing statuses are manually tracked. Changing a status here does not send an email, create a workspace, or verify payment.</p>
+        <p>Use <a href="/admin/beta-access">Beta Access</a> for signup approvals and <a href="/admin/firm-invites">Firm Invitations</a> to invite users to an existing firm.</p>
+        <p>Metrics summarize the records returned for the current filters.</p>
+        {data.result_coverage?.capped ? (
+          <div className="vs-banner vs-banner-demo" role="status">
+            Showing the first {data.result_coverage.returned_count} matching records. More matches exist; narrow your filters. Metrics cover only the displayed records.
+          </div>
+        ) : null}
+      </SectionCard>
 
       <div className="vs-grid-4">
         <StatCard label="Beta Firms" value={summary.total || 0} delta="Tracked onboarding records" tone="up" />
