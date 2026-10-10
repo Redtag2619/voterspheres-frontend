@@ -1,3 +1,5 @@
+import {useElectionCycle} from "../lib/useElectionCycle.js";
+import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../services/api";
@@ -590,7 +592,7 @@ export default function DonorNetwork() {
 
   const [localSearch, setLocalSearch] = useState("");
 
-  const [cycle, setCycle] = useState("2026");
+  const [cycle, setCycle] = useElectionCycle("DonorNetwork");
 
   const [selectedState, setSelectedState] = useState("");
 
@@ -712,6 +714,7 @@ export default function DonorNetwork() {
 
  
 
+    setNetworkData(fallbackData); setLastUpdated(null);
     const timer = setTimeout(loadDonorNetwork, 300);
 
  
@@ -1362,13 +1365,7 @@ export default function DonorNetwork() {
 
           <select id="donor-network-cycle" name="donor_network_cycle" aria-label="Election cycle" className="vs-input" value={cycle} onChange={(event) => setCycle(event.target.value)}>
 
-            <option value="2026">2026 Cycle</option>
-
-            <option value="2024">2024 Cycle</option>
-
-            <option value="2022">2022 Cycle</option>
-
-            <option value="2020">2020 Cycle</option>
+            {cycleOptions({historical:true, selected:cycle}).map(year => <option key={year} value={year}>{year} Cycle</option>)}
 
           </select>
 

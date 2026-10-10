@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {useElectionCycle} from "../lib/useElectionCycle.js";
+import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
  
 
@@ -386,7 +388,8 @@ export default function DarkMoneyExposure() {
 
  
 
-  const [cycle, setCycle] = useState(2026);
+  const [cycle, setCycle] = useElectionCycle("DarkMoneyExposure");
+  const requestVersion = useRef(0);
 
  
 
@@ -475,6 +478,7 @@ export default function DarkMoneyExposure() {
  
 
   const loadDashboard = useCallback(async (quiet = false) => {
+    const version = ++requestVersion.current;
 
  
 
@@ -502,6 +506,7 @@ export default function DarkMoneyExposure() {
 
  
 
+      if (version !== requestVersion.current) return;
       const payload = unwrapPayload(response);
 
  
@@ -547,6 +552,7 @@ export default function DarkMoneyExposure() {
  
 
     } catch (nextError) {
+      if (version !== requestVersion.current) return;
 
  
 
@@ -555,6 +561,7 @@ export default function DarkMoneyExposure() {
  
 
     } finally {
+      if (version !== requestVersion.current) return;
 
  
 
@@ -582,11 +589,13 @@ export default function DarkMoneyExposure() {
 
  
 
+    requestVersion.current++;
+    setData(EMPTY_DATA); setSelected(null); setProfile(null); setUpdatedAt(null);
     const timer = window.setTimeout(() => loadDashboard(false), 250);
 
  
 
-    return () => window.clearTimeout(timer);
+    return () => { requestVersion.current++; window.clearTimeout(timer); };
 
  
 
@@ -615,6 +624,7 @@ export default function DarkMoneyExposure() {
  
 
   const openProfile = useCallback(async (committee) => {
+    const version = requestVersion.current;
 
  
 
@@ -658,11 +668,13 @@ export default function DarkMoneyExposure() {
 
  
 
+      if (version !== requestVersion.current) return;
       setProfile(unwrapPayload(response));
 
  
 
     } catch (nextError) {
+      if (version !== requestVersion.current) return;
 
  
 
@@ -671,6 +683,7 @@ export default function DarkMoneyExposure() {
  
 
     } finally {
+      if (version !== requestVersion.current) return;
 
  
 
@@ -886,7 +899,7 @@ export default function DarkMoneyExposure() {
 
  
 
-          <label htmlFor="political-money-cycle"><span>Election cycle</span><select id="political-money-cycle" name="political_money_cycle" value={cycle} onChange={(event) => setCycle(Number(event.target.value))}><option value={2026}>2026</option><option value={2024}>2024</option><option value={2022}>2022</option><option value={2020}>2020</option></select></label>
+          <label htmlFor="political-money-cycle"><span>Election cycle</span><select id="political-money-cycle" name="political_money_cycle" value={cycle} onChange={(event) => setCycle(Number(event.target.value))}>{cycleOptions({historical:true, selected:cycle}).map(year => <option key={year} value={year}>{year} Cycle</option>)}</select></label>
 
  
 

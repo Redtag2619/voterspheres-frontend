@@ -1,3 +1,4 @@
+import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ComposableMap,
@@ -1082,7 +1083,7 @@ export default function Vendors() {
     status: "",
     page: 1,
     limit: 12,
-    cycle: "2026",
+    cycle: String(initialCycle("Vendors", {historical:true})),
   });
 
   const [selectedGroup, setSelectedGroup] = useState("All");
@@ -1128,6 +1129,8 @@ export default function Vendors() {
     };
   }, []);
 
+  useEffect(() => { try { localStorage.setItem("vs-cycle:Vendors", String(filters.cycle)); } catch {} }, [filters.cycle]);
+
   useEffect(() => {
     let active = true;
 
@@ -1162,6 +1165,7 @@ export default function Vendors() {
     let active = true;
 
     async function loadFec() {
+      setFecRows([]); setFecCategories([]); setFecStates([]);
       try {
         setFecLoading(true);
         setFecError("");
@@ -2277,10 +2281,7 @@ export default function Vendors() {
               }))
             }
           >
-            <option value="2026">2026 Cycle</option>
-            <option value="2024">2024 Cycle</option>
-            <option value="2022">2022 Cycle</option>
-            <option value="2020">2020 Cycle</option>
+            {cycleOptions({historical:true, selected:filters.cycle}).map(year => <option key={year} value={year}>{year} Cycle</option>)}
           </select>
         </div>
       </SectionCard>

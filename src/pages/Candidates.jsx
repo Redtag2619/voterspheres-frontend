@@ -1,3 +1,4 @@
+import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
@@ -846,6 +847,7 @@ export default function Candidates() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialFilters = {
+    cycle: String(initialCycle("Candidates")),
     q: searchParams.get("q") || "",
     state: searchParams.get("state") || "",
     office: searchParams.get("office") || "",
@@ -892,6 +894,13 @@ export default function Candidates() {
   const [lockDraft, setLockDraft] = useState({ admin_locked: false, locked_fields: {} });
   const [editDraft, setEditDraft] = useState({});
   const [verificationDraft, setVerificationDraft] = useState({ is_verified: false, verified_by: "", internal_notes: "" });
+
+  useEffect(() => {
+    setData(fallbackListData);
+    setCandidateIntel({ summary: {}, results: [], heat_map: {} });
+    setSelectedCandidateId(null);
+    setSelectedDetail(fallbackDetail);
+  }, [filters.cycle]);
 
   const demoMode = typeof window !== "undefined" && localStorage.getItem("vs_demo_mode") === "1";
 
@@ -993,6 +1002,7 @@ export default function Candidates() {
 
   useEffect(() => {
     const next = new URLSearchParams();
+    next.set("cycle", filters.cycle);
     if (filters.q) next.set("q", filters.q);
     if (filters.state) next.set("state", filters.state);
     if (filters.office) next.set("office", filters.office);
@@ -1658,6 +1668,9 @@ export default function Candidates() {
       <div id="candidate-filters" className="candidate-section-anchor">
       <SectionCard title="Command Filters" subtitle="Drive candidate intelligence by state, office, party, or direct search.">
         <div className="vs-grid-4">
+          <label>Election cycle<select className="vs-input" value={filters.cycle} onChange={event => setFilters(prev => ({...prev, cycle:event.target.value}))}>
+           {cycleOptions({selected:filters.cycle}).map(year => <option key={year} value={year}>{year}</option>)}
+         </select></label>
           <input className="vs-input" value={filters.q} onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))} placeholder="Search candidates, race names, or offices..." />
 
           <select className="vs-input" value={filters.state} onChange={(e) => setFilters((prev) => ({ ...prev, state: e.target.value }))}>
@@ -1677,7 +1690,7 @@ export default function Candidates() {
         </div>
 
         <div className="vs-inline-actions" style={{ marginTop: "1rem", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button type="button" className="vs-button vs-button-secondary" onClick={() => { setFilters({ q: "", state: "", office: "", party: "" }); navigate("/candidates"); }}>
+          <button type="button" className="vs-button vs-button-secondary" onClick={() => { setFilters({ cycle: filters.cycle, q: "", state: "", office: "", party: "" }); navigate("/candidates"); }}>
             Reset Command Filters
           </button>
 

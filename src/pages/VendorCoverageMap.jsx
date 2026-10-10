@@ -1,3 +1,5 @@
+import {useElectionCycle} from "../lib/useElectionCycle.js";
+import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useEffect, useMemo, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { useNavigate } from "react-router-dom";
@@ -184,7 +186,7 @@ export default function VendorCoverageMap() {
   const [fecRows, setFecRows] = useState([]);
   const [vendorRows, setVendorRows] = useState([]);
   const [error, setError] = useState("");
-  const [cycle, setCycle] = useState("2026");
+  const [cycle, setCycle] = useElectionCycle("VendorCoverageMap");
   const [selectedGroup, setSelectedGroup] = useState("All");
   const [selectedState, setSelectedState] = useState("PA");
   const [creating, setCreating] = useState(false);
@@ -194,6 +196,7 @@ export default function VendorCoverageMap() {
   useEffect(() => {
     let active = true;
     async function loadCoverage() {
+      setFecRows([]);
       try {
         setLoading(true);
         setError("");
@@ -202,6 +205,7 @@ export default function VendorCoverageMap() {
           typeof api.vendors === "function" ? api.vendors({ limit: 250 }) : Promise.resolve([]),
         ]);
         if (!active) return;
+        if (fecResult.status === "rejected") setError(fecResult.reason?.response?.data?.error || "FEC coverage could not be loaded for the selected cycle.");
         setFecRows(fecResult.status === "fulfilled" ? normalizeList(fecResult.value, ["results", "vendors", "rows"]) : []);
         setVendorRows(vendorResult.status === "fulfilled" ? normalizeList(vendorResult.value, ["results", "vendors", "rows"]) : []);
       } catch (err) {
@@ -344,7 +348,7 @@ export default function VendorCoverageMap() {
         <div className="vs-grid-3">
           <select className="vs-input" value={selectedGroup} onChange={(event) => setSelectedGroup(event.target.value)}>{COVERAGE_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}</select>
           <select className="vs-input" value={selectedState} onChange={(event) => setSelectedState(event.target.value)}>{Object.entries(STATE_ABBR_TO_NAME).map(([abbr, name]) => <option key={abbr} value={abbr}>{abbr} - {name}</option>)}</select>
-          <select className="vs-input" value={cycle} onChange={(event) => setCycle(event.target.value)}><option value="2026">2026 Cycle</option><option value="2024">2024 Cycle</option><option value="2022">2022 Cycle</option><option value="2020">2020 Cycle</option></select>
+          <select className="vs-input" value={cycle} onChange={(event) => setCycle(event.target.value)}>{cycleOptions({historical:true, selected:cycle}).map(year => <option key={year} value={year}>{year} Cycle</option>)}</select>
         </div>
       </SectionCard>
 
