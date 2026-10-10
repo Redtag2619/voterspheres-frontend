@@ -1,8 +1,9 @@
 
+import { useMemo, useState } from "react";
 
 import { Link } from "react-router-dom";
 
- 
+
 
 import PageShell from "../components/ui/PageShell";
 
@@ -12,7 +13,7 @@ import Badge from "../components/ui/Badge";
 
 import EmptyState from "../components/ui/EmptyState";
 
- 
+
 
 import { useWorkspace } from "../context/WorkspaceContext";
 
@@ -20,7 +21,7 @@ import { useExecutiveFilters } from "../context/ExecutiveFiltersContext";
 
 import { useUnifiedExecutiveIntelligence } from "../context/UnifiedExecutiveIntelligenceContext";
 
- 
+
 
 function arr(value) {
 
@@ -28,7 +29,7 @@ function arr(value) {
 
 }
 
- 
+
 
 function number(value) {
 
@@ -38,7 +39,7 @@ function number(value) {
 
 }
 
- 
+
 
 function pct(value) {
 
@@ -46,13 +47,13 @@ function pct(value) {
 
 }
 
- 
+
 
 function tone(value = "") {
 
   const next = String(value || "").toLowerCase();
 
- 
+
 
   if (["critical", "high", "danger", "intervention"].some((item) => next.includes(item))) {
 
@@ -60,7 +61,7 @@ function tone(value = "") {
 
   }
 
- 
+
 
   if (["elevated", "watch", "medium", "degraded"].some((item) => next.includes(item))) {
 
@@ -68,7 +69,7 @@ function tone(value = "") {
 
   }
 
- 
+
 
   if (["stable", "operational", "available", "active", "live", "fresh"].some((item) => next.includes(item))) {
 
@@ -76,13 +77,13 @@ function tone(value = "") {
 
   }
 
- 
+
 
   return "accent";
 
 }
 
- 
+
 
 function decodeHtmlEntities(value = "") {
 
@@ -90,7 +91,7 @@ function decodeHtmlEntities(value = "") {
 
   if (typeof document === "undefined") return String(value);
 
- 
+
 
   const textarea = document.createElement("textarea");
 
@@ -100,13 +101,13 @@ function decodeHtmlEntities(value = "") {
 
 }
 
- 
+
 
 function cleanText(value = "") {
 
   const decoded = decodeHtmlEntities(value);
 
- 
+
 
   if (typeof document === "undefined") {
 
@@ -114,13 +115,13 @@ function cleanText(value = "") {
 
   }
 
- 
+
 
   const container = document.createElement("div");
 
   container.innerHTML = decoded;
 
- 
+
 
   const anchor = container.querySelector("a");
 
@@ -128,13 +129,13 @@ function cleanText(value = "") {
 
   const headline = (anchor?.textContent || container.textContent || "").replace(/\s+/g, " ").trim();
 
- 
+
 
   return publisher && !headline.includes(publisher) ? `${headline} — ${publisher}` : headline;
 
 }
 
- 
+
 
 function cleanTitle(value = "") {
 
@@ -150,7 +151,7 @@ function cleanTitle(value = "") {
 
 }
 
- 
+
 
 function firstText(...values) {
 
@@ -158,7 +159,7 @@ function firstText(...values) {
 
 }
 
- 
+
 
 function safeRoute(value, fallback) {
 
@@ -168,7 +169,7 @@ function safeRoute(value, fallback) {
 
 }
 
- 
+
 
 
 const GENERIC_EXECUTIVE_ROUTES = new Set([
@@ -235,7 +236,7 @@ function findingScore(item = {}) {
 
 }
 
- 
+
 
 function formatTime(value) {
 
@@ -249,7 +250,7 @@ function formatTime(value) {
 
 }
 
- 
+
 
 export default function CrossWorkspaceExecutiveDashboard() {
 
@@ -283,19 +284,19 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   } = useUnifiedExecutiveIntelligence();
 
- 
+
 
   const { workspaces, activeWorkspaceId, setActiveWorkspaceId } = useWorkspace();
 
   const { filters, setFilters, clearFilters } = useExecutiveFilters();
 
- 
+
 
   const [creatingActionId, setCreatingActionId] = useState("");
 
   const [actionMessage, setActionMessage] = useState("");
 
- 
+
 
   const states = useMemo(
 
@@ -322,7 +323,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
     return parts.join(" • ");
   }, [activeWorkspace, filters.office, filters.risk, filters.state]);
 
- 
+
 
   const findings = useMemo(() => {
 
@@ -346,7 +347,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
     }));
 
- 
+
 
     const signalFindings = arr(signals).map((item, index) => ({
 
@@ -368,7 +369,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
     }));
 
- 
+
 
     return [...alertFindings, ...signalFindings]
 
@@ -378,7 +379,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   }, [alerts, signals]);
 
- 
+
 
   const executiveImplications = useMemo(
 
@@ -394,7 +395,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   );
 
- 
+
 
   const evidence = useMemo(() => {
 
@@ -430,13 +431,13 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   }, [sourceStatus]);
 
- 
+
 
   async function handleCreateAction(item, index) {
 
     const actionId = String(item.id || index);
 
- 
+
 
     try {
 
@@ -444,7 +445,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
       setActionMessage("");
 
- 
+
 
       await createAction({
 
@@ -462,7 +463,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
       });
 
- 
+
 
       setActionMessage("Executive action created in Command Center.");
 
@@ -482,7 +483,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
   }
 
- 
+
 
   return (
 
@@ -560,7 +561,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
       `}</style>
 
- 
+
 
       <div className="uei-page">
 
@@ -568,7 +569,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
         {actionMessage ? <div className="vs-banner">{actionMessage}</div> : null}
 
- 
+
 
         <div className="uei-scope">
 
@@ -586,7 +587,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
             </select>
 
- 
+
 
             <select value={filters.state || ""} onChange={(event) => setFilters({ state: event.target.value })} aria-label="State filter">
 
@@ -596,7 +597,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
             </select>
 
- 
+
 
             <select value={filters.risk || ""} onChange={(event) => setFilters({ risk: event.target.value })} aria-label="Risk filter">
 
@@ -614,7 +615,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
           </div>
 
- 
+
 
           <div className="uei-actions">
 
@@ -630,7 +631,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
         </div>
 
- 
+
 
         {loading ? (
 
@@ -652,7 +653,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
                 <p>{briefing.strategic_summary || "The unified intelligence layer is consolidating operational, political, and strategic evidence into one leadership briefing."}</p>
 
- 
+
 
                 <div className="uei-recommendation">
 
@@ -664,7 +665,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
               </div>
 
- 
+
 
               <aside className="uei-brief-side" aria-label="Briefing facts">
 
@@ -680,7 +681,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
             </section>
 
- 
+
 
             <div className="uei-grid">
 
@@ -712,7 +713,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
               </SectionCard>
 
- 
+
 
               <div className="uei-stack">
 
@@ -756,7 +757,7 @@ export default function CrossWorkspaceExecutiveDashboard() {
 
                 </SectionCard>
 
- 
+
 
                 <SectionCard title="Evidence Coverage" subtitle="A concise confidence check for this briefing—not a source-administration dashboard.">
 
