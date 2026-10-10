@@ -38,7 +38,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
 const ElectionMap = lazy(() => import("./pages/ElectionMap.jsx"));
 const DonorNetwork = lazy(() => import("./pages/DonorNetwork.jsx"));
-const PowerRankings = lazy(() => import("./pages/PowerRankings.jsx"));
+import PowerRankings from "./pages/PowerRankings.jsx";
 const FundraisingDashboard = lazy(() => import("./pages/FundraisingDashboard.jsx"));
 const Vendors = lazy(() => import("./pages/Vendors.jsx"));
 const ConsultantMarketplace = lazy(() => import("./pages/ConsultantMarketplace.jsx"));
