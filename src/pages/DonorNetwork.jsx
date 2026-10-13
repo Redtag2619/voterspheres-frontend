@@ -789,7 +789,7 @@ export default function DonorNetwork() {
 
   const summary = useMemo(() => {
 
-    if (networkData?.summary && !localSearch.trim() && !selectedState) {
+    if (networkData?.summary) {
 
       return networkData.summary;
 
@@ -859,109 +859,20 @@ export default function DonorNetwork() {
 
  
 
-  const stateBreakdown = useMemo(() => {
-
-    const grouped = filteredResults.reduce((acc, row) => {
-
-      const state = row.state || "Unknown";
-
- 
-
-      if (!acc[state]) {
-
-        acc[state] = {
-
-          state,
-
-          total_amount: 0,
-
-          donor_count: 0,
-
-          average_amount: 0,
-
-        };
-
-      }
+  const stateBreakdown = useMemo(() =>
+    networkData.stateBreakdown.map(item => ({
+      ...item,
+      donor_count: Number(item.donor_count || 0),
+      average_amount: Number(item.donor_count)
+        ? Number(item.total_amount) / Number(item.donor_count) : 0
+    })), [networkData.stateBreakdown]);
 
  
 
-      acc[state].total_amount += Number(row.amount || row.total_amount || 0);
-
-      acc[state].donor_count += 1;
-
- 
-
-      return acc;
-
-    }, {});
-
- 
-
-    return Object.values(grouped)
-
-      .map((item) => ({
-
-        ...item,
-
-        average_amount: item.donor_count ? item.total_amount / item.donor_count : 0,
-
-      }))
-
-      .sort((a, b) => b.total_amount - a.total_amount)
-
-      .slice(0, 12);
-
-  }, [filteredResults]);
-
- 
-
-  const committeeBreakdown = useMemo(() => {
-
-    const grouped = filteredResults.reduce((acc, row) => {
-
-      const key = row.committee_id || row.committee_name || "Unknown Committee";
-
- 
-
-      if (!acc[key]) {
-
-        acc[key] = {
-
-          committee_id: row.committee_id,
-
-          committee_name: row.committee_name || key,
-
-          state: row.state || "National",
-
-          total_amount: 0,
-
-          donor_count: 0,
-
-        };
-
-      }
-
- 
-
-      acc[key].total_amount += Number(row.amount || row.total_amount || 0);
-
-      acc[key].donor_count += 1;
-
- 
-
-      return acc;
-
-    }, {});
-
- 
-
-    return Object.values(grouped)
-
-      .sort((a, b) => b.total_amount - a.total_amount)
-
-      .slice(0, 10);
-
-  }, [filteredResults]);
+  const committeeBreakdown = useMemo(() =>
+    networkData.committeeBreakdown.map(item => ({
+      ...item, donor_count: Number(item.donor_count || 0)
+    })), [networkData.committeeBreakdown]);
 
  
 
@@ -1046,6 +957,31 @@ export default function DonorNetwork() {
       ]}
 
     >
+
+      <div className="vs-banner" role="status">
+        <strong>Disclosure coverage: {cycle}</strong>
+        <p>
+          {networkData.import_coverage?.scopes?.some(scope => scope.published_at)
+            ? networkData.import_coverage.scopes
+                .filter(scope => scope.published_at)
+                .map(scope => scope.scope_key === "national"
+                  ? "National query scope"
+                  : "Committee scope: " + (Array.isArray(scope.committees)
+                    ? scope.committees.join(", ") : scope.scope_key))
+                .join("; ")
+            : "No completed FEC scope reported; records may come from a legacy snapshot."}
+        </p>
+        <p>
+          {filteredResults.length} records displayed.
+          Totals and state/committee panels cover all matching disclosure groups.
+          Disclosure groups are not verified unique people.
+        </p>
+        <p>Published cutoffs: {networkData.import_coverage?.scopes
+          ?.filter(scope => scope.published_at && scope.published_cutoff)
+          .map(scope => scope.published_cutoff).join(", ") || "Not reported"}.
+          Provider traversal does not certify all filings.
+        </p>
+      </div>
 
       <style>{`
 
@@ -1313,7 +1249,7 @@ export default function DonorNetwork() {
 
         title="Donor Intelligence Filters"
 
-        subtitle="Use All States to view the full national donor network, or focus on a single state."
+        subtitle="Filter the available disclosure records by state or search. All States does not imply national coverage."
 
         right={
 
@@ -1517,7 +1453,7 @@ export default function DonorNetwork() {
 
           title="State Funding Concentration"
 
-          subtitle="States receiving the highest visible donor concentration."
+          subtitle="State totals across all matching disclosure groups in the available coverage."
 
           right={<Badge tone="accent">{stateBreakdown.length} states</Badge>}
 
