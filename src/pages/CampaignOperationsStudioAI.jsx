@@ -1,3 +1,5 @@
+import DeliverableContent from "../components/DeliverableContent.jsx";
+import { copilotGenerationError, readCopilotReply } from "../lib/copilotGenerationFeedback.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
@@ -718,7 +720,7 @@ function StudioHero({ project, activeModule, stats, onGenerateMasterPlan, onNewP
         <div className="studio-badges">
           <Badge tone="active">{activeModule.label}</Badge>
           <Badge tone="info">{project.state || "National"}</Badge>
-          <Badge tone="accent">{project.cycle || "2026"} Cycle</Badge>
+          <Badge tone="accent">{project.cycle || "Not selected"} Cycle</Badge>
           <Badge tone="warning">{stats.deliverables} Deliverables</Badge>
         </div>
       </div>
@@ -865,6 +867,8 @@ export default function CampaignOperationsStudioAI() {
   const [asking, setAsking] = useState(false);
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [error, setError] = useState("");
+  // Phase 2.10.2: generation failures remain visible beside the requested output.
+  const [generationFailure, setGenerationFailure] = useState(null);
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedDeliverable, setSelectedDeliverable] = useState(null);
@@ -1119,6 +1123,16 @@ export default function CampaignOperationsStudioAI() {
     [project.campaign, project.office, project.state, project.cycle]
   );
   const previousProjectScopeRef = useRef(projectScopeKey);
+  // Phase 2.10: a changed campaign scope starts a separate conversation.
+  const activeScopeKey = JSON.stringify([project.campaign, project.state, project.office, project.cycle]);
+  const activeScopeRef = useRef(activeScopeKey);
+  activeScopeRef.current = activeScopeKey;
+  useEffect(() => {
+    setThreadId(null);
+    setMessages([]);
+    setAssetOutput("");
+    setGenerationFailure(null);
+  }, [activeScopeKey]);
   const electionCycleError = useMemo(() => validateElectionCycle(project), [project]);
 
   const [deliverables, setDeliverables] = useState([]);
@@ -1171,9 +1185,9 @@ export default function CampaignOperationsStudioAI() {
       `Campaign / Client: ${project.campaign || "Not specified"}`,
       `Office: ${project.office || "Not specified"}`,
       `Geography: ${project.state || "National"}`,
-      `Election Cycle: ${project.cycle || "2026"}`,
+      `Election Cycle: ${project.cycle || "Not selected"}`,
       `Planning Date: ${new Date().toISOString().slice(0, 10)}`,
-      `Authorized Planning Window: today through December 31, ${project.cycle || CURRENT_YEAR}`,
+      `Requested planning window: today through December 31, ${project.cycle || CURRENT_YEAR}; the server validates the authoritative dates.`,
       `Build Phase: ${project.phase}`,
       `Primary Goal: ${project.goal || "Not specified"}`,
       project.notes ? `Campaign Notes: ${project.notes}` : "",
@@ -1222,6 +1236,8 @@ export default function CampaignOperationsStudioAI() {
     setMessages((current) => [...current, userMessage]);
     setPrompt("");
     setAsking(true);
+    setGenerationFailure(null);
+    const requestScopeKey = activeScopeRef.current;
     setError("");
     setMessage("");
 
@@ -1242,13 +1258,18 @@ export default function CampaignOperationsStudioAI() {
         planning_date: new Date().toISOString().slice(0, 10),
       });
 
+      if (requestScopeKey !== activeScopeRef.current) {
+        throw new Error("Campaign scope changed while generating. Generate again for the selected cycle.");
+      }
       setThreadId(result?.thread_id || threadId);
 
-      const assistantMessage = result?.message || {
-        id: `assistant-${Date.now()}`,
+      const reply = readCopilotReply(result);
+      const assistantMessage = {
+        ...(result?.message || {}),
+        id: result?.message?.id || "assistant-" + Date.now(),
         role: "assistant",
-        content: result?.answer || "No answer returned.",
-        created_at: new Date().toISOString(),
+        content: reply,
+        created_at: result?.message?.created_at || new Date().toISOString(),
       };
 
       setMessages((current) => [...current, assistantMessage]);
@@ -1271,7 +1292,10 @@ export default function CampaignOperationsStudioAI() {
       setMessage("Studio output generated using live VoterSpheres AI.");
       await loadThreads();
     } catch (err) {
-      setError(err?.response?.data?.error || err?.response?.data?.detail || err?.message || "Failed to generate Campaign Operations Studio output.");
+      if (requestScopeKey !== activeScopeRef.current) return;
+      const feedback = copilotGenerationError(err);
+      setGenerationFailure({ target: "conversation", text: feedback });
+      setError(feedback);
     } finally {
       setAsking(false);
     }
@@ -1493,7 +1517,7 @@ export default function CampaignOperationsStudioAI() {
       ["Campaign / Client", project.campaign || "Not specified"],
       ["Office", project.office || "Not specified"],
       ["Geography", project.state || "National"],
-      ["Election Cycle", project.cycle || "2026"],
+      ["Election Cycle", project.cycle || "Not selected"],
       ["Build Phase", project.phase || "Not specified"],
       ["Primary Goal", project.goal || "Not specified"],
       ["Studio Module", activeModule.label],
@@ -2302,7 +2326,7 @@ Rationale: ${item.rationale}`
       createSlide({
         kicker: "VoterSpheres Campaign Operations Studio AI",
         title: getPresentationTitle(),
-        body: `${campaign} • ${geography} • ${project.cycle || "2026"} Cycle`,
+        body: `${campaign} • ${geography} • ${project.cycle || "Not selected"} Cycle`,
         bullets: [
           `Prepared for: ${presentationAudience}`,
           `Build phase: ${project.phase}`,
@@ -2463,7 +2487,7 @@ Rationale: ${item.rationale}`
 Campaign: ${project.campaign || "Not specified"}
 Office: ${project.office || "Not specified"}
 Geography: ${project.state || "National"}
-Cycle: ${project.cycle || "2026"}
+Cycle: ${project.cycle || "Not selected"}
 Phase: ${project.phase}
 Goal: ${project.goal || "Not specified"}
 Planned budget: ${money(budgetTotals.planned)}
@@ -3044,7 +3068,7 @@ Create ${assetVariants} polished variants of a ${type.label}.
 Campaign / Client: ${project.campaign || "Not specified"}
 Office: ${project.office || "Not specified"}
 Geography: ${project.state || "National"}
-Election Cycle: ${project.cycle || "2026"}
+Election Cycle: ${project.cycle || "Not selected"}
 Audience: ${assetAudience}
 Goal: ${assetGoal}
 Tone: ${assetTone}
@@ -3066,6 +3090,7 @@ Requirements:
   }
 
   async function generateAsset() {
+    if (electionCycleError) { setError(electionCycleError); return; }
     if (!assetTopic.trim()) {
       setAssetMessage("Add a topic, issue, event, or campaign objective before generating assets.");
       return;
@@ -3073,6 +3098,8 @@ Requirements:
 
     setAssetMessage("");
     setAsking(true);
+    setGenerationFailure(null);
+    const requestScopeKey = activeScopeRef.current;
     setError("");
 
     try {
@@ -3087,6 +3114,7 @@ Requirements:
         phase: project.phase || null,
         goal: project.goal || null,
         strict_geography: Boolean(project.state),
+        strict_temporal: true,
         agent:
           assetType === "press"
             ? "communications_director"
@@ -3098,12 +3126,12 @@ Requirements:
                 : "digital_advertising_advisor",
       });
 
+      if (requestScopeKey !== activeScopeRef.current) {
+        throw new Error("Campaign scope changed while generating. Generate again for the selected cycle.");
+      }
       setThreadId(result?.thread_id || threadId);
 
-      const answer =
-        result?.message?.content ||
-        result?.answer ||
-        "No asset content returned.";
+      const answer = readCopilotReply(result);
 
       setAssetOutput(answer);
 
@@ -3140,12 +3168,10 @@ Requirements:
       setAssetMessage("Campaign asset variants generated.");
       await loadThreads();
     } catch (err) {
-      setError(
-        err?.response?.data?.error ||
-          err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to generate campaign assets."
-      );
+      if (requestScopeKey !== activeScopeRef.current) return;
+      const feedback = copilotGenerationError(err);
+      setGenerationFailure({ target: "asset", text: feedback });
+      setError(feedback);
     } finally {
       setAsking(false);
     }
@@ -3835,14 +3861,18 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
                 messages.map((item) => (
                   <div key={item.id || `${item.role}-${item.created_at}`} className={`studio-message ${item.role}`}>
                     <small>{item.role === "assistant" ? "Campaign Operations Studio AI" : "You"} • {fmtDate(item.created_at)}</small>
-                    <div style={{ whiteSpace: "pre-wrap" }}>
-                      {cleanConversationContent(item.content)}
-                    </div>
+                    {/* Phase 2.11: safe structured display and server evidence/quality assessment. */}
+                    <DeliverableContent content={item.content} evidence={item.context_snapshot?.evidence_transparency} quality={item.context_snapshot?.deliverable_quality} />
                   </div>
                 ))
               )}
             </div>
 
+            {generationFailure?.target === "conversation" ? (
+              <div role="alert" className="vs-banner vs-banner-danger" style={{ whiteSpace: "pre-wrap" }}>
+                {generationFailure.text}
+              </div>
+            ) : null}
             <div className="studio-composer">
               <textarea
                 value={prompt}
@@ -4739,6 +4769,11 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
                 />
               </label>
 
+              {generationFailure?.target === "asset" ? (
+                <div role="alert" className="vs-banner vs-banner-danger" style={{ whiteSpace: "pre-wrap" }}>
+                  {generationFailure.text}
+                </div>
+              ) : null}
               <div className="studio-asset-actions">
                 <button
                   type="button"
@@ -4773,10 +4808,8 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
             ) : null}
 
             <div className="studio-asset-output">
-              {assetOutput ||
-                `Select an asset type and generate campaign-ready ${assetTypeByKey(
-                  assetType
-                ).label.toLowerCase()} variants.`}
+              {assetOutput ? <DeliverableContent content={assetOutput} /> :
+                `Select an asset type and generate campaign-ready ${assetTypeByKey(assetType).label.toLowerCase()} variants.`}
             </div>
 
             <div className="studio-asset-history">
@@ -6066,4 +6099,3 @@ Provide recommended category allocations, monthly pacing, burn-rate targets, fun
     </PageShell>
   );
 }
-

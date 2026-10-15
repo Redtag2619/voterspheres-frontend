@@ -6,7 +6,7 @@ import {
   useMemo,
 
   useState,
-
+  useRef,
 } from "react";
 
 
@@ -14,7 +14,7 @@ import {
 import {
 
   getExecutivePollingDashboard,
-
+  getExecutivePollingScopes,
 } from "../api/executivePollingIntelligenceApi.js";
 
 
@@ -836,7 +836,10 @@ export default function ExecutivePollingIntelligence() {
 
 
 
+  // Phase 2.10: explicitly resolve the current cycle and discard stale responses.
+  const pollingRequestRef = useRef(0);
   async function load({ quiet = false } = {}) {
+    const requestId = ++pollingRequestRef.current;
 
     if (quiet) setRefreshing(true);
 
@@ -850,12 +853,21 @@ export default function ExecutivePollingIntelligence() {
 
     try {
 
-      const payload = await getExecutivePollingDashboard(filters);
-
+      let requestFilters = filters;
+      if (filters.temporal_scope === "election_cycle" && !filters.cycle) {
+        const scopes = await getExecutivePollingScopes();
+        if (requestId !== pollingRequestRef.current) return;
+        const current = (scopes?.available_cycles || []).find(item => item.status === "current");
+        if (!current?.cycle) throw new Error("No current selectable cycle is available. Select a registered cycle.");
+        requestFilters = { ...filters, cycle: String(current.cycle) };
+        setFilters(currentFilters => ({ ...currentFilters, cycle: String(current.cycle) }));
+      }
+      const payload = await getExecutivePollingDashboard(requestFilters);
+      if (requestId !== pollingRequestRef.current) return;
       setData(payload);
 
     } catch (requestError) {
-
+      if (requestId !== pollingRequestRef.current) return;
       setData(null);
 
       setError(
@@ -865,10 +877,7 @@ export default function ExecutivePollingIntelligence() {
       );
 
     } finally {
-
-      setLoading(false);
-
-      setRefreshing(false);
+      if (requestId === pollingRequestRef.current) { setLoading(false); setRefreshing(false); }
 
     }
 
@@ -886,7 +895,7 @@ export default function ExecutivePollingIntelligence() {
 
 
 
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); pollingRequestRef.current++; };
 
   }, [
 
@@ -1147,7 +1156,7 @@ export default function ExecutivePollingIntelligence() {
                 }))
               }
             >
-              <option value="">All selectable cycles</option>
+              <option value="" disabled>Resolving current cycle…</option>
               {(data?.available_cycles || []).map((item) => (
                 <option key={item.cycle} value={item.cycle}>
                   {item.label || item.cycle}
