@@ -7,7 +7,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
  
 
-import { getTourSteps } from "../config/platformTourSteps";
+import { getUnifiedTourPages } from "../config/unifiedPlatformTour";
+import { collectVisiblePageSegments, sectionNarration, splitNarration, playUnifiedPage } from "../lib/unifiedTourPlayback";
 
 import "./VirtualTour.css";
 
@@ -133,7 +134,7 @@ function storeCompletion(mode) {
 
  
 
-async function fetchMarinSpeech(text) {
+async function fetchMarinSpeech(text, signal) {
   const token = getToken();
 
  
@@ -141,6 +142,7 @@ async function fetchMarinSpeech(text) {
   const response = await fetch(`${API_ROOT}/api/tour/voice`, {
 
     method: "POST",
+    signal,
 
     headers: {
 
@@ -153,8 +155,6 @@ async function fetchMarinSpeech(text) {
     body: JSON.stringify({
 
       text: normalizeText(text),
-
-      voice: "marin",
 
       voice: "marin",
       model: "gpt-4o-mini-tts",
@@ -173,9 +173,7 @@ async function fetchMarinSpeech(text) {
 
     const detail = await response.text().catch(() => "");
 
-    throw new Error(`Marin voice failed ${response.status}: ${detail}`);
-
-    throw new Error(`Marin voice failed ${response.status}: ${detail}`);
+    throw new Error(`Tour voice request failed (${response.status}).`);
   }
 
  
@@ -220,15 +218,13 @@ function getFallbackVoice() {
 
  
 
-function playBrowserSpeech(text) {
+function playBrowserSpeech(text, signal) {
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
 
     if (!window.speechSynthesis) {
 
-      resolve();
-
-      return;
+      throw new Error("Browser speech is unavailable.");
 
     }
 
@@ -254,9 +250,12 @@ function playBrowserSpeech(text) {
 
     utterance.volume = 1;
 
-    utterance.onend = resolve;
-
-    utterance.onerror = resolve;
+    const finish = () => { signal?.removeEventListener("abort", abort); resolve(); };
+    const abort = () => { window.speechSynthesis.cancel(); finish(); };
+    utterance.onend = finish;
+    utterance.onerror = () => { signal?.removeEventListener("abort", abort); reject(new Error("Browser narration failed.")); };
+    if (signal?.aborted) { finish(); return; }
+    signal?.addEventListener("abort", abort, { once: true });
 
  
 
@@ -268,25 +267,28 @@ function playBrowserSpeech(text) {
 
  
 
-function playAudioUrl(url, audioRef) {
-
+function playAudioUrl(url, audioRef, signal) {
   return new Promise((resolve, reject) => {
-
     const audio = new Audio(url);
-
     audioRef.current = audio;
-
-    audio.onended = resolve;
-
-    audio.onerror = reject;
-
-    audio.play().catch(reject);
-
+    let settled = false;
+    function finish(error) {
+      if (settled) return;
+      settled = true;
+      audio.onended = null;
+      audio.onerror = null;
+      signal?.removeEventListener("abort", abort);
+      if (audioRef.current === audio) audioRef.current = null;
+      if (error) { audio.pause(); reject(error); } else resolve();
+    }
+    function abort() { finish(new DOMException("Tour playback cancelled", "AbortError")); }
+    audio.onended = () => finish();
+    audio.onerror = () => finish(new Error("Tour audio playback failed."));
+    if (signal?.aborted) { abort(); return; }
+    signal?.addEventListener("abort", abort, { once: true });
+    audio.play().catch(finish);
   });
-
 }
-
- 
 
 function isVisible(element) {
 
@@ -593,7 +595,7 @@ export default function VirtualTour() {
 
   const mode = getTourMode(location.search);
 
-  const steps = useMemo(() => getTourSteps(mode || "platform"), [mode]);
+  const steps = useMemo(() => getUnifiedTourPages(mode || "platform"), [mode]);
 
  
 
@@ -620,6 +622,10 @@ export default function VirtualTour() {
   const [transcriptOpen, setTranscriptOpen] = useState(true);
 
   const [expandedControls, setExpandedControls] = useState(false);
+  const [activePart, setActivePart] = useState(null);
+  const resumeSectionRef = useRef(null);
+  const autoAdvanceRef = useRef(autoAdvance);
+  autoAdvanceRef.current = autoAdvance;
 
  
 
@@ -823,208 +829,109 @@ export default function VirtualTour() {
 
  
 
+    const controller = new AbortController();
+    const isCurrent = () => !controller.signal.aborted && !cancelledRef.current && runIdRef.current === runId;
+
     async function runStep() {
-
       try {
-
         stopAudio();
-
         cleanObjectUrl();
-
         setSpotlightRect(null);
-
         setTargetMissing(false);
-
+        setActivePart(null);
         targetRef.current = null;
-
- 
-
-        const alreadyOnRoute = location.pathname === step.route;
-
-        setVoiceStatus(alreadyOnRoute ? "Finding section" : "Opening page");
-
- 
-
-        if (!alreadyOnRoute) {
-
-          navigate(step.route);
-
-          await sleep(ROUTE_SETTLE_MS);
-
-        } else {
-
-          await sleep(220);
-
+        if (location.pathname !== step.route) {
+          setVoiceStatus("Opening page");
+          navigate({ pathname: step.route, search: `?tour=${mode || "platform"}` });
+          return; // The route change starts one fresh playback run on the destination.
         }
-
- 
-
-        if (cancelledRef.current || runIdRef.current !== runId) return;
-
- 
-
-        setVoiceStatus("Locating section");
-
-        const target = await waitForTarget(step);
-
-        if (cancelledRef.current || runIdRef.current !== runId) return;
-        if (step.sectionDetail && !target) {
-          setTargetMissing(true);
-          setVoiceStatus("Section not visible. Open it or use Next.");
-          if (autoAdvance) moveToNext();
-          return;
-        }
-        targetRef.current = target;
-
- 
-
-        const fellBackToPage =
-
-          target === document.body ||
-
-          target?.tagName?.toLowerCase() === "main";
-
- 
-
-        setTargetMissing(fellBackToPage);
-
- 
-
-        target?.scrollIntoView?.({
-
-          behavior: "smooth",
-
-          block: "center",
-
-          inline: "nearest",
-
+        setVoiceStatus("Preparing page overview");
+        await sleep(ROUTE_SETTLE_MS);
+        if (!isCurrent()) return;
+        const overviewTarget = await waitForTarget(step.segments[0]);
+        if (!isCurrent()) return;
+        const resolveTarget = part => {
+          if (!part.sectionDetail) return overviewTarget;
+          if (part.target?.selector) return queryFirstVisible(part.target.selector);
+          const normalize = value => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+          const match = Array.from(document.querySelectorAll("main h1, main h2, main h3, main h4, main .vs-section-title"))
+            .find(node => isVisible(node) && (part.target?.headingText || []).some(text => normalize(node.textContent) === normalize(text)));
+          return match ? nearestTourContainer(match) : null;
+        };
+        const visible = collectVisiblePageSegments(step, resolveTarget, (a, b) => {
+          const position = a.compareDocumentPosition(b);
+          return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : position & Node.DOCUMENT_POSITION_PRECEDING ? 1 : 0;
         });
-
- 
-
-        await sleep(CENTER_SETTLE_MS);
-
- 
-
-        if (cancelledRef.current || runIdRef.current !== runId) return;
-
- 
-
-        setSpotlightRect(getSpotlightRect(target));
-
-        await sleep(250);
-
- 
-
-        if (cancelledRef.current || runIdRef.current !== runId) return;
-
- 
-
-        const narration = buildNarration(step);
-
- 
-
-        if (!voiceEnabled) {
-
-          setVoiceStatus("Voice off");
-
-        } else {
-
-          try {
-
-            setVoiceStatus("Generating natural voice");
-
-            const url = await fetchMarinSpeech(narration);
-            objectUrlRef.current = url;
-
- 
-
-            if (cancelledRef.current || runIdRef.current !== runId) return;
-
- 
-
-            setVoiceStatus("Speaking");
-
-            await playAudioUrl(url, audioRef);
-
-          } catch (error) {
-
-            console.warn("[virtual-tour] Marin voice unavailable:", error?.message);
-
- 
-            console.warn("[virtual-tour] Marin voice unavailable:", error?.message);
-
-            if (browserFallback) {
-
-              setVoiceStatus("Using browser voice");
-
-              await playBrowserSpeech(narration);
-
-            } else {
-
-              setVoiceStatus("Voice unavailable");
-
+        if (!visible.length) { setTargetMissing(true); setVoiceStatus("Page unavailable. Use Next page to continue."); return; }
+        const playlist = visible.flatMap((part, index) => {
+          const narration = sectionNarration(part, index, visible.length, step.value);
+          return splitNarration(narration).map(text => ({ ...part, text, ordinal: index, total: visible.length }));
+        });
+        const start = resumeSectionRef.current?.pageId === step.id
+          ? Math.min(resumeSectionRef.current.index, playlist.length - 1) : 0;
+        const completed = await playUnifiedPage({
+          segments: playlist, start, isCurrent,
+          prepare: async part => {
+            if (!voiceEnabled) return { kind: "text" };
+            try {
+              const url = await fetchMarinSpeech(part.text, controller.signal);
+              if (!isCurrent()) { URL.revokeObjectURL(url); throw new DOMException("Cancelled", "AbortError"); }
+              return { kind: "audio", url };
+            } catch (error) {
+              if (!isCurrent()) throw error;
+              if (browserFallback) return { kind: "browser", text: part.text };
+              throw error;
             }
-
-          }
-
-        }
-
- 
-
-        if (cancelledRef.current || runIdRef.current !== runId) return;
-
- 
-
-        setVoiceStatus("Ready");
-
- 
-
-        if (autoAdvance) {
-
+          },
+          present: async (part, index) => {
+            if (!isCurrent()) return;
+            resumeSectionRef.current = { pageId: step.id, index };
+            setActivePart({ pageId: step.id, segment: { ...part, narration: part.text, value: "" } });
+            targetRef.current = part.element;
+            part.element.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
+            setSpotlightRect(getSpotlightRect(part.element));
+          },
+          play: async (resource, part) => {
+            if (!isCurrent()) return;
+            if (resource.kind === "audio") {
+              setVoiceStatus("Guided page overview");
+              await playAudioUrl(resource.url, audioRef, controller.signal);
+            } else if (resource.kind === "browser") {
+              setVoiceStatus("Guided overview · browser voice");
+              await playBrowserSpeech(resource.text, controller.signal);
+            } else {
+              setVoiceStatus("Reading page overview · voice off");
+              await sleep(Math.min(30000, Math.max(6000, part.text.split(/\s+/).length * 430)));
+            }
+          },
+          dispose: resource => { if (resource?.url) URL.revokeObjectURL(resource.url); },
+        });
+        if (!completed || !isCurrent()) return;
+        resumeSectionRef.current = null;
+        setVoiceStatus("Page overview complete");
+        if (autoAdvanceRef.current) {
           await sleep(BETWEEN_STEPS_MS);
-
- 
-
-          if (!cancelledRef.current && runIdRef.current === runId) {
-
-            moveToNext();
-
-          }
-
+          if (isCurrent()) moveToNext();
         }
-
       } catch (error) {
-
-        console.warn("[virtual-tour] step failed:", error?.message);
-
-        setVoiceStatus("Step unavailable. Use Next to continue.");
-
+        if (!isCurrent()) return;
+        controller.abort();
+        console.warn("[virtual-tour] page overview interrupted:", error?.name || "PlaybackError");
+        setVoiceStatus("Narration unavailable. Use Replay, enable Fallback, or choose Next page.");
       }
-
     }
-
- 
-
     runStep();
-
- 
-
-    return () => {
-
-      stopAudio();
-
-    };
+    return () => { controller.abort(); stopAudio(); };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
 
   }, [
 
-    autoAdvance,
-
     browserFallback,
 
     location.pathname,
+
+    mode,
 
     navigate,
 
@@ -1046,11 +953,13 @@ export default function VirtualTour() {
 
  
 
+  const displayStep = activePart?.pageId === step.id ? activePart.segment : step;
   const progress = Math.round(((stepIndex + 1) / steps.length) * 100);
 
  
 
   function goBack() {
+    resumeSectionRef.current = null;
 
     cancelledRef.current = true;
 
@@ -1069,6 +978,7 @@ export default function VirtualTour() {
  
 
   function goNext() {
+    resumeSectionRef.current = null;
 
     cancelledRef.current = true;
 
@@ -1083,6 +993,7 @@ export default function VirtualTour() {
  
 
   function jumpToStep(value) {
+    resumeSectionRef.current = null;
     const nextIndex = Number(value);
     if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= steps.length) return;
     cancelledRef.current = true;
@@ -1093,6 +1004,7 @@ export default function VirtualTour() {
   }
 
   function replayStep() {
+    resumeSectionRef.current = null;
 
     cancelledRef.current = true;
 
@@ -1194,7 +1106,7 @@ export default function VirtualTour() {
 
               <span className="vs-tour-dock-count">
 
-                {stepIndex + 1}/{steps.length}
+                {stepIndex + 1}/{steps.length} pages
 
               </span>
 
@@ -1212,7 +1124,7 @@ export default function VirtualTour() {
 
                 className={`vs-tour-status-dot ${
 
-                  paused ? "is-paused" : voiceStatus === "Speaking" ? "is-speaking" : ""
+                  paused ? "is-paused" : voiceStatus.startsWith("Guided") ? "is-speaking" : ""
 
                 }`}
 
@@ -1260,15 +1172,15 @@ export default function VirtualTour() {
 
           <div className="vs-tour-transcript">
 
-            <span>{step.heading}</span>
+            <span>{displayStep.heading}</span>
 
-            <p>{step.narration}</p>
+            <p>{displayStep.narration}</p>
 
-            {step.value ? (
+            {displayStep.value ? (
 
               <div>
 
-                <strong>{step.label}:</strong> {step.value}
+                <strong>{displayStep.label}:</strong> {displayStep.value}
 
               </div>
 
@@ -1294,11 +1206,14 @@ export default function VirtualTour() {
             {step.id.endsWith("-chapter") ? <option value={String(stepIndex)}>{step.page}</option> : null}
           </select>
         </div>
+        <div style={{ padding: "0 14px 8px", fontSize: 12, color: "#cbd5e1" }}>
+          {activePart?.pageId === step.id ? `${activePart.segment.ordinal === 0 ? "Page introduction" : `Section ${activePart.segment.ordinal} of ${activePart.segment.total - 1}`} · ${step.page}` : step.page}
+        </div>
         <div className="vs-tour-dock-actions">
 
           <button type="button" onClick={goBack} disabled={stepIndex === 0}>
 
-            Previous
+            Previous page
 
           </button>
 
@@ -1334,7 +1249,7 @@ export default function VirtualTour() {
 
           <button type="button" onClick={goNext}>
 
-            {stepIndex === steps.length - 1 ? "Finish" : "Next"}
+            {stepIndex === steps.length - 1 ? "Finish" : "Next page"}
 
           </button>
 

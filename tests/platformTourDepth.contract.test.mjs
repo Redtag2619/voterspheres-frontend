@@ -58,8 +58,8 @@ test('existing Marin playback and manual controls remain; absent sections cannot
   assert.match(player, /voice: "marin"/);
   for (const control of ['togglePause', 'goBack', 'replayNonce', 'voiceEnabled', 'browserFallback']) assert.ok(player.includes(control));
   assert.match(player, /return step\.sectionDetail \? null/);
-  assert.match(player, /step\.sectionDetail && !target/);
-  assert.match(player, /if \(autoAdvance\) moveToNext\(\)/);
+  assert.match(player, /collectVisiblePageSegments\(step/);
+  assert.match(player, /if \(isCurrent\(\)\) moveToNext\(\)/);
   assert.ok(!player.includes('node.click('));
 });
 
