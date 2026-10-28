@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
  
 
+import { nextTourSessionMode } from "../lib/tourSessionMode";
 import { getUnifiedTourPages } from "../config/unifiedPlatformTour";
 import { collectVisiblePageSegments, sectionNarration, splitNarration, playUnifiedPage } from "../lib/unifiedTourPlayback";
 
@@ -593,7 +594,20 @@ export default function VirtualTour() {
 
  
 
-  const mode = getTourMode(location.search);
+  const queryMode = getTourMode(location.search);
+  const [mode, setMode] = useState(queryMode);
+  useEffect(() => {
+    setMode(current => nextTourSessionMode(current, queryMode));
+    // A fresh launch after Exit can reuse the same mode without a mode change.
+    if (queryMode && !running) {
+      setRunning(true);
+      setStepIndex(0);
+      setPaused(false);
+      setDockHidden(false);
+      setActivePart(null);
+      resumeSectionRef.current = null;
+    }
+  }, [queryMode]);
 
   const steps = useMemo(() => getUnifiedTourPages(mode || "platform"), [mode]);
 
@@ -620,6 +634,7 @@ export default function VirtualTour() {
   const [targetMissing, setTargetMissing] = useState(false);
 
   const [transcriptOpen, setTranscriptOpen] = useState(true);
+  const [dockHidden, setDockHidden] = useState(false);
 
   const [expandedControls, setExpandedControls] = useState(false);
   const [activePart, setActivePart] = useState(null);
@@ -660,6 +675,7 @@ export default function VirtualTour() {
     setTargetMissing(false);
 
     setTranscriptOpen(true);
+    setDockHidden(false);
 
     setExpandedControls(false);
 
@@ -1076,8 +1092,8 @@ export default function VirtualTour() {
 
  
 
-      <aside
-
+      {!dockHidden && <aside
+        id="vs-tour-narration-panel"
         className={`vs-tour-dock ${transcriptOpen ? "is-transcript-open" : ""}`}
 
         aria-live="polite"
@@ -1210,6 +1226,9 @@ export default function VirtualTour() {
           {activePart?.pageId === step.id ? `${activePart.segment.ordinal === 0 ? "Page introduction" : `Section ${activePart.segment.ordinal} of ${activePart.segment.total - 1}`} · ${step.page}` : step.page}
         </div>
         <div className="vs-tour-dock-actions">
+          <button type="button" onClick={() => setDockHidden(true)} aria-controls="vs-tour-narration-panel" aria-expanded="true">
+            Hide narration
+          </button>
 
           <button type="button" onClick={goBack} disabled={stepIndex === 0}>
 
@@ -1321,7 +1340,29 @@ export default function VirtualTour() {
 
         ) : null}
 
-      </aside>
+      </aside>}
+
+      {dockHidden && (
+        <div
+          role="toolbar"
+          aria-label="Tour playback controls"
+          style={{ position: "fixed", bottom: 12, right: 12, zIndex: 2147483647,
+            display: "flex", flexWrap: "wrap", gap: 6, maxWidth: "calc(100vw - 24px)",
+            padding: 8, borderRadius: 12, background: "#101b2d", color: "#eef4ff",
+            border: "1px solid rgba(148,163,184,.3)", boxShadow: "0 8px 24px rgba(0,0,0,.3)" }}
+        >
+          <button type="button" onClick={() => setDockHidden(false)} aria-controls="vs-tour-narration-panel" aria-expanded="false"
+            style={{ borderRadius: 8, padding: "7px 10px", cursor: "pointer" }}>
+            Show narration · {stepIndex + 1}/{steps.length}
+          </button>
+          <button type="button" onClick={togglePause} style={{ borderRadius: 8, padding: "7px 10px", cursor: "pointer" }}>
+            {paused ? "Resume" : "Pause"}
+          </button>
+          <button type="button" onClick={() => stopTour()} style={{ borderRadius: 8, padding: "7px 10px", cursor: "pointer" }}>
+            Exit tour
+          </button>
+        </div>
+      )}
 
     </>
 
