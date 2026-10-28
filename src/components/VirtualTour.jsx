@@ -474,7 +474,7 @@ async function waitForTarget(step) {
 
  
 
-  while (Date.now() - startedAt < TARGET_TIMEOUT_MS) {
+  while (Date.now() - startedAt < (step.sectionDetail ? 2000 : TARGET_TIMEOUT_MS)) {
 
     const dataTour = step.target?.dataTour;
 
@@ -490,9 +490,14 @@ async function waitForTarget(step) {
 
  
 
-    const headingMatch = findByHeadingText(step.target?.headingText || []);
+    const headingMatch = step.target?.exactSection
+      ? Array.from(document.querySelectorAll("main h1, main h2, main h3, main h4, main .vs-section-title"))
+          .find((node) => isVisible(node) && (step.target.headingText || []).some(
+            (text) => node.textContent.trim().replace(/\s+/g, " ").toLowerCase() === text.trim().replace(/\s+/g, " ").toLowerCase()
+          ))
+      : findByHeadingText(step.target?.headingText || []);
 
-    if (headingMatch) return headingMatch;
+    if (headingMatch) return step.target?.exactSection ? nearestTourContainer(headingMatch) : headingMatch;
 
  
 
@@ -508,7 +513,7 @@ async function waitForTarget(step) {
 
  
 
-  return queryFirstVisible("main") || document.body;
+  return step.sectionDetail ? null : queryFirstVisible("main") || document.body;
 
 }
 
@@ -862,6 +867,13 @@ export default function VirtualTour() {
 
         const target = await waitForTarget(step);
 
+        if (cancelledRef.current || runIdRef.current !== runId) return;
+        if (step.sectionDetail && !target) {
+          setTargetMissing(true);
+          setVoiceStatus("Section not visible. Open it or use Next.");
+          if (autoAdvance) moveToNext();
+          return;
+        }
         targetRef.current = target;
 
  
@@ -1070,6 +1082,16 @@ export default function VirtualTour() {
 
  
 
+  function jumpToStep(value) {
+    const nextIndex = Number(value);
+    if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= steps.length) return;
+    cancelledRef.current = true;
+    stopAudio();
+    setStepIndex(nextIndex);
+    setReplayNonce((value) => value + 1);
+    setPaused(false);
+  }
+
   function replayStep() {
 
     cancelledRef.current = true;
@@ -1226,7 +1248,7 @@ export default function VirtualTour() {
 
           <div className="vs-tour-dock-note">
 
-            Showing the page because the exact section marker was not found.
+            {step.sectionDetail ? "This section is not currently visible. Open its panel or use Next to continue." : "Showing the page because the exact section marker was not found."}
 
           </div>
 
@@ -1258,6 +1280,20 @@ export default function VirtualTour() {
 
  
 
+        <div className="vs-tour-page-picker" style={{ padding: "8px 14px" }}>
+          <label htmlFor="vs-tour-page-select" style={{ display: "block", fontSize: 12, marginBottom: 4 }}>Jump to a page</label>
+          <select
+            id="vs-tour-page-select"
+            value={String(steps.findIndex((entry) => !entry.sectionDetail && entry.page === step.page && entry.route === step.route))}
+            onChange={(event) => jumpToStep(event.target.value)}
+            style={{ width: "100%", padding: "8px", borderRadius: 8, background: "#101b2d", color: "#eef4ff", border: "1px solid rgba(148,163,184,.3)" }}
+          >
+            {steps.map((entry, index) => !entry.sectionDetail && !entry.id.endsWith("-chapter") ? (
+              <option key={entry.id} value={String(index)}>{entry.section} — {entry.page}</option>
+            ) : null)}
+            {step.id.endsWith("-chapter") ? <option value={String(stepIndex)}>{step.page}</option> : null}
+          </select>
+        </div>
         <div className="vs-tour-dock-actions">
 
           <button type="button" onClick={goBack} disabled={stepIndex === 0}>

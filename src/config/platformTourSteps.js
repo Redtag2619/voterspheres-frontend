@@ -1,5 +1,6 @@
-﻿
+
 import { navigationSections } from "./navigation";
+import { pageSectionGuides } from "./platformTourSections";
 
  
 
@@ -8,6 +9,16 @@ const PLATFORM_HOME = "/executive-workspace";
  
 
 const SECTION_GUIDES = {
+  Strategy: {
+    heading: "Strategic choices, scenarios, and priorities",
+    narration: "The Strategy chapter connects forecasts, simulation, recommendations, coalition research, and geographic opportunity. Explore the assumptions behind each model, then connect promising findings to a reviewed operating decision.",
+    value: "Compare choices with evidence while keeping human judgment accountable.",
+  },
+  Administration: {
+    heading: "Access, governance, and operating readiness",
+    narration: "This administrative chapter explains user access, invitations, provider oversight, launch checks, and database readiness for authorized operators. Review controls before making changes; the tour does not submit forms, seed data, refresh providers, or change access.",
+    value: "Govern platform operations through deliberate review and appropriate permissions.",
+  },
 
   Executive: {
 
@@ -189,7 +200,7 @@ const PAGE_GUIDES = {
 
     narration:
 
-      "Polling Intelligence provides live VoteHub polling, race context, candidate trends, polling averages, dates, geography, and pollster information.",
+      "Polling Intelligence organizes election polling and continuous tracking with dates, geography, pollster context, averages, and trends. Begin with temporal scope and read the coverage notices before interpreting the returned evidence.",
 
     value:
 
@@ -1326,7 +1337,7 @@ export function getTourSteps(mode = "platform") {
 
     if (normalizedMode === "admin") return true;
 
-    return section.label !== "Admin";
+    return !section.adminOnly && !["Admin", "Administration", "Launch & Admin"].includes(section.label);
 
   });
 
@@ -1340,7 +1351,8 @@ export function getTourSteps(mode = "platform") {
 
     const eligibleItems = section.items.filter(
 
-      (item) => !String(item.to || "").startsWith("/platform-tour")
+      (item) => !String(item.to || "").startsWith("/platform-tour") &&
+        (normalizedMode === "admin" || !item.adminOnly)
 
     );
 
@@ -1355,6 +1367,19 @@ export function getTourSteps(mode = "platform") {
     eligibleItems.forEach((item, index) => {
 
       steps.push(pageStep(section, item, index, normalizedMode));
+      const route = normalizeRoute(item.to);
+      (pageSectionGuides[route] || []).forEach((part, sectionIndex) => {
+        steps.push({
+          id: `${normalizedMode}-${route.replace(/[^a-z0-9]+/gi, "-")}-section-${sectionIndex}`,
+          route, page: item.label, section: section.label,
+          heading: part.heading, narration: part.narration,
+          label: "Purpose and practical use", value: part.value,
+          sectionDetail: true,
+          target: part.selector
+            ? { selector: part.selector, exactSection: true }
+            : { headingText: [part.heading], exactSection: true },
+        });
+      });
 
     });
 
