@@ -62,9 +62,9 @@ test('playback failure rejects and disposes current and preloaded resources', as
 test('component integrates page playback, cancellation, page controls, and persistent admin mode', async () => {
  const src=await read('src/components/VirtualTour.jsx');
  assert.match(src,/getUnifiedTourPages\(mode/);assert.match(src,/playUnifiedPage\(/);
- assert.match(src,/signal,\s*headers:/);assert.match(src,/controller\.abort\(\)/);
+ assert.match(src,/loadRecordedTourAudio\(text, signal/);assert.match(src,/controller\.abort\(\)/);
  assert.match(src,/Next page/);assert.match(src,/Previous page/);
  assert.match(src,/search: `\?tour=\$\{mode/);
- assert.match(src,/voice: "marin"/);assert.match(src,/if \(!completed \|\| !isCurrent\(\)\) return/);
+ assert.match(await read('src/lib/tourRecordingSpec.js'),/voice: 'marin'/);assert.match(src,/if \(!completed \|\| !isCurrent\(\)\) return/);
  assert.ok(!src.includes('const narration = buildNarration(step);'));
 });

@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
  
 
+import { loadRecordedTourAudio } from "../lib/recordedTourAudio";
 import { nextTourSessionMode } from "../lib/tourSessionMode";
 import { getUnifiedTourPages } from "../config/unifiedPlatformTour";
 import { collectVisiblePageSegments, sectionNarration, splitNarration, playUnifiedPage } from "../lib/unifiedTourPlayback";
@@ -136,54 +137,8 @@ function storeCompletion(mode) {
  
 
 async function fetchMarinSpeech(text, signal) {
-  const token = getToken();
-
- 
-
-  const response = await fetch(`${API_ROOT}/api/tour/voice`, {
-
-    method: "POST",
-    signal,
-
-    headers: {
-
-      "Content-Type": "application/json",
-
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-
-    },
-
-    body: JSON.stringify({
-
-      text: normalizeText(text),
-
-      voice: "marin",
-      model: "gpt-4o-mini-tts",
-
-      style:
-
-        "Speak as a warm, natural, confident female enterprise product specialist. Use lifelike conversational American pacing, subtle emotional warmth, natural sentence rhythm, and short pauses between ideas. Sound polished and human, never robotic, rushed, theatrical, or excessively enthusiastic.",
-
-    }),
-
-  });
-
- 
-
-  if (!response.ok) {
-
-    const detail = await response.text().catch(() => "");
-
-    throw new Error(`Tour voice request failed (${response.status}).`);
-  }
-
- 
-
-  return URL.createObjectURL(await response.blob());
-
+  return loadRecordedTourAudio(text, signal, { baseUrl: import.meta.env.BASE_URL || "/" });
 }
-
- 
 
 function getFallbackVoice() {
 

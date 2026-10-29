@@ -55,7 +55,7 @@ test('financial and polling explanations preserve source and model limits', () =
 });
 test('existing Marin playback and manual controls remain; absent sections cannot fall back to page narration', async () => {
   const player = await read('src/components/VirtualTour.jsx');
-  assert.match(player, /voice: "marin"/);
+  assert.match(await read('src/lib/tourRecordingSpec.js'), /voice: 'marin'/);
   for (const control of ['togglePause', 'goBack', 'replayNonce', 'voiceEnabled', 'browserFallback']) assert.ok(player.includes(control));
   assert.match(player, /return step\.sectionDetail \? null/);
   assert.match(player, /collectVisiblePageSegments\(step/);

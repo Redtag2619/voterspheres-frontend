@@ -1,0 +1,5 @@
+.recording.lock
+.blob-upload.lock
+*.tmp
+*.mp3
+manifest.json
