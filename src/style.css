@@ -1817,3 +1817,41 @@ body,
   filter: none !important;
 }
 
+
+/* Full descriptive text: preserve typography while allowing multi-line copy. */
+.vs-page-shell .vs-page-hero-copy,
+.vs-page-shell .vs-section-title-wrap,
+.vs-page-shell .vs-collapsible-section-copy {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 280px;
+}
+
+.vs-page-shell .vs-section-head {
+  flex-wrap: wrap;
+}
+
+.vs-page-shell .vs-page-subtitle,
+.vs-page-shell .vs-section-subtitle,
+.vs-page-shell .vs-row-subtitle,
+.vs-page-shell .vs-stat-label,
+.vs-page-shell .vs-stat-delta,
+.vs-page-shell .vs-section-title,
+.vs-page-shell .vs-collapsible-section-copy > h3,
+.vs-page-shell .vs-collapsible-section-copy > p,
+.vs-page-shell .cmd-score-card > p,
+.vs-page-shell .cmd-action-row p,
+.vs-page-shell .cmd-reasoning-copy p,
+.vs-page-shell .cmd-agent-title strong {
+  display: block !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  height: auto !important;
+  max-height: none !important;
+  min-width: 0;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
