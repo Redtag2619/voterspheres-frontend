@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createPortal } from "react-dom";
@@ -8,6 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
  
 
 import { loadRecordedTourAudio } from "../lib/recordedTourAudio";
+import { tourRouteDecision } from "../lib/tourRouteNavigation";
 import { nextTourSessionMode } from "../lib/tourSessionMode";
 import { getUnifiedTourPages } from "../config/unifiedPlatformTour";
 import { collectVisiblePageSegments, sectionNarration, splitNarration, playUnifiedPage } from "../lib/unifiedTourPlayback";
@@ -606,6 +606,7 @@ export default function VirtualTour() {
   const cancelledRef = useRef(false);
 
   const runIdRef = useRef(0);
+  const routeAttemptRef = useRef(null);
 
   const targetRef = useRef(null);
 
@@ -729,6 +730,7 @@ export default function VirtualTour() {
     cancelledRef.current = true;
 
     setRunning(false);
+    routeAttemptRef.current = null;
 
     setPaused(false);
 
@@ -811,10 +813,29 @@ export default function VirtualTour() {
         setTargetMissing(false);
         setActivePart(null);
         targetRef.current = null;
-        if (location.pathname !== step.route) {
+        const routeDecision = tourRouteDecision(routeAttemptRef.current, {
+          pageId: step.id, pathname: location.pathname, target: step.route,
+          retry: replayNonce,
+        });
+        routeAttemptRef.current = routeDecision.state;
+        if (routeDecision.action === "navigate") {
           setVoiceStatus("Opening page");
           navigate({ pathname: step.route, search: `?tour=${mode || "platform"}` });
-          return; // The route change starts one fresh playback run on the destination.
+          return;
+        }
+        if (routeDecision.action === "leave") {
+          // Respect the user's destination. Never navigate back to the tour page.
+          cancelledRef.current = true;
+          routeAttemptRef.current = null;
+          resumeSectionRef.current = null;
+          setRunning(false);
+          setActivePart(null);
+          setVoiceStatus("Tour ended after leaving its page");
+          return;
+        }
+        if (routeDecision.action === "blocked") {
+          setVoiceStatus("Page did not open. Use Replay to retry or Next page to continue.");
+          return;
         }
         setVoiceStatus("Preparing page overview");
         await sleep(ROUTE_SETTLE_MS);
