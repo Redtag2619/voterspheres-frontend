@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const ExecutiveFiltersContext = createContext(null);
 
@@ -26,16 +26,25 @@ export function ExecutiveFiltersProvider({ children }) {
     }
   }, [filters]);
 
-  function updateFilters(next) {
-    setFilters((prev) => ({
-      ...prev,
-      ...next
-    }));
-  }
+  const updateFilters = useCallback((next) => {
+    setFilters((prev) => {
+      const merged = { ...prev, ...next };
+      const keys = Object.keys(merged);
+      if (keys.length === Object.keys(prev).length &&
+          keys.every((key) => Object.prototype.hasOwnProperty.call(prev, key) &&
+            Object.is(prev[key], merged[key]))) return prev;
+      return merged;
+    });
+  }, []);
 
-  function clearFilters() {
-    setFilters(DEFAULT_FILTERS);
-  }
+  const clearFilters = useCallback(() => {
+    setFilters((prev) => {
+      const keys = Object.keys(DEFAULT_FILTERS);
+      return Object.keys(prev).length === keys.length &&
+        keys.every((key) => Object.is(prev[key], DEFAULT_FILTERS[key]))
+        ? prev : DEFAULT_FILTERS;
+    });
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -43,7 +52,7 @@ export function ExecutiveFiltersProvider({ children }) {
       setFilters: updateFilters,
       clearFilters
     }),
-    [filters]
+    [filters, updateFilters, clearFilters]
   );
 
   return (
