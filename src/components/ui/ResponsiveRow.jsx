@@ -60,7 +60,7 @@ export default function ResponsiveRow({
 
         maxWidth: "100%",
 
-        overflow: expanded ? "visible" : "hidden",
+        overflow: "visible",
 
         minWidth: 0,
 
@@ -96,7 +96,7 @@ export default function ResponsiveRow({
 
           minWidth: 0,
 
-          overflow: expanded ? "visible" : "hidden",
+          overflow: "visible",
 
         }}
 
@@ -112,7 +112,7 @@ export default function ResponsiveRow({
 
             maxWidth: "100%",
 
-            overflow: expanded ? "visible" : "hidden",
+            overflow: "visible",
 
           }}
 
@@ -228,7 +228,7 @@ export default function ResponsiveRow({
 
                 ? "repeat(2, minmax(0, 1fr))"
 
-                : "repeat(4, minmax(0, 1fr))",
+                : "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
 
               gap: expanded ? "12px 18px" : "12px",
 
@@ -238,7 +238,7 @@ export default function ResponsiveRow({
 
               minWidth: 0,
 
-              overflow: expanded ? "visible" : "hidden",
+              overflow: "visible",
 
               marginTop: "12px",
 
@@ -260,17 +260,11 @@ export default function ResponsiveRow({
 
                   maxWidth: "100%",
 
-                  overflow: expanded ? "visible" : "hidden",
+                  overflow: "visible",
 
-                  paddingRight: expanded ? 0 : index < 3 ? "10px" : 0,
+                  paddingRight: 0,
 
-                  borderRight:
-
-                    expanded || index >= 3
-
-                      ? 0
-
-                      : "1px solid rgba(148, 163, 184, 0.12)",
+                  borderRight: 0,
 
                   opacity: item.label ? 1 : 0,
 
@@ -290,11 +284,11 @@ export default function ResponsiveRow({
 
                     minWidth: 0,
 
-                    whiteSpace: expanded ? "normal" : "nowrap",
+                    whiteSpace: "normal",
 
-                    overflow: expanded ? "visible" : "hidden",
+                    overflow: "visible",
 
-                    textOverflow: expanded ? "clip" : "ellipsis",
+                    textOverflow: "clip",
 
                     overflowWrap: "anywhere",
 
@@ -338,11 +332,11 @@ export default function ResponsiveRow({
 
                     minWidth: 0,
 
-                    whiteSpace: expanded ? "normal" : "nowrap",
+                    whiteSpace: "normal",
 
-                    overflow: expanded ? "visible" : "hidden",
+                    overflow: "visible",
 
-                    textOverflow: expanded ? "clip" : "ellipsis",
+                    textOverflow: "clip",
 
                     overflowWrap: "anywhere",
 
