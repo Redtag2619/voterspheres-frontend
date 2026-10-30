@@ -1855,3 +1855,32 @@ body,
   overflow-wrap: anywhere !important;
   word-break: normal !important;
 }
+
+/* Full mission/event metadata: override compact ResponsiveRow inline styles. */
+.vs-page-shell .vs-responsive-meta {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)) !important;
+  align-items: start !important;
+  gap: 12px 16px !important;
+  min-width: 0;
+}
+
+.vs-page-shell .vs-responsive-meta > div {
+  min-width: 0 !important;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.vs-page-shell .vs-responsive-meta .vs-meta-label,
+.vs-page-shell .vs-responsive-meta .vs-meta-value {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  height: auto !important;
+  max-height: none !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  line-height: 1.45 !important;
+}
