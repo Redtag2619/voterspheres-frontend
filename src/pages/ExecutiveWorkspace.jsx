@@ -1788,7 +1788,7 @@ export default function ExecutiveWorkspace() {
 
               </Link>
 
-              <Link className="vs-button vs-button-secondary" to="/unified-executive-intelligence">
+              <Link className="vs-button vs-button-secondary" to="/executive-intelligence">
 
                 Unified Intelligence
 
@@ -1812,13 +1812,13 @@ export default function ExecutiveWorkspace() {
 
               </Link>
 
-              <Link className="vs-button vs-button-secondary" to="/operations-map">
+              <Link className="vs-button vs-button-secondary" to="/state-operations">
 
                 Operations
 
               </Link>
 
-              <Link className="vs-button vs-button-secondary" to="/relationship-graph">
+              <Link className="vs-button vs-button-secondary" to="/political-intelligence">
 
                 Relationship Graph
 

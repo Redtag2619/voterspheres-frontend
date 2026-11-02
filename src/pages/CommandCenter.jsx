@@ -1,3 +1,5 @@
+import {taskMatchesWorkflow} from "../lib/workflowScope.js";
+import {useWorkflowScope} from "../context/WorkflowScopeContext.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom"; 
 import { api } from "../services/api";
@@ -505,42 +507,10 @@ function buildDecision(feed = [], consultantIntel = fallbackConsultantIntel, dar
 
 
 function DecisionIntelligenceCommandCard() {
-  return (
-    <div data-tour="command-decision-intelligence">
-      <SectionCard
-        title="Executive Decision Intelligence"
-        subtitle="Build 2D decision center for AI recommendations, ranked options, confidence scoring, risk review, and executive action paths."
-        right={<Badge tone="accent">Build 2D</Badge>}
-      >
-        <div className="decision-intelligence-command-card">
-          <div className="decision-intelligence-command-copy">
-            <span className="decision-intelligence-kicker">AI Executive Decision Layer</span>
-            <h3>Turn cross-module intelligence into ranked executive decisions.</h3>
-            <p>
-              Review synthesized signals from Forecast, Influence, Coalitions, Strategy, Operations, Political Graph,
-              vendors, alerts, and execution tasks in one decision workspace.
-            </p>
-          </div>
-
-          <div className="decision-intelligence-command-grid">
-            <div><span>Decision Score</span><b>Live</b></div>
-            <div><span>Risk Matrix</span><b>Active</b></div>
-            <div><span>Scenario Options</span><b>Ranked</b></div>
-            <div><span>Action Paths</span><b>Ready</b></div>
-          </div>
-
-          <div className="decision-intelligence-command-actions">
-            <Link className="vs-button" to="/executive-decision-intelligence">
-              Open Decision Intelligence
-            </Link>
-            <Link className="vs-button vs-button-secondary" to="/strategy-recommendation-dashboard">
-              Open AI Strategy Recommendation Engine
-            </Link>
-          </div>
-        </div>
-      </SectionCard>
-    </div>
-  );
+  return <div data-tour="command-decision-intelligence" className="vs-stack">
+    <p>Compare strategic options in Decision Intelligence, then return here to assign and track the approved work.</p>
+    <Link className="vs-button vs-button-secondary" to="/executive-decision-intelligence">Open Decision Intelligence</Link>
+  </div>;
 }
 
 function MetricGrid({ metrics = [] }) {
@@ -1347,6 +1317,7 @@ function CommandExecutiveHeader({
 }
 
 export default function CommandCenter() {
+  const {scope: workflowScope, activeWorkspaceId} = useWorkflowScope();
   const [searchParams] = useSearchParams();
   const [commandData, setCommandData] = useState(fallbackData);
   const [commandLoading, setCommandLoading] = useState(true);
@@ -1617,8 +1588,9 @@ export default function CommandCenter() {
   const feed = effectiveData.feed || [];
 
   const bridgeScopedTasks = useMemo(() => {
-    return isExecutiveMapBridge ? tasks.filter((task) => stateMatchesTask(task, mapBridgeState)) : tasks;
-  }, [tasks, isExecutiveMapBridge, mapBridgeState]);
+    const state = isExecutiveMapBridge ? mapBridgeState : workflowScope.state;
+    return tasks.filter(task => taskMatchesWorkflow(task, {...workflowScope, state}, activeWorkspaceId));
+  }, [tasks, isExecutiveMapBridge, mapBridgeState, workflowScope.state, workflowScope.task_scope, activeWorkspaceId]);
 
   const taskCounts = useMemo(() => {
     const sourceTasks = bridgeScopedTasks;
@@ -2480,7 +2452,7 @@ export default function CommandCenter() {
         id="command-overview-metrics"
         title="Executive Command Metrics"
         subtitle="Primary campaign command metrics from the live intelligence command layer."
-        defaultOpen
+        defaultOpen={false}
         right={<Badge tone={highSeverityCount ? "danger" : "active"}>{highSeverityCount ? `${highSeverityCount} High-Priority Alerts` : "Stable"}</Badge>}
       >
         <MetricGrid metrics={metrics} />
@@ -2490,7 +2462,7 @@ export default function CommandCenter() {
         id="command-decision-section"
         title="Executive Decision Intelligence"
         subtitle="AI decision layer, ranked options, confidence scoring, risk review, and executive action paths."
-        defaultOpen
+        defaultOpen={false}
         right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "Stable"}</Badge>}
       >
         <DecisionIntelligenceCommandCard />
@@ -2500,15 +2472,11 @@ export default function CommandCenter() {
         id="command-recommended-action-section"
         title="Recommended Executive Action"
         subtitle="Top action based on alerts, consultant activity, relationship data, and dark-money exposure."
-        defaultOpen
+        defaultOpen={false}
         right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
       >
         <div data-tour="command-recommended-action">
-        <SectionCard
-          title="Recommended Executive Action"
-          subtitle="The top action to review based on alerts, consultant activity, relationship data, and dark-money exposure."
-          right={<Badge tone={executiveDecision?.level === "STABLE" ? "active" : "danger"}>{executiveDecision?.level || "STABLE"}</Badge>}
-        >
+        <div className="vs-stack">
           <div className="vs-card-muted" style={{ padding: 16, display: "grid", gap: 12, minWidth: 0 }}>
             <div style={{ color: "var(--vs-text)", fontSize: 18, fontWeight: 900, overflowWrap: "anywhere" }}>
               {executiveDecision?.title}
@@ -2531,7 +2499,7 @@ export default function CommandCenter() {
               </Link>
             </div>
           </div>
-        </SectionCard>
+        </div>
       </div>
       </CollapsibleSection>
 
@@ -2543,11 +2511,7 @@ export default function CommandCenter() {
         right={<Badge tone={filteredTasks.length ? "info" : "default"}>{isExecutiveMapBridge ? `${filteredTasks.length} ${mapBridgeState} shown` : `${filteredTasks.length} shown`}</Badge>}
       >
       <div data-tour="command-execution-board">
-        <SectionCard
-          title="Executive Execution Board"
-          subtitle={isExecutiveMapBridge ? `Tasks filtered from Executive Operations Map for ${mapBridgeState}.` : "Tasks connected to campaign intelligence, county heat, vendors, MailOps, and operations."}
-          right={<Badge tone={filteredTasks.length ? "info" : "default"}>{isExecutiveMapBridge ? `${filteredTasks.length} ${mapBridgeState} shown` : `${filteredTasks.length} shown`}</Badge>}
-        >
+        <div className="vs-stack">
           {tasksLoading ? (
             <EmptyState text="Loading execution board..." />
           ) : (
@@ -2595,7 +2559,7 @@ export default function CommandCenter() {
               )}
             </>
           )}
-        </SectionCard>
+        </div>
       </div>
       </CollapsibleSection>
 

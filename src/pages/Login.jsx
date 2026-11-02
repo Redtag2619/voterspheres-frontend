@@ -13,7 +13,8 @@ function accessProgress(form) {
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+  const requestedNext = searchParams.get("next");
+  const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\") ? requestedNext : "/executive-workspace";
   const { login } = useAuth();
 
   const [form, setForm] = useState({
@@ -25,7 +26,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const progress = useMemo(() => accessProgress(form), [form]);
-  const destinationLabel = next === "/dashboard" ? "Executive Dashboard" : next;
+  const destinationLabel = next === "/executive-workspace" ? "Executive Workspace" : next === "/dashboard" ? "Legacy Dashboard" : next;
 
   function handleChange(event) {
     const { name, value } = event.target;

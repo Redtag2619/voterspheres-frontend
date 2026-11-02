@@ -1,4 +1,5 @@
 import ExecutiveKpiRibbon from "./ExecutiveKpiRibbon.jsx";
+import WorkflowGuide from "./WorkflowGuide.jsx";
 
  
 
@@ -3480,11 +3481,9 @@ export default function AppShell() {
 
  
 
-      <ExecutiveKpiRibbon />
-
- 
-
-      <UnifiedExecutiveStatusBar />
+      {location.pathname === "/executive-workspace" ? <><ExecutiveKpiRibbon /><UnifiedExecutiveStatusBar /></> : (
+        <details className="vs-global-context"><summary>Platform overview — metrics and source health</summary><ExecutiveKpiRibbon /><UnifiedExecutiveStatusBar /></details>
+      )}
 
  
 
@@ -3500,6 +3499,7 @@ export default function AppShell() {
 
  
 
+          <WorkflowGuide />
           <Outlet />
 
  

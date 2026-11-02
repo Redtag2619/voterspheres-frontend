@@ -1,3 +1,5 @@
+import {useWorkflowScope} from "../context/WorkflowScopeContext.jsx";
+import {workflowHref} from "../lib/workflowScope.js";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -99,6 +101,7 @@ function FeedRow({ item, onOpen }) {
 }
 
 export default function StateOperationsIndex() {
+  const workflow = useWorkflowScope();
   const navigate = useNavigate();
 
   const [data, setData] = useState(null);
@@ -115,7 +118,7 @@ export default function StateOperationsIndex() {
 
     if (!next) return;
 
-    navigate(`/state-operations/${next}`);
+    navigate(workflowHref(`/state-operations/${next}`, {...workflow.scope, state: next}, workflow.activeWorkspaceId));
   }
 
   async function load({ quiet = false } = {}) {

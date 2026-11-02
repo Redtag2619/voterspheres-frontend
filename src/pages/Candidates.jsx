@@ -1,3 +1,4 @@
+import {useWorkflowFilters, useWorkflowScope} from "../context/WorkflowScopeContext.jsx";
 import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -843,6 +844,7 @@ function CandidateExecutiveHeader({
 }
 
 export default function Candidates() {
+  const workflow = useWorkflowScope();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -885,11 +887,16 @@ export default function Candidates() {
   const [candidateIntel, setCandidateIntel] = useState({ summary: {}, results: [], heat_map: {} });
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(fallbackDetail);
+  useEffect(() => {
+    if (!workflow.scope.candidate_id) return;
+    const match = data.results.find(item => String(item.fec_candidate_id || item.fec_id || "") === workflow.scope.candidate_id);
+    setSelectedCandidateId(match?.id || null);
+  }, [data.results, workflow.scope.candidate_id]);
 
   const [states, setStates] = useState([]);
   const [offices, setOffices] = useState([]);
   const [parties, setParties] = useState([]);
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters] = useWorkflowFilters(initialFilters);
 
   const [lockDraft, setLockDraft] = useState({ admin_locked: false, locked_fields: {} });
   const [editDraft, setEditDraft] = useState({});
@@ -1001,15 +1008,15 @@ export default function Candidates() {
   }, [filters.state, filters.party, filters.office]);
 
   useEffect(() => {
-    const next = new URLSearchParams();
+    const next = new URLSearchParams(window.location.search);
     next.set("cycle", filters.cycle);
-    if (filters.q) next.set("q", filters.q);
-    if (filters.state) next.set("state", filters.state);
-    if (filters.office) next.set("office", filters.office);
-    if (filters.party) next.set("party", filters.party);
+    if (filters.q) next.set("q", filters.q); else next.delete("q");
+    next.set("state", filters.state || "");
+    next.set("office", filters.office || "");
+    next.set("party", filters.party || "");
     if (targetCandidateName) next.set("candidate", targetCandidateName);
     if (battlegroundContext) next.set("context", battlegroundContext);
-    setSearchParams(next, { replace: true });
+    if (next.toString() !== window.location.search.slice(1)) setSearchParams(next, { replace: true });
   }, [filters, targetCandidateName, battlegroundContext, setSearchParams]);
 
   useEffect(() => {
@@ -1033,6 +1040,7 @@ export default function Candidates() {
 
         if (results.length) {
           const preferred =
+            results.find(item => workflow.scope.candidate_id && String(item.fec_candidate_id || item.fec_id || "") === workflow.scope.candidate_id) ||
             results.find((item) =>
               targetCandidateName
                 ? normalizeCandidateName(item).toLowerCase().includes(targetCandidateName.toLowerCase())
@@ -1041,6 +1049,7 @@ export default function Candidates() {
 
           setSelectedCandidateId((prev) => {
             const exists = results.some((item) => String(item.id) === String(prev));
+            if (workflow.scope.candidate_id) return results.find(item => String(item.fec_candidate_id || item.fec_id || "") === workflow.scope.candidate_id)?.id || null;
             return exists ? prev : preferred.id;
           });
         } else {
@@ -1730,7 +1739,7 @@ export default function Candidates() {
                     verified={rowVerified}
                     isActive={String(selectedCandidateId) === String(candidate.id)}
                     targetMatch={targetCandidateName ? normalizeCandidateName(candidate).toLowerCase().includes(targetCandidateName.toLowerCase()) : false}
-                    onSelect={(item) => setSelectedCandidateId(item.id)}
+                    onSelect={(item) => { setSelectedCandidateId(item.id); workflow.updateScope({candidate_id: item.fec_candidate_id || item.fec_id || ""}); }}
                   />
                 );
               }}

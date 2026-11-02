@@ -80,7 +80,7 @@ export default function Signup() {
 
     try {
       await signup(form);
-      navigate("/dashboard");
+      navigate("/executive-workspace");
     } catch (err) {
       setError(
         err?.response?.data?.error ||

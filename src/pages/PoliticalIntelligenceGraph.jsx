@@ -1,3 +1,4 @@
+import {useWorkflowFilters} from "../context/WorkflowScopeContext.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api } from "../services/api";
@@ -1106,7 +1107,7 @@ export default function PoliticalIntelligenceGraph() {
 
   const [data, setData] = useState(fallbackGraphData);
 
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useWorkflowFilters({
 
     q: "",
 

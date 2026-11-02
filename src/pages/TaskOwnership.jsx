@@ -1,3 +1,5 @@
+import {taskMatchesWorkflow} from "../lib/workflowScope.js";
+import {useWorkflowScope} from "../context/WorkflowScopeContext.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 
@@ -135,6 +137,7 @@ function TaskOwnershipRow({ task, owners, onUpdate, updatingId }) {
 }
 
 export default function TaskOwnership() {
+  const {scope, activeWorkspaceId} = useWorkflowScope();
   const [data, setData] = useState(null);
   const [updatingId, setUpdatingId] = useState("");
   const [filter, setFilter] = useState("open");
@@ -192,6 +195,7 @@ export default function TaskOwnership() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      if (!taskMatchesWorkflow(task, scope, activeWorkspaceId)) return false;
       const status = normalizeStatus(task.status);
       const priority = String(task.priority || "").toLowerCase();
 
@@ -202,7 +206,7 @@ export default function TaskOwnership() {
       if (filter === "high") return ["critical", "high"].includes(priority);
       return status === filter;
     });
-  }, [tasks, filter]);
+  }, [tasks, filter, scope.state, scope.task_scope, activeWorkspaceId]);
 
   return (
     <PageShell

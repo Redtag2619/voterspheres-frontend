@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";  
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; 
 import VirtualTour from "./components/VirtualTour.jsx";
+import {WorkflowScopeProvider} from "./context/WorkflowScopeContext.jsx";
 import AppShell from "./components/AppShell";
 import RequirePermission from "./components/RequirePermission.jsx";
 import { ExecutiveFiltersProvider } from "./context/ExecutiveFiltersContext.jsx"; 
@@ -127,8 +128,10 @@ function ShellLayout() {
       <ExecutiveFiltersProvider>
         <WorkspaceProvider>
           <UnifiedExecutiveIntelligenceProvider>
-            <AppShell />
-            <VirtualTour />
+            <WorkflowScopeProvider>
+              <AppShell />
+              <VirtualTour />
+            </WorkflowScopeProvider>
           </UnifiedExecutiveIntelligenceProvider>
         </WorkspaceProvider>
       </ExecutiveFiltersProvider>
@@ -164,6 +167,11 @@ function PublicOnly() {
 }
 
   return <Outlet />;
+}
+
+function LegacyIntelligenceRedirect() {
+  const location = useLocation();
+  return <Navigate to={{pathname: "/executive-intelligence", search: location.search, hash: location.hash}} replace />;
 }
 
 function AppRoutes() {
@@ -265,6 +273,7 @@ function AppRoutes() {
               <Route path="/ai-tactical" element={<AITacticalIntelligence />} />
               <Route path="/workspaces" element={<CampaignWorkspaces />} />
               <Route path="/executive-intelligence" element={<CrossWorkspaceExecutiveDashboard />} />
+              <Route path="/unified-executive-intelligence" element={<LegacyIntelligenceRedirect />} />
               <Route path="/political-signals" element={<LivePoliticalSignals />} />
               <Route path="/relationship-graph" element={<RelationshipGraph />} />
               <Route path="/dark-money-exposure" element={<DarkMoneyExposure />} />

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {useWorkflowFilters, useWorkflowScope} from "../context/WorkflowScopeContext.jsx";
+import {useElectionCycle} from "../lib/useElectionCycle.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import PageShell from "../components/ui/PageShell";
@@ -326,19 +328,25 @@ function CollapseShell({ id, title, subtitle, open, onToggle, right, children })
 }
 
 export default function CampaignFinanceIntelligencePlatform() {
+  const workflow = useWorkflowScope();
+  const workflowCandidate = useRef(workflow.scope.candidate_id);
+  workflowCandidate.current = workflow.scope.candidate_id;
+  const requestGeneration = useRef(0);
+  const [cycle] = useElectionCycle("CampaignFinanceIntelligencePlatform");
   const [data, setData] = useState(fallbackData);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [activeCandidateId, setActiveCandidateId] = useState(null);
+  const [activeCandidateId, setActiveCandidateId] = useState(workflow.scope.candidate_id || null);
+  useEffect(() => { setActiveCandidateId(workflow.scope.candidate_id || null); }, [workflow.scope.candidate_id, cycle]);
   const [openSections, setOpenSections] = useState(sectionDefaults);
   const [showAll, setShowAll] = useState({
     command: false,
     pacs: false,
     states: false,
   });
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useWorkflowFilters({
     state: "",
     party: "",
     office: "",
@@ -346,6 +354,7 @@ export default function CampaignFinanceIntelligencePlatform() {
   });
 
   const loadData = useCallback(async ({ silent = false } = {}) => {
+    const generation = ++requestGeneration.current;
     try {
       if (!silent) setLoading(true);
       setError("");
@@ -353,6 +362,7 @@ export default function CampaignFinanceIntelligencePlatform() {
       const response = await api.get("/campaign-finance-intelligence", {
         params: {
           limit: 1000,
+          cycle,
           state: filters.state || undefined,
           party: filters.party || undefined,
           office: filters.office || undefined,
@@ -361,16 +371,19 @@ export default function CampaignFinanceIntelligencePlatform() {
         timeout: 15000,
       });
 
+      if (generation !== requestGeneration.current) return;
       const payload = normalizePayload(response?.data || fallbackData);
       setData(payload);
 
       setActiveCandidateId((current) => {
+        if (workflowCandidate.current) return workflowCandidate.current;
         if (current && payload.leaderboards.candidates.some((candidate) => String(candidate.candidate_id) === String(current))) {
           return current;
         }
-        return payload.leaderboards.candidates[0]?.candidate_id || null;
+        return workflow.scope.candidate_id || payload.leaderboards.candidates[0]?.candidate_id || null;
       });
     } catch (err) {
+      if (generation !== requestGeneration.current) return;
       setError(
         err?.response?.data?.error ||
           err?.message ||
@@ -378,9 +391,9 @@ export default function CampaignFinanceIntelligencePlatform() {
       );
       setData(fallbackData);
     } finally {
-      setLoading(false);
+      if (generation === requestGeneration.current) setLoading(false);
     }
-  }, [filters.state, filters.party, filters.office, filters.pac]);
+  }, [cycle, filters.state, filters.party, filters.office, filters.pac]);
 
   useEffect(() => {
     loadData();
@@ -392,7 +405,7 @@ export default function CampaignFinanceIntelligencePlatform() {
     setError("");
 
     try {
-      await api.post("/campaign-finance-intelligence/sync", {}, { timeout: 90000 });
+      await api.post("/campaign-finance-intelligence/sync", {cycle}, { timeout: 90000 });
       await loadData({ silent: true });
       setNotice("FEC finance and PAC data sync completed. Intelligence platform has been reloaded.");
     } catch (err) {
@@ -418,8 +431,8 @@ export default function CampaignFinanceIntelligencePlatform() {
   const summary = data.summary || fallbackData.summary;
 
   const activeCandidate = useMemo(() => {
-    return candidates.find((candidate) => String(candidate.candidate_id) === String(activeCandidateId)) || candidates[0] || null;
-  }, [candidates, activeCandidateId]);
+    return candidates.find((candidate) => String(candidate.candidate_id) === String(activeCandidateId)) || (workflow.scope.candidate_id ? null : candidates[0]) || null;
+  }, [candidates, activeCandidateId, workflow.scope.candidate_id]);
 
   const filterOptions = useMemo(() => {
     const unique = (items, key) =>
@@ -1112,7 +1125,7 @@ export default function CampaignFinanceIntelligencePlatform() {
                 key={candidate.candidate_id}
                 candidate={candidate}
                 active={String(candidate.candidate_id) === String(activeCandidateId)}
-                onClick={(item) => setActiveCandidateId(item.candidate_id)}
+                onClick={(item) => { setActiveCandidateId(item.candidate_id); workflow.updateScope({candidate_id: item.candidate_id}); }}
                 maxReceipts={maxCandidateReceipts}
               />
             ))

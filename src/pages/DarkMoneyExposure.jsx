@@ -1,3 +1,4 @@
+import {useWorkflowField} from "../context/WorkflowScopeContext.jsx";
 import {useElectionCycle} from "../lib/useElectionCycle.js";
 import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -393,7 +394,7 @@ export default function DarkMoneyExposure() {
 
  
 
-  const [state, setState] = useState("");
+  const [state, setState] = useWorkflowField("state");
 
  
 

@@ -1,3 +1,4 @@
+import {useWorkflowField} from "../context/WorkflowScopeContext.jsx";
 import {useElectionCycle} from "../lib/useElectionCycle.js";
 import {cycleOptions, initialCycle} from "../lib/electionCycleOptions.js";
 import { useEffect, useMemo, useState } from "react";
@@ -594,7 +595,7 @@ export default function DonorNetwork() {
 
   const [cycle, setCycle] = useElectionCycle("DonorNetwork");
 
-  const [selectedState, setSelectedState] = useState("");
+  const [selectedState, setSelectedState] = useWorkflowField("state");
 
   const [isDemoData, setIsDemoData] = useState(false);
 

@@ -1,3 +1,5 @@
+import {useWorkflowFilters, useWorkflowScope} from "../context/WorkflowScopeContext.jsx";
+import {useElectionCycle} from "../lib/useElectionCycle.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
@@ -611,14 +613,20 @@ function FinanceExecutiveHeader({
 }
 
 export default function FundraisingDashboard() {
+  const workflow = useWorkflowScope();
+  const workflowCandidate = useRef(workflow.scope.candidate_id);
+  workflowCandidate.current = workflow.scope.candidate_id;
+  const requestGeneration = useRef(0);
+  const [cycle] = useElectionCycle("FundraisingDashboard");
   const [loading, setLoading] = useState(true);
   const [refreshingFec, setRefreshingFec] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [data, setData] = useState(fallbackData);
-  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(workflow.scope.candidate_id || null);
+  useEffect(() => { setSelectedCandidateId(workflow.scope.candidate_id || null); }, [workflow.scope.candidate_id, cycle]);
   const selectedCandidateDetailRef = useRef(null);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useWorkflowFilters({
     candidate: "",
     state: "",
     office: "",
@@ -632,6 +640,7 @@ export default function FundraisingDashboard() {
     localStorage.getItem("vs_demo_mode") === "1";
 
   const loadFundraising = useCallback(async ({ silent = false } = {}) => {
+    const generation = ++requestGeneration.current;
     try {
       if (!silent) setLoading(true);
       setError("");
@@ -640,20 +649,22 @@ export default function FundraisingDashboard() {
 
       try {
         const fecResponse = await api.get("/fec/fundraising/leaderboard", {
-          params: { limit: 1000 },
+          params: { limit: 1000, cycle },
           timeout: 12000,
         });
         payload = fecResponse?.data;
       } catch (_fecError) {
         const intelligenceResponse = await api.get("/intelligence/fundraising/leaderboard", {
-          params: { limit: 1000 },
+          params: { limit: 1000, cycle },
           timeout: 12000,
         });
         payload = intelligenceResponse?.data;
       }
 
+      if (generation !== requestGeneration.current) return;
       setData(normalizePayload(payload || fallbackData));
     } catch (err) {
+      if (generation !== requestGeneration.current) return;
       setError(
         err?.response?.data?.error ||
           err?.message ||
@@ -662,9 +673,9 @@ export default function FundraisingDashboard() {
 
       setData(fallbackData);
     } finally {
-      setLoading(false);
+      if (generation === requestGeneration.current) setLoading(false);
     }
-  }, []);
+  }, [cycle]);
 
   useEffect(() => {
     let active = true;
@@ -729,6 +740,7 @@ export default function FundraisingDashboard() {
     }
 
     setSelectedCandidateId((current) => {
+      if (workflowCandidate.current) return workflowCandidate.current;
       if (
         current &&
         filteredLeaderboard.some((row) => String(row.candidate_id || row.name) === String(current))
@@ -736,7 +748,7 @@ export default function FundraisingDashboard() {
         return current;
       }
 
-      return filteredLeaderboard[0]?.candidate_id || filteredLeaderboard[0]?.name || null;
+      return workflow.scope.candidate_id || filteredLeaderboard[0]?.candidate_id || filteredLeaderboard[0]?.name || null;
     });
   }, [filteredLeaderboard]);
 
@@ -745,10 +757,10 @@ export default function FundraisingDashboard() {
       filteredLeaderboard.find(
         (row) => String(row.candidate_id || row.name) === String(selectedCandidateId)
       ) ||
-      filteredLeaderboard[0] ||
+      (workflow.scope.candidate_id ? null : filteredLeaderboard[0]) ||
       null
     );
-  }, [filteredLeaderboard, selectedCandidateId]);
+  }, [filteredLeaderboard, selectedCandidateId, workflow.scope.candidate_id]);
 
   const summary = useMemo(() => {
     const totalReceipts = filteredLeaderboard.reduce(
@@ -831,6 +843,7 @@ export default function FundraisingDashboard() {
 
   function handleCandidateSelect(candidate) {
     setSelectedCandidateId(candidate.candidate_id || candidate.name);
+    workflow.updateScope({candidate_id: candidate.candidate_id || ""});
 
     window.requestAnimationFrame(() => {
       selectedCandidateDetailRef.current?.scrollIntoView({
@@ -846,7 +859,7 @@ export default function FundraisingDashboard() {
     setError("");
 
     try {
-      await api.post("/fec/sync/candidate-financials", {}, { timeout: 60000 });
+      await api.post("/fec/sync/candidate-financials", {cycle}, { timeout: 60000 });
       await loadFundraising({ silent: true });
 
       setNotice("FEC fundraising feed imported successfully. Dashboard data has been reloaded.");
