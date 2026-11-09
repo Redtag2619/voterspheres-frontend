@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../services/api";
+import MailOpsIvLookup from "../components/MailOpsIvLookup.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 import PageShell from "../components/ui/PageShell";
 
@@ -874,7 +876,22 @@ const emptyComposer = {
 
  
 
-export default function MailOpsDashboard() {
+export default function MailOpsPage() {
+  const { loading, isAuthenticated, isPlatformAdmin, entitlements, user } = useAuth();
+  if (loading) return <PageShell title="MailOps"><p role="status">Loading MailOps…</p></PageShell>;
+  if (!isAuthenticated) return null;
+  const accountKey = `${user?.id}:${user?.firm_id}`;
+  if (isPlatformAdmin || entitlements.includes("mailops")) return <MailOpsDashboard key={accountKey} />;
+  return (
+    <PageShell title="MailOps" description="USPS Intelligent Mail barcode lookup.">
+      {entitlements.includes("mailops_iv")
+        ? <MailOpsIvLookup key={accountKey} />
+        : <p>USPS tracking is available to VoterSpheres subscribers.</p>}
+    </PageShell>
+  );
+}
+
+function MailOpsDashboard() {
 
   const { demoMode } = useDemoMode();
 
@@ -1524,6 +1541,8 @@ export default function MailOpsDashboard() {
 
     >
 
+      {!demoMode && <MailOpsIvLookup />}
+
       <DemoBanner active={isDemoData || isDemoEvents} text="Demo MailOps data is active for part of this module." />
 
  
@@ -1540,9 +1559,9 @@ export default function MailOpsDashboard() {
 
         title="USPS Political Mail Actions"
 
-        subtitle="Fast links for official USPS political mail notices, issue reporting, Informed Delivery campaign setup, and future IV-MTR tracking integration."
+        subtitle="Fast links for official USPS political mail notices, issue reporting, Informed Delivery campaign setup, and USPS tracking resources."
 
-        right={<Badge tone="info">USPS / IV-MTR Ready</Badge>}
+        right={<Badge tone="info">USPS resources</Badge>}
 
       >
 
@@ -1568,7 +1587,7 @@ export default function MailOpsDashboard() {
 
           <button type="button" className="vs-button vs-button-secondary" onClick={() => Promise.all([refreshEvents(), loadDashboard(), loadOptions()])}>
 
-            Refresh Mail Tracking
+            Refresh MailOps records
 
           </button>
 

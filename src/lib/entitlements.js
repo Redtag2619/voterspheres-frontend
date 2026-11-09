@@ -21,7 +21,7 @@ const PLAN_ENTITLEMENTS = Object.freeze({
     "finance_intelligence", "polling_intelligence", "political_signals",
     "narrative_intelligence", "power_rankings", "election_maps",
     "state_operations", "universal_search", "notifications", "basic_reports",
-    "live_data_refresh", "team_management",
+    "live_data_refresh", "team_management", "mailops_iv",
   ],
   pro: [
     "executive_intelligence", "advanced_ai", "campaign_operations", "campaign_crm",
@@ -88,7 +88,7 @@ const ROUTE_RULES = [
   { prefix: "/ai-tactical", minimumPlan: "pro", entitlement: "campaign_operations" },
   { prefix: "/command-center", minimumPlan: "pro", entitlement: "campaign_operations" },
   { prefix: "/vendors", minimumPlan: "pro", entitlement: "vendor_network" },
-  { prefix: "/mailops", minimumPlan: "pro", entitlement: "mailops" },
+  { prefix: "/mailops", minimumPlan: "starter", entitlement: "mailops_iv" },
   { prefix: "/task-ownership", minimumPlan: "pro", entitlement: "task_ownership" },
   { prefix: "/live-intelligence-layer", minimumPlan: "pro", entitlement: "campaign_operations" },
   { prefix: "/campaign-opportunity-heatmap", minimumPlan: "pro", entitlement: "opportunity_heatmap" },
