@@ -33,7 +33,8 @@ const PLANS = [
       "Everything in Starter; 3 users, 3 workspaces, 15 candidates",
       "Advanced AI, Command Center, CRM, War Room, MailOps, and vendors",
       "Relationships, dark money, coalitions, influence, and strategy",
-      "150 AI briefings, 100 exports, and 500,000 voice characters monthly",
+      "150 AI briefings per firm per month",
+      "100 exports and 500,000 voice characters monthly",
     ],
   },
   {
@@ -43,6 +44,7 @@ const PLANS = [
     description: "Premium multi-workstream control layer for serious firms.",
     features: [
       "Everything in Professional; 15 users and 15 workspaces",
+      "500 AI briefings per firm per month",
       "Unlimited candidates and report exports",
       "Digital twin, simulations, autonomous operations, and national command",
       "Business suite, revenue intelligence, client portal, and firm administration",

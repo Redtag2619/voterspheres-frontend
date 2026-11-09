@@ -42,7 +42,8 @@ const tiers = [
       "Advanced AI, Command Center, CRM, War Room, and MailOps",
       "Relationship, dark-money, coalition, influence, and strategy intelligence",
       "Vendor network, task ownership, branded reports, and exports",
-      "150 AI briefings, 100 exports, and 500,000 voice characters per month",
+      "150 AI briefings per firm per month",
+      "100 exports and 500,000 voice characters per month",
     ],
   },
   {
@@ -61,7 +62,8 @@ const tiers = [
       "National digital twin, predictive simulation, and autonomous operations",
       "National command, political intelligence fabric, and operations map",
       "Business suite, revenue intelligence, opportunity engine, and client portal",
-      "Unlimited report exports and 1,000 AI briefings per month",
+      "500 AI briefings per firm per month",
+      "Unlimited report exports",
     ],
   },
 ];
