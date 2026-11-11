@@ -25,7 +25,7 @@ import { useExecutiveFilters } from "../context/ExecutiveFiltersContext.jsx";
 
 import useRealtimeStream from "../hooks/useRealtimeStream";
 
- 
+
 
 const USPS_POLITICAL_MAIL_ALERT_URL =
 
@@ -43,7 +43,7 @@ const L2_DATA_WEBSITE_URL = "https://l2-data.com/";
 
 const L2_DATA_MAPPING_URL = "https://www.l2datamapping.com/";
 
- 
+
 
 const STATE_OPTIONS = [
 
@@ -153,7 +153,7 @@ const STATE_OPTIONS = [
 
 ];
 
- 
+
 
 function toneForStatus(value) {
 
@@ -171,7 +171,7 @@ function toneForStatus(value) {
 
 }
 
- 
+
 
 function toneForSeverity(value) {
 
@@ -187,7 +187,7 @@ function toneForSeverity(value) {
 
 }
 
- 
+
 
 function formatDate(value) {
 
@@ -199,7 +199,7 @@ function formatDate(value) {
 
 }
 
- 
+
 
 function formatDateTime(value) {
 
@@ -211,7 +211,7 @@ function formatDateTime(value) {
 
 }
 
- 
+
 
 function number(value, fallback = 0) {
 
@@ -221,7 +221,7 @@ function number(value, fallback = 0) {
 
 }
 
- 
+
 
 function pct(numerator, denominator) {
 
@@ -233,7 +233,7 @@ function pct(numerator, denominator) {
 
 }
 
- 
+
 
 function getRisk(row = {}) {
 
@@ -241,7 +241,7 @@ function getRisk(row = {}) {
 
 }
 
- 
+
 
 function fileNameFromInput(fileInput) {
 
@@ -251,7 +251,7 @@ function fileNameFromInput(fileInput) {
 
 }
 
- 
+
 
 function uniqueOptions(values = []) {
 
@@ -259,7 +259,7 @@ function uniqueOptions(values = []) {
 
 }
 
- 
+
 
 function Field({ label, value }) {
 
@@ -281,7 +281,7 @@ function Field({ label, value }) {
 
 }
 
- 
+
 
 function DropRow({ row }) {
 
@@ -323,7 +323,7 @@ function DropRow({ row }) {
 
 }
 
- 
+
 
 function AlertRow({ row }) {
 
@@ -365,7 +365,7 @@ function AlertRow({ row }) {
 
 }
 
- 
+
 
 function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
@@ -409,7 +409,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
             </div>
 
- 
+
 
             <div style={{ marginTop: 6, fontSize: 13, color: "var(--vs-text-muted)" }}>
 
@@ -419,7 +419,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
           </div>
 
- 
+
 
           <div className="vs-inline-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 
@@ -445,7 +445,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div className="vs-grid-4">
 
@@ -459,7 +459,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div className="vs-grid-4">
 
@@ -473,7 +473,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div className="vs-grid-4">
 
@@ -487,7 +487,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div className="vs-grid-4">
 
@@ -501,7 +501,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div style={{ fontSize: 13, color: "var(--vs-text-muted)", lineHeight: 1.6 }}>
 
@@ -509,7 +509,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div className="vs-grid-4">
 
@@ -563,7 +563,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <div className="vs-grid-4">
 
@@ -613,7 +613,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
           </select>
 
- 
+
 
           <select
 
@@ -635,7 +635,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
           </select>
 
- 
+
 
           <input
 
@@ -651,7 +651,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
           />
 
- 
+
 
           <input
 
@@ -669,7 +669,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         </div>
 
- 
+
 
         <textarea
 
@@ -685,7 +685,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
         />
 
- 
+
 
         <div className="vs-inline-actions">
 
@@ -705,7 +705,7 @@ function EventRow({ row, draft, onDraftChange, onSave, saving }) {
 
 }
 
- 
+
 
 const fallbackData = {
 
@@ -731,7 +731,7 @@ const fallbackData = {
 
 };
 
- 
+
 
 const fallbackEvents = {
 
@@ -741,7 +741,7 @@ const fallbackEvents = {
 
 };
 
- 
+
 
 const emptyComposer = {
 
@@ -769,7 +769,7 @@ const emptyComposer = {
 
   note: "",
 
- 
+
 
   job_number: "",
 
@@ -847,7 +847,7 @@ const emptyComposer = {
 
   issue_notes: "",
 
- 
+
 
   political_mail_alert_confirmation: "",
 
@@ -859,7 +859,7 @@ const emptyComposer = {
 
   informed_delivery_campaign_url: USPS_INFORMED_DELIVERY_CAMPAIGN_URL,
 
- 
+
 
   mail_piece_file_name: "",
 
@@ -875,7 +875,7 @@ const emptyComposer = {
 
 };
 
- 
+
 
 export default function MailOpsPage() {
   const { loading, isAuthenticated, isPlatformAdmin, entitlements, user } = useAuth();
@@ -898,7 +898,7 @@ function MailOpsDashboard() {
 
   const { filters } = useExecutiveFilters();
 
- 
+
 
   const [loading, setLoading] = useState(true);
 
@@ -964,11 +964,11 @@ function MailOpsDashboard() {
 
   });
 
- 
+
 
   const [eventDrafts, setEventDrafts] = useState({});
 
- 
+
 
   useRealtimeStream("intelligence:mailops", (event) => {
 
@@ -978,7 +978,7 @@ function MailOpsDashboard() {
 
     const liveAlert = payload.alert || null;
 
- 
+
 
     if (liveEvent) {
 
@@ -992,7 +992,7 @@ function MailOpsDashboard() {
 
       });
 
- 
+
 
       setData((prev) => {
 
@@ -1004,7 +1004,7 @@ function MailOpsDashboard() {
 
       });
 
- 
+
 
       setIsDemoEvents(false);
 
@@ -1014,7 +1014,7 @@ function MailOpsDashboard() {
 
     }
 
- 
+
 
     if (liveAlert) {
 
@@ -1028,7 +1028,7 @@ function MailOpsDashboard() {
 
       });
 
- 
+
 
       setIsDemoData(false);
 
@@ -1036,7 +1036,7 @@ function MailOpsDashboard() {
 
   });
 
- 
+
 
   useEffect(() => {
 
@@ -1054,7 +1054,7 @@ function MailOpsDashboard() {
 
   }, [filters.state, filters.office, filters.risk]);
 
- 
+
 
   async function loadDashboard() {
 
@@ -1066,7 +1066,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   async function loadOptions() {
 
@@ -1078,7 +1078,7 @@ function MailOpsDashboard() {
 
         : (await api.get("/mailops/options")).data;
 
- 
+
 
       setMailOpsOptions(response || {});
 
@@ -1090,7 +1090,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   async function refreshEvents() {
 
@@ -1102,7 +1102,7 @@ function MailOpsDashboard() {
 
     if (filters.risk) params.risk = filters.risk;
 
- 
+
 
     const response = api.mailOpsEvents
 
@@ -1110,7 +1110,7 @@ function MailOpsDashboard() {
 
       : (await api.get("/mailops/events", { params })).data;
 
- 
+
 
     setEventsData(response || fallbackEvents);
 
@@ -1118,13 +1118,13 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   useEffect(() => {
 
     let active = true;
 
- 
+
 
     async function load() {
 
@@ -1142,7 +1142,7 @@ function MailOpsDashboard() {
 
         ]);
 
- 
+
 
         if (!active) return;
 
@@ -1168,7 +1168,7 @@ function MailOpsDashboard() {
 
     }
 
- 
+
 
     load();
 
@@ -1180,13 +1180,13 @@ function MailOpsDashboard() {
 
   }, []);
 
- 
+
 
   useEffect(() => {
 
     let active = true;
 
- 
+
 
     async function load() {
 
@@ -1216,7 +1216,7 @@ function MailOpsDashboard() {
 
     }
 
- 
+
 
     load();
 
@@ -1228,7 +1228,7 @@ function MailOpsDashboard() {
 
   }, [filters.state, filters.office, filters.risk]);
 
- 
+
 
   const drops = useMemo(() => data?.drops || [], [data]);
 
@@ -1236,7 +1236,7 @@ function MailOpsDashboard() {
 
   const events = useMemo(() => eventsData?.results || [], [eventsData]);
 
- 
+
 
   useEffect(() => {
 
@@ -1274,7 +1274,7 @@ function MailOpsDashboard() {
 
   }, [events]);
 
- 
+
 
   const elevatedDrops = drops.filter((row) =>
 
@@ -1282,7 +1282,7 @@ function MailOpsDashboard() {
 
   ).length;
 
- 
+
 
   const highAlerts = alerts.filter((row) =>
 
@@ -1290,13 +1290,13 @@ function MailOpsDashboard() {
 
   ).length;
 
- 
+
 
   const totalPieces = events.reduce((sum, row) => sum + number(row.quantity || row.pieces_mailed), 0);
 
   const scfArrived = events.filter((row) => row.actual_scf_arrival_date).length;
 
- 
+
 
   function updateComposer(patch) {
 
@@ -1304,7 +1304,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   function handleInductionTypeChange(value) {
 
@@ -1320,7 +1320,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   function handleInductionFacilityChange(value) {
 
@@ -1334,7 +1334,7 @@ function MailOpsDashboard() {
 
     );
 
- 
+
 
     updateComposer({
 
@@ -1346,7 +1346,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   function handleScfChange(value) {
 
@@ -1362,7 +1362,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   function handleNdcChange(value) {
 
@@ -1378,7 +1378,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   async function handleCreateEvent(e) {
 
@@ -1390,7 +1390,7 @@ function MailOpsDashboard() {
 
     setCreatingEvent(true);
 
- 
+
 
     try {
 
@@ -1404,7 +1404,7 @@ function MailOpsDashboard() {
 
       };
 
- 
+
 
       if (api.createMailOpsEvent) {
 
@@ -1416,7 +1416,7 @@ function MailOpsDashboard() {
 
       }
 
- 
+
 
       setSuccessMessage("MailOps job created successfully.");
 
@@ -1432,7 +1432,7 @@ function MailOpsDashboard() {
 
       });
 
- 
+
 
       await Promise.all([refreshEvents(), loadDashboard(), loadOptions()]);
 
@@ -1448,7 +1448,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   function handleDraftChange(eventId, nextDraft) {
 
@@ -1456,7 +1456,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   async function handleSaveEvent(eventId) {
 
@@ -1466,7 +1466,7 @@ function MailOpsDashboard() {
 
     setSavingEventId(eventId);
 
- 
+
 
     try {
 
@@ -1474,7 +1474,7 @@ function MailOpsDashboard() {
 
       if (!draft) return;
 
- 
+
 
       if (api.updateMailOpsEvent) {
 
@@ -1486,7 +1486,7 @@ function MailOpsDashboard() {
 
       }
 
- 
+
 
       setSuccessMessage(`MailOps job #${eventId} updated successfully.`);
 
@@ -1504,7 +1504,7 @@ function MailOpsDashboard() {
 
   }
 
- 
+
 
   const inductionFacilities = (mailOpsOptions.facilities || []).filter(
 
@@ -1512,7 +1512,7 @@ function MailOpsDashboard() {
 
   );
 
- 
+
 
   return (
 
@@ -1546,7 +1546,7 @@ function MailOpsDashboard() {
 
       <DemoBanner active={isDemoData || isDemoEvents} text="Demo MailOps data is active for part of this module." />
 
- 
+
 
       {error ? <div className="vs-banner vs-banner-danger">{error}</div> : null}
 
@@ -1554,7 +1554,7 @@ function MailOpsDashboard() {
 
       {successMessage ? <div className="vs-banner">{successMessage}</div> : null}
 
- 
+
 
       <SectionCard
 
@@ -1596,7 +1596,7 @@ function MailOpsDashboard() {
 
       </SectionCard>
 
- 
+
 
       <SectionCard
 
@@ -1628,7 +1628,7 @@ function MailOpsDashboard() {
 
           </div>
 
- 
+
 
           <div
 
@@ -1680,7 +1680,7 @@ function MailOpsDashboard() {
 
       </SectionCard>
 
- 
+
 
       <div className="vs-grid-4">
 
@@ -1692,7 +1692,7 @@ function MailOpsDashboard() {
 
       </div>
 
- 
+
 
       <SectionCard
 
@@ -1740,7 +1740,7 @@ function MailOpsDashboard() {
 
               />
 
- 
+
 
               <input
 
@@ -1758,7 +1758,7 @@ function MailOpsDashboard() {
 
               />
 
- 
+
 
               <select
 
@@ -1780,7 +1780,7 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <input
 
@@ -1798,13 +1798,13 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
               <input className="vs-input" placeholder="Job Number" value={composer.job_number} onChange={(e) => updateComposer({ job_number: e.target.value })} />
 
- 
+
 
               <input
 
@@ -1820,7 +1820,7 @@ function MailOpsDashboard() {
 
               />
 
- 
+
 
               <input
 
@@ -1836,7 +1836,7 @@ function MailOpsDashboard() {
 
               />
 
- 
+
 
               <select className="vs-select" value={composer.delivery_risk} onChange={(e) => updateComposer({ delivery_risk: e.target.value, risk: e.target.value })}>
 
@@ -1852,7 +1852,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
@@ -1864,7 +1864,7 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <select className="vs-select" value={composer.mail_format} onChange={(e) => updateComposer({ mail_format: e.target.value })}>
 
@@ -1874,7 +1874,7 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <input className="vs-input" placeholder="Quantity" type="number" value={composer.quantity} onChange={(e) => updateComposer({ quantity: e.target.value, pieces_mailed: e.target.value })} />
 
@@ -1882,7 +1882,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
@@ -1892,7 +1892,7 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <select className="vs-select" value={composer.status} onChange={(e) => updateComposer({ status: e.target.value })}>
 
@@ -1900,7 +1900,7 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <select className="vs-select" value={composer.severity} onChange={(e) => updateComposer({ severity: e.target.value })}>
 
@@ -1914,13 +1914,13 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <input className="vs-input" placeholder="Tracking Source" value={composer.tracking_source} onChange={(e) => updateComposer({ tracking_source: e.target.value })} />
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
@@ -1944,7 +1944,7 @@ function MailOpsDashboard() {
 
               </select>
 
- 
+
 
               <input
 
@@ -1960,7 +1960,7 @@ function MailOpsDashboard() {
 
               />
 
- 
+
 
               <input
 
@@ -1974,7 +1974,7 @@ function MailOpsDashboard() {
 
               />
 
- 
+
 
               <input
 
@@ -1992,7 +1992,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
              <div className="vs-grid-4">
 
@@ -2006,7 +2006,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
@@ -2020,7 +2020,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
@@ -2028,19 +2028,23 @@ function MailOpsDashboard() {
 
               <input className="vs-input" placeholder="Last Scan Facility" value={composer.usps_last_scan_facility} onChange={(e) => updateComposer({ usps_last_scan_facility: e.target.value })} />
 
+              <input className="vs-input" placeholder="Political Alert Confirmation #" value={composer.political_mail_alert_confirmation} onChange={(e) => updateComposer({ political_mail_alert_confirmation: e.target.value })} />
+
+              <input className="vs-input" placeholder="Political Mail Problem Confirmation #" value={composer.political_mail_issue_confirmation} onChange={(e) => updateComposer({ political_mail_issue_confirmation: e.target.value })} />
+
 
 
 
 
             </div>
 
- 
+
 
             <div className="vs-grid-4">
 
-              <input className="vs-input" placeholder="Political Alert Confirmation #" value={composer.political_mail_alert_confirmation} onChange={(e) => updateComposer({ political_mail_alert_confirmation: e.target.value })} />
 
-              <input className="vs-input" placeholder="Political Mail Problem Confirmation #" value={composer.political_mail_issue_confirmation} onChange={(e) => updateComposer({ political_mail_issue_confirmation: e.target.value })} />
+
+
 
               <input className="vs-input" placeholder="Informed Delivery Campaign Name" value={composer.informed_delivery_campaign_name} onChange={(e) => updateComposer({ informed_delivery_campaign_name: e.target.value })} />
 
@@ -2048,7 +2052,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <SectionCard title="Attachments" subtitle="Store file names now. Real file upload storage can be wired next with multer/S3/Render disk.">
 
@@ -2096,7 +2100,7 @@ function MailOpsDashboard() {
 
                 </div>
 
- 
+
 
                 <div className="vs-card-muted" style={{ padding: 12 }}>
 
@@ -2140,7 +2144,7 @@ function MailOpsDashboard() {
 
                 </div>
 
- 
+
 
                 <div className="vs-card-muted" style={{ padding: 12 }}>
 
@@ -2188,11 +2192,11 @@ function MailOpsDashboard() {
 
             </SectionCard>
 
- 
+
 
             <textarea className="vs-textarea" rows={4} placeholder="Operational notes" value={composer.note} onChange={(e) => updateComposer({ note: e.target.value })} />
 
- 
+
 
             <div className="vs-inline-actions">
 
@@ -2210,7 +2214,7 @@ function MailOpsDashboard() {
 
             </div>
 
- 
+
 
             <datalist id="mailops-assigned-to">
 
@@ -2218,7 +2222,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-print-vendors">
 
@@ -2226,7 +2230,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-permit-numbers">
 
@@ -2234,7 +2238,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-crids">
 
@@ -2242,7 +2246,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-mids">
 
@@ -2250,7 +2254,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-organizations">
 
@@ -2258,7 +2262,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-organization-addresses">
 
@@ -2266,7 +2270,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-induction-facilities">
 
@@ -2282,7 +2286,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-scf-list">
 
@@ -2298,7 +2302,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-scf-addresses">
 
@@ -2314,7 +2318,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-ndc-list">
 
@@ -2330,7 +2334,7 @@ function MailOpsDashboard() {
 
             </datalist>
 
- 
+
 
             <datalist id="mailops-ndc-addresses">
 
@@ -2352,7 +2356,7 @@ function MailOpsDashboard() {
 
       </SectionCard>
 
- 
+
 
       <div className="vs-grid-2">
 
@@ -2366,7 +2370,7 @@ function MailOpsDashboard() {
 
         </SectionCard>
 
- 
+
 
         <SectionCard title="Postal Intelligence Alerts" subtitle="Risk signals that may affect SCF arrival or in-home timing.">
 
@@ -2380,7 +2384,7 @@ function MailOpsDashboard() {
 
       </div>
 
- 
+
 
       <SectionCard title="Vendor / Postal Facility Intelligence" subtitle="BMEU, SCF, NDC, DDU and vendor rollups from currently tracked jobs.">
 
@@ -2398,7 +2402,7 @@ function MailOpsDashboard() {
 
       </SectionCard>
 
- 
+
 
       <SectionCard title="MailOps Job Queue" subtitle="Update confirmation numbers, Informed Delivery campaign IDs, job status, severity, actual SCF arrival, actual in-home date, and operational notes.">
 
