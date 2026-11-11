@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { http } from "../services/api";
 import SectionCard from "./ui/SectionCard";
+import { campaignLabel, campaignErrorMessage, MANIFEST_TEMPLATE } from "../lib/mailOpsCampaignGuidance";
 import MailOpsFeedHealth from "./MailOpsFeedHealth";
 
 const BASE="/mailops/iv/campaigns";
@@ -22,7 +23,7 @@ export default function MailOpsCampaignTracking(){
   }
   function failure(err){
     if(err?.code==="ERR_CANCELED")return;
-    if(alive.current)setError(err?.response?.data?.message||"Campaign tracking is unavailable. No coverage result was assumed.");
+    if(alive.current)setError(campaignErrorMessage(err));
   }
   async function refreshList(){
     const data=await request("GET",BASE);
@@ -74,10 +75,17 @@ right={<button type="button" className="vs-button vs-button-secondary" aria-expa
       </form>}
       <label>Select mailing<select className="vs-input" value={selected} onChange={e=>setSelected(e.target.value)}>
         <option value="">Choose a mailing</option>
-        {campaigns.map(c=><option key={c.id} value={c.id}>{c.name} ({c.source_mode})</option>)}
+        {campaigns.map(c=><option key={c.id} value={c.id}>{campaignLabel(c,campaigns)}</option>)}
       </select></label>
       {selected&&<button className="vs-button" type="button" onClick={()=>action(()=>refresh(selected))}>Refresh campaign coverage</button>}
       {selected&&access.can_manage&&<>
+        <div className="vs-card-muted" style={{padding:12,minWidth:0}}>
+          <h4>Prepare your tracking manifest</h4>
+          <p>Use only the case-sensitive column imb and optional sequence. Keep full numeric barcodes and sequence labels as text to preserve leading zeros. A MID by itself is not an IMb.</p>
+          <p>Do not include names, addresses, ZIP, MID or other columns. Keep your address file separately. Maximum: 5,000 mailpieces and 1 MB per file.</p>
+          <a className="vs-button vs-button-secondary" download="mailops-manifest-template.csv" href={"data:text/csv;charset=utf-8,"+encodeURIComponent(MANIFEST_TEMPLATE)}>Download blank manifest template</a>
+          <p>The template contains headers only. Add the actual barcodes printed on your mailpieces before previewing. Selecting a file does not save or import it; preview it, review the counts, then apply.</p>
+        </div>
         <label>Manifest CSV — imb,sequence
           <input type="file" accept=".csv,text/csv" onChange={e=>{
             const file=e.target.files?.[0];const id=selected;
@@ -124,6 +132,8 @@ right={<button type="button" className="vs-button vs-button-secondary" aria-expa
     {busy&&<p role="status">Working…</p>}
     {summary&&<div aria-live="polite">
       <h3>{summary.campaign.name}</h3>
+      <p>{campaignLabel(summary.campaign,campaigns)}</p>
+      <p style={{overflowWrap:"anywhere"}}>Full campaign reference: {summary.campaign.id}</p>
       <dl>
         <dt>Manifest pieces</dt><dd>{summary.totals.total_pieces}</dd>
         <dt>Pieces with any event</dt><dd>{summary.totals.observed_pieces}</dd>
