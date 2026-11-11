@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../services/api";
 import MailOpsIvLookup from "../components/MailOpsIvLookup.jsx";
+import MailOpsCampaignTracking from "../components/MailOpsCampaignTracking.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 import PageShell from "../components/ui/PageShell";
@@ -885,7 +886,7 @@ export default function MailOpsPage() {
   return (
     <PageShell title="MailOps" description="USPS Intelligent Mail barcode lookup.">
       {entitlements.includes("mailops_iv")
-        ? <MailOpsIvLookup key={accountKey} />
+        ? <><MailOpsIvLookup key={accountKey} /><MailOpsCampaignTracking key={"campaign:"+accountKey} /></>
         : <p>USPS tracking is available to VoterSpheres subscribers.</p>}
     </PageShell>
   );
@@ -1541,7 +1542,7 @@ function MailOpsDashboard() {
 
     >
 
-      {!demoMode && <MailOpsIvLookup />}
+      {!demoMode && <><MailOpsIvLookup /><MailOpsCampaignTracking /></>}
 
       <DemoBanner active={isDemoData || isDemoEvents} text="Demo MailOps data is active for part of this module." />
 

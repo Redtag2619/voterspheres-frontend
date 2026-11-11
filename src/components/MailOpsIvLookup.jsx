@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { http } from "../services/api";
 import SectionCard from "./ui/SectionCard";
+import { parseScannedImb } from "../lib/mailOpsImbScan.js";
 
 const API_OPTIONS = { skipWorkspaceInjection: true, timeout: 25000 };
 const SAFE_ERRORS = new Set([
@@ -23,6 +24,42 @@ export default function MailOpsIvLookup() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(undefined);
   const activeLookup = useRef(null);
+  const midField = useRef(null);
+  const barcodeField = useRef(null);
+  const awaitingScan = useRef(false);
+  const [scanMessage, setScanMessage] = useState("");
+
+  function startScan() {
+    const field = barcodeField.current;
+    if (!field) return;
+    awaitingScan.current = true;
+    setScanMessage("Scan now. Use a scanner that supports USPS Intelligent Mail and outputs digits.");
+    field.focus();
+    field.select();
+  }
+
+  function finishScan() {
+    if (!awaitingScan.current) return;
+    awaitingScan.current = false;
+    const field = barcodeField.current;
+    const scan = parseScannedImb(field?.value);
+    if (!scan || !midField.current) {
+      setScanMessage("No valid numeric IMb received. Check the scanner setting or enter the barcode manually.");
+      return;
+    }
+    field.value = scan.imb;
+    midField.current.value = scan.mid;
+    setScanMessage("Barcode and Mailer ID filled in. Review them, then select Look up mailpiece.");
+  }
+
+  function barcodeKey(event) {
+    if (event.key === "Enter") {
+      // Keyboard-wedge scanners commonly send Enter after the decoded value.
+      // Do not turn that suffix into a USPS lookup.
+      event.preventDefault();
+      finishScan();
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,11 +131,13 @@ export default function MailOpsIvLookup() {
           <form onSubmit={submit}>
             <fieldset disabled={busy} style={{ display: "grid", gap: 12, maxWidth: "36rem" }}>
               <legend>Look up an IMb</legend>
+              <button className="vs-button" type="button" onClick={startScan}>Scan barcode with a scanner</button>
+              <p role="status">{scanMessage}</p>
               <label>Mailer ID (MID)
-                <input className="vs-input" name="mid" inputMode="numeric" pattern="[0-9]{6}|[0-9]{9}" maxLength={9} required />
+                <input className="vs-input" name="mid" ref={midField} inputMode="numeric" pattern="[0-9]{6}|[0-9]{9}" maxLength={9} required />
               </label>
               <label>Full numeric Intelligent Mail barcode (IMb)
-                <input className="vs-input" name="imb" inputMode="numeric" pattern="[0-9]{20}|[0-9]{25}|[0-9]{29}|[0-9]{31}" maxLength={31} required />
+                <input className="vs-input" name="imb" ref={barcodeField} inputMode="numeric" pattern="[0-9]{20}|[0-9]{25}|[0-9]{29}|[0-9]{31}" onKeyDown={barcodeKey} onBlur={finishScan} required />
               </label>
               <label>USPS Business Customer Gateway username
                 <input className="vs-input" name="username" autoComplete="off" maxLength={256} required />
