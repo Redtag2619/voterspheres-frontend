@@ -1522,7 +1522,7 @@ function MailOpsDashboard() {
 
       title="Track political mail execution, USPS risk, SCF movement, and vendor performance."
 
-      description="A full mail operations terminal for job tracking, USPS political mail escalation, IV-MTR readiness, BMEU/SCF/NDC/DDU induction facilities, SnailWorks-style ingestion, Informed Delivery campaigns, and delivery risk monitoring."
+      description="A full mail operations terminal for job tracking, USPS political mail escalation, IV-MTR readiness, BMEU/SCF/NDC/DDU induction facilities, Informed Delivery campaigns, and delivery risk monitoring."
 
       demo={demoMode}
 
@@ -2028,9 +2028,9 @@ function MailOpsDashboard() {
 
               <input className="vs-input" placeholder="Last Scan Facility" value={composer.usps_last_scan_facility} onChange={(e) => updateComposer({ usps_last_scan_facility: e.target.value })} />
 
-              <input className="vs-input" placeholder="SnailWorks Job ID" value={composer.snailworks_job_id} onChange={(e) => updateComposer({ snailworks_job_id: e.target.value })} />
 
-              <input className="vs-input" placeholder="SnailWorks Campaign ID" value={composer.snailworks_campaign_id} onChange={(e) => updateComposer({ snailworks_campaign_id: e.target.value })} />
+
+
 
             </div>
 
