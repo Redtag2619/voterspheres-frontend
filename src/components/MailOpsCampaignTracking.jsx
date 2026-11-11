@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { http } from "../services/api";
 import SectionCard from "./ui/SectionCard";
+import MailOpsFeedHealth from "./MailOpsFeedHealth";
 
 const BASE="/mailops/iv/campaigns";
 const OPTIONS={skipWorkspaceInjection:true,timeout:25000};
@@ -28,7 +29,9 @@ export default function MailOpsCampaignTracking(){
     if(alive.current)setCampaigns(data.campaigns);
   }
   async function refresh(id){
-    const data=await request("GET",BASE+"/"+id);
+    let data;
+    try { data=await request("GET",BASE+"/"+id); }
+    catch(err){if(alive.current && selectedRef.current===id)setSummary(null);throw err;}
     if(alive.current && selectedRef.current===id)setSummary(data);
   }
   useEffect(()=>{
@@ -125,13 +128,11 @@ right={<button type="button" className="vs-button vs-button-secondary" aria-expa
         <dt>Manifest pieces</dt><dd>{summary.totals.total_pieces}</dd>
         <dt>Pieces with any event</dt><dd>{summary.totals.observed_pieces}</dd>
         <dt>Pieces with an actual scan</dt><dd>{summary.totals.actual_scan_pieces}</dd>
-        <dt>No scan received</dt><dd>{summary.totals.no_scan_received}</dd>
+        <dt>Pieces without any reported event</dt><dd>{summary.totals.no_scan_received}</dd>
         <dt>Assumed events</dt><dd>{summary.totals.assumed_events}</dd>
         <dt>Logical events</dt><dd>{summary.totals.logical_events}</dd>
       </dl>
-      <p>{summary.last_feed
-        ? "Latest feed receipt: "+summary.last_feed.received_at+"; unmatched rows in that file: "+summary.last_feed.unmatched_rows
-        : "No feed received yet. The manifest alone does not establish USPS acceptance."}</p>
+      <MailOpsFeedHealth health={summary.feed_health} />
       <p>First 100 manifest pieces. Event timestamps retain the USPS source text and may be local time.</p>
       <ul>{summary.pieces.map(piece=><li key={piece.imb} style={{overflowWrap:"anywhere"}}>
         {piece.sequence||"No sequence label"} — {piece.imb} — {piece.event_count} events
