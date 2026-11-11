@@ -5,6 +5,7 @@ import SectionCard from "./ui/SectionCard";
 const BASE="/mailops/iv/campaigns";
 const OPTIONS={skipWorkspaceInjection:true,timeout:25000};
 export default function MailOpsCampaignTracking(){
+  const [trackingOpen, setTrackingOpen] = useState(true);
   const [access,setAccess]=useState(null),[campaigns,setCampaigns]=useState([]),[selected,setSelected]=useState("");
   const [summary,setSummary]=useState(null),[events,setEvents]=useState(null),[csv,setCsv]=useState(""),[preview,setPreview]=useState(null);
   const [token,setToken]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -52,7 +53,9 @@ export default function MailOpsCampaignTracking(){
     try{await fn();}catch(err){failure(err);}finally{if(alive.current)setBusy(false);}
   }
   if(!access?.enabled)return null;
-  return <SectionCard title="Campaign mail tracking" subtitle="Import a barcode manifest and receive ongoing USPS feed events through your campaign relay.">
+  return <SectionCard title="Campaign mail tracking" subtitle="Import a barcode manifest and receive ongoing USPS feed events through your campaign relay."
+right={<button type="button" className="vs-button vs-button-secondary" aria-expanded={trackingOpen} aria-controls="mailops-campaign-body" onClick={() => setTrackingOpen(open => !open)}>{trackingOpen ? "Collapse" : "Open"}</button>}>
+<div id="mailops-campaign-body" hidden={!trackingOpen}>
     <p>Scans reflect files received from your configured relay. Missing scans do not prove a delay. Logical and assumed events are not physical scans or proof of delivery. Acceptance documentation remains separate.</p>
     {error&&<p role="alert">{error}</p>}
     <fieldset disabled={busy} style={{display:"grid",gap:12,minWidth:0}}>
@@ -140,5 +143,6 @@ export default function MailOpsCampaignTracking(){
       </li>)}</ul>
       {events&&<ol>{events.map((ev,index)=><li key={index}>{ev.event_time} · {ev.event_type} · Code {ev.event_code} · {ev.facility}</li>)}</ol>}
     </div>}
-  </SectionCard>;
+  </div>
+</SectionCard>;
 }

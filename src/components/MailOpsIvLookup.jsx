@@ -19,6 +19,7 @@ const EVENT_LABELS = {
 };
 
 export default function MailOpsIvLookup() {
+  const [trackingOpen, setTrackingOpen] = useState(true);
   const [availability, setAvailability] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -113,7 +114,9 @@ export default function MailOpsIvLookup() {
     <SectionCard
       title="USPS Intelligent Mail tracking"
       subtitle="Look up one mailpiece using your authorized USPS Informed Visibility account."
+right={<button type="button" className="vs-button vs-button-secondary" aria-expanded={trackingOpen} aria-controls="mailops-iv-body" onClick={() => setTrackingOpen(open => !open)}>{trackingOpen ? "Collapse" : "Open"}</button>}
     >
+<div id="mailops-iv-body" hidden={!trackingOpen}>
       {!availability && <p role="status">Checking USPS tracking availability…</p>}
       {availability?.enabled === false && (
         <p role="status">{availability.unavailable
@@ -173,6 +176,7 @@ export default function MailOpsIvLookup() {
           </ol>
         </div>
       )}
-    </SectionCard>
+    </div>
+</SectionCard>
   );
 }
