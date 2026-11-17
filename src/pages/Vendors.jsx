@@ -1087,7 +1087,7 @@ export default function Vendors() {
   });
 
   const [selectedGroup, setSelectedGroup] = useState("All");
-  const [selectedState, setSelectedState] = useState(normalizeState(initialUrl.state) || "PA");
+  const [selectedState, setSelectedState] = useState(normalizeState(initialUrl.state) || "");
   const [tooltip, setTooltip] = useState({
     visible: false,
     x: 0,
@@ -1294,12 +1294,8 @@ export default function Vendors() {
   }, [stateCoverage]);
 
   const selectedStateCoverage = useMemo(() => {
-    return (
-      stateCoverage.find((state) => state.state === selectedState) ||
-      stateCoverage.find((state) => state.coverage_score > 0) ||
-      stateCoverage[0] ||
-      null
-    );
+    if (!selectedState) return null;
+    return stateCoverage.find((state) => state.state === selectedState) || null;
   }, [stateCoverage, selectedState]);
 
   const displayRowsWithBaseline = useMemo(() => {
@@ -2241,7 +2237,7 @@ export default function Vendors() {
             onChange={(e) =>
               setFilters((prev) => {
                 const state = e.target.value;
-                if (state) setSelectedState(state);
+                setSelectedState(normalizeState(state) || "");
                 return {
                   ...prev,
                   state,
