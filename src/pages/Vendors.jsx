@@ -491,15 +491,16 @@ function goToExecutiveMap(state, group = "All") {
   window.location.href = `/executive-operations-map?state=${encodeURIComponent(state)}&source=vendor-network&group=${encodeURIComponent(group)}`;
 }
 
-async function loadFecVendorSpend(params = {}) {
+async function loadFecVendorSpend(params = {}, options = {}) {
   if (typeof api.vendorFecSpend === "function") {
-    return api.vendorFecSpend(params);
+    return api.vendorFecSpend(params, options);
   }
 
   if (typeof api.get === "function") {
     const response = await api.get("/vendor-fec/spend", {
       params,
       timeout: 10000,
+      signal: options.signal,
     });
     return response?.data || response;
   }
@@ -1133,13 +1134,14 @@ export default function Vendors() {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     async function loadVendors() {
       try {
         setLoading(true);
         setError("");
 
-        const data = await api.vendors(filters);
+        const data = await api.vendors(filters, { signal: controller.signal });
 
         if (!active) return;
 
@@ -1154,15 +1156,18 @@ export default function Vendors() {
       }
     }
 
-    loadVendors();
+    const timer = setTimeout(loadVendors, 350);
 
     return () => {
       active = false;
+      clearTimeout(timer);
+      controller.abort();
     };
   }, [filters]);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     async function loadFec() {
       setFecRows([]); setFecCategories([]); setFecStates([]);
@@ -1176,8 +1181,7 @@ export default function Vendors() {
           category: filters.category || undefined,
           cycle: filters.cycle || "2026",
           limit: 250,
-          live: 1,
-        });
+        }, { signal: controller.signal });
 
         if (!active) return;
 
@@ -1205,10 +1209,12 @@ export default function Vendors() {
       }
     }
 
-    loadFec();
+    const timer = setTimeout(loadFec, 350);
 
     return () => {
       active = false;
+      clearTimeout(timer);
+      controller.abort();
     };
   }, [filters.q, filters.state, filters.category, filters.cycle]);
 
@@ -2881,4 +2887,3 @@ export default function Vendors() {
     </PageShell>
   );
 }
-

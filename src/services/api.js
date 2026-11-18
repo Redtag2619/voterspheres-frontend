@@ -641,10 +641,10 @@ export const vendorsApi = {
     return normalizeListResult(data, ["results", "statuses"]);
   },
 
-  list: async (params = {}) => {
+  list: async (params = {}, options = {}) => {
     const data = await tryGet(
       ["/vendors", "/platform/vendors", "/crm/vendors"],
-      { params: withWorkspaceParams(params) }
+      { params: withWorkspaceParams(params), signal: options.signal }
     );
     return Array.isArray(data) ? { results: data } : data;
   },
@@ -656,8 +656,9 @@ export const vendorsApi = {
       params: withWorkspaceParams(params),
     }),
 
-    fecSpend: (params = {}) =>
+    fecSpend: (params = {}, options = {}) =>
     tryGet(["/vendor-fec/spend"], {
+      signal: options.signal,
       params: withWorkspaceParams(params),
     }),
 
